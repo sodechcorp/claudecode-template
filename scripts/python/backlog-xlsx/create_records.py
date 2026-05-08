@@ -58,9 +58,21 @@ def extract_section(md, *headings):
     """指定見出し（## または ###）のセクション本文を返す。
     複数見出しは先にマッチしたものを使用。本文が空のセクションはスキップ。
     末尾の括弧「（確定後に記入）」のような付記も許容する。  [M2]
+    見出し揺れ吸収:
+    - 先頭の「■ 」等の記号を無視
+    - 末尾の「:」「：」「テーブル」を無視
+    - `#` 直後の全角スペースも許容
     """
     for h in headings:
-        pat = r"^#{1,3}\s+" + re.escape(h) + r"(?:\s*[（(][^)）]*[)）])?\s*$"
+        # 正規化後の見出しにマッチするパターン
+        # 先頭: ■や●などの記号＋スペースを無視, 末尾: :／：／「テーブル」を無視
+        pat = (
+            r"^#{1,3}[\s　]+"              # ## または ### + 半/全角スペース
+            r"(?:[■●▶◆]\s*)?"                 # 先頭記号（省略可）
+            + re.escape(h) +
+            r"(?:テーブル|一覧|[:：])?"         # 末尾の付記（省略可）
+            r"(?:\s*[（(][^)）]*[)）])?\s*$"   # 括弧付記（省略可）
+        )
         m = re.search(pat, md, re.MULTILINE)
         if m:
             start = m.end()
@@ -294,15 +306,40 @@ def _merge_exists(ws, r1, c1, r2, c2):
 
 
 def _shrink_table(ws, data_start, actual_count, limit):
-    """実データ件数がテンプレ枠数より少ない場合、余り行を削除。  [R4]"""
+    """実データ件数がテンプレ枠数より少ない場合、余り行を削除。  [R4]
+
+    openpyxl の delete_rows は cell 値をシフトするが merged cell 範囲をシフトしない。
+    insert_rows_with_format と同様のスナップショット再構築パターンで補正する。
+    """
     excess = limit - actual_count
     if excess <= 0:
         return
     delete_start = data_start + actual_count
-    for mg in list(ws.merged_cells.ranges):
-        if mg.min_row >= delete_start and mg.max_row <= delete_start + excess - 1:
-            ws.unmerge_cells(str(mg))
+
+    all_merges = [(m.min_row, m.max_row, m.min_col, m.max_col)
+                  for m in list(ws.merged_cells.ranges)]
+    for mcr in list(ws.merged_cells.ranges):
+        ws.merged_cells.ranges.discard(mcr)
+
     ws.delete_rows(delete_start, excess)
+
+    for (min_r, max_r, min_c, max_c) in all_merges:
+        # 削除範囲に完全に収まる merge は破棄
+        if min_r >= delete_start and max_r <= delete_start + excess - 1:
+            continue
+        # 削除位置以降 → シフト
+        elif min_r >= delete_start:
+            ws.merge_cells(start_row=min_r - excess, end_row=max_r - excess,
+                           start_column=min_c, end_column=max_c)
+        # 削除範囲にまたがる merge → 上端だけ残してクリップ
+        elif max_r >= delete_start:
+            new_max_r = max(min_r, delete_start - 1)
+            ws.merge_cells(start_row=min_r, end_row=new_max_r,
+                           start_column=min_c, end_column=max_c)
+        # 削除位置より前 → そのまま
+        else:
+            ws.merge_cells(start_row=min_r, end_row=max_r,
+                           start_column=min_c, end_column=max_c)
 
 
 # ── 行高自動調整ヘルパー ─────────────────────────────────────────────────────  [F11]
@@ -437,6 +474,47 @@ def _extract_main_changes(impl_md):
     return f"{count}件" if count > 0 else "（実装後に記入）"
 
 
+def _parse_impact_bullets(section_text):
+    """影響範囲セクションの箇条書きを [{種別, 対象, 役割}] に変換する。
+    テーブルが存在する場合は parse_md_table に委譲する。
+    箇条書き: backtick で囲まれたパス/クラス名 + 説明 の形式を処理。
+    """
+    rows = parse_md_table(section_text)
+    if rows:
+        return rows
+    result = []
+    for ln in section_text.splitlines():
+        ln = ln.strip()
+        if not ln.startswith("-"):
+            continue
+        content = ln.lstrip("- ").strip()
+        if not content:
+            continue
+        # バックティックの中身をコンポーネント名として抽出
+        m = re.match(r"`([^`]+)`\s*(.*)", content)
+        if m:
+            target = m.group(1).strip()
+            desc = re.sub(r"^\([^)]*\)\s*", "", m.group(2)).lstrip("—— ").replace("**", "").strip()
+        else:
+            # 括弧前をターゲット、括弧以降を役割とする
+            m2 = re.match(r"([^\s（(]+)\s*[（(]?(.*)", content)
+            target = m2.group(1).strip() if m2 else content[:40]
+            desc = m2.group(2).rstrip("）)").strip().replace("**", "") if m2 else ""
+        # 種別をパスから推定
+        if "/lwc/" in target:
+            kind = "LWC"
+        elif ".cls" in target or "/classes/" in target:
+            kind = "Apex"
+        elif ".flow" in target or "/flows/" in target:
+            kind = "Flow"
+        elif "/objects/" in target:
+            kind = "Object"
+        else:
+            kind = "ファイル"
+        result.append({"種別": kind, "対象": target, "役割": desc})
+    return result
+
+
 def _extract_rollback_hint(impl_md):
     """ロールバック手順の1行サマリー。"""
     section = extract_section(impl_md, "ロールバック手順", "ロールバック", "切り戻し手順")
@@ -470,8 +548,7 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
             "課題サマリー", "要件理解", "一言要約",
         )
         if not summary_bg:
-            paras = [p.strip() for p in inv_md.split("\n\n") if p.strip() and not p.strip().startswith("#")]
-            summary_bg = paras[0][:200] if paras else ""
+            summary_bg = "（概要セクションが investigation.md に見つかりません）"
 
     wset(ws, 3, 2, issue_id)
     wset(ws, 4, 2, title)
@@ -487,12 +564,20 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     approach_summary_1line = approach_summary.replace("\n", " ").replace("**", "").strip()[:120] if approach_summary else "（対応方針確定後に記入）"
     wset(ws, 11, 2, approach_summary_1line)
     wset(ws, 12, 2, _extract_main_changes(impl_md))
-    wset(ws, 13, 2, "（テスト完了後に記入）")
-    wset(ws, 14, 2, "（リリース後に記入）")
+    wset(ws, 13, 2, "")  # テスト完了後に update_records.py cell で更新
+    wset(ws, 14, 2, "")  # リリース後に update_records.py cell で更新
     wset(ws, 15, 2, _extract_rollback_hint(impl_md))
 
-    # タイムライン 3 行（Phase 1〜3）— 理由列も埋める  [F1]
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    # タイムライン: 各フェーズを MD ファイルの更新日時で書き込む  [A-4]
+    # 対応する MD が空の場合はその行を空にする（update_records.py timeline が後から追記できるよう）
+    def _file_mtime(path):
+        try:
+            return datetime.datetime.fromtimestamp(
+                Path(path).stat().st_mtime
+            ).strftime("%Y-%m-%d %H:%M") if path and Path(path).exists() else ""
+        except OSError:
+            return ""
+
     inv_result = extract_section(
         inv_md,
         "根本原因", "調査結果", "原因", "調査・まとめ",
@@ -502,7 +587,6 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     if inv_result:
         inv_result_oneliner = inv_result.replace("\n", " ").lstrip("- ").replace("**", "")[:80]
     else:
-        # 一言要約から生成（セクション名なしの場合）
         oneliner_v = extract_metadata(inv_md, "一言要約")
         inv_result_oneliner = oneliner_v.split("、")[0][:60] if oneliner_v else "調査完了"
     approach_adopted = extract_section(approach_md, "採用方針", "推奨案", "推奨案と根拠")
@@ -514,12 +598,12 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     impl_oneliner = impl_summary.replace("\n", " ")[:80]
 
     tl_rows = [
-        (1, now, "Claude", "調査", f"調査完了: {inv_result_oneliner}",
-         _extract_inv_reason(inv_md)),
-        (2, now, "ユーザ", "方針策定", f"対応方針確定: {approach_oneliner}",
-         _extract_adopted_reason(approach_md)),
-        (3, now, "ユーザ", "実装方針確定", f"全判断ポイント確定: {impl_oneliner}",
-         _extract_impl_reason(impl_md)),
+        (1, _file_mtime(args.investigation), "Claude", "調査",
+         f"調査完了: {inv_result_oneliner}", _extract_inv_reason(inv_md)),
+        (2, _file_mtime(args.approach_plan) if approach_md else "", "ユーザ", "方針策定",
+         f"対応方針確定: {approach_oneliner}" if approach_md else "", _extract_adopted_reason(approach_md)),
+        (3, _file_mtime(args.implementation_plan) if impl_md else "", "ユーザ", "実装方針確定",
+         f"全判断ポイント確定: {impl_oneliner}" if impl_md else "", _extract_impl_reason(impl_md)),
     ]
     for i, row in enumerate(tl_rows):
         fill = _stripe_fill(i)
@@ -744,15 +828,14 @@ def fill_investigation(ws, inv_md):
             wset(ws, code_data_start + i, j, get_col(row, *candidates), fill)
         auto_fit_row(ws, code_data_start + i)
 
-    # 影響範囲（テンプレ修正後 3列構成: 種別/対象/役割/影響内容）[F3: 動的拡張 + ソース変更]
-    # ソースを「関連コンポーネント一覧」に変更（フロー名/役割 2列より情報が豊富）
-    comp_text = extract_section(inv_md, "関連コンポーネント", "関連コンポーネント一覧")
-    impact_rows = parse_md_table(comp_text)
+    # 影響範囲: 変更によって影響を受ける外部ファイル・フロー  [A-2: ソース分離]
+    impact_text = extract_section(inv_md, "影響範囲")
+    impact_rows = _parse_impact_bullets(impact_text)
     if not impact_rows:
         # フォールバック: 業務文脈 > 関連フロー
         ctx_text = extract_section(inv_md, "業務文脈", "業務文脈（docs/ から）")
         flow_text = extract_section_after_keyword(ctx_text or inv_md, "関連フロー")
-        impact_rows = parse_md_table(flow_text)
+        impact_rows = _parse_impact_bullets(flow_text)
 
     impact_header_row = find_header_row(ws, ("■ 影響範囲テーブル", "■ 影響範囲"))
     impact_data_start = (impact_header_row + 2) if impact_header_row else 20
@@ -793,7 +876,10 @@ def fill_investigation(ws, inv_md):
                            start_column=3, end_column=4)
         auto_fit_row(ws, target_row)
 
-    # 関連コンポーネント一覧（テンプレ修正後 3列構成: 種別/名前/役割）[F3: 調査結果列削除]
+    # 関連コンポーネント一覧: 当課題で変更/参照する SF コンポーネント  [A-2: ソース分離]
+    raw_comp_text = extract_section(inv_md, "関連コンポーネント", "関連コンポーネント一覧")
+    comp_rows = parse_md_table(raw_comp_text)
+
     comp_header_row = find_header_row(ws, ("■ 関連コンポーネント", "■ 関連コンポーネント一覧"))
     comp_data_start = (comp_header_row + 2) if comp_header_row else 29
     COMP_LIMIT = 5
@@ -805,7 +891,7 @@ def fill_investigation(ws, inv_md):
             ws.merge_cells(start_row=comp_col_header_row, end_row=comp_col_header_row,
                            start_column=3, end_column=4)
 
-    extra_comp = max(0, len(impact_rows) - COMP_LIMIT)
+    extra_comp = max(0, len(comp_rows) - COMP_LIMIT)
     if extra_comp > 0:
         insert_rows_with_format(
             ws,
@@ -814,15 +900,15 @@ def fill_investigation(ws, inv_md):
             source_row=comp_data_start,
             max_col=4,
         )
-    elif len(impact_rows) < COMP_LIMIT:
-        _shrink_table(ws, comp_data_start, len(impact_rows), COMP_LIMIT)
+    elif len(comp_rows) < COMP_LIMIT:
+        _shrink_table(ws, comp_data_start, len(comp_rows), COMP_LIMIT)
 
-    for i, row in enumerate(impact_rows[:10]):
+    for i, row in enumerate(comp_rows[:10]):
         fill = _stripe_fill(i)
         # 3列構成: 種別/名前(ファイルパス)/役割  [F3]
-        wset(ws, comp_data_start + i, 1, row.get("種別", ""), fill)
-        wset(ws, comp_data_start + i, 2, get_col(row, "名前", "ファイルパス", "コンポーネント名"), fill)
-        wset(ws, comp_data_start + i, 3, row.get("役割", ""), fill)
+        wset(ws, comp_data_start + i, 1, get_col(row, "種別"), fill)
+        wset(ws, comp_data_start + i, 2, get_col(row, "対象", "ファイルパス", "名前", "コンポーネント名"), fill)
+        wset(ws, comp_data_start + i, 3, get_col(row, "役割", "内容", "補足"), fill)
         target_row = comp_data_start + i
         if not _merge_exists(ws, target_row, 3, target_row, 4):
             ws.merge_cells(start_row=target_row, end_row=target_row,
@@ -844,9 +930,9 @@ def _has_code_change(impl_md):
 def fill_content(ws, impl_md):
     # バックアップ情報 (r3-r5): コード変更なし案件は「該当なし」default を入れる  [F4]
     if _has_code_change(impl_md):
-        wset(ws, 3, 2, "（実装時記入）")
-        wset(ws, 4, 2, "（実装時記入）")
-        wset(ws, 5, 2, "（実装時記入）")
+        wset(ws, 3, 2, "")  # バックアップ先: 実装時に記入
+        wset(ws, 4, 2, "")  # コミットハッシュ: 実装時に記入
+        wset(ws, 5, 2, "")  # ロールバック手順: 実装時に記入
     else:
         wset(ws, 3, 2, "該当なし（コード変更なし）")
         wset(ws, 4, 2, "該当なし")
@@ -957,8 +1043,8 @@ def fill_test(ws, impl_md):
             row.get("確認観点", row.get("テスト項目", "")),
             row.get("確認手順", row.get("確認方法", "")),
             row.get("期待結果", ""),
-            row.get("実際の結果", "（テスト実行後記入）"),  # [F11]
-            row.get("判定", "（実行後）"),                  # [F11]
+            row.get("実際の結果", ""),  # テスト実行後に記入
+            row.get("判定", ""),       # テスト実行後に記入
         ]
         for j, val in enumerate(vals, start=1):
             wset(ws, TEST_START + i, j, val, fill)
@@ -990,7 +1076,7 @@ def fill_release(ws, impl_md, approach_md=""):
 
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
-        api_name = get_col(row, "API名", "対象", "ファイルパス")
+        api_name = get_col(row, "対象", "API名", "ファイルパス")
         wset(ws, RELEASE_START + i, 1, row.get("No", str(i + 1)), fill)
         wset(ws, RELEASE_START + i, 2, row.get("種別", ""), fill)
         wset(ws, RELEASE_START + i, 3, api_name, fill)
