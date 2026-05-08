@@ -432,46 +432,150 @@ def _extract_impl_reason(md):
     return ""
 
 
+def _infer_kind_from_path(path):
+    """ファイルパスから種別（Apex/LWC/Flow/Object/VF 等）を推定する。"""
+    if "/lwc/" in path:
+        return "LWC"
+    if "/classes/" in path or path.endswith(".cls"):
+        return "Apex"
+    if "/triggers/" in path or path.endswith(".trigger"):
+        return "Trigger"
+    if "/aura/" in path:
+        return "Aura"
+    if "/flows/" in path:
+        return "Flow"
+    if "/objects/" in path:
+        return "Object"
+    if "/pages/" in path:
+        return "VF"
+    if path:
+        ext = path.rsplit(".", 1)[-1] if "." in path else ""
+        return ext.upper() if ext and len(ext) <= 6 else "その他"
+    return "その他"
+
+
 def _extract_main_changes(impl_md):
-    """変更ファイル一覧からコンポーネント種別件数サマリーを生成（例: Apex 2件 / LWC 1件）。
-    ファイルパス列から種別を推定する（MD テーブルの列構成に依存しない）。"""
+    """変更ファイル一覧からコンポーネント種別件数サマリーを生成（例: Apex 2件 / LWC 1件）。"""
     section = extract_section(impl_md, "変更ファイル一覧", "変更ファイル", "対象ファイル")
     if not section:
-        return "（実装後に記入）"
-    # テーブル行のみ抽出（区切り行・ヘッダー行を除く）
+        return ""
     lines = [ln for ln in section.split("\n") if ln.strip().startswith("|") and not re.match(r"\|[-| ]+\|", ln.strip())]
     if lines and re.search(r"ファイル|No|パス", lines[0]):
         lines = lines[1:]
     type_counts: dict[str, int] = {}
     for ln in lines:
         cols = [c.strip().strip("`") for c in ln.strip().strip("|").split("|")]
-        # No 付きテーブルは col=1 がパス、No なしは col=0 がパス
         path_idx = 1 if len(cols) >= 2 and re.match(r"^\d+$", cols[0]) else 0
         path = cols[path_idx] if len(cols) > path_idx else ""
-        if "/lwc/" in path:
-            t = "LWC"
-        elif "/classes/" in path:
-            t = "Apex"
-        elif "/triggers/" in path:
-            t = "Trigger"
-        elif "/aura/" in path:
-            t = "Aura"
-        elif "/flows/" in path:
-            t = "Flow"
-        elif "/objects/" in path:
-            t = "Object"
-        elif "/pages/" in path:
-            t = "VF"
-        elif path:
-            ext = path.rsplit(".", 1)[-1] if "." in path else ""
-            t = ext.upper() if ext and len(ext) <= 6 else "その他"
-        else:
-            continue
-        type_counts[t] = type_counts.get(t, 0) + 1
+        t = _infer_kind_from_path(path)
+        if t:
+            type_counts[t] = type_counts.get(t, 0) + 1
     if type_counts:
         return " / ".join(f"{t} {n}件" for t, n in type_counts.items())
     count = len(lines)
-    return f"{count}件" if count > 0 else "（実装後に記入）"
+    return f"{count}件" if count > 0 else ""
+
+
+def _extract_main_changes_detailed(impl_md):
+    """変更ファイル一覧から上位 5 件の {種別}: {ファイル名} — {役割} を改行区切りで返す。"""
+    section = extract_section(impl_md, "変更ファイル一覧", "変更ファイル", "対象ファイル")
+    if not section:
+        return ""
+    rows = parse_md_table(section)
+    if not rows:
+        return ""
+    out = []
+    for row in rows[:5]:
+        path = (row.get("ファイルパス") or row.get("ファイル") or row.get("対象") or "").strip("`")
+        kind = _infer_kind_from_path(path)
+        name = path.rsplit("/", 1)[-1]
+        role = (row.get("変更概要") or row.get("変更内容") or row.get("内容") or "").replace("**", "")
+        out.append(f"{kind}: {name} — {role[:60]}")
+    return "\n".join(out)
+
+
+def _clean_summary_text(text, max_lines=4):
+    """マークダウン強調記号を除去し、先頭 max_lines 行を返す（改行保持）。"""
+    lines = [ln.rstrip() for ln in text.splitlines() if ln.strip()]
+    cleaned = [re.sub(r"\*\*", "", ln).lstrip("- ").strip() for ln in lines[:max_lines]]
+    return "\n".join(l for l in cleaned if l)
+
+
+def _extract_before_state(inv_md, approach_md):
+    """修正前の現状（現行挙動）。investigation.md の「本文から読み取れる要求」優先。"""
+    # 「現行:」行を探す
+    req_section = extract_section(inv_md, "本文から読み取れる要求")
+    if req_section:
+        current_lines = []
+        capture = False
+        for ln in req_section.splitlines():
+            s = ln.strip()
+            if re.match(r"[-*]\s*\*{0,2}現行\*{0,2}[:：]", s):
+                capture = True
+                txt = re.sub(r"^[-*]\s*\*{0,2}現行\*{0,2}[:：]\s*", "", s).replace("**", "")
+                if txt:
+                    current_lines.append(txt)
+                continue
+            if capture:
+                if re.match(r"[-*]\s*\*{0,2}(希望|工数|目的)\*{0,2}[:：]", s):
+                    break
+                if s:
+                    current_lines.append(s.lstrip("- ").replace("**", ""))
+        if current_lines:
+            return "\n".join(current_lines[:3])
+
+    # フォールバック: TL;DR の前半部分
+    tl = extract_section(inv_md, "TL;DR")
+    if tl:
+        return _clean_summary_text(tl, max_lines=2)
+
+    # フォールバック: approach の現状
+    return _clean_summary_text(
+        extract_section(approach_md, "課題の現状", "現状") or "", max_lines=2
+    )
+
+
+def _extract_after_state(approach_md):
+    """修正後の期待挙動。業務要件への回答を Q番号: 回答 形式に整形。"""
+    text = extract_section(approach_md, "業務要件への回答", "業務要件への回答（方針確定時に記入）")
+    if text:
+        # テーブル形式（| Q1 | 質問 | 回答 |）とリスト形式（- Q1. xxx / 回答: yyy）の両方に対応
+        rows = parse_md_table(text)
+        if rows:
+            out = []
+            for row in rows[:6]:
+                q = row.get("Q", row.get("#", "")).strip()
+                topic = (row.get("質問") or row.get("内容") or "").strip()
+                answer = (row.get("回答") or "").replace("**", "").strip()
+                if q and answer:
+                    out.append(f"{q}. {topic}: {answer}" if topic else f"{q}. {answer}")
+                elif answer:
+                    out.append(answer)
+            if out:
+                return "\n".join(out)
+
+        # リスト形式: - Q1. xxx / 回答: yyy
+        out = []
+        for ln in text.splitlines():
+            s = ln.strip().lstrip("- ")
+            if re.match(r"\|[-| ]+\|", s) or s.startswith("|"):
+                continue  # テーブル行をスキップ
+            m = re.match(r"(Q\d+)[.\s]+(.+?)\s*/\s*回答[:：]\s*\*{0,2}(.+?)\*{0,2}(?:（[^）]*）)?$", s)
+            if m:
+                q = m.group(1)
+                topic = m.group(2).strip()
+                answer = m.group(3).strip().replace("**", "").strip("`")
+                out.append(f"{q}. {topic}: {answer}")
+            elif s and not re.match(r"^[#*_]", s):
+                clean = re.sub(r"\*\*", "", s).strip("`")
+                if clean:
+                    out.append(clean)
+        if out:
+            return "\n".join(out[:6])
+
+    # フォールバック: 推奨案と根拠
+    text = extract_section(approach_md, "推奨案と根拠", "推奨案")
+    return _clean_summary_text(text, max_lines=3) if text else ""
 
 
 def _parse_impact_bullets(section_text):
@@ -559,13 +663,13 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     # r9 最終対応サマリー: 対応完了後に記入する欄  [F7]
     wset(ws, 9, 2, "（対応完了後に記入）")
 
-    # r11-15: 対応サマリーブロック（高畑さん等レビュー向けの構造化サマリー）
+    # r11-15: 対応サマリーブロック（高畑さん等レビュー向けの構造化サマリー）  [V-2]
     approach_summary = extract_section(approach_md, "採用方針", "推奨案と根拠", "推奨案")
-    approach_summary_1line = approach_summary.replace("\n", " ").replace("**", "").strip()[:120] if approach_summary else "（対応方針確定後に記入）"
-    wset(ws, 11, 2, approach_summary_1line)
-    wset(ws, 12, 2, _extract_main_changes(impl_md))
-    wset(ws, 13, 2, "")  # テスト完了後に update_records.py cell で更新
-    wset(ws, 14, 2, "")  # リリース後に update_records.py cell で更新
+    approach_clean = _clean_summary_text(approach_summary, max_lines=8) if approach_summary else "（対応方針確定後に記入）"
+    wset(ws, 11, 2, approach_clean)
+    wset(ws, 12, 2, _extract_main_changes_detailed(impl_md))
+    wset(ws, 13, 2, _extract_before_state(inv_md, approach_md))   # 修正前（現状）
+    wset(ws, 14, 2, _extract_after_state(approach_md))             # 修正後（期待挙動）
     wset(ws, 15, 2, _extract_rollback_hint(impl_md))
 
     # タイムライン: 各フェーズを MD ファイルの更新日時で書き込む  [A-4]
@@ -605,10 +709,65 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
         (3, _file_mtime(args.implementation_plan) if impl_md else "", "ユーザ", "実装方針確定",
          f"全判断ポイント確定: {impl_oneliner}" if impl_md else "", _extract_impl_reason(impl_md)),
     ]
+    # タイムライン開始行: ヘッダー動的検索（判断保留 block の有無で位置が変わるため）
+    tl_header = find_header_row(ws, ("■ 対応経緯タイムライン",))
+    tl_data_start = (tl_header + 2) if tl_header else 25  # fallback: 判断保留あり想定
     for i, row in enumerate(tl_rows):
         fill = _stripe_fill(i)
         for j, val in enumerate(row, start=1):
-            wset(ws, 19 + i, j, val, fill)
+            wset(ws, tl_data_start + i, j, val, fill)
+
+
+# ── 判断保留事項シート書き込み ────────────────────────────────────────────────
+
+def fill_pending_decisions(ws, approach_md, impl_md):
+    """判断保留事項ブロック（r17-21）を埋める。  [V-3]
+
+    impl_md → approach_md の順で '## 判断保留事項' セクションを探す。
+    該当なしの場合はヘッダーを残しデータ行に「（判断保留事項なし）」を入れる。
+    """
+    text = extract_section(impl_md, "判断保留事項")
+    if not text:
+        text = extract_section(approach_md, "判断保留事項")
+
+    PENDING_HEADER_KEYWORDS = ("■ 判断保留事項",)
+    header_row = find_header_row(ws, PENDING_HEADER_KEYWORDS)
+    if not header_row:
+        return  # テンプレにブロック未設定
+
+    data_start = header_row + 2  # ヘッダー + 列見出し行の次
+    PENDING_LIMIT = 3            # テンプレ 3 行枠
+
+    rows = parse_md_table(text) if text else []
+
+    # 列マッピング: A=No, B=内容, C=影響範囲, D=期待する判断者, E=関連ファイル
+    col_map = [
+        ("内容",           ["内容", "保留内容", "判断内容"]),
+        ("影響範囲",       ["影響範囲", "影響", "対象"]),
+        ("期待する判断者", ["期待する判断者", "判断者", "担当"]),
+        ("関連ファイル",   ["関連ファイル", "関連", "ファイル"]),
+    ]
+
+    if not rows:
+        # 保留なし: 1 行目に placeholder を入れ、余剰行を削除
+        wset(ws, data_start, 2, "（判断保留事項なし）", _stripe_fill(0))
+        if PENDING_LIMIT > 1:
+            _shrink_table(ws, data_start + 1, 0, PENDING_LIMIT - 1)
+        return
+
+    extra = max(0, len(rows) - PENDING_LIMIT)
+    if extra > 0:
+        insert_rows_with_format(ws, data_start + PENDING_LIMIT, extra,
+                                source_row=data_start, max_col=5)
+    elif len(rows) < PENDING_LIMIT:
+        _shrink_table(ws, data_start, len(rows), PENDING_LIMIT)
+
+    for i, row in enumerate(rows):
+        fill = _stripe_fill(i)
+        wset(ws, data_start + i, 1, str(i + 1), fill)
+        for j, (_, candidates) in enumerate(col_map, start=2):
+            wset(ws, data_start + i, j, get_col(row, *candidates), fill)
+        auto_fit_row(ws, data_start + i)
 
 
 # ── 対応方針シート ──────────────────────────────────────────────────────────
@@ -1297,6 +1456,7 @@ def main():
         sys.exit(1)
 
     fill_summary(wb["サマリー・経緯"], args, inv_md, app_md, impl_md)
+    fill_pending_decisions(wb["サマリー・経緯"], app_md, impl_md)  # [V-3]
     fill_approach(wb["対応方針"], app_md)
     fill_investigation(wb["調査・影響範囲"], inv_md)
     fill_content(wb["対応内容"], impl_md)
