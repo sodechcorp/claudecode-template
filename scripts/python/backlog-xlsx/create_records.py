@@ -395,6 +395,60 @@ def _extract_impl_reason(md):
     return ""
 
 
+def _extract_main_changes(impl_md):
+    """変更ファイル一覧からコンポーネント種別件数サマリーを生成（例: Apex 2件 / LWC 1件）。
+    ファイルパス列から種別を推定する（MD テーブルの列構成に依存しない）。"""
+    section = extract_section(impl_md, "変更ファイル一覧", "変更ファイル", "対象ファイル")
+    if not section:
+        return "（実装後に記入）"
+    # テーブル行のみ抽出（区切り行・ヘッダー行を除く）
+    lines = [ln for ln in section.split("\n") if ln.strip().startswith("|") and not re.match(r"\|[-| ]+\|", ln.strip())]
+    if lines and re.search(r"ファイル|No|パス", lines[0]):
+        lines = lines[1:]
+    type_counts: dict[str, int] = {}
+    for ln in lines:
+        cols = [c.strip().strip("`") for c in ln.strip().strip("|").split("|")]
+        # No 付きテーブルは col=1 がパス、No なしは col=0 がパス
+        path_idx = 1 if len(cols) >= 2 and re.match(r"^\d+$", cols[0]) else 0
+        path = cols[path_idx] if len(cols) > path_idx else ""
+        if "/lwc/" in path:
+            t = "LWC"
+        elif "/classes/" in path:
+            t = "Apex"
+        elif "/triggers/" in path:
+            t = "Trigger"
+        elif "/aura/" in path:
+            t = "Aura"
+        elif "/flows/" in path:
+            t = "Flow"
+        elif "/objects/" in path:
+            t = "Object"
+        elif "/pages/" in path:
+            t = "VF"
+        elif path:
+            ext = path.rsplit(".", 1)[-1] if "." in path else ""
+            t = ext.upper() if ext and len(ext) <= 6 else "その他"
+        else:
+            continue
+        type_counts[t] = type_counts.get(t, 0) + 1
+    if type_counts:
+        return " / ".join(f"{t} {n}件" for t, n in type_counts.items())
+    count = len(lines)
+    return f"{count}件" if count > 0 else "（実装後に記入）"
+
+
+def _extract_rollback_hint(impl_md):
+    """ロールバック手順の1行サマリー。"""
+    section = extract_section(impl_md, "ロールバック手順", "ロールバック", "切り戻し手順")
+    if not section:
+        return "（実装後に記入）"
+    for ln in section.split("\n"):
+        ln = ln.strip().lstrip("0123456789. -").strip()
+        if ln and not ln.startswith("#"):
+            return ln[:100]
+    return "（実装後に記入）"
+
+
 # ── サマリー・経緯シート ────────────────────────────────────────────────────
 
 def fill_summary(ws, args, inv_md, approach_md, impl_md):
@@ -427,6 +481,15 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     wset(ws, 8, 2, summary_bg)
     # r9 最終対応サマリー: 対応完了後に記入する欄  [F7]
     wset(ws, 9, 2, "（対応完了後に記入）")
+
+    # r11-15: 対応サマリーブロック（高畑さん等レビュー向けの構造化サマリー）
+    approach_summary = extract_section(approach_md, "採用方針", "推奨案と根拠", "推奨案")
+    approach_summary_1line = approach_summary.replace("\n", " ").replace("**", "").strip()[:120] if approach_summary else "（対応方針確定後に記入）"
+    wset(ws, 11, 2, approach_summary_1line)
+    wset(ws, 12, 2, _extract_main_changes(impl_md))
+    wset(ws, 13, 2, "（テスト完了後に記入）")
+    wset(ws, 14, 2, "（リリース後に記入）")
+    wset(ws, 15, 2, _extract_rollback_hint(impl_md))
 
     # タイムライン 3 行（Phase 1〜3）— 理由列も埋める  [F1]
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -461,7 +524,7 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     for i, row in enumerate(tl_rows):
         fill = _stripe_fill(i)
         for j, val in enumerate(row, start=1):
-            wset(ws, 13 + i, j, val, fill)
+            wset(ws, 19 + i, j, val, fill)
 
 
 # ── 対応方針シート ──────────────────────────────────────────────────────────
