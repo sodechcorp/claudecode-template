@@ -45,4 +45,16 @@ options:
     ask-user-prompt: |
       この修正は typo 修正のようです。課題コメントの追加要件・受入基準再確認は省略してもよさそうですか？
     estimated-cost: 軽
+
+  - name: option-diff-review
+    description: 実 diff と implementation-plan.md の整合・計画外変更検出・影響範囲再 rescan
+    category: A
+    auto-execute-when:
+      - 種別がバグまたは追加要望 かつ コード変更を伴う
+    auto-skip-when:
+      - typo 修正・ラベル変更のみ
+      - 設定ファイル・メタデータのみの変更（field-meta.xml / layout-meta.xml 等）
+    ask-user-prompt: |
+      この修正はコード変更が無いか軽微です。diff レビュー（実装計画整合・計画外混入・影響範囲再 rescan）は省略してもよさそうですか？
+    estimated-cost: 中
 ```
