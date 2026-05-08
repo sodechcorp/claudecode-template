@@ -753,6 +753,13 @@ def fill_pending_decisions(ws, approach_md, impl_md):
         wset(ws, data_start, 2, "（判断保留事項なし）", _stripe_fill(0))
         if PENDING_LIMIT > 1:
             _shrink_table(ws, data_start + 1, 0, PENDING_LIMIT - 1)
+        # delete_rows は row_dimensions をシフトしないため、
+        # タイムラインセクション前後の行高をリセットして squash を防ぐ
+        tl_hdr = find_header_row(ws, ("■ 対応経緯タイムライン",))
+        if tl_hdr:
+            ws.row_dimensions[tl_hdr - 1].height = 8   # blank separator
+            ws.row_dimensions[tl_hdr].height = 28       # ■ 対応経緯タイムライン
+            ws.row_dimensions[tl_hdr + 1].height = 18  # column header
         return
 
     extra = max(0, len(rows) - PENDING_LIMIT)
