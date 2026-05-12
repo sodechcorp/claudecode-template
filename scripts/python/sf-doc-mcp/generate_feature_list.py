@@ -343,7 +343,19 @@ def main():
     parser.add_argument("--force", action="store_true",
                         help="構造差分ゼロでも xlsx を強制再生成する（overview/name 変更反映用。"
                              "バージョンは据え置きで history は更新しない）")
+    parser.add_argument("--project-dir", default="",
+                        help="Salesforce プロジェクトルート。指定するとカスタムオブジェクト/フィールド名を日本語ラベルに置換する")
     args = parser.parse_args()
+
+    if args.project_dir:
+        try:
+            from build_detail_design_json import load_obj_labels
+            import text_cleaning as _tc
+            _obj_labels, _fld_labels = load_obj_labels(Path(args.project_dir))
+            _tc.set_sf_labels(_obj_labels, _fld_labels)
+            print(f"  [INFO] オブジェクトラベル {len(_obj_labels)}件・フィールドラベル {sum(len(v) for v in _fld_labels.values())}件を読み込み")
+        except Exception as e:
+            print(f"  [WARN] カスタムラベル読み込みに失敗しました（処理は続行）: {e}", file=sys.stderr)
 
     template = Path(args.template)
     if not template.exists():

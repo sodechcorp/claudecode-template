@@ -5,9 +5,10 @@
 メタデータ非依存の定数・関数を切り出したモジュール。
 機能一覧（scan_features.py / generate_feature_list.py）から参照する。
 
-NOTE: _SF_OBJ_LABELS（カスタムオブジェクトのAPI名→日本語マップ）は generate_detail_design.py 内で
-動的ロードされるモジュール変数のため、このモジュールでは扱わない。
-標準オブジェクトの翻訳（_STD_OBJ_LABELS）のみ対応する。
+NOTE: _SF_OBJ_LABELS / _SF_FIELD_LABELS はカスタムオブジェクト/フィールドの日本語ラベルマップ。
+メタデータ非依存原則により、このモジュールでは直接ロードせず呼び出し側から
+set_sf_labels(obj_labels, field_labels) で注入する。注入なし（空辞書）の場合は
+既存の削除フォールバック（_TECH_REPL_BIZ）に委ねる。
 """
 
 import re as _re
@@ -48,10 +49,26 @@ _TRIGGER_EVENTS_JA = {
 }
 
 # ---------------------------------------------------------------------------
+# カスタムオブジェクト/フィールド 日本語ラベル（set_sf_labels で注入）
+# ---------------------------------------------------------------------------
+_SF_OBJ_LABELS:   dict = {}  # {obj_api: ja_label}
+_SF_FIELD_LABELS: dict = {}  # {obj_api: {field_api: ja_label}}
+
+# ---------------------------------------------------------------------------
 # 定数 (generate_detail_design.py からのコピー)
 # ---------------------------------------------------------------------------
 _A  = _re.ASCII
 _AI = _re.ASCII | _re.IGNORECASE
+
+# Object__c.Field__c 形式と単独 Object__c の検出パターン
+_DOT_CUSTOM_PAT = _re.compile(
+    r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9]*)__c\.([A-Z][A-Za-z0-9]*)__c(?![A-Za-z0-9_])',
+    _A,
+)
+_SINGLE_OBJ_PAT = _re.compile(
+    r'(?<![A-Za-z0-9_])[A-Z][A-Za-z0-9]*__c(?![A-Za-z0-9_.])',
+    _A,
+)
 
 _JARGON_JA: list[tuple] = [
     # Apex トリガー複合表現（単体 insert/delete/update より先に処理）
@@ -172,6 +189,41 @@ _EC_PLACEHOLDER = "\x01EC\x01"
 # 公開関数
 # ---------------------------------------------------------------------------
 
+def set_sf_labels(obj_labels: dict, field_labels: dict) -> None:
+    """カスタムオブジェクト/フィールドの日本語ラベル辞書を注入する。
+    generate_feature_list.py / scan_features.py の main() から呼ぶ。"""
+    global _SF_OBJ_LABELS, _SF_FIELD_LABELS
+    _SF_OBJ_LABELS   = obj_labels   or {}
+    _SF_FIELD_LABELS = field_labels or {}
+
+
+def translate_sf_custom(text: str) -> str:
+    """カスタムオブジェクト/フィールド API 名を日本語ラベルに置換する（注入辞書使用）。
+    辞書ミスの場合は元の文字列を返し、後続の _TECH_REPL_BIZ 削除フォールバックに任せる。"""
+    if not _SF_OBJ_LABELS and not _SF_FIELD_LABELS:
+        return text
+
+    def _dot_repl(m: _re.Match) -> str:
+        obj_api = m.group(1) + "__c"
+        fld_api = m.group(2) + "__c"
+        obj_ja  = _SF_OBJ_LABELS.get(obj_api)
+        fld_ja  = (_SF_FIELD_LABELS.get(obj_api) or {}).get(fld_api)
+        if obj_ja and fld_ja:
+            return f"{obj_ja}.{fld_ja}"
+        if obj_ja:
+            return f"{obj_ja}.{fld_api}"
+        return m.group(0)  # 辞書ミス → フォールバックへ
+
+    text = _DOT_CUSTOM_PAT.sub(_dot_repl, text)
+
+    if _SF_OBJ_LABELS:
+        def _obj_repl(m: _re.Match) -> str:
+            return _SF_OBJ_LABELS.get(m.group(0), m.group(0))
+        text = _SINGLE_OBJ_PAT.sub(_obj_repl, text)
+
+    return text
+
+
 def translate_sf_objects(text: str) -> str:
     """Salesforce 標準オブジェクト API名を日本語ラベルに置換する（標準オブジェクトのみ）。"""
     for api, ja in _STD_OBJ_LABELS.items():
@@ -202,6 +254,7 @@ def clean_tech_business(text: str) -> str:
         return text
     text = text.replace("Experience Cloud", _EC_PLACEHOLDER)
     text = translate_sf_objects(text)
+    text = translate_sf_custom(text)
     text = translate_jargon(text)
     for pattern, repl in _TECH_REPL_BIZ:
         text = pattern.sub(repl, text)
