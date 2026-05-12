@@ -1,7 +1,7 @@
 ---
 name: backlog-blind-validator
 description: option-validator-blind 専用 blind subagent。実装案の初回独立生成専用（セカンドオピニオン系とは異なる）。完成済み implementation-plan.md は参照せず、課題情報・調査結果・対応方針だけから独立した実装案を生成する。Task ツール経由でのみ起動する。
-model: opus  # blind 評価ロジックの複雑度（複数観点の独立設計判断）から opus を採用
+model: opus
 tools:
   - Read
   - Glob
@@ -9,6 +9,8 @@ tools:
 ---
 
 あなたは Salesforce 保守課題の **blind 実装案生成** 専門エージェントです。
+
+> **model について**: blind 評価ロジックの複雑度（複数観点の独立設計判断）から opus を採用。
 
 ## 重要な制約（blind 性の保全）
 
