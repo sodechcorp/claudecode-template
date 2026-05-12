@@ -664,11 +664,10 @@ def render_flowchart(steps: list[dict], out_path: str) -> tuple[int, int]:
         s = _re.split(r'[、。,]', s)[0].strip()
         return s[:10]
 
-    def _draw_step_node(parent, step):
-        sid    = str(step.get("step", ""))
-        n      = int(step.get("step", 0))
-        badge  = _badge(n)
-        branch = step.get("branch", "")
+    def _make_step_label(step) -> tuple[str, int]:
+        """ノードのラベル文字列と折り返し後の最大行字数を返す。"""
+        n     = int(step.get("step", 0))
+        badge = _badge(n)
 
         # AA-2h: LLM 生成の flow_label が最優先。空なら heuristic フォールバック。
         short = step.get("flow_label", "").strip()
@@ -680,16 +679,43 @@ def render_flowchart(steps: list[dict], out_path: str) -> tuple[int, int]:
 
         # 5 字/行で折り返し（fixedsize ノードに収める）
         wrapped = _wrap_jp(short, 5)
-        # 最大 2 行に制限
         lines = wrapped.split("\\n")
         if len(lines) > 2:
-            wrapped = "\\n".join(lines[:2])
+            lines = lines[:2]
 
-        label = badge + "\\n" + wrapped
+        # AA-3a: 8字超の行は 7字+… に強制カット（図形はみ出し防止）
+        truncated = []
+        for line in lines:
+            if len(line) > 8:
+                line = line[:7] + "…"
+            truncated.append(line)
+
+        wrapped_final = "\\n".join(truncated)
+        label = badge + "\\n" + wrapped_final
+        max_len = max((len(li) for li in truncated), default=0)
+        return label, max_len
+
+    # AA-3a: 全ノードで共通フォントサイズを動的決定（最大行字数ベース）
+    _step_labels = {str(s.get("step", "")): _make_step_label(s) for s in steps}
+    _max_line_chars = max((c for _, c in _step_labels.values()), default=0)
+    if _max_line_chars <= 5:
+        _step_fontsize = "14"
+    elif _max_line_chars == 6:
+        _step_fontsize = "13"
+    elif _max_line_chars == 7:
+        _step_fontsize = "12"
+    else:  # 8（AA-3a の強制カット後の最大）
+        _step_fontsize = "11"
+
+    def _draw_step_node(parent, step):
+        sid    = str(step.get("step", ""))
+        branch = step.get("branch", "")
+        label, _ = _step_labels[sid]
 
         # AA-2g: 全 FG で同一固定サイズ（FG-010 baseline）
+        # AA-3a: fontsize は全ノード共通の動的値（最大行字数から算出）
         common = dict(
-            label=label, fontname=_FC_FONT, fontsize="14",
+            label=label, fontname=_FC_FONT, fontsize=_step_fontsize,
             width="1.5", height="0.85",
             margin="0.12,0.10",
             fixedsize="true",

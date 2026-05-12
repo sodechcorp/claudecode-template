@@ -1840,8 +1840,8 @@ def generate_object_component_matrix(
         """（Apex）（Flow）等の型ラベルを除去して短くする。"""
         return _re_local.sub(r'[（(][A-Za-zApexFlowBatch\u30a0-\u30ff]+[）)]', '', name).strip('_').strip()
 
-    def _wrap_hdr(name: str, width: int = 10) -> str:
-        """コンポーネント名を折り返す。"""
+    def _wrap_hdr(name: str, width: int = 14) -> str:
+        """コンポーネント名を折り返す。AA-3b: width 10→14 に拡大（21字名が3→2行に）。"""
         short = _strip_type_suffix(name)
         lines = _tw.wrap(short, width=width)
         return '\n'.join(lines) if lines else name
@@ -1893,7 +1893,7 @@ def generate_object_component_matrix(
     for ci, comp in enumerate(comp_names):
         x = margin + obj_col_w + ci * cell_w
         _rect(x, hdr_y, cell_w, hdr_h, HDR_BG, ec=HDR_BG)
-        ax.text(x + cell_w / 2, hdr_y + hdr_h / 2, _wrap_hdr(comp, width=10),
+        ax.text(x + cell_w / 2, hdr_y + hdr_h / 2, _wrap_hdr(comp),
                 ha="center", va="center", color=HDR_FG,
                 multialignment="center", **_fpkw(18, bold=True))
 
