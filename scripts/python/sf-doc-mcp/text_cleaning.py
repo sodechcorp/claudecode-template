@@ -164,7 +164,6 @@ _TECH_REPL_BIZ = [
     (_re.compile(r'\(trigger\s+\w+\)'), ''),
     (_re.compile(r'\b[A-Z][A-Za-z0-9]*__[cepr]\b'), ''),
     (_re.compile(r'\b[A-Z][A-Za-z0-9]{2,}(?:Controller|Service|Handler|Manager|Batch|Trigger)\b'), ''),
-    (_re.compile(r'(?<![ぁ-ん一-龥ァ-ヶーa-z_])([A-Z][a-zA-Z]{3,})(?![ぁ-ん一-龥ァ-ヶーa-z_])'), ''),
     (_re.compile(r'（[A-Z@#][^）]{0,60}）'), ''),
     (_re.compile(r'\([A-Z@#][^)]{0,60}\)'), ''),
     (_re.compile(r'([^\s（]{4,30})（\1）'), r'\1'),
