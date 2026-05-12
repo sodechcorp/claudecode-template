@@ -54,22 +54,33 @@ def read_md(path):
     return ""
 
 
+def _flex_keyword(h):
+    """見出しキーワード内の半角スペースを \\s* で吸収した正規表現パターンを返す。
+    例: '使用中のフィールドAPI名' → '使用中のフィールドAPI名'（スペースなし→そのまま）
+        '使用中のフィールド API 名' → 見出し内スペース揺れを吸収
+    """
+    parts = re.split(r" +", h)
+    return r"\s*".join(re.escape(p) for p in parts)
+
+
 def extract_section(md, *headings):
     """指定見出し（## または ###）のセクション本文を返す。
     複数見出しは先にマッチしたものを使用。本文が空のセクションはスキップ。
     末尾の括弧「（確定後に記入）」のような付記も許容する。  [M2]
     見出し揺れ吸収:
     - 先頭の「■ 」等の記号を無視
-    - 末尾の「:」「：」「テーブル」を無視
+    - 末尾の「:」「：」「テーブル」「・XX」「/ XX」を無視
+    - キーワード内の半角スペース有無を無視（_flex_keyword）
     - `#` 直後の全角スペースも許容
     """
     for h in headings:
         # 正規化後の見出しにマッチするパターン
-        # 先頭: ■や●などの記号＋スペースを無視, 末尾: :／：／「テーブル」を無視
+        # 先頭: ■や●などの記号＋スペースを無視, 末尾: :／：／「テーブル」等を無視
         pat = (
             r"^#{1,3}[\s　]+"              # ## または ### + 半/全角スペース
             r"(?:[■●▶◆]\s*)?"                 # 先頭記号（省略可）
-            + re.escape(h) +
+            + _flex_keyword(h) +
+            r"(?:[・/／]\S+?)?"              # 末尾の「・テスト観点」「/ 要件の本質」等（省略可）
             r"(?:テーブル|一覧|[:：])?"         # 末尾の付記（省略可）
             r"(?:\s*[（(][^)）]*[)）])?\s*$"   # 括弧付記（省略可）
         )
@@ -77,7 +88,9 @@ def extract_section(md, *headings):
         if m:
             start = m.end()
             rest = md[start:]
-            end_m = re.search(r"^#{1,3}\s", rest, re.MULTILINE)
+            level = len(re.match(r"^#+", md[m.start():]).group(0))
+            end_pat = rf"^#{{1,{level}}}\s"
+            end_m = re.search(end_pat, rest, re.MULTILINE)
             body = rest[: end_m.start()] if end_m else rest
             stripped = body.strip()
             if stripped:
@@ -112,6 +125,24 @@ def parse_md_table(section_text):
             headers = cells
         else:
             rows.append(dict(zip(headers, cells)))
+    return rows
+
+
+def parse_all_md_tables(section_text):
+    """セクション内に複数テーブルが含まれる場合も各テーブルを独立解析して結合する。
+    非 | 行を区切りとしてブロック分割し、各ブロックを parse_md_table に渡す。
+    """
+    rows = []
+    block_lines = []
+    for line in section_text.splitlines():
+        if line.strip().startswith("|"):
+            block_lines.append(line)
+        else:
+            if block_lines:
+                rows.extend(parse_md_table("\n".join(block_lines)))
+                block_lines = []
+    if block_lines:
+        rows.extend(parse_md_table("\n".join(block_lines)))
     return rows
 
 
@@ -182,18 +213,19 @@ def parse_approach_options_h3(section_md):
     """
     options = []
     for m in re.finditer(
-        r"^###\s+案([A-Z])[:：]\s*(.+?)(?:\s*【.+?】)?\s*$",
+        r"^#{3,4}\s+案([A-Z])[:：]\s*(.+?)(?:\s*【.+?】)?\s*$",
         section_md, re.MULTILINE
     ):
         no, name = m.group(1), m.group(2).strip()
         body_start = m.end()
         rest = section_md[body_start:]
-        next_h = re.search(r"^#{2,3}\s", rest, re.MULTILINE)
+        next_h = re.search(r"^#{2,4}\s", rest, re.MULTILINE)
         body = rest[: next_h.start()] if next_h else rest
 
         opt = {"案No": f"案{no}", "方針名": name}
         for key in ["概要", "メリット", "デメリット", "リスク", "前提", "見込み工数"]:
-            sub_pat = rf"^\s*-\s+\*\*{re.escape(key)}\*\*\s*[:|：]\s*(.+?)(?=^\s*-\s+\*\*|\Z)"
+            # key[^*]* で「デメリット・リスク」「見込み工数（通常作業前提）」等の接尾辞を吸収
+            sub_pat = rf"^\s*-\s+\*\*{re.escape(key)}[^*]*\*\*\s*[:|：]\s*(.+?)(?=^\s*-\s+\*\*|\Z)"
             sm = re.search(sub_pat, body, re.MULTILINE | re.DOTALL)
             if sm:
                 value = re.sub(r"\s+", " ", sm.group(1)).strip()
@@ -583,7 +615,7 @@ def _parse_impact_bullets(section_text):
     テーブルが存在する場合は parse_md_table に委譲する。
     箇条書き: backtick で囲まれたパス/クラス名 + 説明 の形式を処理。
     """
-    rows = parse_md_table(section_text)
+    rows = parse_all_md_tables(section_text)
     if rows:
         return rows
     result = []
@@ -921,57 +953,25 @@ def fill_approach(ws, approach_md):
 # ── 調査・影響範囲シート ────────────────────────────────────────────────────
 
 def fill_investigation(ws, inv_md):
-    # 仮説検証（r4-9）[M3, M8]
-    hypo_text = extract_section(
-        inv_md,
-        "仮説検証", "仮説・検証",
-        "代替アプローチ", "代替経路", "業務要件の不確実点",
-    )
-    rows = parse_md_table(hypo_text)
-    if not rows:
-        for kw in ("ただし以下の代替経路", "代替経路の検討", "再検討の余地"):
-            alt_text = extract_section_after_keyword(inv_md, kw)
-            rows = parse_md_table(alt_text)
-            if rows:
-                break
+    # 仮説検証テーブルはテンプレから削除済みのため、ここでは何もしない
 
-    # テンプレ修正後 4列構成: No/仮説内容/備考/判定  [F9: 検証方法削除]
-    hypo_col_map = [
-        ("No", ["No", "#"]),
-        ("仮説内容", ["仮説内容", "代替アプローチ", "仮説", "アプローチ"]),
-        ("備考", ["備考", "検証結果", "補足"]),
-        ("判定", ["判定", "実現可能性"]),
-    ]
-    HYPO_START = 4
-    HYPO_LIMIT = 5  # テンプレ r4-r8（r9 は spacer）
-    extra_hypo = max(0, len(rows) - HYPO_LIMIT)
-    if extra_hypo > 0:
-        insert_rows_with_format(ws, HYPO_START + HYPO_LIMIT, extra_hypo,
-                                source_row=HYPO_START, max_col=4)
-    elif len(rows) < HYPO_LIMIT:
-        _shrink_table(ws, HYPO_START, len(rows), HYPO_LIMIT)
-    for i, row in enumerate(rows):
-        fill = _stripe_fill(i)
-        for j, (_, candidates) in enumerate(hypo_col_map, start=1):
-            wset(ws, HYPO_START + i, j, get_col(row, *candidates), fill)
-        auto_fit_row(ws, HYPO_START + i)
-
-    # コード根拠（r12-17）[M3, M9] — 動的拡張対応  [F9]
+    # コード根拠（find_header_row で動的特定）[M3, M9] — 動的拡張対応  [F9]
     code_text = extract_section(
         inv_md,
         "コード根拠", "コード根拠テーブル",
-        "使用中のフィールドAPI名", "参照コード", "フィールドAPI名",
+        "使用中のフィールドAPI名", "使用中のフィールド API 名",
+        "参照コード", "フィールドAPI名",
     )
-    code_rows = parse_md_table(code_text)
+    code_rows = parse_all_md_tables(code_text)
     if not code_rows:
         sub1 = extract_section(inv_md, "標準 Prospect オブジェクト", "標準Prospectオブジェクト")
         sub2 = extract_section(inv_md, "Pardot 連携カスタム項目", "Pardot連携カスタム項目")
-        code_rows = parse_md_table(sub1) + parse_md_table(sub2)
+        code_rows = parse_all_md_tables(sub1 + "\n\n" + sub2)
 
     code_col_map = [
-        ("ファイル名", ["ファイル名", "フィールド概念", "ファイル", "コンポーネント"]),
-        ("行番号", ["行番号", "確認済み API名", "API名", "行"]),
-        ("コード内容", ["コード内容", "確認元", "コード", "参照元"]),
+        ("ファイル名", ["ファイル名", "概念", "フィールド概念", "ファイル", "コンポーネント"]),
+        ("行番号", ["行番号", "確認済み API 名", "確認済み API名", "想定 API 名", "想定API名", "API名", "行"]),
+        ("コード内容", ["コード内容", "確認元", "型", "想定型", "想定 valueSet", "コード", "参照元"]),
         ("説明", ["説明", "補足", "備考"]),
     ]
     code_header_row = find_header_row(ws, ("■ コード根拠テーブル", "■ コード根拠"))
@@ -1028,9 +1028,9 @@ def fill_investigation(ws, inv_md):
 
     # テンプレ修正後の列構成: A=種別, B=対象, C=役割  [F9: 影響内容列削除]
     impact_col_map = [
-        ("種別", ["種別"]),
-        ("対象", ["対象", "フロー名", "ファイルパス", "コンポーネント名"]),
-        ("役割", ["役割", "内容", "影響内容", "補足", "備考"]),
+        ("種別", ["種別", "#"]),
+        ("対象", ["対象", "影響箇所", "シナリオ", "フロー名", "ファイルパス", "コンポーネント名"]),
+        ("役割", ["役割", "リスク", "期待結果", "内容", "影響内容", "補足", "備考"]),
     ]
     for i, row in enumerate(impact_rows):
         fill = _stripe_fill(i)
