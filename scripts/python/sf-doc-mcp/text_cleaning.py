@@ -154,6 +154,7 @@ _TECH_REPL_BIZ = [
     (_re.compile(r'(メソッド){2,}'), 'メソッド'),
     (_re.compile(r'（\s*）'), ''),
     (_re.compile(r'\(\s*\)'), ''),
+    (_re.compile(r'[（(]\s*[:：][^）)]{0,30}[）)]\s*。?\s*'), ''),
     (_re.compile(r'[・、/]\s*による[^\s、。]{1,20}'), ''),
     (_re.compile(r'/作成'), '・作成'),
     (_re.compile(r'(?:・作成){2,}'), '・作成'),
