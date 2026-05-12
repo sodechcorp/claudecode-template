@@ -259,6 +259,8 @@ default_stance: {Phase 2 と同じ値を引き継ぐ}
 
 **xlsx 一括生成（対応記録 + エビデンス）**（`{xlsx_folder}` が設定されている場合のみ）
 
+> **実行主体**: planner エージェントは bash を持たないため、planner 復帰後に **本コマンド（ハーネス）が直接** 以下の python スクリプトを実行する。planner には委譲しない。
+
 全 MD ファイルが揃ったこのタイミングで xlsx を一括生成する:
 
 ```bash
