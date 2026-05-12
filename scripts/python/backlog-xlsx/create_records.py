@@ -971,7 +971,7 @@ def fill_investigation(ws, inv_md):
         ("ファイル名", ["ファイル名", "概念", "フィールド概念", "ファイル", "コンポーネント"]),
         ("行番号", ["行番号", "確認済み API 名", "確認済み API名", "想定 API 名", "想定API名", "API名", "行"]),
         ("コード内容", ["コード内容", "確認元", "型", "想定型", "想定 valueSet", "コード", "参照元"]),
-        ("説明", ["説明", "補足", "備考"]),
+        # 説明列はテンプレから削除済みのため code_col_map には含めない  [F11]
     ]
     code_header_row = find_header_row(ws, ("■ コード根拠テーブル", "■ コード根拠"))
     code_data_start = (code_header_row + 2) if code_header_row else 12
@@ -983,7 +983,7 @@ def fill_investigation(ws, inv_md):
             code_data_start + CODE_LIMIT,
             extra_code,
             source_row=code_data_start,
-            max_col=4,
+            max_col=3,  # 説明列削除後 3列  [F11]
         )
     elif len(code_rows) < CODE_LIMIT:
         _shrink_table(ws, code_data_start, len(code_rows), CODE_LIMIT)
@@ -1241,12 +1241,11 @@ def fill_release(ws, impl_md, approach_md=""):
 
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
-        api_name = get_col(row, "対象", "API名", "ファイルパス")
+        api_name = get_col(row, "対象", "API名 / ファイル", "API名/ファイル", "API名", "ファイル", "ファイルパス")
         wset(ws, RELEASE_START + i, 1, row.get("No", str(i + 1)), fill)
         wset(ws, RELEASE_START + i, 2, row.get("種別", ""), fill)
         wset(ws, RELEASE_START + i, 3, api_name, fill)
-        wset(ws, RELEASE_START + i, 4, row.get("デプロイ方法", ""), fill)
-        # 変更種別・備考は削除  [F6]
+        # デプロイ方法列はテンプレから削除済みのため書き込み不要  [F11]
 
     # リリース前確認事項（テンプレ修正後 r9+）[F6: 2列構成]
     pre_text = extract_section(

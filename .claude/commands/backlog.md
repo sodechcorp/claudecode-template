@@ -325,6 +325,12 @@ python scripts/python/backlog-xlsx/update_records.py \
   --content "実装前検証完了: {ドライラン/テスト/影響範囲/クロスレビュー/エビデンスの結果サマリーを1行で}"
 ```
 
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  test-precheck --report "docs/logs/{issueID}/validation-report.md"
+```
+
 > **次に進む条件**: 全検証項目 OK をユーザが確認した後 — 成果物サマリーと特に確認したい点（0〜3 個・なければ「特に確認事項はありません」）をテキストで提示し、やり取りを経て「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？」とテキストで確認する
 >
 > **特に確認したい点の例**: 「新規発見した影響箇所への対処方針」「エビデンスが取れていない項目の扱い」

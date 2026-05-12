@@ -15,6 +15,7 @@ Usage (セルを直接更新):
 import argparse
 import datetime
 import os
+import re
 import sys
 
 try:
@@ -93,6 +94,88 @@ def cmd_cell(args, wb):
     print(f"セル更新: {args.sheet}!({args.row},{args.col}) = {args.value[:40]}...")
 
 
+def _extract_validation_summary(text):
+    """validation-report.md から実装前検証の概要サマリー文字列を抽出する。"""
+    # Step 2 の判定行を探す
+    step2_match = re.search(
+        r"## Step 2[：:][^\n]*\n(.*?)(?=\n## |\Z)", text, re.DOTALL
+    )
+    if step2_match:
+        step2_body = step2_match.group(1)
+        # PASS 率・カバレッジ行を探す
+        pass_lines = []
+        for ln in step2_body.splitlines():
+            ln = ln.strip()
+            if re.search(r"Pass Rate|PASS|カバレッジ|Coverage|判定", ln, re.IGNORECASE):
+                clean = re.sub(r"\*+", "", ln).strip()
+                if clean and not clean.startswith("|"):
+                    pass_lines.append(clean[:80])
+        if pass_lines:
+            return "実装前確認済み（" + " / ".join(pass_lines[:2]) + "）"
+
+    # 総合判定を探す
+    verdict_match = re.search(r"## 総合判定\n+\*+([^\n*]+)\*+", text)
+    if verdict_match:
+        return f"実装前確認済み: {verdict_match.group(1).strip()}"
+
+    return "実装前確認済み（validation-report.md 参照）"
+
+
+def cmd_test_precheck(args, wb):
+    """validation-report.md の確認結果をテスト・検証記録シートの「実装前」行に反映する。"""
+    sheet_name = "テスト・検証記録"
+    if sheet_name not in wb.sheetnames:
+        print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
+        sys.exit(1)
+
+    if not os.path.exists(args.report):
+        print(f"[ERROR] validation-report.md が見つかりません: {args.report}")
+        sys.exit(1)
+
+    with open(args.report, encoding="utf-8") as f:
+        validation_text = f.read()
+
+    summary = _extract_validation_summary(validation_text)
+    ws = wb[sheet_name]
+
+    # ヘッダー行（No / タイミング 列が並ぶ行）を探す
+    header_row = None
+    for row in ws.iter_rows(min_row=1, max_row=30):
+        for cell in row:
+            if cell.value == "No":
+                next_cell = ws.cell(cell.row, cell.column + 1)
+                if next_cell.value in ("タイミング", "区分", "確認観点"):
+                    header_row = cell.row
+                    break
+        if header_row:
+            break
+
+    if not header_row:
+        print("[WARN] テスト・検証記録シートのヘッダー行が見つかりませんでした。")
+        return
+
+    updated = 0
+    for r in range(header_row + 1, header_row + 100):
+        no_val = ws.cell(r, 1).value
+        timing_val = ws.cell(r, 2).value
+        if no_val is None and timing_val is None:
+            break  # データ終端
+        if str(timing_val or "").strip() == "実装前":
+            result_cell = ws.cell(r, 6)
+            verdict_cell = ws.cell(r, 7)
+            if not result_cell.value:  # 既入力の場合は上書きしない
+                result_cell.value = summary
+                result_cell.alignment = WRAP
+                fill = _stripe_fill(updated + 1)
+                result_cell.fill = fill
+            if not verdict_cell.value:
+                verdict_cell.value = "OK"
+                verdict_cell.alignment = WRAP
+            updated += 1
+
+    print(f"[OK] 実装前テスト行 {updated} 件に validation-report.md の結果を反映しました")
+
+
 def main():
     parser = argparse.ArgumentParser(description="対応記録.xlsx を更新する")
     parser.add_argument("--folder",   required=True, help="保存先フォルダパス")
@@ -114,6 +197,10 @@ def main():
     p_cell.add_argument("--col",   required=True, type=int, help="列番号")
     p_cell.add_argument("--value", required=True, help="書き込む値")
 
+    # テスト実装前結果反映サブコマンド
+    p_precheck = sub.add_parser("test-precheck", help="validation-report.md の実装前確認結果をテスト行に反映する")
+    p_precheck.add_argument("--report", required=True, help="validation-report.md のパス")
+
     args = parser.parse_args()
 
     xlsx_path = os.path.join(args.folder, f"{args.issue_id}_対応記録.xlsx")
@@ -131,6 +218,8 @@ def main():
         cmd_timeline(args, wb)
     elif args.command == "cell":
         cmd_cell(args, wb)
+    elif args.command == "test-precheck":
+        cmd_test_precheck(args, wb)
 
     try:
         wb.save(xlsx_path)
