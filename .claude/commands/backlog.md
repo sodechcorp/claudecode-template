@@ -344,8 +344,10 @@ python scripts/python/backlog-xlsx/update_records.py \
 ```
 実装計画: docs/logs/{issueID}/implementation-plan.md
 調査レポート: docs/logs/{issueID}/investigation.md
-xlsx_folder: {xlsx_folder}（設定されている場合）
+xlsx_folder: {xlsx_folder}
 ```
+
+> `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 
 エージェントが Before/After を提示したらユーザに確認する。変更ファイルが 5 件を超える場合は以下の基準で提示を分ける:
 - **詳細提示**: ロジック変更・public インターフェース変更・Apex/LWC/Flow のコード変更
@@ -367,8 +369,10 @@ xlsx_folder: {xlsx_folder}（設定されている場合）
 調査レポート: docs/logs/{issueID}/investigation.md
 実装計画: docs/logs/{issueID}/implementation-plan.md
 種別: {issue_type}
-xlsx_folder: {xlsx_folder}（設定されている場合）
+xlsx_folder: {xlsx_folder}
 ```
+
+> `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 
 テスト結果をユーザに報告する。NG 項目があれば以下を参照して戻り先を判断する:
 
@@ -389,8 +393,10 @@ xlsx_folder: {xlsx_folder}（設定されている場合）
 
 ```
 実装計画: docs/logs/{issueID}/implementation-plan.md
-xlsx_folder: {xlsx_folder}（設定されている場合）
+xlsx_folder: {xlsx_folder}
 ```
+
+> `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 
 > xlsx 更新（timeline + リリース・ロールバックシート リリース実施記録）は `backlog-releaser` が担当する（エージェント内 Step 3.5）。
 

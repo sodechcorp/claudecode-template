@@ -191,6 +191,8 @@ NG 項目:
 
 ### 8. xlsx 対応記録の追記（`{xlsx_folder}` が設定されている場合のみ）
 
+`{xlsx_folder}` が空文字・未設定、または変数名のまま展開されていない場合（`{xlsx_folder}` という形式のまま）はこのステップをスキップする。
+
 **タイムライン追記**:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
