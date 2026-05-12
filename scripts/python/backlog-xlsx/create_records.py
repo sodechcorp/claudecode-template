@@ -772,12 +772,11 @@ def fill_pending_decisions(ws, approach_md, impl_md):
 
     rows = parse_md_table(text) if text else []
 
-    # 列マッピング: A=No, B=内容, C=影響範囲, D=期待する判断者, E=関連ファイル
+    # 列マッピング: A=No, B:C マージ=内容, D:E マージ=影響範囲, F=関連ファイル
     col_map = [
-        ("内容",           ["内容", "保留内容", "判断内容"]),
-        ("影響範囲",       ["影響範囲", "影響", "対象"]),
-        ("期待する判断者", ["期待する判断者", "判断者", "担当"]),
-        ("関連ファイル",   ["関連ファイル", "関連", "ファイル"]),
+        (2, ["内容", "保留内容", "判断内容"]),
+        (4, ["影響範囲", "影響", "対象"]),
+        (6, ["関連ファイル", "関連", "ファイル"]),
     ]
 
     if not rows:
@@ -797,15 +796,15 @@ def fill_pending_decisions(ws, approach_md, impl_md):
     extra = max(0, len(rows) - PENDING_LIMIT)
     if extra > 0:
         insert_rows_with_format(ws, data_start + PENDING_LIMIT, extra,
-                                source_row=data_start, max_col=5)
+                                source_row=data_start, max_col=6)
     elif len(rows) < PENDING_LIMIT:
         _shrink_table(ws, data_start, len(rows), PENDING_LIMIT)
 
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
         wset(ws, data_start + i, 1, str(i + 1), fill)
-        for j, (_, candidates) in enumerate(col_map, start=2):
-            wset(ws, data_start + i, j, get_col(row, *candidates), fill)
+        for col_idx, candidates in col_map:
+            wset(ws, data_start + i, col_idx, get_col(row, *candidates), fill)
         auto_fit_row(ws, data_start + i)
 
 
