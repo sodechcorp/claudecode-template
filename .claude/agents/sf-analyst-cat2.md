@@ -175,6 +175,8 @@ sf data query -q "SELECT EntityDefinition.QualifiedApiName, Field FROM FieldDefi
 
 全オブジェクト処理後、`docs/catalog/_data-model.md` を生成する。
 
+> **保存先ファイル名**: 必ず `docs/catalog/_data-model.md` に保存する。`_er.md` や他の名前は不可。
+
 含める内容:
 - **全体ER図（Mermaid）**: 全カスタムオブジェクト＋参照している標準オブジェクトを含む
 - **リレーション一覧テーブル**: 親オブジェクト・子オブジェクト・リレーション種別・多重度
