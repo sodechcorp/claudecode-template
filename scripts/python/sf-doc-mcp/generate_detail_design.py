@@ -505,9 +505,8 @@ def fill_target_objects(ws, data: dict, changed_obj_keys: set,
 
     img_anchor = f"B{diagram_start + 1}"
     if png_path:
-        # Z-4b: target_aspect_wh=4.5 でアスペクト正規化 → AA-2: align="left" で左寄せ（FG-001 の左白帯解消）
-        # AA-3b: max_w 1400→1700 / max_h 300→380 に拡大（視認性向上・列ヘッダー折り返し軽減）
-        _embed_image(ws, png_path, img_anchor, target_aspect_wh=4.5, align="left", max_w=1700, max_h=380)
+        # AA-3d: target_aspect_wh パディングを廃止し自然サイズで fit-in-box 表示（行・列数に応じて自然に拡大）
+        _embed_image(ws, png_path, img_anchor, max_w=2400, max_h=2400)
 
 
 def _estimate_row_height(text: str, chars_per_line: int = 34,
