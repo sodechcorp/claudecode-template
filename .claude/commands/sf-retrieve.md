@@ -4,6 +4,9 @@ description: "Salesforce組織からメタデータを取得する。package.xml
 
 Salesforce組織からメタデータを取得してください。
 
+> **前提**: sf CLI **2.133.0+** が必要です。`standard` / `all` モードはスクリプトが自動チェックします。
+> 旧版の場合: `npm install --global @salesforce/cli@latest` で更新してください。
+
 ## ユーザー入力
 
 $ARGUMENTS
@@ -112,15 +115,20 @@ sf project retrieve start --manifest manifest/package.xml --target-org "$TARGET_
 | レイアウト | `Layout` |
 | Lightning ページ | `FlexiPage` |
 | 静的リソース | `StaticResource` |
-| メールテンプレート | `EmailTemplate` |
-| レポートタイプ | `ReportType` |
-| レポート | `Report` |
-| ダッシュボード | `Dashboard` |
+| メールテンプレート | `EmailTemplate` | ⚠ フォルダ型 |
+| レポートタイプ | `ReportType` | |
+| レポート | `Report` | ⚠ フォルダ型 |
+| ダッシュボード | `Dashboard` | ⚠ フォルダ型 |
 | 名前付き資格情報 | `NamedCredential` |
 | リモートサイト設定 | `RemoteSiteSetting` |
 | プロファイル | `Profile` |
 
 対応表に記載のないメタデータタイプは、Salesforce Metadata API 名（例: `WorkflowRule`、`Queue`）をそのまま `<name>` に指定する。指定されたタイプが不明な場合は AskUserQuestion でユーザーに確認する。
+
+> **⚠ フォルダ型の注意**: Dashboard / Report / EmailTemplate / Document を `select` で個別指定する場合、`<members>*</members>` は使えない。以下のいずれかを使うこと:
+> - フォルダ名のみ: `<members>FolderName</members>` → そのフォルダ内の全アイテム取得
+> - 個別指定: `<members>FolderName/ItemName</members>` → 特定のアイテムのみ
+> - フォルダ型と同時指定: `DashboardFolder` / `ReportFolder` の `<types>` ブロックも含める
 
 ---
 

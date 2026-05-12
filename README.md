@@ -10,7 +10,7 @@ Salesforce 開発プロジェクト向けの Claude Code テンプレート。
 | ツール | 最低バージョン |
 |---|---|
 | Git | 2.30+ |
-| Salesforce CLI (`sf`) | 2.0+ |
+| Salesforce CLI (`sf`) | **2.133.0+** （旧版は Entity expansion バグあり） |
 | Node.js | 18+ |
 | Python | 3.10+ |
 | Claude Code | 最新版 |
@@ -124,6 +124,36 @@ clone 完了後の次のステップ:
 3. `/setup-mcp` — 外部ツール連携を設定する（任意）
 
 > **GitHub のアクセス権**: Public リポジトリは招待なしで clone できる。`git push` する場合は GitHub の Settings → Collaborators から招待が必要。
+
+---
+
+## トラブルシューティング
+
+### Entity expansion limit exceeded: 1031 > 1000
+
+sf CLI 2.132 以下で `/sf-retrieve` を実行すると発生する既知バグ。
+
+**対処**:
+```bash
+npm install --global @salesforce/cli@latest
+```
+
+Windows で `where sf` が複数パスを返す場合（旧版スタンドアロンが優先される）:
+```powershell
+# npm インストール版を直接実行
+C:\Users\{ユーザー名}\AppData\Roaming\npm\sf.cmd --version  # 2.133.0+ を確認
+# または PATH の優先順位を調整する
+```
+
+### Dashboard / Report が force-app/ に出てこない
+
+これらはフォルダ型メタデータのため `<members>*</members>` 指定では取得できない。
+
+**対処**: `/sf-retrieve standard` を再実行する（テンプレート更新後はフォルダ名を自動列挙して取得）。または `/sf-retrieve select` でフォルダ名を `FolderName` 形式で個別指定。
+
+### 特定の型で "Metadata API received improper input" が出る
+
+`NetworkBranding` 等、`*` 取得時に内部用コンポーネントを返す型で発生。テンプレートの `EXCLUDED_FROM_WILDCARD` リスト（`scripts/sf-retrieve.sh`）に既に追加済み。新たに発生した場合は同リストに型名を追記する。
 
 ---
 

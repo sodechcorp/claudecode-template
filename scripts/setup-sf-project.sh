@@ -102,12 +102,15 @@ fi
 mkdir -p docs/logs
 info "docs/logs/ フォルダを作成しました"
 
+# --- sf CLI バージョン確認（Entity expansion バグを事前警告）---
+bash scripts/sf-retrieve.sh check-version
+
 # --- 標準セットの package.xml を生成（sf-retrieve.sh に委譲してリスト一元管理） ---
 bash scripts/sf-retrieve.sh generate-only standard
 
-# --- メタデータ取得 ---
+# --- メタデータ取得（Dashboard/Report 等のフォルダ型バッチを含む全 manifest）---
 info "メタデータを取得中..."
-sf project retrieve start --manifest manifest/package.xml --target-org "$ALIAS"
+bash scripts/sf-retrieve.sh retrieve-standard
 ok "メタデータ取得完了"
 
 echo ""
