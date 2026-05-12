@@ -772,10 +772,10 @@ def fill_pending_decisions(ws, approach_md, impl_md):
 
     rows = parse_md_table(text) if text else []
 
-    # 列マッピング: A=No, B:C マージ=内容, D:E マージ=影響範囲, F=関連ファイル
+    # 列マッピング: A=No, B:D マージ=内容, E=影響範囲, F=関連ファイル
     col_map = [
         (2, ["内容", "保留内容", "判断内容"]),
-        (4, ["影響範囲", "影響", "対象"]),
+        (5, ["影響範囲", "影響", "対象"]),
         (6, ["関連ファイル", "関連", "ファイル"]),
     ]
 
