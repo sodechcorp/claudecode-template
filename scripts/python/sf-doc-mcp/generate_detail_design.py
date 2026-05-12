@@ -505,8 +505,8 @@ def fill_target_objects(ws, data: dict, changed_obj_keys: set,
 
     img_anchor = f"B{diagram_start + 1}"
     if png_path:
-        # AA-3d: target_aspect_wh パディングを廃止し自然サイズで fit-in-box 表示（行・列数に応じて自然に拡大）
-        _embed_image(ws, png_path, img_anchor, max_w=2400, max_h=2400)
+        # AA-3e: zoom=0.6 で全 FG 統一倍率表示（列増→横スクロール、行増→縦スクロール）
+        _embed_image(ws, png_path, img_anchor, zoom=0.6)
 
 
 def _estimate_row_height(text: str, chars_per_line: int = 34,
