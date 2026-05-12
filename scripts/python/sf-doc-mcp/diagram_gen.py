@@ -377,6 +377,11 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         l.get("name", f"Lane{i+1}"): (l.get("type") or "")
         for i, l in enumerate(lanes_in)
     }
+    # step.lane が id（"L-CUST" 等）で書かれている場合に name へ解決するマップ
+    lane_id_to_name: dict[str, str] = {
+        l["id"]: l.get("name", f"Lane{i+1}")
+        for i, l in enumerate(lanes_in) if l.get("id")
+    }
 
     # グループキー: type_key（_TYPE_GROUP_MAP のキー） or None（未分類）
     # 値: list[lane_name]（入力順を維持）
@@ -407,7 +412,9 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 fontsize="12",
             )
             for step in steps_in:
-                if str(step.get("lane", "")) == lane_name:
+                step_lane_raw = str(step.get("lane", ""))
+                step_lane_name = lane_id_to_name.get(step_lane_raw, step_lane_raw)
+                if step_lane_name == lane_name:
                     sid = str(step.get("id", ""))
                     label = str(step.get("label", "") or step.get("title", "") or step.get("name", "") or sid)
                     label = _wrap_jp(label, 16)
@@ -427,7 +434,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                         margin="0.22,0.12",
                     )
 
-    known_lanes = set(lane_names)
+    known_lanes = set(lane_names) | set(lane_id_to_name.keys())
     lane_color_idx = 0
 
     for gi, key in enumerate(sorted_keys):
@@ -456,12 +463,22 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
 
     # 未分類ステップ（lane 指定なし or 未知のレーン）
     for step in steps_in:
-        if str(step.get("lane", "")) not in known_lanes:
+        step_lane_raw = str(step.get("lane", ""))
+        step_lane_resolved = lane_id_to_name.get(step_lane_raw, step_lane_raw)
+        if step_lane_resolved not in known_lanes:
             sid = str(step.get("id", ""))
             g.node(sid, label=str(step.get("label", "") or step.get("title", "") or step.get("name", "") or sid),
                    shape="box", style="filled,rounded",
                    fillcolor=C_STEP_BG, fontcolor=C_STEP_FG,
                    fontname=FONT_JP, fontsize="10")
+
+    # transitions[] が空で step.next が存在する場合、自動派生する
+    if not trans_in:
+        trans_in = [
+            {"from": str(step.get("id", "")), "to": str(dst)}
+            for step in steps_in
+            for dst in (step.get("next") or [])
+        ]
 
     # 遷移エッジ
     # cross=True（アクターが変わる遷移）は constraint=false でランク強制を外す
