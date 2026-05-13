@@ -1847,16 +1847,15 @@ def generate_object_component_matrix(
         return '\n'.join(lines) if lines else name
 
     # コンポーネント列幅: 名前の長さに応じて動的調整
-    # Q-3 (image3 視認性向上): cell_w を拡大して文字が潰れないように
-    # AA-3e: zoom=0.6 表示に合わせて寸法を縮小し、全 FG で同一 zoom → 文字サイズ統一
+    # AA-3f: zoom=0.5 表示に合わせて寸法を圧縮。全 FG 同一 zoom → 文字サイズ統一
     _max_name_len = max((len(_strip_type_suffix(c)) for c in comp_names), default=8)
-    cell_w = min(2.6, max(1.8, _max_name_len * 0.12))
+    cell_w = min(2.8, max(1.8, _max_name_len * 0.12))   # AA-3f: 上限 2.6→2.8（zoom 0.5 後の文字幅確保）
 
     # レイアウト定数（オブジェクト単位 = 項目列なし）
-    obj_col_w = 3.5    # AA-3e: 4.8 → 3.5
-    obj_h     = 0.9    # AA-3e: 1.5 → 0.9（zoom 0.6 後も余白十分）
-    hdr_h     = 2.0    # AA-3e: 3.0 → 2.0
-    legend_h  = 0.7    # AA-3e: 1.2 → 0.7
+    obj_col_w = 3.0    # AA-3f: 3.5 → 3.0
+    obj_h     = 0.65   # AA-3f: 0.9 → 0.65
+    hdr_h     = 1.5    # AA-3f: 2.0 → 1.5
+    legend_h  = 0.5    # AA-3f: 0.7 → 0.5
     margin    = 0.1
 
     n_cols      = len(comp_names)
