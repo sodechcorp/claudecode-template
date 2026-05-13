@@ -25,7 +25,7 @@ Salesforce プロジェクトの設計書を生成します。
 ## Step 0: 設計書種別の選択
 
 AskUserQuestion で生成する設計書を選択する:
-- question: "生成する設計書を選択してください（複数選択可）？"
+- question: "どの設計書を生成しますか？"
 - header: "設計書種別"
 - multiSelect: true
 - options:
