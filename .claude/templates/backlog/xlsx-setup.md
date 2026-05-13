@@ -40,6 +40,23 @@ python -c "import re,sys; print(re.sub(r'[/\\\\:*?\"<>|]', '_', sys.argv[1]))" "
 
 `{xlsx_folder}` = `{report_dir}/{issueID}_{件名_sanitized}`、`{evidence_dir}` = `{xlsx_folder}/evidence` として会話の最後まで保持する。
 
+### 1.5.2 値の確認（Claude が必ず実行・スキップ不可）
+
+`{xlsx_folder}` を以下の形式でチャットに表示する（実値で置換して表示すること）:
+
+> **xlsx_folder** = `{xlsx_folder}`
+
+次の 3 点を確認し、1 つでも NG なら STOP してユーザに「Phase 1.5 を最初からやり直す」と伝える:
+
+- `{` や `}` が含まれない（含む場合はプレースホルダー置換漏れ）
+- 絶対パス形式（`C:/...` または `/...`）
+- 親ディレクトリ（`{report_dir}`）が存在する:
+  ```bash
+  python -c "import pathlib; p=pathlib.Path('{report_dir}'); print('OK' if p.is_dir() else 'NG: '+str(p))"
+  ```
+
+すべて OK の場合のみ次へ進む。
+
 **xlsx ファイルの生成は Phase 3 末尾（実装方針確定後）で実施する。この時点では生成しない。**
 
 > **エビデンス取得依頼は Phase 3 末尾（xlsx 生成後）で行う**。Phase 1.5 では xlsx ファイルがまだ存在しないため、貼付先を案内できない。

@@ -6,7 +6,7 @@
 | 追加要望 | 推奨。UAT 実施予定があれば顧客に確認サインを案内する |
 | その他 | 任意 |
 
-**xlsx 更新（お客様確認）**（`{issue_type}` が `バグ` かつ `{xlsx_folder}` が設定されている場合のみ）
+**xlsx 更新（お客様確認）**（`{issue_type}` が `バグ` かつ `{xlsx_folder}` が設定されていて変数名のまま展開されていない場合のみ実行。`{xlsx_folder}` がリテラルのままならスキップ）
 
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \

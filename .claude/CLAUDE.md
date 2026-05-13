@@ -110,6 +110,22 @@ Python インラインコード内、**および AskUserQuestion の label / des
 - **任意文字列値** (`{author}` 等): シングルクォートで囲まれた箇所 (`'{author}'`) への埋め込み時は、値内の `'` を `\'` にエスケープし、改行 (`\n` `\r`) は空白に置換する（例: `O'Brien` → `O\'Brien`）。シェル引数 (`"{author}"`) への埋め込み時は値内の `"` を `\"` にエスケープする。
 - 同じ規則は `.claude/agents/*.md` 等の連鎖エージェントでも適用される。委譲時に渡す値も上記規則で正規化済みの状態にすること。
 
+#### 置換対象プレースホルダー一覧
+
+| プレースホルダー | 種別 | 確定タイミング |
+|---|---|---|
+| `{project_dir}` | パス | セッション開始時 |
+| `{output_dir}` | パス | Phase 入口 |
+| `{report_dir}` | パス | `.backlog_config.yml` 読み込み時 |
+| `{xlsx_folder}` | パス | `/backlog` Phase 1.5 |
+| `{evidence_dir}` | パス | Phase 1.5 連動 |
+| `{issueID}` | 文字列 | `/backlog` Phase 0 |
+| `{件名}` / `{件名_sanitized}` | 文字列 | Phase 1.5 |
+| `{author}` | 文字列 | persona から取得 |
+| `{alias}` | 文字列 | sf org default 取得時 |
+
+**実行直前の自己点検**: Bash / AskUserQuestion / Write に渡す直前、文字列中に `{...}` リテラルが残っていないか必ず確認。残っていたら置換ルール違反 → 該当 Phase に戻る。
+
 ---
 
 ## Security & Permissions

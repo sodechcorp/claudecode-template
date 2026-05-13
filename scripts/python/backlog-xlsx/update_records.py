@@ -18,6 +18,8 @@ import os
 import re
 import sys
 
+from _common import validate_folder
+
 try:
     import openpyxl
     from openpyxl.styles import Alignment, PatternFill
@@ -202,6 +204,7 @@ def main():
     p_precheck.add_argument("--report", required=True, help="validation-report.md のパス")
 
     args = parser.parse_args()
+    args.folder = validate_folder(args.folder)
 
     xlsx_path = os.path.join(args.folder, f"{args.issue_id}_対応記録.xlsx")
     if not os.path.exists(xlsx_path):

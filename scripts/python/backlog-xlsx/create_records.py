@@ -18,6 +18,8 @@ import re
 import sys
 from pathlib import Path
 
+from _common import validate_folder
+
 try:
     from openpyxl import load_workbook
     from openpyxl.styles import Alignment, PatternFill
@@ -1433,6 +1435,7 @@ def main():
     parser.add_argument("--implementation-plan", required=True, dest="implementation_plan",
                         help="docs/logs/{issueID}/implementation-plan.md のパス")
     args = parser.parse_args()
+    args.folder = validate_folder(args.folder)
 
     if not TEMPLATE.exists():
         print(f"[ERROR] テンプレートが見つかりません: {TEMPLATE}")
