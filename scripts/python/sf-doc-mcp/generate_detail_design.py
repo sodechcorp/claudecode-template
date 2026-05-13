@@ -505,8 +505,8 @@ def fill_target_objects(ws, data: dict, changed_obj_keys: set,
 
     img_anchor = f"B{diagram_start + 1}"
     if png_path:
-        # AA-3f: zoom=0.5 で 1500×500 ターゲット表示（全 FG 統一倍率）
-        _embed_image(ws, png_path, img_anchor, zoom=0.5)
+        # AA-3g: zoom=0.4 で Phase 1 より少し大きめ表示（全 FG 統一倍率）
+        _embed_image(ws, png_path, img_anchor, zoom=0.4)
 
 
 def _estimate_row_height(text: str, chars_per_line: int = 34,
