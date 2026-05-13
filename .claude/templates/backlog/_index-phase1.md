@@ -276,7 +276,7 @@ options:
     description: 再現手順を 1 操作粒度まで分解（前提データ・操作ユーザ・タイミング含む）
     category: C
     auto-execute-when:
-      - 種別がバグ（常時実行・Phase 1.7 で再現テストするため）
+      - 種別がバグ（常時実行）
       - 再現条件が課題本文で曖昧
     auto-skip-when:
       - 種別が追加要望（再現概念が無関係）
