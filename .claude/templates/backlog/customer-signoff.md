@@ -20,7 +20,7 @@
 
 ## xlsx 更新（お客様確認）
 
-ユーザーから「サイン取得済み」報告を受けた後、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が設定されていて変数名のまま展開されていない場合のみ実行（`{xlsx_folder}` がリテラルのままならスキップ）:
+ユーザーから「サイン取得済み」報告を受けた後、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が未設定でなく `{issueID}` も変数名のまま展開されていない場合のみ実行（いずれかがリテラルのままならスキップ）:
 
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \

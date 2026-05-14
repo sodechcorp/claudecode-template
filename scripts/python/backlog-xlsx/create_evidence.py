@@ -177,6 +177,8 @@ def main():
     parser.add_argument("--issue-id",            required=True, dest="issue_id")
     parser.add_argument("--implementation-plan", required=True, dest="implementation_plan",
                         help="docs/logs/{issueID}/implementation-plan.md のパス")
+    parser.add_argument("--allow-blank",         action="store_true", dest="allow_blank",
+                        help="タイミング列が空のテストケースを 'after' 扱いにする（従来挙動）。未指定時は警告で abort")
     args = parser.parse_args()
     args.folder = validate_folder(args.folder)
 
@@ -196,8 +198,21 @@ def main():
     if not test_cases:
         print("[WARN] テスト仕様テーブルが見つかりませんでした。空のエビデンスファイルを生成します。")
 
-    before_cases = [tc for tc in test_cases if tc.get("タイミング", "") == "実装前"]
-    after_cases  = [tc for tc in test_cases if tc.get("タイミング", "") != "実装前"]
+    # タイミング空文字チェック
+    blank_timing_cases = [tc for tc in test_cases if not tc.get("タイミング", "").strip()]
+    if blank_timing_cases:
+        ids = [tc.get("番号", "?") for tc in blank_timing_cases]
+        if args.allow_blank:
+            print(f"[WARN] タイミング未設定のテストケース: {ids} → 'after' 扱いで続行（--allow-blank 指定）")
+            for tc in blank_timing_cases:
+                tc["タイミング"] = "after"
+        else:
+            print(f"[ERROR] タイミング未設定のテストケースがあります: {ids}")
+            print("        タイミング列（'実装前' / 'after' 等）を記入するか --allow-blank で続行してください。")
+            sys.exit(1)
+
+    before_cases = [tc for tc in test_cases if tc.get("タイミング", "").strip() == "実装前"]
+    after_cases  = [tc for tc in test_cases if tc.get("タイミング", "").strip() != "実装前"]
 
     os.makedirs(args.folder, exist_ok=True)
     try:

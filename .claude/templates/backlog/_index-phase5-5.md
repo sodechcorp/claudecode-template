@@ -19,6 +19,10 @@ options:
     ask-user-prompt: |
       この修正は typo 修正・ラベル変更のみのようです。blind 解決判定（subagent）は省略してもよさそうですか？
     estimated-cost: 重
+    prerequisites:
+      - test-report.md にエビデンスマッピング表が存在し、全項目「✅ 取得済」
+      - parent (tester) が After 状態テキスト要約を準備済み
+    prerequisite-fail-action: "test-report.md のエビデンスマッピング表に未取得行あり / After テキスト要約未準備のため起動不可。Phase 5 に戻り Step 6 を完成させる。"
 
   - name: option-cross-functional-impact
     description: 横断機能への影響再確認（リリース直前の最終スコープ確認）

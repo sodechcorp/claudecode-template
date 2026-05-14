@@ -18,7 +18,7 @@ import re
 import sys
 from pathlib import Path
 
-from _common import validate_folder
+from _common import validate_folder, _stripe_fill
 
 try:
     from openpyxl import load_workbook
@@ -30,18 +30,6 @@ except ImportError:
 
 TEMPLATE = Path(__file__).parent / "対応記録テンプレート.xlsx"
 WRAP = Alignment(wrap_text=True, vertical="top")
-_STRIPE_A_RGB = "FFFFFF"  # 白 (偶数行 i=0,2,4,...)
-_STRIPE_B_RGB = "F2F7FB"  # 薄青 (奇数行 i=1,3,5,...)
-
-
-def _stripe_fill(i):
-    """i 行目用の縞模様 PatternFill を毎回 fresh に生成して返す。
-
-    openpyxl の style index aliasing バグ（singleton を使うと白代入が
-    青セルで silent no-op になる）を回避するため、呼び出し毎に新規生成する。
-    """
-    rgb = _STRIPE_A_RGB if i % 2 == 0 else _STRIPE_B_RGB
-    return PatternFill("solid", fgColor=rgb)
 
 
 # ── MD パースユーティリティ ─────────────────────────────────────────────────

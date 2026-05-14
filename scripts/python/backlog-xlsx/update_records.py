@@ -18,7 +18,7 @@ import os
 import re
 import sys
 
-from _common import validate_folder
+from _common import validate_folder, _stripe_fill
 
 try:
     import openpyxl
@@ -28,16 +28,6 @@ except ImportError:
     sys.exit(1)
 
 WRAP = Alignment(wrap_text=True, vertical="top")
-_STRIPE_A_RGB = "FFFFFF"  # 奇数行
-_STRIPE_B_RGB = "F2F7FB"  # 偶数行（薄青）
-
-
-def _stripe_fill(no):
-    """1-indexed の行番号 no に対応する stripe PatternFill を毎回 fresh に生成して返す。
-    openpyxl の style index aliasing バグ（singleton を使うと白代入が青セルで silent no-op になる）を回避する。
-    """
-    rgb = _STRIPE_A_RGB if no % 2 == 1 else _STRIPE_B_RGB
-    return PatternFill("solid", fgColor=rgb)
 
 
 def find_next_empty_row(ws, col=1, start_row=1):
@@ -73,10 +63,10 @@ def cmd_timeline(args, wb):
     data_start = timeline_header_row + 1
     next_row = find_next_empty_row(ws, col=1, start_row=data_start)
 
-    # No 列は現在の行数から算出
+    # No 列は現在の行数から算出（0-indexed で stripe_fill を呼ぶため -1 する）
     no = next_row - data_start + 1
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    fill = _stripe_fill(no)
+    fill = _stripe_fill(no - 1)
 
     for col, value in enumerate([no, now, args.source, args.phase, args.content, args.reason or ""], start=1):
         cell = ws.cell(row=next_row, column=col, value=value)
@@ -98,25 +88,43 @@ def cmd_cell(args, wb):
 
 def _extract_validation_summary(text):
     """validation-report.md から実装前検証の概要サマリー文字列を抽出する。"""
-    # Step 2 の判定行を探す
-    step2_match = re.search(
-        r"## Step 2[：:][^\n]*\n(.*?)(?=\n## |\Z)", text, re.DOTALL
-    )
-    if step2_match:
-        step2_body = step2_match.group(1)
-        # PASS 率・カバレッジ行を探す
-        pass_lines = []
-        for ln in step2_body.splitlines():
-            ln = ln.strip()
-            if re.search(r"Pass Rate|PASS|カバレッジ|Coverage|判定", ln, re.IGNORECASE):
-                clean = re.sub(r"\*+", "", ln).strip()
-                if clean and not clean.startswith("|"):
-                    pass_lines.append(clean[:80])
-        if pass_lines:
-            return "実装前確認済み（" + " / ".join(pass_lines[:2]) + "）"
+    # 自明ケース判定を最優先でチェック
+    trivial_match = re.search(r"自明ケース判定[:：]\s*該当[（(]([^）)]+)[）)]?", text)
+    if trivial_match:
+        return f"実装前確認済み（自明ケース: {trivial_match.group(1).strip()[:40]}）"
 
-    # 総合判定を探す
-    verdict_match = re.search(r"## 総合判定\n+\*+([^\n*]+)\*+", text)
+    # Step 1〜4 の OK/NG/SKIP を集計（## または ### 見出し両対応）
+    step_results = {}
+    for step_num in range(1, 5):
+        # ##または### + Step N の形式に対応
+        step_match = re.search(
+            rf"#{2,3}\s+Step\s+{step_num}[：:\s].*?\n(.*?)(?=\n#{2,3}\s+|\Z)",
+            text, re.DOTALL
+        )
+        if step_match:
+            body = step_match.group(1)
+            if re.search(r"skip|スキップ", body, re.IGNORECASE):
+                step_results[step_num] = "SKIP"
+            elif re.search(r"\bNG\b|要修正|問題あり|要戻り", body, re.IGNORECASE):
+                step_results[step_num] = "NG"
+            else:
+                step_results[step_num] = "OK"
+
+    if step_results:
+        ng_steps = [str(k) for k, v in step_results.items() if v == "NG"]
+        skip_steps = [str(k) for k, v in step_results.items() if v == "SKIP"]
+        ok_steps = [str(k) for k, v in step_results.items() if v == "OK"]
+        parts = []
+        if ok_steps:
+            parts.append(f"OK: Step{','.join(ok_steps)}")
+        if skip_steps:
+            parts.append(f"SKIP: Step{','.join(skip_steps)}")
+        if ng_steps:
+            parts.append(f"NG: Step{','.join(ng_steps)}")
+        return "実装前確認済み（" + " / ".join(parts) + "）"
+
+    # 総合判定フォールバック（## と ### 両対応）
+    verdict_match = re.search(r"#{2,3}\s+総合判定\n+\*+([^\n*]+)\*+", text)
     if verdict_match:
         return f"実装前確認済み: {verdict_match.group(1).strip()}"
 
@@ -156,8 +164,9 @@ def cmd_test_precheck(args, wb):
         print("[WARN] テスト・検証記録シートのヘッダー行が見つかりませんでした。")
         return
 
+    max_rows = getattr(args, "max_rows", 1000)
     updated = 0
-    for r in range(header_row + 1, header_row + 100):
+    for r in range(header_row + 1, header_row + max_rows + 1):
         no_val = ws.cell(r, 1).value
         timing_val = ws.cell(r, 2).value
         if no_val is None and timing_val is None:
@@ -165,17 +174,20 @@ def cmd_test_precheck(args, wb):
         if str(timing_val or "").strip() == "実装前":
             result_cell = ws.cell(r, 6)
             verdict_cell = ws.cell(r, 7)
-            if not result_cell.value:  # 既入力の場合は上書きしない
+            if not result_cell.value or getattr(args, "force", False):
                 result_cell.value = summary
                 result_cell.alignment = WRAP
-                fill = _stripe_fill(updated + 1)
+                fill = _stripe_fill(updated)
                 result_cell.fill = fill
-            if not verdict_cell.value:
+            if not verdict_cell.value or getattr(args, "force", False):
                 verdict_cell.value = "OK"
                 verdict_cell.alignment = WRAP
             updated += 1
 
     print(f"[OK] 実装前テスト行 {updated} 件に validation-report.md の結果を反映しました")
+
+
+TIMELINE_PHASES = ["調査", "対応方針", "実装方針", "実装前検証", "実装", "テスト", "最終検証", "リリース", "お客様確認"]
 
 
 def main():
@@ -187,10 +199,12 @@ def main():
 
     # タイムライン追加サブコマンド
     p_tl = sub.add_parser("timeline", help="タイムラインに行を追加する")
-    p_tl.add_argument("--phase",   required=True, help="フェーズ名 (例: 調査, 実装, テスト)")
+    p_tl.add_argument("--phase",   required=True, choices=TIMELINE_PHASES,
+                      help="フェーズ名（固定値: " + "/".join(TIMELINE_PHASES) + "）")
     p_tl.add_argument("--source",  default="Claude", help="発生元 (例: Claude, ユーザ)")
     p_tl.add_argument("--content", required=True, help="内容・決定事項")
     p_tl.add_argument("--reason",  default="", help="変更・判断の理由（任意）")
+    p_tl.add_argument("--force",   action="store_true", help="既存値があっても上書きする")
 
     # セル直接更新サブコマンド
     p_cell = sub.add_parser("cell", help="特定セルを直接更新する")
@@ -198,10 +212,14 @@ def main():
     p_cell.add_argument("--row",   required=True, type=int, help="行番号")
     p_cell.add_argument("--col",   required=True, type=int, help="列番号")
     p_cell.add_argument("--value", required=True, help="書き込む値")
+    p_cell.add_argument("--force", action="store_true", help="既存値があっても上書きする")
 
     # テスト実装前結果反映サブコマンド
     p_precheck = sub.add_parser("test-precheck", help="validation-report.md の実装前確認結果をテスト行に反映する")
-    p_precheck.add_argument("--report", required=True, help="validation-report.md のパス")
+    p_precheck.add_argument("--report",    required=True, help="validation-report.md のパス")
+    p_precheck.add_argument("--max-rows",  type=int, default=1000, dest="max_rows",
+                            help="ヘッダー行から走査する最大行数（デフォルト: 1000）")
+    p_precheck.add_argument("--force",     action="store_true", help="既存値があっても上書きする")
 
     args = parser.parse_args()
     args.folder = validate_folder(args.folder)
