@@ -257,6 +257,17 @@ def _add_release_record_section(ws):
     print(f"[ADD ] リリース実施記録: 行 {h_row}〜{ch_row + len(envs)} に追加しました")
 
 
+def patch_kaito_sheet(ws):
+    """対応内容シート: Before/After 見出しから「（実装後に記入）」を削除。"""
+    for r in range(1, ws.max_row + 1):
+        v = ws.cell(r, 1).value
+        if v and "■ Before / After" in str(v) and "（実装後に記入）" in str(v):
+            ws.cell(r, 1).value = "■ Before / After"
+            print(f"[FIX ] 対応内容: row {r} を「■ Before / After」に変更")
+            return
+    print("[SKIP] 対応内容: 「（実装後に記入）」が見つかりません（既に修正済みの可能性）")
+
+
 def main():
     if not TEMPLATE.exists():
         print(f"[ERROR] テンプレートが見つかりません: {TEMPLATE}")
@@ -269,6 +280,9 @@ def main():
 
     print("\n=== patch_template_v6: リリース・ロールバック ===")
     patch_release_sheet(wb["リリース・ロールバック"])
+
+    print("\n=== patch_template_v6: 対応内容 ===")
+    patch_kaito_sheet(wb["対応内容"])
 
     try:
         wb.save(TEMPLATE)

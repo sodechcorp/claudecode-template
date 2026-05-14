@@ -682,6 +682,8 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     wset(ws, 6, 2, issue_type)
     wset(ws, 7, 2, "対応中")
     wset(ws, 8, 2, summary_bg)
+    for r in range(3, 9):
+        auto_fit_row(ws, r)
     # r9 最終対応サマリー: Phase 6 で releaser が update_records.py cell で記入する
 
     # r11-13: 対応サマリーブロック（高畑さん等レビュー向けの構造化サマリー）  [V-2]
@@ -691,6 +693,8 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     wset(ws, 11, 2, approach_clean)
     wset(ws, 12, 2, _extract_main_changes_detailed(impl_md))
     wset(ws, 13, 2, _extract_rollback_hint(impl_md))
+    for r in range(11, 14):
+        auto_fit_row(ws, r)
 
     # タイムライン: 各フェーズを MD ファイルの更新日時で書き込む  [A-4]
     # 対応する MD が空の場合はその行を空にする（update_records.py timeline が後から追記できるよう）
@@ -736,6 +740,7 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
         fill = _stripe_fill(i)
         for j, val in enumerate(row, start=1):
             wset(ws, tl_data_start + i, j, val, fill)
+        auto_fit_row(ws, tl_data_start + i)
 
 
 # ── 判断保留事項シート書き込み ────────────────────────────────────────────────
@@ -836,6 +841,7 @@ def fill_approach(ws, approach_md):
             if col == "工数":
                 val = to_median_hours(val)  # [M5]
             wset(ws, APPROACH_START + i, j, val, fill)
+        auto_fit_row(ws, APPROACH_START + i)
 
     # 採用方針（テンプレ修正後 r8 or 行数シフト後の位置）  [F2: 案名+理由 短文形式]
     adopted_header_row = find_header_row(ws, ("■ 採用方針",))
@@ -865,6 +871,7 @@ def fill_approach(ws, approach_md):
             ws.merge_cells(start_row=adopted_write_row, end_row=adopted_write_row,
                            start_column=1, end_column=6)
         wset(ws, adopted_write_row, 1, adopted_short)
+        auto_fit_row(ws, adopted_write_row)
 
     # 実施前確認事項（テンプレ修正後 r11 or ヘッダ検索で特定）[F2: 2列構成]
     checks_text = extract_section(
@@ -935,6 +942,7 @@ def fill_approach(ws, approach_md):
             ws.merge_cells(start_row=target_row, end_row=target_row,
                            start_column=1, end_column=6)
         wset(ws, target_row, 1, f"{i + 1}. {item}", fill)
+        auto_fit_row(ws, target_row)
 
 
 # ── 調査・影響範囲シート ────────────────────────────────────────────────────
@@ -975,11 +983,21 @@ def fill_investigation(ws, inv_md):
         )
     elif len(code_rows) < CODE_LIMIT:
         _shrink_table(ws, code_data_start, len(code_rows), CODE_LIMIT)
+    # 列ヘッダー行「コード内容」を C:D マージ（D列が空欄で見切れるのを防ぐ）
+    if code_header_row:
+        col_hdr_row = code_header_row + 1
+        if not _merge_exists(ws, col_hdr_row, 3, col_hdr_row, 4):
+            ws.merge_cells(start_row=col_hdr_row, end_row=col_hdr_row,
+                           start_column=3, end_column=4)
     for i, row in enumerate(code_rows):
         fill = _stripe_fill(i)
         for j, (_, candidates) in enumerate(code_col_map, start=1):
             wset(ws, code_data_start + i, j, get_col(row, *candidates), fill)
-        auto_fit_row(ws, code_data_start + i)
+        target_row = code_data_start + i
+        if not _merge_exists(ws, target_row, 3, target_row, 4):
+            ws.merge_cells(start_row=target_row, end_row=target_row,
+                           start_column=3, end_column=4)
+        auto_fit_row(ws, target_row)
 
     # 影響範囲: 変更によって影響を受ける外部ファイル・フロー  [A-2: ソース分離]
     impact_text = extract_section(inv_md, "影響範囲")
@@ -1223,6 +1241,11 @@ def fill_release(ws, impl_md, approach_md=""):
         )
     elif len(rows) < RELEASE_LIMIT:
         _shrink_table(ws, RELEASE_START, len(rows), RELEASE_LIMIT)
+    # 列ヘッダー行「対象」を C:D マージ
+    col_hdr_row = RELEASE_START - 1  # row 3
+    if not _merge_exists(ws, col_hdr_row, 3, col_hdr_row, 4):
+        ws.merge_cells(start_row=col_hdr_row, end_row=col_hdr_row,
+                       start_column=3, end_column=4)
 
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
@@ -1231,6 +1254,11 @@ def fill_release(ws, impl_md, approach_md=""):
         wset(ws, RELEASE_START + i, 2, row.get("種別", ""), fill)
         wset(ws, RELEASE_START + i, 3, api_name, fill)
         # デプロイ方法列はテンプレから削除済みのため書き込み不要  [F11]
+        target_row = RELEASE_START + i
+        if not _merge_exists(ws, target_row, 3, target_row, 4):
+            ws.merge_cells(start_row=target_row, end_row=target_row,
+                           start_column=3, end_column=4)
+        auto_fit_row(ws, target_row)
 
     # リリース前確認事項: テンプレから削除済み（patch_template_v6）。セクションが存在しない場合はスキップ
     pre_header_row = find_header_row(ws, ("■ リリース前確認事項",))
@@ -1453,6 +1481,13 @@ def main():
     fill_content(wb["対応内容"], impl_md)
     fill_test(wb["テスト・検証記録"], impl_md)
     fill_release(wb["リリース・ロールバック"], impl_md, app_md)
+
+    # 後処理: 全シートで content があるのに height=None の行を auto_fit_row で補完
+    for ws in wb.worksheets:
+        for r in range(1, ws.max_row + 1):
+            if ws.row_dimensions[r].height is None:
+                if any(ws.cell(r, c).value for c in range(1, ws.max_column + 1)):
+                    auto_fit_row(ws, r, min_height=20)
 
     path = os.path.join(args.folder, f"{args.issue_id}_対応記録.xlsx")
     try:
