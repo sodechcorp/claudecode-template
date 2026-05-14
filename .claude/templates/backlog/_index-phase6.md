@@ -26,7 +26,7 @@ options:
     estimated-cost: 中
 
   - name: option-stakeholder-notification
-    description: 関係者への完了通知（Slack・メール・Backlog コメントでの周知）
+    description: 関係者への完了通知（Slack・メール等の文面案起案。Backlog コメント投稿はユーザーが手動）
     category: D
     auto-execute-when:
       - 全社影響を伴う修正

@@ -1,7 +1,8 @@
-# 横断系オプションインデックス（全 Phase 参照）
+# 横断系オプションインデックス（Phase 5 のみ参照）
 
-全 backlog 系エージェントが Step 0b で参照する横断系判定情報。2 オプション。
-各エージェントは `_index-phase{N}.md` と **このファイルを必ず両方 Read** して判定する。
+backlog-tester が Phase 5 の Step 0b で参照する横断系判定情報。2 オプション。
+
+**評価タイミング**: Phase 5 (tester) の Step 0b でのみ評価する。Phase 1〜4・5.5・6 では評価しない（cross オプション 2 件は出力先が `test-report.md` のため、課題対応の最終段階で評価するのが自然）。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
 

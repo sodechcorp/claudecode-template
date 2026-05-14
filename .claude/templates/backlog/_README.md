@@ -51,7 +51,7 @@
 ### Step 0b: 関連オプションの判定（全エージェント必須）
 
 1. **このフェーズ用の `_index-phase{N}.md` を Read**（Phase 1 なら `_index-phase1.md`、Phase 3.5 なら `_index-phase3-5.md`）
-2. **`_index-cross.md` を Read**（横断系オプション）
+2. **Phase 5 (tester) のみ `_index-cross.md` を Read**（横断系オプション・他 Phase では評価しない）
 3. 各オプションについて以下の 3 分岐で判定:
 
    | 判定 | 条件 | 挙動 |

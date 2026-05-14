@@ -44,7 +44,9 @@ focus_hints: []
 ## Step 0b: 関連オプションの判定
 
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
-> 本 agent の Phase: 4（_index-phase4.md と _index-cross.md を Read して判定）
+> 本 agent の Phase: 4（_index-phase4.md を Read して判定・`_index-cross.md` は Phase 5 で評価済みのため評価しない）
+
+判定結果（採用・スキップしたオプション）は **implementation-plan.md** の末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
 ---
 

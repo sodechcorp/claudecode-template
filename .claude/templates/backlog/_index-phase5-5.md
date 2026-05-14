@@ -1,6 +1,6 @@
 # Phase 5.5 オプションインデックス（最終確認）
 
-backlog-tester が Phase 5.5 の Step 0b で参照する判定情報。3 オプション。
+backlog-tester が Phase 5.5 の Step 0b で参照する判定情報。4 オプション。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
 

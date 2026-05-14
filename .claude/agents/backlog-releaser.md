@@ -31,9 +31,9 @@ focus_hints: []
 ## Step 0b: 関連オプションの判定
 
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
-> 本 agent の Phase: 6（_index-phase6.md と _index-cross.md を Read して判定）
+> 本 agent の Phase: 6（_index-phase6.md を Read して判定・`_index-cross.md` は Phase 5 で評価済みのため評価しない）
 
-判定結果（採用・スキップしたオプション）は **Step 5 の完了報告（本体）の末尾** にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠）。
+判定結果（採用・スキップしたオプション）は **Step 5 の完了報告（本体）の末尾** にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
 ---
 
@@ -195,6 +195,7 @@ python scripts/python/backlog-xlsx/update_records.py \
    - **その他**: リマインド省略可
 3. ユーザーから「サイン取得済み」「サイン不要」の報告を受けるまで **完了報告に進まない**（バグの場合は必須）
 4. ユーザーから報告を受けた後、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が設定されている場合のみ xlsx タイムラインに記録:
+   > `{xlsx_folder}` が空文字・未設定または変数名のまま展開されていない場合（`{xlsx_folder}` という形式のまま）はこのステップをスキップする。
 
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \

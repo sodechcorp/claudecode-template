@@ -39,11 +39,13 @@ tools:
 **インライン最小手順（_README.md が参照不可な場合も以下を実施すること）**:
 
 1. モードに応じてオプション index を Read する:
-   - **Phase A（対応方針）実行時**: `_index-phase2.md` と `_index-cross.md` を Read して判定
-   - **Phase B（実装方針）実行時**: `_index-phase3.md` と `_index-cross.md` を Read して判定（Phase A から連続実行の場合も必ず再 Read する）
+   - **Phase A（対応方針）実行時**: `_index-phase2.md` を Read して判定（`_index-cross.md` は Phase 5 で評価するため評価しない）
+   - **Phase B（実装方針）実行時**: `_index-phase3.md` を Read して判定（Phase A から連続実行の場合も必ず再 Read する。`_index-cross.md` は Phase 5 で評価するため評価しない）
 2. 各 index の「オプション一覧」から、コマンド起動時に指定されたオプションを確認する
 3. 該当オプションがあれば対応する `options/option-*.md` を Read して追加手順を把握する
 4. 該当オプションがなければそのまま Phase A/B の本処理に進む
+
+判定結果（採用・スキップしたオプション）は **approach-plan.md**（Phase A）または **implementation-plan.md**（Phase B）の末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
 ---
 
@@ -181,6 +183,14 @@ A-1 事前準備で以下を実施:
 
 | 日時 | 発見Phase | 変更内容 | 変更前 | 変更後 | 理由 | 影響 |
 |---|---|---|---|---|---|---|
+
+## Step 0b オプション判定結果
+
+### 採用したオプション
+- `option-{name}`: {実行結果の要約 1 行}
+
+### スキップしたオプション
+- `option-{name}`: {auto-skip-when マッチ理由 1 行}
 
 （この時点では保存せず、A-4 議論モードを先に進める）
 
@@ -365,6 +375,14 @@ Phase B の提示を行う**前に**、以下を実施する:
 
 | 日時 | 発見Phase | 変更内容 | 変更前 | 変更後 | 理由 | 影響 |
 |---|---|---|---|---|---|---|
+
+## Step 0b オプション判定結果
+
+### 採用したオプション
+- `option-{name}`: {実行結果の要約 1 行}
+
+### スキップしたオプション
+- `option-{name}`: {auto-skip-when マッチ理由 1 行}
 ```
 
 （この時点では保存せず、B-4 議論モードを先に進める）
