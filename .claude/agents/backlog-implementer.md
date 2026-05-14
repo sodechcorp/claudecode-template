@@ -90,6 +90,14 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 
 対象ファイルが存在しない場合は「設計書がありません。作成しますか？」と確認する（勝手に作成しない）。No の場合は当該ドキュメントの更新をスキップし、changelog.md に「{日付} {ファイル名}: 設計書作成スキップ（ユーザー確認済み）」を追記してから次の変更ファイルへ進む。
 
+### 4.5 実装計画・変更ファイル一覧の記述規約（xlsx 言語記述に直接投影）
+
+implementation-plan.md の「対応内容」セクションおよび変更ファイル一覧の「変更概要」列は **自然な日本語** で書く。
+
+- **OK 例**: 「preCheck.html: 犯罪歴確認ラジオボタンを渡航者種別 SA-001〜SA-012 のみ表示する設問として追加」
+- **NG 例**: 「preCheck.html: isCriminalHistoryVisible @track / getter 追加 / handleCriminalHistoryChange handler 実装」
+- 理由: xlsx 対応内容シートの言語記述セクションに直接投影されるため、業務担当者が読める語彙が必要。`@track` / `getter` / `handler` 等の技術用語は括弧補足でも使わない
+
 ### 5. Before / After の提示
 
 全ての変更ファイルについて、変更前後を提示する:
@@ -154,16 +162,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 # 変更ファイルが複数ある場合は変更ファイルごとに繰り返す
 ```
 
-**③ 影響確認チェックリストを☑化**（実装完了後）:
-```bash
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  checklist \
-  --sheet "対応内容" --section "影響確認チェックリスト" \
-  --indices "1,2,3"  # 実装で確認できた項目番号を指定
-```
-
-**④ 残対応追記**（実装中に「現課題スコープ外」「後で対応」と判断したものがある場合のみ）:
+**③ 残対応追記**（実装中に「現課題スコープ外」「後で対応」と判断したものがある場合のみ）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
@@ -174,7 +173,7 @@ python scripts/python/backlog-xlsx/update_records.py \
   --next-action "{いつ・誰が対応するか}"
 ```
 
-**⑤ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
+**④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \

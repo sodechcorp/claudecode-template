@@ -154,45 +154,6 @@ def cmd_cell(args, wb):
     print(f"セル更新: {args.sheet}!({args.row},{args.col}) = {str(args.value)[:40]}...")
 
 
-def cmd_checklist(args, wb):
-    """指定セクションのチェックリスト(☐)を☑に変更する"""
-    if args.sheet not in wb.sheetnames:
-        print(f"[ERROR] シート '{args.sheet}' が見つかりません。")
-        sys.exit(1)
-    ws = wb[args.sheet]
-
-    section_row = find_header_row(ws, (args.section,))
-    if section_row is None:
-        print(f"[ERROR] セクション '{args.section}' が見つかりません。")
-        sys.exit(1)
-
-    indices = set()
-    for s in args.indices.split(","):
-        s = s.strip()
-        if s.isdigit():
-            indices.add(int(s))
-
-    # セクションヘッダー以降でチェックボックス行を走査
-    check_rows = []
-    for r in range(section_row + 1, ws.max_row + 1):
-        v = str(ws.cell(r, 1).value or "").strip()
-        if v in ("☐", "☑"):
-            check_rows.append(r)
-        elif v.startswith("■") and r > section_row + 1:
-            break  # 次のセクションへ
-
-    updated = 0
-    for i, row in enumerate(check_rows, start=1):
-        if i in indices:
-            current = str(ws.cell(row, 1).value or "").strip()
-            if current == "☐" or getattr(args, "force", False):
-                ws.cell(row, 1).value = "☑"
-                updated += 1
-            else:
-                print(f"[SKIP] 行{row}: 既に '{current}'")
-
-    print(f"[OK] {args.section}: {updated}/{len(indices)} 件を☑に更新しました")
-
 
 def cmd_backup_info(args, wb):
     """対応内容シートのバックアップ情報（Git hash / stash名 / 巻き戻し方法）を書き込む"""
@@ -406,10 +367,9 @@ def cmd_pending(args, wb):
     ws.cell(new_row, 1, value=new_no).alignment = WRAP
     ws.cell(new_row, 2, value=args.kind).alignment = WRAP
     ws.cell(new_row, 3, value=args.content).alignment = WRAP
-    ws.cell(new_row, 4, value=getattr(args, "related", "") or "").alignment = WRAP
-    ws.cell(new_row, 5, value=args.status).alignment = WRAP
-    ws.cell(new_row, 6, value=getattr(args, "next_action", "") or "").alignment = WRAP
-    for col in range(1, 7):
+    ws.cell(new_row, 4, value=args.status).alignment = WRAP
+    ws.cell(new_row, 5, value=getattr(args, "next_action", "") or "").alignment = WRAP
+    for col in range(1, 6):
         c = ws.cell(new_row, col)
         c.fill = fill
 
@@ -450,13 +410,6 @@ def main():
                             help="ヘッダー行から走査する最大行数（デフォルト: 1000）")
     p_precheck.add_argument("--force",     action="store_true", help="既存値があっても上書きする")
 
-    # チェックリスト更新
-    p_cl = sub.add_parser("checklist", help="チェックリスト(☐)を☑に変更する")
-    p_cl.add_argument("--sheet",   required=True, help="シート名")
-    p_cl.add_argument("--section", required=True, help="セクション見出し（部分一致）")
-    p_cl.add_argument("--indices", required=True, help="1-base 番号をカンマ区切りで (例: '1,2,3')")
-    p_cl.add_argument("--force",   action="store_true", help="既に☑の行も対象にする")
-
     # バックアップ情報
     p_bi = sub.add_parser("backup-info", help="対応内容シートにバックアップ情報を書き込む")
     p_bi.add_argument("--git-hash", required=True, dest="git_hash", help="Git commit hash (例: abc1234)")
@@ -481,7 +434,6 @@ def main():
                       choices=["未対応", "許容済", "保留", "提案", "完了"],
                       help="ステータス")
     p_pd.add_argument("--next-action", default="", dest="next_action", help="次アクション（任意）")
-    p_pd.add_argument("--related",     default="", help="関連（Q番号・課題ID等、任意）")
     p_pd.add_argument("--force",       action="store_true", help="重複内容があっても追加する")
 
     args = parser.parse_args()
@@ -504,8 +456,6 @@ def main():
         cmd_cell(args, wb)
     elif args.command == "test-precheck":
         cmd_test_precheck(args, wb)
-    elif args.command == "checklist":
-        cmd_checklist(args, wb)
     elif args.command == "backup-info":
         cmd_backup_info(args, wb)
     elif args.command == "before-after":

@@ -1015,25 +1015,20 @@ def fill_investigation(ws, inv_md):
             impact_data_start + IMPACT_LIMIT,
             extra_impact,
             source_row=impact_data_start,
-            max_col=4,
+            max_col=3,
         )
     elif len(impact_rows) < IMPACT_LIMIT:
         _shrink_table(ws, impact_data_start, len(impact_rows), IMPACT_LIMIT)
 
-    # 新列構成: A=No, B=種別, C=対象, D=問題ない根拠・対応内容
+    # 新3列構成: A=No, B=対象, C=問題ない根拠・対応内容（種別列を削除）
     for i, row in enumerate(impact_rows):
         fill = _stripe_fill(i)
-        kind_raw = get_col(row, "種別", "#")
         target_raw = get_col(row, "対象", "影響箇所", "シナリオ", "フロー名", "ファイルパス", "コンポーネント名")
-        detail_raw = get_col(row, "役割", "リスク", "期待結果", "内容", "影響内容", "補足", "備考")
-        # 種別がパスらしければ推定
-        if not kind_raw or kind_raw in ("ファイル", "その他"):
-            kind_raw = _infer_kind_from_path(target_raw)
+        detail_raw = get_col(row, "役割", "リスク", "期待結果", "内容", "影響内容", "補足", "備考", "問題ない根拠")
         target_name = _short_name(target_raw)
         wset(ws, impact_data_start + i, 1, str(i + 1), fill)
-        wset(ws, impact_data_start + i, 2, kind_raw, fill)
-        wset(ws, impact_data_start + i, 3, target_name, fill)
-        wset(ws, impact_data_start + i, 4, detail_raw, fill)
+        wset(ws, impact_data_start + i, 2, target_name, fill)
+        wset(ws, impact_data_start + i, 3, detail_raw, fill)
         auto_fit_row(ws, impact_data_start + i)
 
 
@@ -1089,13 +1084,9 @@ def fill_content(ws, impl_md):
     if lang_header_row:
         lang_desc = _render_language_description(impl_md)
         if lang_desc:
-            # コンテンツ行はヘッダ直後から最大 3 行（find_header_row+1〜+3）
-            lines = lang_desc.split("\n")
-            for idx in range(3):
-                r = lang_header_row + 1 + idx
-                val = "\n".join(lines[idx * 3:(idx + 1) * 3]) if idx * 3 < len(lines) else ""
-                wset(ws, r, 1, val)
-                auto_fit_row(ws, r, max_height=120)
+            # テンプレ側で A3:D5 を一括マージ済み → 1セルに全文を集約
+            wset(ws, lang_header_row + 1, 1, lang_desc)
+            auto_fit_row(ws, lang_header_row + 1, max_height=300)
         else:
             wset(ws, lang_header_row + 1, 1, "（実装後に記入）")
 
@@ -1139,41 +1130,7 @@ def fill_content(ws, impl_md):
             wset(ws, CHANGE_FILES_START + i, j, val, fill)
 
     # Before/After セクション: Phase 4 で implementer が update_records.py before-after で記入する
-
-    # 影響確認チェックリスト（find_header_row で動的特定）
-    checks = parse_checklist(extract_section(
-        impl_md,
-        "影響確認チェックリスト", "影響確認",
-    ))
-    impact_header_row = find_header_row(ws, ("■ 影響確認チェックリスト",))
-    IMPACT_CHECK_START = (impact_header_row + 2) if impact_header_row else 28
-    IMPACT_CHECK_LIMIT = 6
-
-    if impact_header_row:
-        check_col_header_row = impact_header_row + 1
-        if not _merge_exists(ws, check_col_header_row, 2, check_col_header_row, 4):
-            ws.merge_cells(start_row=check_col_header_row, end_row=check_col_header_row,
-                           start_column=2, end_column=4)
-
-    extra_impact = max(0, len(checks) - IMPACT_CHECK_LIMIT)
-    if extra_impact > 0:
-        insert_rows_with_format(
-            ws,
-            IMPACT_CHECK_START + IMPACT_CHECK_LIMIT,
-            extra_impact,
-            source_row=IMPACT_CHECK_START,
-            max_col=2,
-        )
-    elif len(checks) < IMPACT_CHECK_LIMIT:
-        _shrink_table(ws, IMPACT_CHECK_START, len(checks), IMPACT_CHECK_LIMIT)
-    for i, (checked, text) in enumerate(checks):
-        target_row = IMPACT_CHECK_START + i
-        wset(ws, target_row, 1, "☑" if checked else "☐")
-        wset(ws, target_row, 2, text)
-        if not _merge_exists(ws, target_row, 2, target_row, 4):
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=2, end_column=4)
-        auto_fit_row(ws, target_row, target_cols=[1, 2])
+    # ■ 影響確認チェックリストは廃止（テンプレから削除済み）
 
 
 # ── 残対応・懸念・保留シート ────────────────────────────────────────────────
@@ -1239,18 +1196,18 @@ def fill_pending(ws, approach_md, impl_md):
     extra = max(0, len(items) - PENDING_LIMIT)
     if extra > 0:
         insert_rows_with_format(ws, data_start + PENDING_LIMIT, extra,
-                                source_row=data_start, max_col=6)
+                                source_row=data_start, max_col=5)
     elif len(items) < PENDING_LIMIT:
         _shrink_table(ws, data_start, len(items), PENDING_LIMIT)
 
+    # 新5列構成: A=No, B=種別, C=内容, D=ステータス, E=次アクション（関連列削除）
     for i, item in enumerate(items):
         fill = _stripe_fill(i)
         wset(ws, data_start + i, 1, str(i + 1), fill)
         wset(ws, data_start + i, 2, item["種別"], fill)
         wset(ws, data_start + i, 3, item["内容"], fill)
-        wset(ws, data_start + i, 4, item["関連"], fill)
-        wset(ws, data_start + i, 5, item["ステータス"], fill)
-        wset(ws, data_start + i, 6, item["次アクション"], fill)
+        wset(ws, data_start + i, 4, item["ステータス"], fill)
+        wset(ws, data_start + i, 5, item["次アクション"], fill)
         auto_fit_row(ws, data_start + i, max_height=80)
 
 
@@ -1267,14 +1224,16 @@ def fill_test(ws, impl_md):
         policy = "実装前後での動作確認を行う。実装前は現状把握、実装後は修正確認。"
     wset(ws, 3, 1, policy)
 
-    # テストテーブル（r7〜、テンプレ標準 8 件枠）[F5: H列削除後 7列構成]
+    # テストテーブル（注記行挿入後は r8〜、テンプレ標準 8 件枠）[F5: H列削除後 7列構成]
     rows = parse_md_table(extract_section(
         impl_md,
         "テスト仕様", "テストケース", "テスト仕様テーブル",
         "テストシナリオ",
     ))
-    TEST_START = 7
-    TEST_LIMIT = 8  # テンプレ r7-r14
+    test_table_hdr = find_header_row(ws, ("■ テストテーブル",))
+    # 列ヘッダ行(No/区分...) + 注記行（patch_v9 で挿入）の分を加算
+    TEST_START = (test_table_hdr + 3) if test_table_hdr else 8
+    TEST_LIMIT = 8  # テンプレ標準 8 件枠
     extra_test = max(0, len(rows) - TEST_LIMIT)
     if extra_test > 0:
         insert_rows_with_format(
