@@ -52,6 +52,10 @@ check_sf_version() {
 
 check_sf_version
 
+# --- retrieve の待機時間（分）---
+# 環境変数 SF_RETRIEVE_WAIT で上書き可（例: SF_RETRIEVE_WAIT=120 bash scripts/sf-retrieve.sh all）
+SF_WAIT="${SF_RETRIEVE_WAIT:-60}"
+
 # --- `<members>*</members>` で内部コンポを返してエラーになる型 ---
 EXCLUDED_FROM_WILDCARD=(
     "NetworkBranding"   # 内部 "cb" コンポを返し取得不能
@@ -349,12 +353,16 @@ all_types = sorted([
 ])
 
 # 重い型は個別 manifest（標準セットと同様）
-HEAVY_TYPES = {'ApexClass', 'Layout', 'Profile', 'CustomObject'}
+HEAVY_TYPES = {
+    'ApexClass', 'Layout', 'Profile', 'CustomObject',
+    'Bot', 'BotVersion', 'Community', 'ContentAsset',
+    'ConnectedApp', 'CustomApplication',
+}
 light_types = [t for t in all_types if t not in HEAVY_TYPES]
 heavy_types  = [t for t in all_types if t in HEAVY_TYPES]
 
-# 軽い型を 30 型/バッチで分割
-BATCH_SIZE = 30
+# 軽い型を 15 型/バッチで分割（30 から縮小: 重い型の巻き添えリスクを低減）
+BATCH_SIZE = 15
 batches = [light_types[i:i+BATCH_SIZE] for i in range(0, len(light_types), BATCH_SIZE)]
 
 for i, batch in enumerate(batches, 1):
@@ -490,17 +498,31 @@ check_uncommitted() {
     fi
 }
 
-# --- 単一バッチ取得（失敗時に CustomObject バッチは 1 件ずつリトライ）---
+# --- 単一バッチ取得（heartbeat 付き。失敗時に per-type / per-object リトライ）---
 retrieve_manifest() {
     local manifest="$1"
     local target_org="$2"
     local label="$3"
 
-    if sf project retrieve start --manifest "$manifest" --target-org "$target_org" 2>&1; then
+    # heartbeat: 60 秒ごとに経過時間を STDOUT へ出力。バックグラウンド実行でも進捗確認可
+    # 確認方法: grep "[heartbeat]" <task-output-file>
+    local hb_start
+    hb_start=$(date +%s)
+    (while sleep 60; do
+        local hb_now hb_elapsed
+        hb_now=$(date +%s)
+        hb_elapsed=$((hb_now - hb_start))
+        echo "[$(date +%H:%M:%S)] [heartbeat] ${label}: elapsed ${hb_elapsed}s"
+    done) &
+    local hb_pid=$!
+
+    if sf project retrieve start --manifest "$manifest" --target-org "$target_org" --wait "$SF_WAIT" 2>&1; then
+        kill "$hb_pid" 2>/dev/null
         return 0
     fi
+    kill "$hb_pid" 2>/dev/null
 
-    # all-N バッチ（軽い型 30 型まとめ）が失敗した場合: 型を 1 つずつリトライ
+    # all-N バッチ（軽い型まとめ）が失敗した場合: 型を 1 つずつリトライ
     if [[ "$manifest" == *"package-all-"* ]]; then
         warn "[${label}] バッチ取得失敗。型を 1 つずつ取得します..."
         local skipped_types=()
@@ -512,15 +534,17 @@ retrieve_manifest() {
     <version>$(get_api_version)</version>
 </Package>
 XMLEOF
-            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single-type.xml --target-org "$target_org" 2>&1; then
+            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single-type.xml --target-org "$target_org" --wait "$SF_WAIT" 2>&1; then
                 warn "  スキップ: ${type_name}（取得失敗）"
                 skipped_types+=("$type_name")
+                echo "${type_name}" >> "manifest/.retrieve-skipped.log"
             fi
         done < <(grep -oP '(?<=<name>)[^<]+' "$manifest")
 
         if [ ${#skipped_types[@]} -gt 0 ]; then
             warn "[${label}] 以下の型はスキップしました（CLI 更新で解消する可能性あり）:"
             for t in "${skipped_types[@]}"; do warn "  - ${t}"; done
+            warn "  スキップ記録: manifest/.retrieve-skipped.log"
             warn "  対処: npm install --global @salesforce/cli@latest"
         fi
         return 0
@@ -538,7 +562,7 @@ XMLEOF
     <version>$(get_api_version)</version>
 </Package>
 XMLEOF
-            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single.xml --target-org "$target_org" 2>&1; then
+            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single.xml --target-org "$target_org" --wait "$SF_WAIT" 2>&1; then
                 warn "  スキップ: ${obj}（取得失敗 — フィールド数超過の可能性）"
                 skipped+=("$obj")
             fi
@@ -623,7 +647,7 @@ retrieve_all() {
         [ -f "$f" ] && manifests+=("$f")
     done
     # 重い type 独立
-    for TYPE in ApexClass Layout Profile; do
+    for TYPE in ApexClass Layout Profile Bot BotVersion Community ContentAsset ConnectedApp CustomApplication; do
         local f="manifest/package-${TYPE}.xml"
         [ -f "$f" ] && manifests+=("$f")
     done
@@ -675,7 +699,7 @@ retrieve() {
     check_uncommitted
 
     info "メタデータを取得中..."
-    sf project retrieve start --manifest manifest/package.xml --target-org "$target_org"
+    sf project retrieve start --manifest manifest/package.xml --target-org "$target_org" --wait "$SF_WAIT"
     ok "メタデータ取得完了 → force-app/"
 }
 
