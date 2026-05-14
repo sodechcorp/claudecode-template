@@ -175,33 +175,20 @@ python scripts/python/backlog-xlsx/update_records.py \
   --value "{対応の最終サマリー（採用方針・実装変更点・テスト結果・リリース日を含む2〜3行）}"
 ```
 
-**② リリース・ロールバックシート: デプロイ手順を記入**（手順書から転記。まず Python で行番号を確認してから書き込む）:
+**② 残対応・懸念・保留シート: 未対応の残件ステータスを最終確認する**（完了・不要になったものを更新）:
 ```bash
-# デプロイ手順セクションの行番号確認
+# 残対応・懸念・保留の内容を確認する
 python -c "
 import openpyxl, os
 wb = openpyxl.load_workbook(os.path.join('{xlsx_folder}', '{issueID}_対応記録.xlsx'))
-ws = wb['リリース・ロールバック']
-for r in range(1, ws.max_row + 1):
-    v = ws.cell(r, 1).value
-    if v: print(r, repr(v))
+ws = wb['残対応・懸念・保留']
+for r in range(4, ws.max_row + 1):
+    v = [ws.cell(r, c).value for c in range(1, 7)]
+    if any(v): print(r, v)
 "
-# 確認した行番号を使ってデプロイ手順を書き込む（手順ごとに繰り返す）
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "リリース・ロールバック" --row {デプロイ手順データ行} --col 1 --force \
-  --value "1. {手順1テキスト}"
 ```
 
-**③ リリース・ロールバックシート: ロールバック手順を記入**:
-```bash
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "リリース・ロールバック" --row {ロールバック手順データ行} --col 1 --force \
-  --value "{ロールバック手順テキスト（git revert コマンド等）}"
-```
-
-**④ タイムライン追記**（Phase 6 完了時に1回のみ）:
+**③ タイムライン追記**（Phase 6 完了時に1回のみ）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \

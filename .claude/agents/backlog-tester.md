@@ -225,7 +225,7 @@ NG 項目:
 
 `{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、それ以外の値ガードは Python 側に委譲）。`{issueID}` が変数名のまま展開されていない場合（`{issueID}` という形式のまま）も同様にスキップする。
 
-**① テスト・検証記録シート: 実際の結果（F列）・判定（G列）追記（タイミング=実装後 行のみ・必須）**
+**① テスト・検証シート: 実際の結果（F列）・判定（G列）追記（タイミング=実装後 行のみ・必須）**
 
 タイミング=実装前 の行は validator（Phase 3.5）が `test-precheck` で既に埋めている。tester は触らない（上書き禁止）。
 タイミング=実装後 の行のみ F/G 列を埋める。タイミング=実装後 の全行が埋まっていないと Phase 6 に進めない。
@@ -235,7 +235,7 @@ NG 項目:
 python -c "
 import openpyxl, os
 wb = openpyxl.load_workbook(os.path.join('{xlsx_folder}', '{issueID}_対応記録.xlsx'))
-ws = wb['テスト・検証記録']
+ws = wb['テスト・検証']
 for r in range(1, ws.max_row + 1):
     v = [ws.cell(r, c).value for c in range(1, 8)]
     if any(v) and str(v[1] or '').strip() == '実装後':
@@ -248,15 +248,26 @@ for r in range(1, ws.max_row + 1):
 # タイミング=実装後 の行ごとに繰り返す（行番号は上記 Python コマンドで確認した値を使う）
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "テスト・検証記録" --row {N} --col 6 \
+  cell --sheet "テスト・検証" --row {N} --col 6 \
   --value "{実際の結果テキスト}"
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "テスト・検証記録" --row {N} --col 7 \
+  cell --sheet "テスト・検証" --row {N} --col 7 \
   --value "PASS"  # FAIL の場合は "FAIL"
 ```
 
-**② タイムライン追記**（Phase 5 完了時に1回のみ）:
+**② 残対応追記**（テスト中に「現課題スコープ外」の問題を発見した場合のみ）:
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  pending \
+  --kind "懸念" \
+  --content "{発見した問題の内容（1〜2行）}" \
+  --status "未対応" \
+  --next-action "{別課題で対応する等}"
+```
+
+**③ タイムライン追記**（Phase 5 完了時に1回のみ）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \

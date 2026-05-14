@@ -163,7 +163,18 @@ python scripts/python/backlog-xlsx/update_records.py \
   --indices "1,2,3"  # 実装で確認できた項目番号を指定
 ```
 
-**④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
+**④ 残対応追記**（実装中に「現課題スコープ外」「後で対応」と判断したものがある場合のみ）:
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  pending \
+  --kind "後回しの残対応" \
+  --content "{残対応の内容（1〜2行）}" \
+  --status "保留" \
+  --next-action "{いつ・誰が対応するか}"
+```
+
+**⑤ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
