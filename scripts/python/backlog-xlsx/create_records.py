@@ -343,6 +343,16 @@ def _shrink_table(ws, data_start, actual_count, limit):
     for mcr in list(ws.merged_cells.ranges):
         ws.merged_cells.ranges.discard(mcr)
 
+    # row_dimensions を shift: delete_rows はセル値を移動するが row_dimensions は移動しない
+    heights_after = {r: ws.row_dimensions[r].height
+                     for r in list(ws.row_dimensions.keys())
+                     if r >= delete_start + excess}
+    for r in range(delete_start, delete_start + excess):
+        ws.row_dimensions[r].height = None
+    for r in sorted(heights_after.keys()):
+        ws.row_dimensions[r - excess].height = heights_after[r]
+        ws.row_dimensions[r].height = None
+
     ws.delete_rows(delete_start, excess)
 
     for (min_r, max_r, min_c, max_c) in all_merges:
@@ -377,9 +387,11 @@ def _get_merged_width(ws, row, col):
     return ws.column_dimensions[get_column_letter(col)].width or 8
 
 
-def _calc_row_height(text, width_chars, line_height=20, padding=4, min_height=28):
+def _calc_row_height(text, width_chars, line_height=20, padding=4,
+                    min_height=28, max_height=None):
     """テキストの折り返し行数を概算して row.height を返す。
     visual width: 全角=2 / 半角=1。width_chars=10 → chars_per_row=20 visual chars。
+    max_height 指定時は上限でクリップ。
     """
     if not text or not str(text).strip():
         return min_height
@@ -392,12 +404,14 @@ def _calc_row_height(text, width_chars, line_height=20, padding=4, min_height=28
             continue
         visual_width = sum(2 if ord(c) > 127 else 1 for c in line)
         total_lines += max(1, (visual_width + chars_per_row - 1) // chars_per_row)
-    return max(min_height, total_lines * line_height + padding)
+    h = max(min_height, total_lines * line_height + padding)
+    return min(h, max_height) if max_height else h
 
 
-def auto_fit_row(ws, row_idx, target_cols=None, min_height=28):
+def auto_fit_row(ws, row_idx, target_cols=None, min_height=28, max_height=None):
     """行 row_idx の各セル値から折り返し行数を概算し row.height を設定。
     target_cols=None で全列対象。merge セルは範囲全体の列幅で計算。
+    max_height 指定時は行高さの上限を設ける。
     """
     if target_cols is None:
         target_cols = list(range(1, ws.max_column + 1))
@@ -406,10 +420,11 @@ def auto_fit_row(ws, row_idx, target_cols=None, min_height=28):
         cell = ws.cell(row=row_idx, column=col)
         if cell.value:
             width = _get_merged_width(ws, row_idx, col)
-            h = _calc_row_height(cell.value, width, min_height=min_height)
+            h = _calc_row_height(cell.value, width, min_height=min_height,
+                                 max_height=max_height)
             if h > max_h:
                 max_h = h
-    ws.row_dimensions[row_idx].height = max_h
+    ws.row_dimensions[row_idx].height = min(max_h, max_height) if max_height else max_h
 
 
 # ── タイムライン理由抽出ヘルパー ──────────────────────────────────────────  [F1]
@@ -683,7 +698,7 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     wset(ws, 7, 2, "対応中")
     wset(ws, 8, 2, summary_bg)
     for r in range(3, 9):
-        auto_fit_row(ws, r)
+        auto_fit_row(ws, r, max_height=80)
     # r9 最終対応サマリー: Phase 6 で releaser が update_records.py cell で記入する
 
     # r11-13: 対応サマリーブロック（高畑さん等レビュー向けの構造化サマリー）  [V-2]
@@ -694,7 +709,7 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     wset(ws, 12, 2, _extract_main_changes_detailed(impl_md))
     wset(ws, 13, 2, _extract_rollback_hint(impl_md))
     for r in range(11, 14):
-        auto_fit_row(ws, r)
+        auto_fit_row(ws, r, max_height=80)
 
     # タイムライン: 各フェーズを MD ファイルの更新日時で書き込む  [A-4]
     # 対応する MD が空の場合はその行を空にする（update_records.py timeline が後から追記できるよう）
@@ -740,7 +755,7 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
         fill = _stripe_fill(i)
         for j, val in enumerate(row, start=1):
             wset(ws, tl_data_start + i, j, val, fill)
-        auto_fit_row(ws, tl_data_start + i)
+        auto_fit_row(ws, tl_data_start + i, max_height=80)
 
 
 # ── 判断保留事項シート書き込み ────────────────────────────────────────────────
@@ -834,14 +849,22 @@ def fill_approach(ws, approach_md):
     elif len(rows) < APPROACH_LIMIT:
         _shrink_table(ws, APPROACH_START, len(rows), APPROACH_LIMIT)
 
+    # 各列の文字数上限（改行を「・」に変換後に truncate）  [H1]
+    _APPROACH_TRUNCATE = {"概要": 50, "メリット": 70, "デメリット": 70, "工数": 30}
+
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
         for j, col in enumerate(col_order, start=1):
             val = row.get(col, "")
             if col == "工数":
                 val = to_median_hours(val)  # [M5]
+            if col in _APPROACH_TRUNCATE:
+                val = re.sub(r"\s*\n\s*", "・", str(val).strip())
+                lim = _APPROACH_TRUNCATE[col]
+                if len(val) > lim:
+                    val = val[:lim - 1] + "…"
             wset(ws, APPROACH_START + i, j, val, fill)
-        auto_fit_row(ws, APPROACH_START + i)
+        auto_fit_row(ws, APPROACH_START + i, max_height=60)
 
     # 採用方針（テンプレ修正後 r8 or 行数シフト後の位置）  [F2: 案名+理由 短文形式]
     adopted_header_row = find_header_row(ws, ("■ 採用方針",))
@@ -871,7 +894,7 @@ def fill_approach(ws, approach_md):
             ws.merge_cells(start_row=adopted_write_row, end_row=adopted_write_row,
                            start_column=1, end_column=6)
         wset(ws, adopted_write_row, 1, adopted_short)
-        auto_fit_row(ws, adopted_write_row)
+        auto_fit_row(ws, adopted_write_row, max_height=80)
 
     # 実施前確認事項（テンプレ修正後 r11 or ヘッダ検索で特定）[F2: 2列構成]
     checks_text = extract_section(
@@ -1403,6 +1426,7 @@ def fill_release(ws, impl_md, approach_md=""):
             ws.merge_cells(start_row=target_row, end_row=target_row,
                            start_column=1, end_column=4)
         wset(ws, target_row, 1, f"{i + 1}. {item}")  # 番号prefix再付与  [F6]
+        auto_fit_row(ws, target_row, max_height=80)
 
     # ロールバック手順（テンプレ修正後 A:D マージ）[F6]
     rb_steps = parse_numbered_list(extract_section(impl_md, "ロールバック手順"))
@@ -1431,6 +1455,7 @@ def fill_release(ws, impl_md, approach_md=""):
             ws.merge_cells(start_row=target_row, end_row=target_row,
                            start_column=1, end_column=4)
         wset(ws, target_row, 1, f"{i + 1}. {step}")
+        auto_fit_row(ws, target_row, max_height=80)
 
 
 # ── main ────────────────────────────────────────────────────────────────────
@@ -1482,12 +1507,14 @@ def main():
     fill_test(wb["テスト・検証記録"], impl_md)
     fill_release(wb["リリース・ロールバック"], impl_md, app_md)
 
-    # 後処理: 全シートで content があるのに height=None の行を auto_fit_row で補完
+    # 後処理: 全シートで content があるのに height が None または 18px 未満の行を補完
+    # _shrink_table の row_dimensions シフト後でも残留する小さい height を救済する
     for ws in wb.worksheets:
         for r in range(1, ws.max_row + 1):
-            if ws.row_dimensions[r].height is None:
-                if any(ws.cell(r, c).value for c in range(1, ws.max_column + 1)):
-                    auto_fit_row(ws, r, min_height=20)
+            h = ws.row_dimensions[r].height
+            has_content = any(ws.cell(r, c).value for c in range(1, ws.max_column + 1))
+            if has_content and (h is None or h < 18):
+                auto_fit_row(ws, r, min_height=20)
 
     path = os.path.join(args.folder, f"{args.issue_id}_対応記録.xlsx")
     try:

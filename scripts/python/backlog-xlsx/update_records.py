@@ -22,10 +22,6 @@ Usage (バックアップ情報):
 Usage (Before/After 追記):
     python update_records.py --folder FOLDER --issue-id ID before-after \
       --file "force-app/.../X.cls" --before "変更前コード" --after "変更後コード"
-
-Usage (リリース実施記録):
-    python update_records.py --folder FOLDER --issue-id ID release-record \
-      --env "ステージング" --datetime "2026-05-14 10:03" --result "成功"
 """
 
 import argparse
@@ -261,48 +257,6 @@ def cmd_before_after(args, wb):
     print(f"[OK] Before/After 追記: 行{next_row}〜{next_row + 2} / {args.file}")
 
 
-def cmd_release_record(args, wb):
-    """リリース・ロールバックシートのリリース実施記録に1行追記する"""
-    sheet_name = "リリース・ロールバック"
-    if sheet_name not in wb.sheetnames:
-        print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
-        sys.exit(1)
-    ws = wb[sheet_name]
-
-    section_row = find_header_row(ws, ("■ リリース実施記録",))
-    if section_row is None:
-        print("[ERROR] ■ リリース実施記録 セクションが見つかりません。")
-        sys.exit(1)
-
-    # 列ヘッダー行（No / 実施日時 / 対象環境 / デプロイ結果）
-    col_header_row = section_row + 1
-    data_start = col_header_row + 1
-
-    # 既存の最大 No 値
-    max_no = 0
-    for r in range(data_start, ws.max_row + 2):
-        v = ws.cell(r, 1).value
-        if isinstance(v, int) and v > 0:
-            max_no = max(max_no, v)
-        elif isinstance(v, str) and v.strip().isdigit():
-            max_no = max(max_no, int(v.strip()))
-    no = max_no + 1
-
-    next_row = find_next_empty_row(ws, col=1, start_row=data_start)
-
-    # フォント継承: section header から名前・サイズのみ取得（データ行は非ボールド）
-    hdr_font = ws.cell(section_row, 1).font
-    row_font = Font(name=hdr_font.name or "游ゴシック", size=hdr_font.size or 10, bold=False)
-    fill = _stripe_fill(no - 1)
-
-    dt = args.datetime or datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    for col, value in enumerate([no, dt, args.env, args.result], start=1):
-        cell = ws.cell(row=next_row, column=col, value=value)
-        cell.alignment = WRAP
-        cell.fill = fill
-        cell.font = row_font
-
-    print(f"[OK] リリース実施記録追記: No={no} / 行{next_row} / {args.env} / {args.result}")
 
 
 def _extract_validation_summary(text):
@@ -456,13 +410,6 @@ def main():
     p_ba.add_argument("--after",  required=True, help="変更後コード / 設定値")
     p_ba.add_argument("--force",  action="store_true")
 
-    # リリース実施記録
-    p_rr = sub.add_parser("release-record", help="リリース実施記録に1行追記する")
-    p_rr.add_argument("--env",      required=True, help="対象環境 (例: ステージング / 本番)")
-    p_rr.add_argument("--datetime", default="", dest="datetime", help="実施日時 (例: 2026-05-14 10:03)")
-    p_rr.add_argument("--result",   required=True, help="デプロイ結果 (例: 成功)")
-    p_rr.add_argument("--force",    action="store_true")
-
     args = parser.parse_args()
     args.folder = validate_folder(args.folder)
 
@@ -489,8 +436,6 @@ def main():
         cmd_backup_info(args, wb)
     elif args.command == "before-after":
         cmd_before_after(args, wb)
-    elif args.command == "release-record":
-        cmd_release_record(args, wb)
 
     try:
         wb.save(xlsx_path)

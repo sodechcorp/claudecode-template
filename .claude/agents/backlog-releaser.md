@@ -163,6 +163,8 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 `{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、それ以外の値ガードは Python 側に委譲）。`{issueID}` が変数名のまま展開されていない場合（`{issueID}` という形式のまま）も同様にスキップする。
 
+> **注**: リリース実施記録（デプロイ日時・対象環境・結果）は **人間がデプロイ後に手動で xlsx に記録する**。Claude Code は関与しない。対応記録テンプレートから「■ リリース実施記録」セクションは削除済み。
+
 **① サマリー・経緯シート: 最終対応サマリー（B9）を記入**:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
@@ -197,17 +199,7 @@ python scripts/python/backlog-xlsx/update_records.py \
   --value "{ロールバック手順テキスト（git revert コマンド等）}"
 ```
 
-**④ リリース実施記録追記**（デプロイ実施ごとに1回。ステージング・本番は別々に呼ぶ）:
-```bash
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  release-record \
-  --env "{ステージング または 本番}" \
-  --datetime "{YYYY-MM-DD HH:MM}" \
-  --result "{成功 または 失敗（詳細）}"
-```
-
-**⑤ タイムライン追記**（Phase 6 完了時に1回のみ）:
+**④ タイムライン追記**（Phase 6 完了時に1回のみ）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
@@ -283,7 +275,7 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 - [ ] デプロイ対象一覧が手順書に記録されているか
 - [ ] decisions.md が更新されているか（または更新不要の判定がされているか）
 - [ ] お客様確認サイン取得済（または issue_type がバグ以外で対象外と判定済）
-- [ ] xlsx タイムライン・リリース実施記録が追記されているか（xlsx_folder 設定の場合）
+- [ ] xlsx タイムラインが追記されているか（xlsx_folder 設定の場合）
 - [ ] リリース手順書または管理画面操作手順書が出力されているか
 - [ ] ドキュメント更新通知（Step 6）の付記要否が判定済か
 

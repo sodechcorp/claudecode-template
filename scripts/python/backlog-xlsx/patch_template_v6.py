@@ -2,21 +2,21 @@
 """patch_template_v6.py
 対応記録テンプレート.xlsx に以下の修正を一度だけ適用する:
   1. サマリー・経緯シート: 「修正前（現状）」「修正後（期待挙動）」行を削除
-  2. リリース・ロールバックシート: 「■ リリース前確認事項」セクション削除
+  2. リリース・ロールバックシート: 「■ リリース実施記録」セクション削除（人間担当・Claude非関与）
   3. リリース・ロールバックシート: 「■ デプロイ後確認事項」セクション削除
-  4. リリース・ロールバックシート: 「■ リリース実施記録」セクションを末尾に追加（スタイル統一）
+  4. リリース・ロールバックシート: 「■ リリース前確認事項」セクション削除
+  5. 対応内容シート: 「■ Before / After（実装後に記入）」→「■ Before / After」に修正
 
 Usage:
     python patch_template_v6.py
 """
 
-import copy
 import sys
 from pathlib import Path
 
 try:
     from openpyxl import load_workbook
-    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.styles import Alignment
 except ImportError:
     print("[ERROR] openpyxl がインストールされていません: pip install openpyxl")
     sys.exit(1)
@@ -24,10 +24,6 @@ except ImportError:
 TEMPLATE = Path(__file__).parent / "対応記録テンプレート.xlsx"
 
 WRAP = Alignment(wrap_text=True, vertical="top")
-
-# テンプレートの共通ヘッダー背景色（既存セクションヘッダーから採用: 淡い青灰 = 0xD0DCE4 相当）
-HEADER_FILL = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
-COL_HEADER_FILL = PatternFill(start_color="E8EDF4", end_color="E8EDF4", fill_type="solid")
 
 
 def find_header_row(ws, keywords, start_row=1):
@@ -77,14 +73,6 @@ def safe_delete_rows(ws, row_start, count):
                 ws.merge_cells(start_row=new_min, end_row=new_max,
                                start_column=min_c, end_column=max_c)
 
-
-def _get_section_font(ws):
-    """既存セクションヘッダー（■ で始まるセル）からフォントを取得する。"""
-    for row in ws.iter_rows():
-        for cell in row:
-            if cell.value and str(cell.value).startswith("■") and cell.font and cell.font.name:
-                return cell.font
-    return Font(name="游ゴシック", size=10, bold=True)
 
 
 def _delete_section(ws, section_keywords, next_keywords, label=""):
@@ -136,16 +124,23 @@ def patch_summary_sheet(ws):
 
 
 def patch_release_sheet(ws):
-    """リリース・ロールバックシート: 不要セクション削除 + リリース実施記録追加。"""
+    """リリース・ロールバックシート: 不要セクション削除。"""
     # 削除は下から上の順（行番号シフトを防ぐ）
-    # 1. デプロイ後確認事項 削除
+    # 1. リリース実施記録 削除（デプロイは人間が実施するため Claude は記録しない）
+    _delete_section(
+        ws,
+        section_keywords=("■ リリース実施記録",),
+        next_keywords=("■ __NONE__",),  # 末尾セクションのため next は存在しない想定
+        label="リリース実施記録",
+    )
+    # 2. デプロイ後確認事項 削除
     _delete_section(
         ws,
         section_keywords=("■ デプロイ後確認事項",),
-        next_keywords=("■ 注意事項", "■ ロールバック手順", "■ リリース実施記録"),
+        next_keywords=("■ 注意事項", "■ ロールバック手順"),
         label="デプロイ後確認事項",
     )
-    # 2. リリース前確認事項 削除
+    # 3. リリース前確認事項 削除
     _delete_section(
         ws,
         section_keywords=("■ リリース前確認事項",),
@@ -153,108 +148,7 @@ def patch_release_sheet(ws):
         label="リリース前確認事項",
     )
 
-    # 3. リリース実施記録セクションが既に存在するか確認
-    existing = find_header_row(ws, ("■ リリース実施記録",))
-    if existing:
-        print(f"[SKIP] リリース実施記録: 既に行 {existing} に存在します → スタイルのみ修正")
-        _fix_release_record_style(ws, existing)
-        return
 
-    # 4. リリース実施記録セクションを末尾に追加
-    _add_release_record_section(ws)
-
-
-def _fix_release_record_style(ws, header_row):
-    """既存のリリース実施記録セクションのスタイルを修正する。"""
-    base_font = _get_section_font(ws)
-    max_col = 4
-
-    # ヘッダー行のフォント・マージ修正
-    h_cell = ws.cell(header_row, 1)
-    h_cell.font = Font(name=base_font.name, size=base_font.size or 10, bold=True)
-    h_cell.alignment = WRAP
-    if not any(m.min_row == header_row and m.min_col == 1 and m.max_col == max_col
-               for m in ws.merged_cells.ranges):
-        ws.merge_cells(start_row=header_row, end_row=header_row, start_column=1, end_column=max_col)
-
-    # 列ヘッダー行のフォント修正
-    col_header_row = header_row + 1
-    for c, label in enumerate(["No", "実施日時", "対象環境", "デプロイ結果"], start=1):
-        cell = ws.cell(col_header_row, c)
-        if cell.value is None:
-            cell.value = label
-        cell.font = Font(name=base_font.name, size=base_font.size or 10, bold=True)
-        cell.alignment = WRAP
-
-    # データ行のフォント修正（Calibri になっている場合に游ゴシックへ統一）
-    data_font = Font(name=base_font.name, size=base_font.size or 10, bold=False)
-    data_row = col_header_row + 1
-    while data_row <= ws.max_row:
-        v = ws.cell(data_row, 1).value
-        if v is not None and str(v).startswith("■"):
-            break  # 次のセクションヘッダーに到達
-        for c in range(1, max_col + 1):
-            cell = ws.cell(data_row, c)
-            if cell.font.name != base_font.name:
-                cell.font = data_font
-            cell.alignment = WRAP
-        data_row += 1
-
-    print(f"[FIX ] リリース実施記録: 行 {header_row} のスタイルを修正しました")
-
-
-def _add_release_record_section(ws):
-    """リリース実施記録セクションをロールバック手順の後に追加する。"""
-    rb_header = find_header_row(ws, ("■ ロールバック手順",))
-    if rb_header is None:
-        print("[WARN] ロールバック手順ヘッダーが見つかりません → max_row の後に追加します")
-        insert_at = ws.max_row + 2
-    else:
-        # ロールバック手順の後ろを探す（次のセクションヘッダーまたはシート末尾）
-        next_sec = find_header_row(ws, ("■ リリース実施記録",), start_row=rb_header + 1)
-        if next_sec:
-            insert_at = ws.max_row + 2  # 既にあればその後ろ
-        else:
-            insert_at = ws.max_row + 2  # シート末尾の次の行
-
-    base_font = _get_section_font(ws)
-    max_col = 4
-
-    # スペーサー行
-    spacer_row = insert_at - 1
-    if spacer_row >= 1:
-        ws.row_dimensions[spacer_row].height = 6
-
-    # ヘッダー行: ■ リリース実施記録
-    h_row = insert_at
-    h_cell = ws.cell(h_row, 1, value="■ リリース実施記録")
-    h_cell.font = Font(name=base_font.name, size=base_font.size or 10, bold=True)
-    h_cell.fill = HEADER_FILL
-    h_cell.alignment = WRAP
-    ws.merge_cells(start_row=h_row, end_row=h_row, start_column=1, end_column=max_col)
-    ws.row_dimensions[h_row].height = 20
-
-    # 列ヘッダー行
-    ch_row = h_row + 1
-    for c, label in enumerate(["No", "実施日時", "対象環境", "デプロイ結果"], start=1):
-        cell = ws.cell(ch_row, c, value=label)
-        cell.font = Font(name=base_font.name, size=base_font.size or 10, bold=True)
-        cell.fill = COL_HEADER_FILL
-        cell.alignment = WRAP
-    ws.row_dimensions[ch_row].height = 18
-
-    # データ行 2 件（ステージング / 本番）
-    data_font = Font(name=base_font.name, size=base_font.size or 10, bold=False)
-    envs = ["ステージング", "本番"]
-    for i, env in enumerate(envs):
-        d_row = ch_row + 1 + i
-        for c, val in enumerate(["", "", env, ""], start=1):
-            cell = ws.cell(d_row, c, value=val if val else None)
-            cell.alignment = WRAP
-            cell.font = data_font
-        ws.row_dimensions[d_row].height = 28
-
-    print(f"[ADD ] リリース実施記録: 行 {h_row}〜{ch_row + len(envs)} に追加しました")
 
 
 def patch_kaito_sheet(ws):
