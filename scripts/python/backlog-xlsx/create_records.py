@@ -682,17 +682,15 @@ def fill_summary(ws, args, inv_md, approach_md, impl_md):
     wset(ws, 6, 2, issue_type)
     wset(ws, 7, 2, "対応中")
     wset(ws, 8, 2, summary_bg)
-    # r9 最終対応サマリー: 対応完了後に記入する欄  [F7]
-    wset(ws, 9, 2, "（対応完了後に記入）")
+    # r9 最終対応サマリー: Phase 6 で releaser が update_records.py cell で記入する
 
-    # r11-15: 対応サマリーブロック（高畑さん等レビュー向けの構造化サマリー）  [V-2]
+    # r11-13: 対応サマリーブロック（高畑さん等レビュー向けの構造化サマリー）  [V-2]
+    # ※ テンプレから「修正前（現状）」「修正後（期待挙動）」行を削除済み（patch_template_v6）
     approach_summary = extract_section(approach_md, "採用方針", "推奨案と根拠", "推奨案")
     approach_clean = _clean_summary_text(approach_summary, max_lines=8) if approach_summary else "（対応方針確定後に記入）"
     wset(ws, 11, 2, approach_clean)
     wset(ws, 12, 2, _extract_main_changes_detailed(impl_md))
-    wset(ws, 13, 2, _extract_before_state(inv_md, approach_md))   # 修正前（現状）
-    wset(ws, 14, 2, _extract_after_state(approach_md))             # 修正後（期待挙動）
-    wset(ws, 15, 2, _extract_rollback_hint(impl_md))
+    wset(ws, 13, 2, _extract_rollback_hint(impl_md))
 
     # タイムライン: 各フェーズを MD ファイルの更新日時で書き込む  [A-4]
     # 対応する MD が空の場合はその行を空にする（update_records.py timeline が後から追記できるよう）
@@ -1115,10 +1113,7 @@ def fill_content(ws, impl_md):
         for j, col in enumerate(["No", "ファイルパス", "変更種別", "変更概要"], start=1):
             wset(ws, CHANGE_FILES_START + i, j, row.get(col, ""), fill)
 
-    # Before/After セクションは動的に位置を特定
-    ba_header_row = find_header_row(ws, ("■ Before / After",))
-    if ba_header_row:
-        wset(ws, ba_header_row + 1, 1, "実装完了後、各ファイルの変更前後を記載する")
+    # Before/After セクション: Phase 4 で implementer が update_records.py before-after で記入する
 
     # 影響確認チェックリスト（r21〜）[F4: 2列構成]
     checks = parse_checklist(extract_section(
@@ -1237,48 +1232,48 @@ def fill_release(ws, impl_md, approach_md=""):
         wset(ws, RELEASE_START + i, 3, api_name, fill)
         # デプロイ方法列はテンプレから削除済みのため書き込み不要  [F11]
 
-    # リリース前確認事項（テンプレ修正後 r9+）[F6: 2列構成]
-    pre_text = extract_section(
-        impl_md,
-        "リリース前確認事項", "リリース前確認", "デプロイ前確認",
-        "事前準備", "実装前準備", "確認事項",
-    )
-    checks = parse_checklist(pre_text)
-    if not checks:
-        checks = [(False, item) for item in parse_numbered_list(pre_text)]
-    if not checks and approach_md:
-        pre_fallback = extract_section(
-            approach_md,
-            "実施前確認事項", "確認事項", "事前確認",
-            "業務要件の確認事項",
-        )
-        checks = parse_checklist(pre_fallback)
-        if not checks:
-            checks = [(False, item) for item in parse_numbered_list(pre_fallback)]
-
+    # リリース前確認事項: テンプレから削除済み（patch_template_v6）。セクションが存在しない場合はスキップ
     pre_header_row = find_header_row(ws, ("■ リリース前確認事項",))
-    pre_data_start = (pre_header_row + 2) if pre_header_row else 9
-    PRE_CHECK_LIMIT = 4  # テンプレ r9-r12
-    extra_pre = max(0, len(checks) - PRE_CHECK_LIMIT)
-    if extra_pre > 0:
-        insert_rows_with_format(
-            ws,
-            pre_data_start + PRE_CHECK_LIMIT,
-            extra_pre,
-            source_row=pre_data_start,
-            max_col=2,
+    if pre_header_row is not None:
+        pre_text = extract_section(
+            impl_md,
+            "リリース前確認事項", "リリース前確認", "デプロイ前確認",
+            "事前準備", "実装前準備", "確認事項",
         )
-    elif len(checks) < PRE_CHECK_LIMIT:
-        _shrink_table(ws, pre_data_start, len(checks), PRE_CHECK_LIMIT)
-    for i, (checked, text) in enumerate(checks):
-        target_row = pre_data_start + i
-        wset(ws, target_row, 1, "☑" if checked else "☐")
-        wset(ws, target_row, 2, text)
-        # B:D merge を動的付与 (確認内容列を広く)  [F10]
-        if not _merge_exists(ws, target_row, 2, target_row, 4):
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=2, end_column=4)
-        auto_fit_row(ws, target_row, target_cols=[1, 2])
+        checks = parse_checklist(pre_text)
+        if not checks:
+            checks = [(False, item) for item in parse_numbered_list(pre_text)]
+        if not checks and approach_md:
+            pre_fallback = extract_section(
+                approach_md,
+                "実施前確認事項", "確認事項", "事前確認",
+                "業務要件の確認事項",
+            )
+            checks = parse_checklist(pre_fallback)
+            if not checks:
+                checks = [(False, item) for item in parse_numbered_list(pre_fallback)]
+
+        pre_data_start = pre_header_row + 2
+        PRE_CHECK_LIMIT = 4
+        extra_pre = max(0, len(checks) - PRE_CHECK_LIMIT)
+        if extra_pre > 0:
+            insert_rows_with_format(
+                ws,
+                pre_data_start + PRE_CHECK_LIMIT,
+                extra_pre,
+                source_row=pre_data_start,
+                max_col=2,
+            )
+        elif len(checks) < PRE_CHECK_LIMIT:
+            _shrink_table(ws, pre_data_start, len(checks), PRE_CHECK_LIMIT)
+        for i, (checked, text) in enumerate(checks):
+            target_row = pre_data_start + i
+            wset(ws, target_row, 1, "☑" if checked else "☐")
+            wset(ws, target_row, 2, text)
+            if not _merge_exists(ws, target_row, 2, target_row, 4):
+                ws.merge_cells(start_row=target_row, end_row=target_row,
+                               start_column=2, end_column=4)
+            auto_fit_row(ws, target_row, target_cols=[1, 2])
 
     # デプロイ手順（テンプレ修正後 A:D マージ）[F6: max_col=4]
     steps = parse_numbered_list(extract_section(impl_md, "デプロイ手順", "リリース手順"))
@@ -1308,39 +1303,39 @@ def fill_release(ws, impl_md, approach_md=""):
                            start_column=1, end_column=4)
         wset(ws, target_row, 1, f"{i + 1}. {step}")
 
-    # デプロイ後確認事項（テンプレ修正後 2列構成）[F6]
-    post_text = extract_section(
-        impl_md,
-        "デプロイ後確認事項", "リリース後確認", "デプロイ後確認",
-        "実装後確認", "モニタリング", "影響確認チェックリスト",
-    )
-    post_checks = parse_checklist(post_text)
-    if not post_checks:
-        post_checks = [(False, item) for item in parse_numbered_list(post_text)]
-
+    # デプロイ後確認事項: テンプレから削除済み（patch_template_v6）。セクションが存在しない場合はスキップ
     post_header_row = find_header_row(ws, ("■ デプロイ後確認事項",))
-    post_data_start = (post_header_row + 2) if post_header_row else 22
-    POST_CHECK_LIMIT = 4
-    extra_post = max(0, len(post_checks) - POST_CHECK_LIMIT)
-    if extra_post > 0:
-        insert_rows_with_format(
-            ws,
-            post_data_start + POST_CHECK_LIMIT,
-            extra_post,
-            source_row=post_data_start,
-            max_col=2,
+    if post_header_row is not None:
+        post_text = extract_section(
+            impl_md,
+            "デプロイ後確認事項", "リリース後確認", "デプロイ後確認",
+            "実装後確認", "モニタリング", "影響確認チェックリスト",
         )
-    elif len(post_checks) < POST_CHECK_LIMIT:
-        _shrink_table(ws, post_data_start, len(post_checks), POST_CHECK_LIMIT)
-    for i, (checked, text) in enumerate(post_checks):
-        target_row = post_data_start + i
-        wset(ws, target_row, 1, "☑" if checked else "☐")
-        wset(ws, target_row, 2, text)
-        # B:D merge を動的付与  [F10]
-        if not _merge_exists(ws, target_row, 2, target_row, 4):
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=2, end_column=4)
-        auto_fit_row(ws, target_row, target_cols=[1, 2])
+        post_checks = parse_checklist(post_text)
+        if not post_checks:
+            post_checks = [(False, item) for item in parse_numbered_list(post_text)]
+
+        post_data_start = post_header_row + 2
+        POST_CHECK_LIMIT = 4
+        extra_post = max(0, len(post_checks) - POST_CHECK_LIMIT)
+        if extra_post > 0:
+            insert_rows_with_format(
+                ws,
+                post_data_start + POST_CHECK_LIMIT,
+                extra_post,
+                source_row=post_data_start,
+                max_col=2,
+            )
+        elif len(post_checks) < POST_CHECK_LIMIT:
+            _shrink_table(ws, post_data_start, len(post_checks), POST_CHECK_LIMIT)
+        for i, (checked, text) in enumerate(post_checks):
+            target_row = post_data_start + i
+            wset(ws, target_row, 1, "☑" if checked else "☐")
+            wset(ws, target_row, 2, text)
+            if not _merge_exists(ws, target_row, 2, target_row, 4):
+                ws.merge_cells(start_row=target_row, end_row=target_row,
+                               start_column=2, end_column=4)
+            auto_fit_row(ws, target_row, target_cols=[1, 2])
 
     # 注意事項（テンプレ修正後 A:D マージ）[F6: max_col=4, 番号prefix再付与]
     notes_text = extract_section(

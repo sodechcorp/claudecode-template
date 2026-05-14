@@ -128,21 +128,45 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 
 `{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、それ以外の値ガードは Python 側に委譲）。
 
-**タイムライン追記**:
+**① バックアップ情報（実装着手前に必ず実行）**:
+```bash
+GIT_HASH=$(git rev-parse --short HEAD)
+STASH_NAME="backlog-{issueID}"
+git stash push -m "$STASH_NAME"
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  backup-info \
+  --git-hash "$GIT_HASH" \
+  --stash "$STASH_NAME" \
+  --rollback "git stash pop または git revert $GIT_HASH"
+```
+
+**② Before/After 追記**（実装完了後、変更ファイルごとに1回ずつ実行）:
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  before-after \
+  --file "{ファイルパス}" \
+  --before "{変更前コード要約（1〜3行）}" \
+  --after "{変更後コード要約（1〜3行）}"
+# 変更ファイルが複数ある場合は変更ファイルごとに繰り返す
+```
+
+**③ 影響確認チェックリストを☑化**（実装完了後）:
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  checklist \
+  --sheet "対応内容" --section "影響確認チェックリスト" \
+  --indices "1,2,3"  # 実装で確認できた項目番号を指定
+```
+
+**④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "実装" \
   --content "Phase 4 実装完了: {変更ファイル数}ファイル変更（{主な変更概要1行}）"
-```
-
-**対応内容シート Before/After 追記**（変更ファイルごとに r14 から 1 行ずつ）:
-```bash
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "対応内容" --row 14 --col 1 \
-  --value "{ファイルパス1}: Before: {変更前コード要約} / After: {変更後コード要約}"
-# ファイルが複数ある場合は --row を 15, 16, ... と 1 ずつ増やして繰り返す（ベース行 14 + ファイル番号 - 1）
 ```
 
 ---

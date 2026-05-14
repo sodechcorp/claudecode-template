@@ -223,24 +223,40 @@ NG 項目:
 
 `{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、それ以外の値ガードは Python 側に委譲）。`{issueID}` が変数名のまま展開されていない場合（`{issueID}` という形式のまま）も同様にスキップする。
 
-**タイムライン追記**:
+**① テスト・検証記録シート: 実際の結果（F列）・判定（G列）追記（必須・全テスト行）**
+
+まず対応記録 xlsx を Python で読み込み、テスト・検証記録シートのデータ行とその行番号を確認する:
+```bash
+python -c "
+import openpyxl, os
+wb = openpyxl.load_workbook(os.path.join('{xlsx_folder}', '{issueID}_対応記録.xlsx'))
+ws = wb['テスト・検証記録']
+for r in range(1, ws.max_row + 1):
+    v = [ws.cell(r, c).value for c in range(1, 8)]
+    if any(v):
+        print(r, v)
+"
+```
+
+確認した行番号をもとに、**テストデータが存在する全行**の F 列（実際の結果）と G 列（判定）を埋める。1 行でも未記入があると Phase 6 に進めない:
+```bash
+# テストケース行ごとに繰り返す（行番号は上記 Python コマンドで確認した値を使う）
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  cell --sheet "テスト・検証記録" --row {N} --col 6 \
+  --value "{実際の結果テキスト}" --force
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  cell --sheet "テスト・検証記録" --row {N} --col 7 \
+  --value "PASS" --force  # FAIL の場合は "FAIL"
+```
+
+**② タイムライン追記**（Phase 5 完了時に1回のみ）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "テスト" --source "Claude" \
   --content "Phase 5 テスト完了: 全{N}件 {PASS/FAIL（NG件数）}"
-```
-
-**テスト・検証記録シート 実際の結果・判定 追記**（ベース行 7 から開始。テストケースが複数ある場合は `--row` を 8, 9, … と 1 ずつ増やして繰り返す。行番号 = 7 + テストケース番号 - 1）:
-```bash
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "テスト・検証記録" --row 7 --col 6 \
-  --value "{テストケース1の実際の結果}"
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "テスト・検証記録" --row 7 --col 7 \
-  --value "PASS"
 ```
 
 ---

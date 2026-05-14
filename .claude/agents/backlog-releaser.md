@@ -163,21 +163,57 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 `{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、それ以外の値ガードは Python 側に委譲）。`{issueID}` が変数名のまま展開されていない場合（`{issueID}` という形式のまま）も同様にスキップする。
 
-**タイムライン追記**:
+**① サマリー・経緯シート: 最終対応サマリー（B9）を記入**:
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  cell --sheet "サマリー・経緯" --row 9 --col 2 --force \
+  --value "{対応の最終サマリー（採用方針・実装変更点・テスト結果・リリース日を含む2〜3行）}"
+```
+
+**② リリース・ロールバックシート: デプロイ手順を記入**（手順書から転記。まず Python で行番号を確認してから書き込む）:
+```bash
+# デプロイ手順セクションの行番号確認
+python -c "
+import openpyxl, os
+wb = openpyxl.load_workbook(os.path.join('{xlsx_folder}', '{issueID}_対応記録.xlsx'))
+ws = wb['リリース・ロールバック']
+for r in range(1, ws.max_row + 1):
+    v = ws.cell(r, 1).value
+    if v: print(r, repr(v))
+"
+# 確認した行番号を使ってデプロイ手順を書き込む（手順ごとに繰り返す）
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  cell --sheet "リリース・ロールバック" --row {デプロイ手順データ行} --col 1 --force \
+  --value "1. {手順1テキスト}"
+```
+
+**③ リリース・ロールバックシート: ロールバック手順を記入**:
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  cell --sheet "リリース・ロールバック" --row {ロールバック手順データ行} --col 1 --force \
+  --value "{ロールバック手順テキスト（git revert コマンド等）}"
+```
+
+**④ リリース実施記録追記**（デプロイ実施ごとに1回。ステージング・本番は別々に呼ぶ）:
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  release-record \
+  --env "{ステージング または 本番}" \
+  --datetime "{YYYY-MM-DD HH:MM}" \
+  --result "{成功 または 失敗（詳細）}"
+```
+
+**⑤ タイムライン追記**（Phase 6 完了時に1回のみ）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "リリース" \
   --content "Phase 6 リリース完了: {デプロイ方法・デプロイ先（本番/Sandbox）}" \
   --reason "Phase 6 デプロイ完了"
-```
-
-**リリース・ロールバックシート リリース実施記録追記**（行番号は `_common.py` の `RELEASE_HISTORY_START_ROW = 38` で管理。テンプレ変更時は `_common.py` のみ更新）:
-```bash
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "リリース・ロールバック" --row 38 --col 1 \
-  --value "{YYYY-MM-DD} リリース完了: {デプロイ内容の要約・担当者}"
 ```
 
 ---

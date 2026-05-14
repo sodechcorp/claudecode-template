@@ -323,7 +323,7 @@ xlsx_folder: {xlsx_folder}
 - **詳細提示**: ロジック変更・public インターフェース変更・Apex/LWC/Flow のコード変更
 - **一覧省略可**: 設定ファイル・メタデータ（field-meta.xml / layout-meta.xml 等）・テストクラス以外の補助ファイル
 
-> xlsx 更新（timeline + 対応内容シート Before/After）は `backlog-implementer` が担当する（エージェント内 Step 7）。
+> xlsx 更新（timeline + バックアップ情報 + Before/After + 影響確認チェックリスト）は `backlog-implementer` が担当する（エージェント内 Step 7）。xlsx に反映されていることが Phase 5 への進行条件。
 
 > **次に進む条件**: ユーザが実装内容を確認した後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 5 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
 >
@@ -349,7 +349,7 @@ xlsx_folder: {xlsx_folder}
 > NG 戻り先テーブル: [.claude/templates/backlog/test-fail-routing.md](../templates/backlog/test-fail-routing.md)
 > ファイルが存在しない場合は NG の原因を 1 行で提示し「Phase 3（実装方針修正）と Phase 4（実装修正）のどちらに戻りますか？」とテキストで確認する。
 
-> xlsx 更新（timeline + テスト・検証記録シート 実際の結果・判定）は `backlog-tester` が担当する（エージェント内 Step 8）。
+> xlsx 更新（timeline + テスト・検証記録シート 実際の結果・判定）は `backlog-tester` が担当する（エージェント内 Step 8）。全テスト行の F列（実際の結果）・G列（判定）が埋まっていることが Phase 6 への進行条件。
 
 > **次に進む条件**: 全テスト PASS かつユーザ確認サインがあった後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 6 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
 >
@@ -368,7 +368,7 @@ xlsx_folder: {xlsx_folder}
 
 > `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 
-> xlsx 更新（timeline + リリース・ロールバックシート リリース実施記録）は `backlog-releaser` が担当する（エージェント内 Step 3.5）。
+> xlsx 更新（最終対応サマリー + デプロイ手順 + ロールバック手順 + リリース実施記録 + timeline）は `backlog-releaser` が担当する（エージェント内 Step 3.5）。
 
 **お客様確認サインの取得**
 
