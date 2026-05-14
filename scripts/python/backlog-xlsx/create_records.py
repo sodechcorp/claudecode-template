@@ -475,22 +475,35 @@ def _extract_impl_reason(md):
 
 def _infer_kind_from_path(path):
     """ファイルパスから種別（Apex/LWC/Flow/Object/VF 等）を推定する。"""
-    if "/lwc/" in path:
+    p = path.replace("\\", "/")
+    if "/lwc/" in p:
         return "LWC"
-    if "/classes/" in path or path.endswith(".cls"):
+    if "/classes/" in p or p.endswith(".cls"):
         return "Apex"
-    if "/triggers/" in path or path.endswith(".trigger"):
+    if "/triggers/" in p or p.endswith(".trigger"):
         return "Trigger"
-    if "/aura/" in path:
+    if "/aura/" in p:
         return "Aura"
-    if "/flows/" in path:
+    if "/flows/" in p or p.endswith(".flow-meta.xml"):
         return "Flow"
-    if "/objects/" in path:
+    if "/objects/" in p and "/fields/" in p:
+        return "Object Field"
+    if "/objects/" in p:
         return "Object"
-    if "/pages/" in path:
+    if "/permissionsets/" in p or p.endswith(".permissionset-meta.xml"):
+        return "Permission Set"
+    if "/profiles/" in p or p.endswith(".profile-meta.xml"):
+        return "Profile"
+    if "/layouts/" in p or p.endswith(".layout-meta.xml"):
+        return "Layout"
+    if "/validationRules/" in p or p.endswith(".validationRule-meta.xml"):
+        return "Validation Rule"
+    if "/staticresources/" in p or p.endswith(".resource-meta.xml") or p.endswith(".resource"):
+        return "Static Resource"
+    if "/pages/" in p:
         return "VF"
-    if path:
-        ext = path.rsplit(".", 1)[-1] if "." in path else ""
+    if p:
+        ext = p.rsplit(".", 1)[-1] if "." in p else ""
         return ext.upper() if ext and len(ext) <= 6 else "その他"
     return "その他"
 
@@ -969,60 +982,18 @@ def fill_approach(ws, approach_md):
         wset(ws, target_row, 1, f"{i + 1}. {item}", fill)
         auto_fit_row(ws, target_row)
 
+    # 列幅: B列（概要）を広く、C/D（メリ/デメ）・E（工数）をコンパクトに
+    ws.column_dimensions["A"].width = 8
+    ws.column_dimensions["B"].width = 60
+    ws.column_dimensions["C"].width = 22
+    ws.column_dimensions["D"].width = 22
+    ws.column_dimensions["E"].width = 18
+
 
 # ── 調査・影響範囲シート ────────────────────────────────────────────────────
 
 def fill_investigation(ws, inv_md):
-    # 仮説検証テーブルはテンプレから削除済みのため、ここでは何もしない
-
-    # コード根拠（find_header_row で動的特定）[M3, M9] — 動的拡張対応  [F9]
-    code_text = extract_section(
-        inv_md,
-        "コード根拠", "コード根拠テーブル",
-        "使用中のフィールドAPI名", "使用中のフィールド API 名",
-        "参照コード", "フィールドAPI名",
-    )
-    code_rows = parse_all_md_tables(code_text)
-    if not code_rows:
-        sub1 = extract_section(inv_md, "標準 Prospect オブジェクト", "標準Prospectオブジェクト")
-        sub2 = extract_section(inv_md, "Pardot 連携カスタム項目", "Pardot連携カスタム項目")
-        code_rows = parse_all_md_tables(sub1 + "\n\n" + sub2)
-
-    code_col_map = [
-        ("ファイル名", ["ファイル名", "概念", "フィールド概念", "ファイル", "コンポーネント"]),
-        ("行番号", ["行番号", "確認済み API 名", "確認済み API名", "想定 API 名", "想定API名", "API名", "行"]),
-        ("コード内容", ["コード内容", "確認元", "型", "想定型", "想定 valueSet", "コード", "参照元"]),
-        # 説明列はテンプレから削除済みのため code_col_map には含めない  [F11]
-    ]
-    code_header_row = find_header_row(ws, ("■ コード根拠テーブル", "■ コード根拠"))
-    code_data_start = (code_header_row + 2) if code_header_row else 12
-    CODE_LIMIT = 5  # テンプレ r12-r16（r17 は spacer）
-    extra_code = max(0, len(code_rows) - CODE_LIMIT)
-    if extra_code > 0:
-        insert_rows_with_format(
-            ws,
-            code_data_start + CODE_LIMIT,
-            extra_code,
-            source_row=code_data_start,
-            max_col=3,  # 説明列削除後 3列  [F11]
-        )
-    elif len(code_rows) < CODE_LIMIT:
-        _shrink_table(ws, code_data_start, len(code_rows), CODE_LIMIT)
-    # 列ヘッダー行「コード内容」を C:D マージ（D列が空欄で見切れるのを防ぐ）
-    if code_header_row:
-        col_hdr_row = code_header_row + 1
-        if not _merge_exists(ws, col_hdr_row, 3, col_hdr_row, 4):
-            ws.merge_cells(start_row=col_hdr_row, end_row=col_hdr_row,
-                           start_column=3, end_column=4)
-    for i, row in enumerate(code_rows):
-        fill = _stripe_fill(i)
-        for j, (_, candidates) in enumerate(code_col_map, start=1):
-            wset(ws, code_data_start + i, j, get_col(row, *candidates), fill)
-        target_row = code_data_start + i
-        if not _merge_exists(ws, target_row, 3, target_row, 4):
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=3, end_column=4)
-        auto_fit_row(ws, target_row)
+    # コード根拠テーブル・関連コンポーネント一覧はテンプレから削除済みのため何もしない
 
     # 影響範囲: 変更によって影響を受ける外部ファイル・フロー  [A-2: ソース分離]
     impact_text = extract_section(inv_md, "影響範囲")
@@ -1034,15 +1005,8 @@ def fill_investigation(ws, inv_md):
         impact_rows = _parse_impact_bullets(flow_text)
 
     impact_header_row = find_header_row(ws, ("■ 影響範囲テーブル", "■ 影響範囲"))
-    impact_data_start = (impact_header_row + 2) if impact_header_row else 20
-    IMPACT_LIMIT = 6  # テンプレ r20-r25（r26 は spacer）
-
-    # ヘッダー行 (header_row + 1) の役割列を C:D merge  [R1]
-    if impact_header_row:
-        col_header_row = impact_header_row + 1
-        if not _merge_exists(ws, col_header_row, 3, col_header_row, 4):
-            ws.merge_cells(start_row=col_header_row, end_row=col_header_row,
-                           start_column=3, end_column=4)
+    impact_data_start = (impact_header_row + 2) if impact_header_row else 4
+    IMPACT_LIMIT = 6
 
     extra_impact = max(0, len(impact_rows) - IMPACT_LIMIT)
     if extra_impact > 0:
@@ -1056,63 +1020,47 @@ def fill_investigation(ws, inv_md):
     elif len(impact_rows) < IMPACT_LIMIT:
         _shrink_table(ws, impact_data_start, len(impact_rows), IMPACT_LIMIT)
 
-    # テンプレ修正後の列構成: A=種別, B=対象, C=役割  [F9: 影響内容列削除]
-    impact_col_map = [
-        ("種別", ["種別", "#"]),
-        ("対象", ["対象", "影響箇所", "シナリオ", "フロー名", "ファイルパス", "コンポーネント名"]),
-        ("役割", ["役割", "リスク", "期待結果", "内容", "影響内容", "補足", "備考"]),
-    ]
+    # 新列構成: A=No, B=種別, C=対象, D=問題ない根拠・対応内容
     for i, row in enumerate(impact_rows):
         fill = _stripe_fill(i)
-        for j, (_, candidates) in enumerate(impact_col_map, start=1):
-            wset(ws, impact_data_start + i, j, get_col(row, *candidates), fill)
-        target_row = impact_data_start + i
-        if not _merge_exists(ws, target_row, 3, target_row, 4):
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=3, end_column=4)
-        auto_fit_row(ws, target_row)
-
-    # 関連コンポーネント一覧: 当課題で変更/参照する SF コンポーネント  [A-2: ソース分離]
-    raw_comp_text = extract_section(inv_md, "関連コンポーネント", "関連コンポーネント一覧")
-    comp_rows = parse_md_table(raw_comp_text)
-
-    comp_header_row = find_header_row(ws, ("■ 関連コンポーネント", "■ 関連コンポーネント一覧"))
-    comp_data_start = (comp_header_row + 2) if comp_header_row else 29
-    COMP_LIMIT = 5
-
-    # ヘッダー行 (comp_header_row + 1) の役割列を C:D merge  [R2]
-    if comp_header_row:
-        comp_col_header_row = comp_header_row + 1
-        if not _merge_exists(ws, comp_col_header_row, 3, comp_col_header_row, 4):
-            ws.merge_cells(start_row=comp_col_header_row, end_row=comp_col_header_row,
-                           start_column=3, end_column=4)
-
-    extra_comp = max(0, len(comp_rows) - COMP_LIMIT)
-    if extra_comp > 0:
-        insert_rows_with_format(
-            ws,
-            comp_data_start + COMP_LIMIT,
-            extra_comp,
-            source_row=comp_data_start,
-            max_col=4,
-        )
-    elif len(comp_rows) < COMP_LIMIT:
-        _shrink_table(ws, comp_data_start, len(comp_rows), COMP_LIMIT)
-
-    for i, row in enumerate(comp_rows[:10]):
-        fill = _stripe_fill(i)
-        # 3列構成: 種別/名前(ファイルパス)/役割  [F3]
-        wset(ws, comp_data_start + i, 1, get_col(row, "種別"), fill)
-        wset(ws, comp_data_start + i, 2, _short_name(get_col(row, "対象", "ファイルパス", "名前", "コンポーネント名")), fill)
-        wset(ws, comp_data_start + i, 3, get_col(row, "役割", "内容", "補足"), fill)
-        target_row = comp_data_start + i
-        if not _merge_exists(ws, target_row, 3, target_row, 4):
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=3, end_column=4)
-        auto_fit_row(ws, target_row)
+        kind_raw = get_col(row, "種別", "#")
+        target_raw = get_col(row, "対象", "影響箇所", "シナリオ", "フロー名", "ファイルパス", "コンポーネント名")
+        detail_raw = get_col(row, "役割", "リスク", "期待結果", "内容", "影響内容", "補足", "備考")
+        # 種別がパスらしければ推定
+        if not kind_raw or kind_raw in ("ファイル", "その他"):
+            kind_raw = _infer_kind_from_path(target_raw)
+        target_name = _short_name(target_raw)
+        wset(ws, impact_data_start + i, 1, str(i + 1), fill)
+        wset(ws, impact_data_start + i, 2, kind_raw, fill)
+        wset(ws, impact_data_start + i, 3, target_name, fill)
+        wset(ws, impact_data_start + i, 4, detail_raw, fill)
+        auto_fit_row(ws, impact_data_start + i)
 
 
 # ── 対応内容シート ──────────────────────────────────────────────────────────
+
+def _render_language_description(impl_md):
+    """変更ファイル一覧から「ファイル名: 変更概要」形式の言語記述を生成する。
+    実装計画の対応内容/実装内容セクションがあればそちらを優先。
+    """
+    # 専用セクションを優先
+    desc = extract_section(impl_md, "対応内容", "実装内容", "変更内容の説明")
+    if desc and len(desc.strip()) > 20:
+        lines = [ln.strip().lstrip("- ").replace("**", "") for ln in desc.splitlines() if ln.strip()]
+        return "\n".join(lines[:10])
+    # フォールバック: 変更ファイル一覧から生成
+    rows = parse_md_table(extract_section(impl_md, "変更ファイル一覧", "変更ファイル"))
+    if not rows:
+        return ""
+    out = []
+    for row in rows:
+        path = (row.get("ファイルパス") or row.get("ファイル") or row.get("対象") or "").strip("`")
+        name = _short_name(path) if path else ""
+        role = (row.get("変更概要") or row.get("変更内容") or row.get("内容") or "").replace("**", "")
+        if name or role:
+            out.append(f"{name}: {role}" if name and role else (name or role))
+    return "\n".join(out[:8])
+
 
 def _short_name(path_or_name):
     """フォルダ区切り（/ \\）を含んでいたら basename のみ返す。
@@ -1136,22 +1084,41 @@ def _has_code_change(impl_md):
 
 
 def fill_content(ws, impl_md):
-    # バックアップ情報 (r3-r5): コード変更なし案件は「該当なし」default を入れる  [F4]
-    if _has_code_change(impl_md):
-        wset(ws, 3, 2, "")  # バックアップ先: 実装時に記入
-        wset(ws, 4, 2, "")  # コミットハッシュ: 実装時に記入
-        wset(ws, 5, 2, "")  # ロールバック手順: 実装時に記入
-    else:
-        wset(ws, 3, 2, "該当なし（コード変更なし）")
-        wset(ws, 4, 2, "該当なし")
-        rb_text = extract_section(impl_md, "ロールバック手順")
-        rb_first = parse_numbered_list(rb_text)
-        wset(ws, 5, 2, rb_first[0] if rb_first else "ロールバック手順を参照")
+    # ■ 対応内容（言語記述）セクション（テンプレ先頭・バックアップ情報の前）
+    lang_header_row = find_header_row(ws, ("■ 対応内容（言語記述）",))
+    if lang_header_row:
+        lang_desc = _render_language_description(impl_md)
+        if lang_desc:
+            # コンテンツ行はヘッダ直後から最大 3 行（find_header_row+1〜+3）
+            lines = lang_desc.split("\n")
+            for idx in range(3):
+                r = lang_header_row + 1 + idx
+                val = "\n".join(lines[idx * 3:(idx + 1) * 3]) if idx * 3 < len(lines) else ""
+                wset(ws, r, 1, val)
+                auto_fit_row(ws, r, max_height=120)
+        else:
+            wset(ws, lang_header_row + 1, 1, "（実装後に記入）")
 
-    # 変更ファイル一覧（r9-11、テンプレ標準 3 件枠）
+    # バックアップ情報: find_header_row で動的特定（テンプレ挿入後の行番号変動に追従）
+    backup_header_row = find_header_row(ws, ("■ バックアップ情報",))
+    if backup_header_row:
+        b1, b2, b3 = backup_header_row + 1, backup_header_row + 2, backup_header_row + 3
+        if _has_code_change(impl_md):
+            wset(ws, b1, 2, "")  # バックアップ先: 実装時に記入
+            wset(ws, b2, 2, "")  # コミットハッシュ: 実装時に記入
+            wset(ws, b3, 2, "")  # ロールバック手順: 実装時に記入
+        else:
+            wset(ws, b1, 2, "該当なし（コード変更なし）")
+            wset(ws, b2, 2, "該当なし")
+            rb_text = extract_section(impl_md, "ロールバック手順")
+            rb_first = parse_numbered_list(rb_text)
+            wset(ws, b3, 2, rb_first[0] if rb_first else "ロールバック手順を参照")
+
+    # 変更ファイル一覧（テンプレ標準 3 件枠）: find_header_row で動的特定
     rows = parse_md_table(extract_section(impl_md, "変更ファイル一覧", "変更ファイル"))
-    CHANGE_FILES_START = 9
-    CHANGE_FILES_LIMIT = 3  # テンプレ r9-r11
+    cf_header_row = find_header_row(ws, ("■ 変更ファイル一覧",))
+    CHANGE_FILES_START = (cf_header_row + 2) if cf_header_row else 14
+    CHANGE_FILES_LIMIT = 3
     extra_chg = max(0, len(rows) - CHANGE_FILES_LIMIT)
     if extra_chg > 0:
         insert_rows_with_format(
@@ -1159,7 +1126,7 @@ def fill_content(ws, impl_md):
             CHANGE_FILES_START + CHANGE_FILES_LIMIT,
             extra_chg,
             source_row=CHANGE_FILES_START,
-            max_col=4,  # E列削除後 4列
+            max_col=4,
         )
     elif len(rows) < CHANGE_FILES_LIMIT:
         _shrink_table(ws, CHANGE_FILES_START, len(rows), CHANGE_FILES_LIMIT)
@@ -1173,16 +1140,15 @@ def fill_content(ws, impl_md):
 
     # Before/After セクション: Phase 4 で implementer が update_records.py before-after で記入する
 
-    # 影響確認チェックリスト（r21〜）[F4: 2列構成]
+    # 影響確認チェックリスト（find_header_row で動的特定）
     checks = parse_checklist(extract_section(
         impl_md,
         "影響確認チェックリスト", "影響確認",
     ))
     impact_header_row = find_header_row(ws, ("■ 影響確認チェックリスト",))
-    IMPACT_CHECK_START = (impact_header_row + 2) if impact_header_row else 21
-    IMPACT_CHECK_LIMIT = 6  # テンプレ標準 6 件枠
+    IMPACT_CHECK_START = (impact_header_row + 2) if impact_header_row else 28
+    IMPACT_CHECK_LIMIT = 6
 
-    # ヘッダー行 (impact_header_row + 1) の確認内容列を B:D merge  [R3]
     if impact_header_row:
         check_col_header_row = impact_header_row + 1
         if not _merge_exists(ws, check_col_header_row, 2, check_col_header_row, 4):
@@ -1210,7 +1176,85 @@ def fill_content(ws, impl_md):
         auto_fit_row(ws, target_row, target_cols=[1, 2])
 
 
-# ── テスト・検証記録シート ──────────────────────────────────────────────────
+# ── 残対応・懸念・保留シート ────────────────────────────────────────────────
+
+def _parse_pending_items(approach_md, impl_md):
+    """approach-plan.md の懸念事項セクションと実装計画の残対応を統合してリスト化する。
+    戻り値: [{"種別": str, "内容": str, "関連": str, "ステータス": str, "次アクション": str}]
+    """
+    items = []
+
+    # 懸念事項セクション（approach-plan.md）
+    concerns_text = extract_section(approach_md, "懸念事項", "リスク・懸念事項", "懸念点")
+    concerns = parse_numbered_list(concerns_text)
+    if not concerns:
+        concerns = [ln.strip().lstrip("- ") for ln in concerns_text.splitlines()
+                    if ln.strip() and ln.strip().startswith(("-", "*"))]
+    for item in concerns:
+        # 「**タイトル**: 内容」形式を分解
+        m = re.match(r"\*\*([^*]+)\*\*[:：]\s*(.*)", item, re.DOTALL)
+        if m:
+            title = m.group(1).strip()
+            body = re.sub(r"\s+", " ", m.group(2)).strip()
+            content = f"{title}: {body}"
+        else:
+            content = re.sub(r"\s+", " ", item).strip()
+        items.append({"種別": "懸念", "内容": content, "関連": "", "ステータス": "未対応", "次アクション": ""})
+
+    # 許容した影響セクション（approach-plan.md）
+    allow_text = extract_section(approach_md, "許容した影響", "許容影響", "許容リスク")
+    for item in (parse_numbered_list(allow_text) or
+                 [ln.strip().lstrip("- ") for ln in allow_text.splitlines()
+                  if ln.strip() and ln.strip().startswith(("-", "*"))]):
+        content = re.sub(r"\s+", " ", item).strip()
+        items.append({"種別": "許容した影響", "内容": content, "関連": "", "ステータス": "許容済", "次アクション": ""})
+
+    # Phase B 持ち越し Q（approach-plan.md の「Phase B で詰める残り Q」等）
+    defer_text = extract_section(approach_md, "Phase B で詰める残り Q", "残り Q", "Phase B 残課題", "保留事項")
+    defer_rows = parse_md_table(defer_text)
+    for row in defer_rows:
+        q = row.get("#", row.get("Q", "")).strip()
+        content_raw = (row.get("残り課題") or row.get("課題") or row.get("内容") or "").strip()
+        action = (row.get("Phase B での扱い") or row.get("次アクション") or "").strip()
+        content = f"{q}: {content_raw}" if q else content_raw
+        items.append({"種別": "保留", "内容": content, "関連": q, "ステータス": "保留", "次アクション": action})
+
+    return items
+
+
+def fill_pending(ws, approach_md, impl_md):
+    """残対応・懸念・保留シートを approach-plan.md の懸念事項・許容影響・保留 Q で埋める。"""
+    items = _parse_pending_items(approach_md, impl_md)
+
+    # ■ 残対応・懸念事項一覧 ヘッダを find_header_row で特定
+    pending_header_row = find_header_row(ws, ("■ 残対応・懸念事項一覧",))
+    data_start = (pending_header_row + 2) if pending_header_row else 4
+    PENDING_LIMIT = 3  # テンプレ標準 3 件枠
+
+    if not items:
+        # データなし: 1行に placeholder を置いて終了
+        wset(ws, data_start, 2, "（懸念事項・保留事項なし）")
+        return
+
+    extra = max(0, len(items) - PENDING_LIMIT)
+    if extra > 0:
+        insert_rows_with_format(ws, data_start + PENDING_LIMIT, extra,
+                                source_row=data_start, max_col=6)
+    elif len(items) < PENDING_LIMIT:
+        _shrink_table(ws, data_start, len(items), PENDING_LIMIT)
+
+    for i, item in enumerate(items):
+        fill = _stripe_fill(i)
+        wset(ws, data_start + i, 1, str(i + 1), fill)
+        wset(ws, data_start + i, 2, item["種別"], fill)
+        wset(ws, data_start + i, 3, item["内容"], fill)
+        wset(ws, data_start + i, 4, item["関連"], fill)
+        wset(ws, data_start + i, 5, item["ステータス"], fill)
+        wset(ws, data_start + i, 6, item["次アクション"], fill)
+        auto_fit_row(ws, data_start + i, max_height=80)
+
+
+# ── テスト・検証シート ──────────────────────────────────────────────────────
 
 def fill_test(ws, impl_md):
     # テスト方針（r3-4）[M3]
@@ -1257,222 +1301,6 @@ def fill_test(ws, impl_md):
         for j, val in enumerate(vals, start=1):
             wset(ws, TEST_START + i, j, val, fill)
         auto_fit_row(ws, TEST_START + i)
-
-
-# ── リリース・ロールバックシート ────────────────────────────────────────────
-
-def fill_release(ws, impl_md, approach_md=""):
-    # リリース対象（r4-5、テンプレ標準 2 件枠）[F6: 4列構成 No/種別/対象/デプロイ方法]
-    rows = parse_md_table(extract_section(
-        impl_md,
-        "リリース対象", "リリース対象一覧",
-        "デプロイ対象", "変更対象一覧",
-    ))
-    RELEASE_START = 4
-    RELEASE_LIMIT = 2  # テンプレ r4-r5
-    extra_release = max(0, len(rows) - RELEASE_LIMIT)
-    if extra_release > 0:
-        insert_rows_with_format(
-            ws,
-            RELEASE_START + RELEASE_LIMIT,
-            extra_release,
-            source_row=RELEASE_START,
-            max_col=4,  # E/F列削除後 4列  [F6]
-        )
-    elif len(rows) < RELEASE_LIMIT:
-        _shrink_table(ws, RELEASE_START, len(rows), RELEASE_LIMIT)
-    # 列ヘッダー行「対象」を C:D マージ
-    col_hdr_row = RELEASE_START - 1  # row 3
-    if not _merge_exists(ws, col_hdr_row, 3, col_hdr_row, 4):
-        ws.merge_cells(start_row=col_hdr_row, end_row=col_hdr_row,
-                       start_column=3, end_column=4)
-
-    for i, row in enumerate(rows):
-        fill = _stripe_fill(i)
-        api_name = get_col(row, "対象", "API名 / ファイル", "API名/ファイル", "API名", "ファイル", "ファイルパス")
-        wset(ws, RELEASE_START + i, 1, row.get("No", str(i + 1)), fill)
-        wset(ws, RELEASE_START + i, 2, row.get("種別", ""), fill)
-        wset(ws, RELEASE_START + i, 3, api_name, fill)
-        # デプロイ方法列はテンプレから削除済みのため書き込み不要  [F11]
-        target_row = RELEASE_START + i
-        if not _merge_exists(ws, target_row, 3, target_row, 4):
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=3, end_column=4)
-        auto_fit_row(ws, target_row)
-
-    # リリース前確認事項: テンプレから削除済み（patch_template_v6）。セクションが存在しない場合はスキップ
-    pre_header_row = find_header_row(ws, ("■ リリース前確認事項",))
-    if pre_header_row is not None:
-        pre_text = extract_section(
-            impl_md,
-            "リリース前確認事項", "リリース前確認", "デプロイ前確認",
-            "事前準備", "実装前準備", "確認事項",
-        )
-        checks = parse_checklist(pre_text)
-        if not checks:
-            checks = [(False, item) for item in parse_numbered_list(pre_text)]
-        if not checks and approach_md:
-            pre_fallback = extract_section(
-                approach_md,
-                "実施前確認事項", "確認事項", "事前確認",
-                "業務要件の確認事項",
-            )
-            checks = parse_checklist(pre_fallback)
-            if not checks:
-                checks = [(False, item) for item in parse_numbered_list(pre_fallback)]
-
-        pre_data_start = pre_header_row + 2
-        PRE_CHECK_LIMIT = 4
-        extra_pre = max(0, len(checks) - PRE_CHECK_LIMIT)
-        if extra_pre > 0:
-            insert_rows_with_format(
-                ws,
-                pre_data_start + PRE_CHECK_LIMIT,
-                extra_pre,
-                source_row=pre_data_start,
-                max_col=2,
-            )
-        elif len(checks) < PRE_CHECK_LIMIT:
-            _shrink_table(ws, pre_data_start, len(checks), PRE_CHECK_LIMIT)
-        for i, (checked, text) in enumerate(checks):
-            target_row = pre_data_start + i
-            wset(ws, target_row, 1, "☑" if checked else "☐")
-            wset(ws, target_row, 2, text)
-            if not _merge_exists(ws, target_row, 2, target_row, 4):
-                ws.merge_cells(start_row=target_row, end_row=target_row,
-                               start_column=2, end_column=4)
-            auto_fit_row(ws, target_row, target_cols=[1, 2])
-
-    # デプロイ手順（テンプレ修正後 A:D マージ）[F6: max_col=4]
-    steps = parse_numbered_list(extract_section(impl_md, "デプロイ手順", "リリース手順"))
-    deploy_header_row = find_header_row(ws, ("■ デプロイ手順",))
-    deploy_data_start = (deploy_header_row + 1) if deploy_header_row else 15
-    DEPLOY_LIMIT = 4  # テンプレ標準 4 件
-    extra_deploy = max(0, len(steps) - DEPLOY_LIMIT)
-    if extra_deploy > 0:
-        insert_rows_with_format(
-            ws,
-            deploy_data_start + DEPLOY_LIMIT,
-            extra_deploy,
-            source_row=deploy_data_start,
-            max_col=4,  # E/F削除後  [F6]
-        )
-    elif len(steps) < DEPLOY_LIMIT:
-        _shrink_table(ws, deploy_data_start, len(steps), DEPLOY_LIMIT)
-    for i, step in enumerate(steps):
-        target_row = deploy_data_start + i
-        has_merge = any(
-            mg.min_row == target_row and mg.max_row == target_row
-            and mg.min_col == 1 and mg.max_col == 4
-            for mg in ws.merged_cells.ranges
-        )
-        if not has_merge:
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=1, end_column=4)
-        wset(ws, target_row, 1, f"{i + 1}. {step}")
-
-    # デプロイ後確認事項: テンプレから削除済み（patch_template_v6）。セクションが存在しない場合はスキップ
-    post_header_row = find_header_row(ws, ("■ デプロイ後確認事項",))
-    if post_header_row is not None:
-        post_text = extract_section(
-            impl_md,
-            "デプロイ後確認事項", "リリース後確認", "デプロイ後確認",
-            "実装後確認", "モニタリング", "影響確認チェックリスト",
-        )
-        post_checks = parse_checklist(post_text)
-        if not post_checks:
-            post_checks = [(False, item) for item in parse_numbered_list(post_text)]
-
-        post_data_start = post_header_row + 2
-        POST_CHECK_LIMIT = 4
-        extra_post = max(0, len(post_checks) - POST_CHECK_LIMIT)
-        if extra_post > 0:
-            insert_rows_with_format(
-                ws,
-                post_data_start + POST_CHECK_LIMIT,
-                extra_post,
-                source_row=post_data_start,
-                max_col=2,
-            )
-        elif len(post_checks) < POST_CHECK_LIMIT:
-            _shrink_table(ws, post_data_start, len(post_checks), POST_CHECK_LIMIT)
-        for i, (checked, text) in enumerate(post_checks):
-            target_row = post_data_start + i
-            wset(ws, target_row, 1, "☑" if checked else "☐")
-            wset(ws, target_row, 2, text)
-            if not _merge_exists(ws, target_row, 2, target_row, 4):
-                ws.merge_cells(start_row=target_row, end_row=target_row,
-                               start_column=2, end_column=4)
-            auto_fit_row(ws, target_row, target_cols=[1, 2])
-
-    # 注意事項（テンプレ修正後 A:D マージ）[F6: max_col=4, 番号prefix再付与]
-    notes_text = extract_section(
-        impl_md,
-        "注意事項", "リスク・注意事項", "注意点",
-        "懸念事項", "リスク",
-    )
-    if not notes_text and approach_md:
-        notes_text = extract_section(approach_md, "懸念事項", "リスク・懸念事項", "注意事項")
-
-    notes = parse_numbered_list(notes_text)
-    if not notes:
-        notes = [l.strip().lstrip("- ") for l in notes_text.splitlines() if l.strip().startswith("-")]
-
-    notes_header_row = find_header_row(ws, ("■ 注意事項・リスク", "■ 注意事項"))
-    notes_data_start = (notes_header_row + 1) if notes_header_row else 28
-    NOTES_LIMIT = 2  # テンプレ標準 2 件
-    extra_notes = max(0, len(notes) - NOTES_LIMIT)
-    if extra_notes > 0:
-        insert_rows_with_format(
-            ws,
-            notes_data_start + NOTES_LIMIT,
-            extra_notes,
-            source_row=notes_data_start,
-            max_col=4,  # E/F削除後  [F6]
-        )
-    elif len(notes) < NOTES_LIMIT:
-        _shrink_table(ws, notes_data_start, len(notes), NOTES_LIMIT)
-    for i, item in enumerate(notes):
-        target_row = notes_data_start + i
-        has_merge = any(
-            mg.min_row == target_row and mg.max_row == target_row
-            and mg.min_col == 1 and mg.max_col == 4
-            for mg in ws.merged_cells.ranges
-        )
-        if not has_merge:
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=1, end_column=4)
-        wset(ws, target_row, 1, f"{i + 1}. {item}")  # 番号prefix再付与  [F6]
-        auto_fit_row(ws, target_row, max_height=80)
-
-    # ロールバック手順（テンプレ修正後 A:D マージ）[F6]
-    rb_steps = parse_numbered_list(extract_section(impl_md, "ロールバック手順"))
-    rb_header_row = find_header_row(ws, ("■ ロールバック手順",))
-    rb_data_start = (rb_header_row + 1) if rb_header_row else 32
-    RB_LIMIT = 4  # テンプレ r32-r35
-    extra_rb = max(0, len(rb_steps) - RB_LIMIT)
-    if extra_rb > 0:
-        insert_rows_with_format(
-            ws,
-            rb_data_start + RB_LIMIT,
-            extra_rb,
-            source_row=rb_data_start,
-            max_col=4,  # E/F削除後  [F6]
-        )
-    elif len(rb_steps) < RB_LIMIT:
-        _shrink_table(ws, rb_data_start, len(rb_steps), RB_LIMIT)
-    for i, step in enumerate(rb_steps):
-        target_row = rb_data_start + i
-        has_merge = any(
-            mg.min_row == target_row and mg.max_row == target_row
-            and mg.min_col == 1 and mg.max_col == 4
-            for mg in ws.merged_cells.ranges
-        )
-        if not has_merge:
-            ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=1, end_column=4)
-        wset(ws, target_row, 1, f"{i + 1}. {step}")
-        auto_fit_row(ws, target_row, max_height=80)
 
 
 # ── border 補完ユーティリティ ────────────────────────────────────────────────
@@ -1556,8 +1384,8 @@ def main():
     fill_approach(wb["対応方針"], app_md)
     fill_investigation(wb["調査・影響範囲"], inv_md)
     fill_content(wb["対応内容"], impl_md)
-    fill_test(wb["テスト・検証記録"], impl_md)
-    fill_release(wb["リリース・ロールバック"], impl_md, app_md)
+    fill_test(wb["テスト・検証"], impl_md)
+    fill_pending(wb["残対応・懸念・保留"], app_md, impl_md)
 
     # 後処理: 全シートで content があるのに height が None または 18px 未満の行を補完
     # _shrink_table の row_dimensions シフト後でも残留する小さい height を救済する

@@ -301,11 +301,15 @@ def _extract_validation_summary(text):
 
 
 def cmd_test_precheck(args, wb):
-    """validation-report.md の確認結果をテスト・検証記録シートの「実装前」行に反映する。"""
-    sheet_name = "テスト・検証記録"
+    """validation-report.md の確認結果をテスト・検証シートの「実装前」行に反映する。"""
+    sheet_name = "テスト・検証"
     if sheet_name not in wb.sheetnames:
-        print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
-        sys.exit(1)
+        # 旧名称にフォールバック（移行期対応）
+        if "テスト・検証記録" in wb.sheetnames:
+            sheet_name = "テスト・検証記録"
+        else:
+            print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
+            sys.exit(1)
 
     if not os.path.exists(args.report):
         print(f"[ERROR] validation-report.md が見つかりません: {args.report}")
@@ -329,7 +333,7 @@ def cmd_test_precheck(args, wb):
             break
 
     if not header_row:
-        print("[WARN] テスト・検証記録シートのヘッダー行が見つかりませんでした。")
+        print("[WARN] テスト・検証シートのヘッダー行が見つかりませんでした。")
         return
 
     max_rows = getattr(args, "max_rows", 1000)
@@ -353,6 +357,63 @@ def cmd_test_precheck(args, wb):
             updated += 1
 
     print(f"[OK] 実装前テスト行 {updated} 件に validation-report.md の結果を反映しました")
+
+
+def cmd_pending(args, wb):
+    """残対応・懸念・保留シートに1行追加する。"""
+    sheet_name = "残対応・懸念・保留"
+    if sheet_name not in wb.sheetnames:
+        print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
+        sys.exit(1)
+    ws = wb[sheet_name]
+
+    # ■ 残対応・懸念事項一覧 のデータ開始行を動的特定
+    data_start = None
+    for row in ws.iter_rows(min_col=1, max_col=1):
+        cell = row[0]
+        if cell.value and "■ 残対応" in str(cell.value):
+            data_start = cell.row + 2  # ヘッダー行 + 列ヘッダ行
+            break
+    if data_start is None:
+        data_start = 4  # fallback
+
+    # 最終 No を特定して次の行番号を決める
+    last_row = data_start
+    max_no = 0
+    for r in range(data_start, ws.max_row + 1):
+        val = ws.cell(r, 1).value
+        if val is None and ws.cell(r, 2).value is None:
+            break
+        last_row = r
+        try:
+            no = int(str(val or "").strip())
+            if no > max_no:
+                max_no = no
+        except ValueError:
+            pass
+
+    # 重複チェック: 同じ内容が既に存在するか
+    if not getattr(args, "force", False):
+        for r in range(data_start, last_row + 1):
+            existing = ws.cell(r, 3).value
+            if existing and str(existing).strip() == str(args.content).strip():
+                print(f"[SKIP] 同じ内容が既に存在します (r{r}): {args.content[:40]}")
+                return
+
+    new_row = last_row + 1
+    new_no = max_no + 1
+    fill = _stripe_fill(new_no - 1)
+    ws.cell(new_row, 1, value=new_no).alignment = WRAP
+    ws.cell(new_row, 2, value=args.kind).alignment = WRAP
+    ws.cell(new_row, 3, value=args.content).alignment = WRAP
+    ws.cell(new_row, 4, value=getattr(args, "related", "") or "").alignment = WRAP
+    ws.cell(new_row, 5, value=args.status).alignment = WRAP
+    ws.cell(new_row, 6, value=getattr(args, "next_action", "") or "").alignment = WRAP
+    for col in range(1, 7):
+        c = ws.cell(new_row, col)
+        c.fill = fill
+
+    print(f"[OK] 残対応・懸念・保留 r{new_row} に追記: [{args.kind}] {args.content[:40]}")
 
 
 TIMELINE_PHASES = ["調査", "対応方針", "実装方針", "実装前検証", "実装", "テスト", "最終検証", "リリース", "お客様確認"]
@@ -410,6 +471,19 @@ def main():
     p_ba.add_argument("--after",  required=True, help="変更後コード / 設定値")
     p_ba.add_argument("--force",  action="store_true")
 
+    # 残対応・懸念・保留 追記
+    p_pd = sub.add_parser("pending", help="残対応・懸念・保留シートに1行追加する")
+    p_pd.add_argument("--kind",        required=True,
+                      choices=["懸念", "許容した影響", "後回しの残対応", "保留", "次課題提案"],
+                      help="種別")
+    p_pd.add_argument("--content",     required=True, help="内容")
+    p_pd.add_argument("--status",      required=True,
+                      choices=["未対応", "許容済", "保留", "提案", "完了"],
+                      help="ステータス")
+    p_pd.add_argument("--next-action", default="", dest="next_action", help="次アクション（任意）")
+    p_pd.add_argument("--related",     default="", help="関連（Q番号・課題ID等、任意）")
+    p_pd.add_argument("--force",       action="store_true", help="重複内容があっても追加する")
+
     args = parser.parse_args()
     args.folder = validate_folder(args.folder)
 
@@ -436,6 +510,8 @@ def main():
         cmd_backup_info(args, wb)
     elif args.command == "before-after":
         cmd_before_after(args, wb)
+    elif args.command == "pending":
+        cmd_pending(args, wb)
 
     try:
         wb.save(xlsx_path)
