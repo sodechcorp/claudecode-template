@@ -203,10 +203,10 @@ def parse_approach_options_h3(section_md):
     """
     options = []
     for m in re.finditer(
-        r"^#{3,4}\s+案([A-Z])[:：]\s*(.+?)(?:\s*【.+?】)?\s*$",
+        r"^#{3,4}\s+案([A-Z])(?:[:：]\s*(.+?))?(?:\s*【.+?】)?\s*$",
         section_md, re.MULTILINE
     ):
-        no, name = m.group(1), m.group(2).strip()
+        no, name = m.group(1), (m.group(2) or "").strip()
         body_start = m.end()
         rest = section_md[body_start:]
         next_h = re.search(r"^#{2,4}\s", rest, re.MULTILINE)
@@ -833,8 +833,8 @@ def fill_approach(ws, approach_md):
         # セクション名が section_text に入らず approach_md 全体に対して走らせる
         rows = parse_approach_options_h3(approach_md)
 
-    # テンプレ修正後 6列構成: 案No/方針名/概要/メリット/デメリット/工数  [F2]
-    col_order = ["案No", "方針名", "概要", "メリット", "デメリット", "工数"]
+    # テンプレ修正後 5列構成: 案No/概要/メリット/デメリット/工数（方針名列削除）  [F2→K1]
+    col_order = ["案No", "概要", "メリット", "デメリット", "工数"]
     APPROACH_START = 4
     APPROACH_LIMIT = 2  # テンプレ r4-r5
     extra_approach = max(0, len(rows) - APPROACH_LIMIT)
@@ -844,7 +844,7 @@ def fill_approach(ws, approach_md):
             APPROACH_START + APPROACH_LIMIT,
             extra_approach,
             source_row=APPROACH_START,
-            max_col=6,
+            max_col=5,
         )
     elif len(rows) < APPROACH_LIMIT:
         _shrink_table(ws, APPROACH_START, len(rows), APPROACH_LIMIT)
@@ -885,12 +885,12 @@ def fill_approach(ws, approach_md):
 
         has_merge = any(
             mg.min_row == adopted_write_row and mg.max_row == adopted_write_row
-            and mg.min_col == 1 and mg.max_col == 6
+            and mg.min_col == 1 and mg.max_col == 5
             for mg in ws.merged_cells.ranges
         )
         if not has_merge:
             ws.merge_cells(start_row=adopted_write_row, end_row=adopted_write_row,
-                           start_column=1, end_column=6)
+                           start_column=1, end_column=5)
         wset(ws, adopted_write_row, 1, adopted_short)
         auto_fit_row(ws, adopted_write_row, max_height=80)
 
@@ -924,10 +924,10 @@ def fill_approach(ws, approach_md):
         target_row = confirm_data_start + i
         wset(ws, target_row, 1, "☑" if checked else "☐")
         wset(ws, target_row, 2, text)
-        # B:F merge を動的付与 (テンプレ6列構成、確認内容を広く)  [F8]
-        if not _merge_exists(ws, target_row, 2, target_row, 6):
+        # B:E merge を動的付与 (テンプレ5列構成、確認内容を広く)  [F8→K1]
+        if not _merge_exists(ws, target_row, 2, target_row, 5):
             ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=2, end_column=6)
+                           start_column=2, end_column=5)
         auto_fit_row(ws, target_row, target_cols=[1, 2])
 
     # 懸念事項（テンプレ修正後 r17「■ 懸念事項」の直下から書き込み）[M6]
@@ -947,7 +947,7 @@ def fill_approach(ws, approach_md):
             concern_data_start + CONCERN_LIMIT,
             extra_concerns,
             source_row=concern_data_start,
-            max_col=6,
+            max_col=5,
         )
     elif len(concerns) < CONCERN_LIMIT:
         _shrink_table(ws, concern_data_start, len(concerns), CONCERN_LIMIT)
@@ -956,12 +956,12 @@ def fill_approach(ws, approach_md):
         target_row = concern_data_start + i
         has_merge = any(
             mg.min_row == target_row and mg.max_row == target_row
-            and mg.min_col == 1 and mg.max_col == 6
+            and mg.min_col == 1 and mg.max_col == 5
             for mg in ws.merged_cells.ranges
         )
         if not has_merge:
             ws.merge_cells(start_row=target_row, end_row=target_row,
-                           start_column=1, end_column=6)
+                           start_column=1, end_column=5)
         wset(ws, target_row, 1, f"{i + 1}. {item}", fill)
         auto_fit_row(ws, target_row)
 
@@ -1473,7 +1473,7 @@ def fill_release(ws, impl_md, approach_md=""):
 
 # ── border 補完ユーティリティ ────────────────────────────────────────────────
 
-_THIN_SIDE = Side(border_style="thin", color="999999")
+_THIN_SIDE = Side(border_style="thin", color="00B4C6E7")
 
 
 def _ensure_borders(ws):
