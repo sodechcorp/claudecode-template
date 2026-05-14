@@ -218,7 +218,11 @@ def parse_approach_options_h3(section_md):
             sub_pat = rf"^\s*-\s+\*\*{re.escape(key)}[^*]*\*\*\s*[:|：]\s*(.+?)(?=^\s*-\s+\*\*|\Z)"
             sm = re.search(sub_pat, body, re.MULTILINE | re.DOTALL)
             if sm:
-                value = re.sub(r"\s+", " ", sm.group(1)).strip()
+                value_raw = sm.group(1)
+                if key == "見込み工数":
+                    # 根拠サブ箇条書き（インデント行）を除外: 最初の行のみ使用  [K1]
+                    value_raw = value_raw.split('\n')[0]
+                value = re.sub(r"\s+", " ", value_raw).strip()
                 opt["工数" if key == "見込み工数" else key] = value
 
         # デメリットにリスクを統合  [F2]
