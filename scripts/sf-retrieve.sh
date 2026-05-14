@@ -191,7 +191,7 @@ generate_standard() {
 XMLEOF
 
     # 重い type は独立バッチ（wildcard）
-    for TYPE in ApexClass Layout Profile FlexiPage; do
+    for TYPE in ApexClass Layout Profile; do
         cat > "manifest/package-${TYPE}.xml" << XMLEOF
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
@@ -246,6 +246,49 @@ print(n_batches)
 PYEOF
 )
 
+    # FlexiPage は件数が多い場合にタイムアウトするため 50 件ずつ分割
+    info "FlexiPage 一覧を取得中（${target_org}）..."
+    local flexipages_json n_flexipage_batches
+    flexipages_json=$(sf org list metadata --metadata-type FlexiPage --target-org "$target_org" --json 2>/dev/null) || {
+        warn "FlexiPage 一覧の取得に失敗しました。manifest/package-FlexiPage-1.xml に wildcard を使用します"
+        cat > "manifest/package-FlexiPage-1.xml" << XMLEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types><members>*</members><name>FlexiPage</name></types>
+    <version>${api_version}</version>
+</Package>
+XMLEOF
+        flexipages_json=""
+    }
+
+    if [ -n "${flexipages_json:-}" ]; then
+        n_flexipage_batches=$(python3 - "${api_version}" << PYEOF
+import json, math, sys
+api_version = sys.argv[1]
+data = json.loads("""${flexipages_json}""")
+pages = sorted([r['fullName'] for r in data.get('result', [])])
+BATCH_SIZE = 50
+n = math.ceil(len(pages) / BATCH_SIZE) if pages else 0
+for i in range(n):
+    batch = pages[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
+    members = '\n'.join(f'        <members>{p}</members>' for p in batch)
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+{members}
+        <name>FlexiPage</name>
+    </types>
+    <version>{api_version}</version>
+</Package>"""
+    with open(f'manifest/package-FlexiPage-{i+1}.xml', 'w', encoding='utf-8') as f:
+        f.write(xml)
+print(n)
+PYEOF
+)
+    else
+        n_flexipage_batches=1
+    fi
+
     # フォルダ型: Dashboard / Report
     local folder_manifests_ok=()
     for pair in "${FOLDER_BASED_PAIRS[@]}"; do
@@ -263,8 +306,9 @@ PYEOF
 
     ok "標準セット package.xml を生成 (API ${api_version})"
     ok "  軽い type: manifest/package.xml"
-    ok "  重い type: manifest/package-{ApexClass,Layout,Profile,FlexiPage}.xml"
+    ok "  重い type: manifest/package-{ApexClass,Layout,Profile}.xml"
     ok "  CustomObject: manifest/package-CustomObject-1.xml 〜 ${n_batches}.xml (${n_batches} バッチ)"
+    ok "  FlexiPage: manifest/package-FlexiPage-1.xml 〜 ${n_flexipage_batches}.xml (${n_flexipage_batches} バッチ)"
     for m in "${folder_manifests_ok[@]}"; do
         ok "  フォルダ型: ${m}"
     done
@@ -305,7 +349,7 @@ all_types = sorted([
 ])
 
 # 重い型は個別 manifest（標準セットと同様）
-HEAVY_TYPES = {'ApexClass', 'Layout', 'Profile', 'FlexiPage', 'CustomObject'}
+HEAVY_TYPES = {'ApexClass', 'Layout', 'Profile', 'CustomObject'}
 light_types = [t for t in all_types if t not in HEAVY_TYPES]
 heavy_types  = [t for t in all_types if t in HEAVY_TYPES]
 
@@ -377,6 +421,49 @@ for i in range(math.ceil(len(objects) / BATCH_SIZE)):
 PYEOF
     fi
 
+    # FlexiPage は件数が多い場合にタイムアウトするため 50 件ずつ分割
+    info "FlexiPage 一覧を取得中（${target_org}）..."
+    local flexipages_json_all n_flexipage_batches_all
+    flexipages_json_all=$(sf org list metadata --metadata-type FlexiPage --target-org "$target_org" --json 2>/dev/null) || {
+        warn "FlexiPage 一覧の取得に失敗。manifest/package-FlexiPage-1.xml に wildcard を使用"
+        cat > "manifest/package-FlexiPage-1.xml" << XMLEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types><members>*</members><name>FlexiPage</name></types>
+    <version>${api_version}</version>
+</Package>
+XMLEOF
+        flexipages_json_all=""
+    }
+
+    if [ -n "${flexipages_json_all:-}" ]; then
+        n_flexipage_batches_all=$(python3 - "${api_version}" << PYEOF
+import json, math, sys
+api_version = sys.argv[1]
+data = json.loads("""${flexipages_json_all}""")
+pages = sorted([r['fullName'] for r in data.get('result', [])])
+BATCH_SIZE = 50
+n = math.ceil(len(pages) / BATCH_SIZE) if pages else 0
+for i in range(n):
+    batch = pages[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
+    members = '\n'.join(f'        <members>{p}</members>' for p in batch)
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+{members}
+        <name>FlexiPage</name>
+    </types>
+    <version>{api_version}</version>
+</Package>"""
+    with open(f'manifest/package-FlexiPage-{i+1}.xml', 'w', encoding='utf-8') as f:
+        f.write(xml)
+print(n)
+PYEOF
+)
+    else
+        n_flexipage_batches_all=1
+    fi
+
     # フォルダ型を個別生成
     for pair in "${FOLDER_BASED_PAIRS[@]}"; do
         local ct="${pair%%:*}"
@@ -410,6 +497,32 @@ retrieve_manifest() {
     local label="$3"
 
     if sf project retrieve start --manifest "$manifest" --target-org "$target_org" 2>&1; then
+        return 0
+    fi
+
+    # all-N バッチ（軽い型 30 型まとめ）が失敗した場合: 型を 1 つずつリトライ
+    if [[ "$manifest" == *"package-all-"* ]]; then
+        warn "[${label}] バッチ取得失敗。型を 1 つずつ取得します..."
+        local skipped_types=()
+        while IFS= read -r type_name; do
+            cat > /tmp/sf-retrieve-single-type.xml << XMLEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types><members>*</members><name>${type_name}</name></types>
+    <version>$(get_api_version)</version>
+</Package>
+XMLEOF
+            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single-type.xml --target-org "$target_org" 2>&1; then
+                warn "  スキップ: ${type_name}（取得失敗）"
+                skipped_types+=("$type_name")
+            fi
+        done < <(grep -oP '(?<=<name>)[^<]+' "$manifest")
+
+        if [ ${#skipped_types[@]} -gt 0 ]; then
+            warn "[${label}] 以下の型はスキップしました（CLI 更新で解消する可能性あり）:"
+            for t in "${skipped_types[@]}"; do warn "  - ${t}"; done
+            warn "  対処: npm install --global @salesforce/cli@latest"
+        fi
         return 0
     fi
 
@@ -455,11 +568,15 @@ retrieve_standard() {
     # 軽い type まとめ
     manifests+=("manifest/package.xml")
     # 重い type 独立
-    for TYPE in ApexClass Layout Profile FlexiPage; do
+    for TYPE in ApexClass Layout Profile; do
         manifests+=("manifest/package-${TYPE}.xml")
     done
     # CustomObject 分割バッチ
     for f in manifest/package-CustomObject-*.xml; do
+        [ -f "$f" ] && manifests+=("$f")
+    done
+    # FlexiPage 分割バッチ
+    for f in manifest/package-FlexiPage-*.xml; do
         [ -f "$f" ] && manifests+=("$f")
     done
     # フォルダ型バッチ
@@ -506,12 +623,16 @@ retrieve_all() {
         [ -f "$f" ] && manifests+=("$f")
     done
     # 重い type 独立
-    for TYPE in ApexClass Layout Profile FlexiPage; do
+    for TYPE in ApexClass Layout Profile; do
         local f="manifest/package-${TYPE}.xml"
         [ -f "$f" ] && manifests+=("$f")
     done
     # CustomObject 分割バッチ
     for f in manifest/package-CustomObject-*.xml; do
+        [ -f "$f" ] && manifests+=("$f")
+    done
+    # FlexiPage 分割バッチ
+    for f in manifest/package-FlexiPage-*.xml; do
         [ -f "$f" ] && manifests+=("$f")
     done
     # フォルダ型
@@ -596,6 +717,19 @@ case "$MODE" in
         TARGET_ORG=$(get_target_org)
         retrieve_standard "$TARGET_ORG"
         ;;
+    retrieve-manifest)
+        MANIFEST="${2:-}"
+        [ -z "$MANIFEST" ] && error "manifest パスを指定してください: bash scripts/sf-retrieve.sh retrieve-manifest manifest/package-XXX.xml"
+        [ -f "$MANIFEST" ] || error "${MANIFEST} が見つかりません"
+        TARGET_ORG=$(get_target_org)
+        LABEL=$(basename "$MANIFEST" .xml | sed 's/package-//')
+        info "[manifest] ${LABEL} を取得中..."
+        if retrieve_manifest "$MANIFEST" "$TARGET_ORG" "$LABEL"; then
+            ok "完了"
+        else
+            error "取得失敗: ${MANIFEST}"
+        fi
+        ;;
     check-version)
         # check_sf_version は先頭で既に実行済み。明示呼び出し用
         ok "sf CLI バージョン確認完了"
@@ -603,12 +737,13 @@ case "$MODE" in
     *)
         echo "使い方: bash scripts/sf-retrieve.sh <mode>"
         echo ""
-        echo "  standard        標準セットで package.xml 生成 + 取得"
-        echo "  all             全量で package.xml 生成 + 取得"
-        echo "  generate-only   package.xml 生成のみ（standard / all）"
-        echo "  retrieve          既存 manifest/package.xml で取得のみ（後方互換）"
-        echo "  retrieve-standard 生成済み standard 用全 manifest で取得のみ"
-        echo "  check-version     sf CLI バージョン確認のみ"
+        echo "  standard            標準セットで package.xml 生成 + 取得"
+        echo "  all                 全量で package.xml 生成 + 取得"
+        echo "  generate-only       package.xml 生成のみ（standard / all）"
+        echo "  retrieve            既存 manifest/package.xml で取得のみ（後方互換）"
+        echo "  retrieve-standard   生成済み standard 用全 manifest で取得のみ"
+        echo "  retrieve-manifest   指定 manifest ファイル 1 つで取得（失敗バッチの個別リトライ用）"
+        echo "  check-version       sf CLI バージョン確認のみ"
         exit 1
         ;;
 esac
