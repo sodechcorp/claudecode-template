@@ -109,7 +109,7 @@ print(f'TOTAL={len(groups)}')
 Phase 2a のマークダウン表が assistant メッセージに表示済みであることを確認してから AskUserQuestion を呼ぶ。
 
 AskUserQuestion で選択する（3 択＋Other 自動）:
-- question: "対象グループを選択してください？"
+- question: "対象グループを選択してください"
 - header: "対象グループ"
 - multiSelect: false
 - options:
