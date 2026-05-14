@@ -75,6 +75,18 @@ if [ -f "$TMP_DIR/.claude/settings.json" ]; then
     fi
 fi
 
+# hooks（.claude/hooks/*.js）
+if [ -d "$TMP_DIR/.claude/hooks" ]; then
+    while IFS= read -r f; do
+        rel="${f#$TMP_DIR/}"
+        if [ ! -f "$rel" ]; then
+            ADDITIONS+=("$rel（新規 hook）")
+        elif ! diff -q "$rel" "$f" >/dev/null 2>&1; then
+            CHANGES+=("$rel")
+        fi
+    done < <(find "$TMP_DIR/.claude/hooks" -type f -name "*.js")
+fi
+
 # エージェント
 for f in "$TMP_DIR"/.claude/agents/*.md; do
     [ -f "$f" ] || continue
@@ -208,6 +220,15 @@ info "適用中..."
 
 # settings.json
 [ -f "$TMP_DIR/.claude/settings.json" ] && cp "$TMP_DIR/.claude/settings.json" .claude/settings.json
+
+# hooks（.claude/hooks/*.js）
+if [ -d "$TMP_DIR/.claude/hooks" ]; then
+    mkdir -p .claude/hooks
+    while IFS= read -r f; do
+        rel="${f#$TMP_DIR/}"
+        cp "$f" "$rel"
+    done < <(find "$TMP_DIR/.claude/hooks" -type f -name "*.js")
+fi
 
 # エージェント
 for f in "$TMP_DIR"/.claude/agents/*.md; do
