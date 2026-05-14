@@ -12,6 +12,15 @@
 #   bash scripts/sf-retrieve.sh generate-only standard # 生成のみ（取得しない）
 #   bash scripts/sf-retrieve.sh retrieve              # 既存 package.xml で取得のみ
 #   bash scripts/sf-retrieve.sh check-version         # sf CLI バージョン確認のみ
+#
+# 環境変数:
+#   SF_RETRIEVE_WAIT=N              CLI 待機時間（分。デフォルト 60）
+#   SF_RETRIEVE_EXTRA_SKIP=A,B,C   all モードで追加スキップする型（カンマ区切り）
+#
+# all モードのデフォルト自動スキップ型（EXCLUDED_FROM_ALL）:
+#   ExperienceContainer / ExperiencePropertyTypeBundle / ContentTypeBundle /
+#   SiteDotCom / ManagedTopic / ManagedTopics / AnalyticSnapshot /
+#   AiAgentScorerDefinition / ApexEmailNotifications / IframeWhiteListUrlSettings
 # =============================================================================
 set -euo pipefail
 
@@ -56,9 +65,23 @@ check_sf_version
 # 環境変数 SF_RETRIEVE_WAIT で上書き可（例: SF_RETRIEVE_WAIT=120 bash scripts/sf-retrieve.sh all）
 SF_WAIT="${SF_RETRIEVE_WAIT:-60}"
 
-# --- `<members>*</members>` で内部コンポを返してエラーになる型 ---
+# --- `<members>*</members>` で内部コンポを返してエラーになる型（all/standard 共通）---
 EXCLUDED_FROM_WILDCARD=(
     "NetworkBranding"   # 内部 "cb" コンポを返し取得不能
+)
+
+# --- all モード専用: 保守用途でほぼ価値が無く retrieve コスト/失敗リスクのみ残る型 ---
+EXCLUDED_FROM_ALL=(
+    "ExperienceContainer"           # Experience Cloud 内部バイナリコンテナ（不透明・編集不能）
+    "ExperiencePropertyTypeBundle"  # Experience Cloud 内部 autogen
+    "ContentTypeBundle"             # Experience Cloud / CMS 内部 autogen
+    "SiteDotCom"                    # レガシー Site.com（Experience Cloud に置換済み・autogen）
+    "ManagedTopic"                  # Community ナビゲーション autogen
+    "ManagedTopics"                 # Community ナビゲーション autogen
+    "AnalyticSnapshot"              # Reporting Snapshot（保守でほぼ触らない）
+    "AiAgentScorerDefinition"       # 旧 CLI で取得失敗の既知型（バッチを巻き込む）
+    "ApexEmailNotifications"        # 組織 1 レコード設定（保守での取得意義薄）
+    "IframeWhiteListUrlSettings"    # 設定の autogen
 )
 
 is_excluded() {
@@ -330,13 +353,32 @@ generate_all() {
     mkdir -p manifest
 
     # EXCLUDED_FROM_WILDCARD と FOLDER_BASED_PAIRS のコンテンツ型を除外
-    local excluded_list=""
+    local excluded_list="" skipped_for_log=()
     for ex in "${EXCLUDED_FROM_WILDCARD[@]}"; do
         excluded_list="${excluded_list}${ex},"
     done
     for pair in "${FOLDER_BASED_PAIRS[@]}"; do
         excluded_list="${excluded_list}${pair%%:*},"
     done
+
+    # all モード専用: 明らかに不要な型 + 案件別追加（SF_RETRIEVE_EXTRA_SKIP）
+    for ex in "${EXCLUDED_FROM_ALL[@]}"; do
+        excluded_list="${excluded_list}${ex},"
+        skipped_for_log+=("${ex}")
+    done
+    if [ -n "${SF_RETRIEVE_EXTRA_SKIP:-}" ]; then
+        IFS=',' read -r -a extra_skip <<< "$SF_RETRIEVE_EXTRA_SKIP"
+        for ex in "${extra_skip[@]}"; do
+            ex="${ex// /}"  # 空白除去
+            [ -z "$ex" ] && continue
+            excluded_list="${excluded_list}${ex},"
+            skipped_for_log+=("${ex} (SF_RETRIEVE_EXTRA_SKIP)")
+        done
+    fi
+
+    mkdir -p manifest
+    printf '%s\n' "${skipped_for_log[@]}" > manifest/.retrieve-skipped-all.log
+    info "all モード自動スキップ: ${#skipped_for_log[@]} 型 (manifest/.retrieve-skipped-all.log に記録)"
 
     local n_batches
     n_batches=$(python3 - "${api_version}" "${excluded_list}" << PYEOF
@@ -391,7 +433,7 @@ print(len(batches))
 PYEOF
 )
 
-    ok "全量 package.xml 生成: manifest/package-all-1.xml 〜 ${n_batches}.xml (${n_batches} バッチ, 除外型: ${excluded_list%,})"
+    ok "全量 package.xml 生成: manifest/package-all-1.xml 〜 ${n_batches}.xml (${n_batches} バッチ, 自動スキップ: ${#skipped_for_log[@]} 型)"
 
     # CustomObject は件数ベースで 100 件ずつ分割（標準セットと同ロジック）
     info "CustomObject 一覧を取得中（${target_org}）..."
@@ -762,12 +804,16 @@ case "$MODE" in
         echo "使い方: bash scripts/sf-retrieve.sh <mode>"
         echo ""
         echo "  standard            標準セットで package.xml 生成 + 取得"
-        echo "  all                 全量で package.xml 生成 + 取得"
+        echo "  all                 全量で package.xml 生成 + 取得（明らかに不要な型は自動スキップ）"
         echo "  generate-only       package.xml 生成のみ（standard / all）"
         echo "  retrieve            既存 manifest/package.xml で取得のみ（後方互換）"
         echo "  retrieve-standard   生成済み standard 用全 manifest で取得のみ"
         echo "  retrieve-manifest   指定 manifest ファイル 1 つで取得（失敗バッチの個別リトライ用）"
         echo "  check-version       sf CLI バージョン確認のみ"
+        echo ""
+        echo "環境変数:"
+        echo "  SF_RETRIEVE_WAIT=N             CLI 待機時間（分、デフォルト 60）"
+        echo "  SF_RETRIEVE_EXTRA_SKIP=A,B,C   all モードで追加スキップする型（カンマ区切り）"
         exit 1
         ;;
 esac
