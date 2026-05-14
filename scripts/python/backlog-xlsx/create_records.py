@@ -1099,7 +1099,7 @@ def fill_investigation(ws, inv_md):
         fill = _stripe_fill(i)
         # 3列構成: 種別/名前(ファイルパス)/役割  [F3]
         wset(ws, comp_data_start + i, 1, get_col(row, "種別"), fill)
-        wset(ws, comp_data_start + i, 2, get_col(row, "対象", "ファイルパス", "名前", "コンポーネント名"), fill)
+        wset(ws, comp_data_start + i, 2, _short_name(get_col(row, "対象", "ファイルパス", "名前", "コンポーネント名")), fill)
         wset(ws, comp_data_start + i, 3, get_col(row, "役割", "内容", "補足"), fill)
         target_row = comp_data_start + i
         if not _merge_exists(ws, target_row, 3, target_row, 4):
@@ -1109,6 +1109,18 @@ def fill_investigation(ws, inv_md):
 
 
 # ── 対応内容シート ──────────────────────────────────────────────────────────
+
+def _short_name(path_or_name):
+    """フォルダ区切り（/ \\）を含んでいたら basename のみ返す。
+    括弧書きの補足（例: 'Admin.profile-meta.xml（×54件）'）は保持する。"""
+    if not path_or_name:
+        return path_or_name
+    s = str(path_or_name).strip()
+    if "/" in s or "\\" in s:
+        head, paren, tail = s.partition("（")
+        return os.path.basename(head.strip()) + (paren + tail if paren else "")
+    return s
+
 
 def _has_code_change(impl_md):
     """変更ファイル一覧に *.cls/*.flow-meta.xml/*.field-meta.xml 等が含まれるか。  [F4]"""
@@ -1150,7 +1162,10 @@ def fill_content(ws, impl_md):
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
         for j, col in enumerate(["No", "ファイルパス", "変更種別", "変更概要"], start=1):
-            wset(ws, CHANGE_FILES_START + i, j, row.get(col, ""), fill)
+            val = row.get(col, "")
+            if col == "ファイルパス":
+                val = _short_name(val)
+            wset(ws, CHANGE_FILES_START + i, j, val, fill)
 
     # Before/After セクション: Phase 4 で implementer が update_records.py before-after で記入する
 

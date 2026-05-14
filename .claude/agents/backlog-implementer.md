@@ -48,6 +48,8 @@ focus_hints: []
 
 判定結果（採用・スキップしたオプション）は **implementation-plan.md** の末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
+> **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。Before/After 説明文・実装サマリーは日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
+
 ---
 
 ## Phase 4: 実装手順
