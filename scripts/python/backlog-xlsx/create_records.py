@@ -22,7 +22,7 @@ from _common import validate_folder, _stripe_fill
 
 try:
     from openpyxl import load_workbook
-    from openpyxl.styles import Alignment, PatternFill
+    from openpyxl.styles import Alignment, Border, PatternFill, Side
     from openpyxl.utils import get_column_letter
 except ImportError:
     print("[ERROR] openpyxl がインストールされていません。`pip install openpyxl` を実行してください。")
@@ -849,8 +849,9 @@ def fill_approach(ws, approach_md):
     elif len(rows) < APPROACH_LIMIT:
         _shrink_table(ws, APPROACH_START, len(rows), APPROACH_LIMIT)
 
-    # 各列の文字数上限（改行を「・」に変換後に truncate）  [H1]
-    _APPROACH_TRUNCATE = {"概要": 50, "メリット": 70, "デメリット": 70, "工数": 30}
+    # 改行を「・」に正規化（折り返し抑止）。文字数 truncate は廃止し、planner 側で
+    # コンパクトな日本語を書かせる方針に変更。max_height で表示行数のみ抑制する。  [H1→I1]
+    _APPROACH_INLINE_COLS = {"概要", "メリット", "デメリット", "工数"}
 
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
@@ -858,11 +859,8 @@ def fill_approach(ws, approach_md):
             val = row.get(col, "")
             if col == "工数":
                 val = to_median_hours(val)  # [M5]
-            if col in _APPROACH_TRUNCATE:
+            if col in _APPROACH_INLINE_COLS:
                 val = re.sub(r"\s*\n\s*", "・", str(val).strip())
-                lim = _APPROACH_TRUNCATE[col]
-                if len(val) > lim:
-                    val = val[:lim - 1] + "…"
             wset(ws, APPROACH_START + i, j, val, fill)
         auto_fit_row(ws, APPROACH_START + i, max_height=60)
 
@@ -1458,6 +1456,41 @@ def fill_release(ws, impl_md, approach_md=""):
         auto_fit_row(ws, target_row, max_height=80)
 
 
+# ── border 補完ユーティリティ ────────────────────────────────────────────────
+
+_THIN_SIDE = Side(border_style="thin", color="999999")
+
+
+def _ensure_borders(ws):
+    """値ありセル / マージ範囲のセルに枠線が無い箇所を thin border で補う。
+    既存の太線・色付き border は保持し、欠けている辺だけ thin で埋める。
+    """
+    merged_coords = set()
+    for mcr in ws.merged_cells.ranges:
+        for r in range(mcr.min_row, mcr.max_row + 1):
+            for c in range(mcr.min_col, mcr.max_col + 1):
+                merged_coords.add((r, c))
+
+    for r in range(1, ws.max_row + 1):
+        for c in range(1, ws.max_column + 1):
+            cell = ws.cell(r, c)
+            if cell.value is None and (r, c) not in merged_coords:
+                continue
+            b = cell.border
+            need_left   = not (b.left   and b.left.style)
+            need_right  = not (b.right  and b.right.style)
+            need_top    = not (b.top    and b.top.style)
+            need_bottom = not (b.bottom and b.bottom.style)
+            if not (need_left or need_right or need_top or need_bottom):
+                continue
+            cell.border = Border(
+                left=  (_THIN_SIDE if need_left   else b.left),
+                right= (_THIN_SIDE if need_right  else b.right),
+                top=   (_THIN_SIDE if need_top    else b.top),
+                bottom=(_THIN_SIDE if need_bottom else b.bottom),
+            )
+
+
 # ── main ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -1515,6 +1548,10 @@ def main():
             has_content = any(ws.cell(r, c).value for c in range(1, ws.max_column + 1))
             if has_content and (h is None or h < 18):
                 auto_fit_row(ws, r, min_height=20)
+
+    # 後処理: 枠線補完（テンプレ書式コピーで border が欠けたセルを thin border で補う）
+    for ws in wb.worksheets:
+        _ensure_borders(ws)
 
     path = os.path.join(args.folder, f"{args.issue_id}_対応記録.xlsx")
     try:
