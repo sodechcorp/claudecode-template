@@ -126,6 +126,15 @@ print(f'画面系（sf-screen-writer対象）: {len(screen_list)}件')
 "
 ```
 
+> **⚠️ 件数上限チェック（50件超 warn）**: Phase 4 で確認した Apex系 + 画面系の合計件数が **50件を超える場合**、Phase 5 委譲前に以下の warn を必ず出力する（処理は中断せず続行する）:
+>
+> ```
+> ⚠️ 対象 {N} 件（Apex系 {n1} 件 + 画面系 {n2} 件）は推奨上限（50件/回）を超えています。
+> コンテキスト圧迫により sf-design-writer / sf-screen-writer が途中で止まるリスクがあります。
+> 推奨: /sf-design → プログラム設計のみ を 50件単位に分割して複数回実行してください。
+> このまま全件処理を続行します（中止したい場合は Ctrl+C または /sf-design を再実行してください）。
+> ```
+
 ---
 
 ## Phase 5: 処理の委譲（① sf-screen-writer → ② sf-design-writer の順）
