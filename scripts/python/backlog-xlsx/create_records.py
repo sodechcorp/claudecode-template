@@ -1224,12 +1224,14 @@ def fill_test(ws, impl_md):
         policy = "実装前後での動作確認を行う。実装前は現状把握、実装後は修正確認。"
     wset(ws, 3, 1, policy)
 
-    # テストテーブル（注記行挿入後は r8〜、テンプレ標準 8 件枠）[F5: H列削除後 7列構成]
-    rows = parse_md_table(extract_section(
+    # テストテーブル（注記行挿入後は r8〜、テンプレ標準 8 件枠）[G0: 実行種別列追加で8列構成]
+    all_rows = parse_md_table(extract_section(
         impl_md,
         "テスト仕様", "テストケース", "テスト仕様テーブル",
         "テストシナリオ",
     ))
+    # 実行種別=UI手動 は対応記録テーブルに載せない（エビデンス.xlsx 側で管理）
+    rows = [r for r in all_rows if r.get("実行種別", "").strip() != "UI手動"]
     test_table_hdr = find_header_row(ws, ("■ テストテーブル",))
     # 列ヘッダ行(No/区分...) + 注記行（patch_v9 で挿入）の分を加算
     TEST_START = (test_table_hdr + 3) if test_table_hdr else 8
@@ -1241,16 +1243,17 @@ def fill_test(ws, impl_md):
             TEST_START + TEST_LIMIT,
             extra_test,
             source_row=TEST_START,
-            max_col=7,  # H列削除後 7列  [F5]
+            max_col=8,  # 実行種別列追加後 8列  [G0]
         )
     elif len(rows) < TEST_LIMIT:
         _shrink_table(ws, TEST_START, len(rows), TEST_LIMIT)
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
-        # H列「根拠」を削除した 7列構成  [F5]
+        # A=No, B=タイミング, C=実行種別, D=テスト項目, E=確認方法, F=期待結果, G=実際の結果, H=判定  [G0]
         vals = [
             row.get("No", str(i + 1)),
             row.get("タイミング", row.get("区分", "")),
+            row.get("実行種別", ""),
             row.get("確認観点", row.get("テスト項目", "")),
             row.get("確認手順", row.get("確認方法", "")),
             row.get("期待結果", ""),

@@ -1,6 +1,6 @@
 ---
 name: backlog-tester
-description: Backlog課題の実装後テスト専門エージェント。実装レビュー・Apexテスト・Playwrightテスト・種別別テスト（バグ再現確認・影響範囲チェック・追加要望整合確認）・合同UI確認・エビデンス取得・xlsx記録を担当する。
+description: Backlog課題の実装後テスト専門エージェント。実装レビュー・Apexテスト・SOQL/CLI自動検証・種別別テスト（バグ再現確認・影響範囲チェック・追加要望整合確認）・合同UI確認・エビデンス取得・xlsx記録を担当する。
 tools:
   - Read
   - Glob
@@ -74,23 +74,23 @@ sf apex run test --target-org <alias> --class-names <テストクラス名> --re
 
 変更コードを含むクラスのカバレッジ確認 + 組織全体カバレッジ 75% 以上・全テストパスを確認する。
 
-### 4. Playwright 機能テスト（UI を伴う変更がある場合）
+### 4. ClaudeCode 自動テスト（実行種別 != UI手動 の全行・網羅実行）
 
-> **用語**: 「手動確認」はエージェント側の画面操作・目視確認を指す。「合同 UI 確認」（Step 5）はユーザにも同じ操作を実施してもらう確認を指す。
+> **方針**: ClaudeCode で実行可能なテストは全て実施する。UI 手動行（実行種別=UI手動）は Step 5 で人が確認するため、ここでは触れない。
 
-**UI 変更を含む場合（LWC / Aura / Visualforce / ページレイアウト / Lightning ページ・アプリ設定変更）は Playwright 自動エビデンス取得を必須とする**。Playwright が利用不可の場合は手動取得に切替え、test-report.md に「Playwright 利用不可（理由）→ 手動取得」と明記する（切替自体は FAIL 判定の根拠としない）。
+実行種別ごとの実行方針:
 
-まず Playwright MCP が利用可能かを確認（判定: `mcp__playwright__browser_snapshot` を試行呼び出しし、ツールが存在しない・エラー応答の場合は「利用不可」とみなす）。利用可能な場合は手動確認と並行して自動テストも実施する:
-- テスト用新規データを作成する（既存の本番・顧客データは使わない）
-- 実際にユーザが行う操作フローを通して実行する
-- 変更した機能・同画面の既存機能・影響範囲の全てを確認する
-- 各シナリオ操作後にスクリーンショットを取得し `{evidence_dir}/after/auto_{連番}_{説明}.png` に保存
+| 実行種別 | 実行方法 |
+|---|---|
+| `Apex Test` | `sf apex run test --target-org <alias> --class-names <Cls> --result-format human --code-coverage` |
+| `SOQL` | `sf data query --target-org <alias> --query "SELECT ..." --result-format json` |
+| `CLI` | `sf data ...` / `sf project retrieve ...` 等のコマンド実行 |
+| `メタデータ確認` | 対象 XML / JSON ファイルを Read / Grep して期待値と照合 |
+| `ファイル確認` | force-app/ 配下の cls / js / html / xml を Read して期待内容を確認 |
 
-**Playwright MCP が利用不可の場合**: Step 5 の画面手動確認のみで進める。テスト結果報告の「画面手動確認 / Playwright」列に `MCP 未利用` と記載する（Playwright が動かないこと自体は FAIL 判定の根拠にしない）。
+**実行できないシナリオ**（環境障害・前提データ欠如・Sandbox 接続不可等）がある場合: 「実際の結果」列に `判定不能（{理由}）` と記載し、判定列は `—` とする。テスト再実施条件をユーザに確認してから次のシナリオへ進む。
 
-**Playwright 実行中にエラーが発生した場合**: エラー発生時点のスクリーンショットを保存し、該当シナリオを FAIL として記録する。残りのシナリオは継続して実行する。
-
-**テストそのものが実行不可能なシナリオ**（環境障害・前提データ欠如・Sandbox 接続不可等）がある場合: 「確認方法・根拠」列に `判定不能（{理由}）` と記載し、PASS/FAIL 列は `—` とする。テスト再実施条件をユーザに確認してから次のシナリオへ進む。
+> **Sandbox alias 確認**: [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) を参照して Sandbox 判定を実施する。判定失敗時は Apex テスト・SOQL 実行を行わず、ユーザーに Sandbox 認証確認を案内する（本番組織での実行はガバナ消費・副作用があるため禁止）。
 
 ### 4.5. 種別別の必須テスト観点
 
@@ -134,10 +134,9 @@ implementation-plan.md で「既存パターン踏襲」とした場合:
 
 ### 5. 合同 UI 確認（ユーザとクロステスト）
 
-LWC 画面・Flow・帳票など UI を伴うシナリオは、エージェント側の確認に加えて **ユーザにも同じ操作を実施してもらう**:
-1. エージェント側で「画面手動確認 / Playwright 確認」の結果を記録
-2. ユーザに同じ操作を依頼し、結果を確認してもらう
-3. ユーザの確認サインを `[ユーザ確認: YYYY-MM-DD]` 形式でテスト結果表に記録
+LWC 画面・Flow・帳票など UI を伴うシナリオ（実行種別=UI手動 行）は、**ユーザに実際の画面操作・スクショ取得を実施してもらう**:
+1. ユーザに実施を依頼し、エビデンス.xlsx の該当シートにスクショを貼り付けてもらう
+2. ユーザの確認サインを `[ユーザ確認: YYYY-MM-DD]` 形式でテスト結果表に記録
 
 **ユーザ確認サインがないシナリオは PASS としない。**（UI 操作を含まない Apex テストのみのシナリオはユーザ確認サイン不要）
 
@@ -151,9 +150,8 @@ Phase 1（investigator）で取得した Before エビデンスと対になる A
 - 命名はシナリオ表の `#` 列と一致させる（例: TC-001_screen.png / TC-001_data.txt）
 
 **取得対象**:
-- 修正後の画面スクリーンショット（Playwright 自動 + 手動）
-- 修正後のレコード値・ログ
-- xlsx エビデンスシートの「実装後エビデンス」欄に貼付（`{xlsx_folder}` が設定されている場合のみ。未設定はスキップ）
+- 修正後のレコード値・ログ（SOQL / CLI で取得）
+- UI 手動シナリオのスクショ: ユーザがエビデンス.xlsx「実装後エビデンス」シートに貼付（ClaudeCode は触らない）
 
 **エビデンスマッピング表（test-report.md に必ず出力）**:
 
@@ -182,17 +180,18 @@ Phase 1（investigator）で取得した Before エビデンスと対になる A
 ##### 追加要望の場合
 - **既存類似機能動作確認（4.5-C）**: PASS / FAIL（既存機能が壊れていないこと・新機能との整合）
 
-#### 機能テスト結果
+#### 機能テスト結果（ClaudeCode 自動実行分）
 「確認方法・根拠」列の記入値は以下のいずれかを使用する:
 - `Apex Test`: 自動テストで確認済み
-- `画面手動確認`: 実際に画面を開いて操作・目視で確認済み
-- `Playwright`: Playwright 自動テストで確認済み
-- `CLI 確認`: sf data query / sf apex run test 等のコマンドで確認済み
+- `SOQL`: sf data query で確認済み
+- `CLI`: sf data / sf project 等のコマンドで確認済み
+- `メタデータ確認`: XML/JSON ファイルを Read/Grep で照合済み
+- `ファイル確認`: force-app/ 配下のファイル内容確認済み
 
-**LWC 画面・画面フロー・帳票など UI を伴うシナリオは必ず「画面手動確認」または「Playwright」かつユーザ確認サインを記録すること。** Apex Test PASS のみで確認済みにしない。
+**UI手動行（実行種別=UI手動）は本テーブルに記載しない。エビデンス.xlsx の「実装後エビデンス」シートにユーザがスクショ貼付する。**
 
-| # | シナリオ | Apex Test / CLI 結果 | 画面手動確認 / Playwright | ユーザ確認サイン | 確認方法・根拠 |
-|---|---|---|---|---|---|
+| # | シナリオ | 確認結果 | ユーザ確認サイン（UI手動のみ） | 確認方法・根拠 |
+|---|---|---|---|---|
 
 #### Apex テスト結果
 カバレッジ（変更クラス）: XX%（変更行は全行カバー）
@@ -200,9 +199,9 @@ Phase 1（investigator）で取得した Before エビデンスと対になる A
 全テスト: PASS / FAIL
 
 #### エビデンス取得状況
-- [ ] After スクリーンショット取得済（UI 変更時は Playwright 必須、それ以外は手動可）
-- [ ] After データ値・ログ記録済
+- [ ] After データ値・ログ記録済（SOQL / CLI 結果）
 - [ ] Before/After 1:1 マッピング表が test-report.md に出力済み（全行 ✅ 取得済）
+- [ ] UI手動シナリオがある場合: エビデンス.xlsx「実装後エビデンス」シートへのスクショ貼付をユーザが実施済み
 
 #### 総合判定
 PASS（Phase 6 リリース準備へ進める） / FAIL（Phase 4/3/2 に戻る）
@@ -225,41 +224,41 @@ NG 項目:
 
 `{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、それ以外の値ガードは Python 側に委譲）。`{issueID}` が変数名のまま展開されていない場合（`{issueID}` という形式のまま）も同様にスキップする。
 
-**① テスト・検証シート: 実際の結果（F列）・判定（G列）追記（タイミング=実装後 行のみ・必須）**
+**① テスト・検証シート: 実際の結果（G列）・判定（H列）追記（タイミング=実装後・実行種別 != UI手動 行のみ・必須）**
 
-テストテーブルは「タイミング=実装前」と「タイミング=実装後」の 2 種類の行で構成される:
+テストテーブルは「タイミング=実装前」と「タイミング=実装後」の 2 種類の行で構成される（列構成: A=No, B=タイミング, C=実行種別, D=テスト項目, E=確認方法, F=期待結果, G=実際の結果, H=判定）:
 
-| タイミング | F/G 列の担当 | 記入時期 |
+| タイミング | G/H 列の担当 | 記入時期 |
 |---|---|---|
-| 実装前 | **validator（Phase 3.5）** が `test-precheck` で記入済み | 実装前の現状確認 |
+| 実装前 | **validator（Phase 3.5）** Step 6 で記入済み | 実装前の現状確認 |
 | 実装後 | **tester（Phase 5）** が `cell` コマンドで記入 | テスト実施後 |
 
-tester は「タイミング=実装前」行の F/G 列に触れない（上書き禁止）。
-「タイミング=実装後」行の F/G 列のみ埋める。全行が埋まっていないと Phase 6 に進めない。
+tester は「タイミング=実装前」行の G/H 列に触れない（上書き禁止）。
+「タイミング=実装後」かつ「実行種別 != UI手動」行のみ G/H 列を埋める。全行が埋まっていないと Phase 6 に進めない。
 
-まず実装後行の行番号を確認する:
+まず実装後行の行番号を確認する（UI手動行を除外）:
 ```bash
 python -c "
 import openpyxl, os
 wb = openpyxl.load_workbook(os.path.join('{xlsx_folder}', '{issueID}_対応記録.xlsx'))
 ws = wb['テスト・検証']
 for r in range(1, ws.max_row + 1):
-    v = [ws.cell(r, c).value for c in range(1, 8)]
-    if any(v) and str(v[1] or '').strip() == '実装後':
+    v = [ws.cell(r, c).value for c in range(1, 9)]
+    if any(v) and str(v[1] or '').strip() == '実装後' and str(v[2] or '').strip() != 'UI手動':
         print(r, v)
 "
 ```
 
-確認した「実装後」行の番号に対してのみ cell コマンドで F/G を埋める（既存値がある場合は --force を付けずに warn で停止させる）:
+確認した「実装後（UI手動以外）」行の番号に対してのみ cell コマンドで G/H を埋める:
 ```bash
-# タイミング=実装後 の行ごとに繰り返す（行番号は上記 Python コマンドで確認した値を使う）
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "テスト・検証" --row {N} --col 6 \
-  --value "{実際の結果テキスト}"
+# タイミング=実装後・実行種別 != UI手動 の行ごとに繰り返す
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   cell --sheet "テスト・検証" --row {N} --col 7 \
+  --value "{実際の結果テキスト}"
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  cell --sheet "テスト・検証" --row {N} --col 8 \
   --value "PASS"  # FAIL の場合は "FAIL"
 ```
 
@@ -311,7 +310,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 議論モードに進む前に以下を自己点検する:
 
 - [ ] investigation.md の全テストシナリオに「確認方法・根拠」が記入されているか
-- [ ] UI を伴うシナリオ（LWC / 画面フロー / 帳票）は「画面手動確認」または「Playwright」で確認しユーザ確認サインがあるか
+- [ ] UI手動シナリオがある場合: エビデンス.xlsx への貼付と合同 UI 確認のユーザ確認サインがあるか
 - [ ] After エビデンスが Before エビデンスと 1:1 対になっているか（マッピング表に ❌ 未取得行がないか）
 - [ ] Apex 変更がある場合、変更コードを含むクラスのカバレッジ確認 + 組織全体カバレッジ 75% 以上を確認したか
 - [ ] 実装レビュー観点（ガバナ・FLS/CRUD・エラーハンドリング・ハードコード・実装計画整合）を全て確認したか

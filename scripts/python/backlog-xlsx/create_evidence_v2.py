@@ -105,9 +105,9 @@ def fill_test_spec(ws, test_cases):
             tc.get("No", str(i + 1)),
             tc.get("確認観点", ""),
             tc.get("タイミング", ""),
+            tc.get("実行種別", "UI手動"),
             tc.get("確認手順", ""),
             tc.get("期待結果", ""),
-            tc.get("エビデンス取得方法", ""),
             tc.get("貼付先シート", "実装前エビデンス" if tc.get("タイミング") == "実装前" else "実装後エビデンス"),
         ]
         for j, val in enumerate(vals, start=1):
@@ -155,7 +155,7 @@ def fill_evidence_sheet(ws, cases, sheet_label):
     row_ptr = paste_start + 1
     for i, tc in enumerate(cases):
         # ラベル行: A:D 横幅マージ
-        label = f"エビデンス{chr(0x2460 + i)}: No.{tc.get('No', i + 1)} {tc.get('エビデンス取得方法', tc.get('確認観点', ''))}"
+        label = f"エビデンス{chr(0x2460 + i)}: No.{tc.get('No', i + 1)} {tc.get('確認観点', '')}"
         ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=4)
         cell = ws.cell(row=row_ptr, column=1, value=label)
         cell.fill = EVIDENCE_BG
@@ -212,7 +212,16 @@ def main():
         print("[INFO] 増分テストケースはありません。v2 の生成をスキップします。")
         sys.exit(0)
 
-    print(f"増分テストケース: {len(new_cases)} 件（v1 既存: {len(v1_nos)} 件）")
+    # 実行種別=UI手動 の行のみエビデンスファイルに記録（後方互換: 実行種別列なしは全行対象）
+    has_shubetsu = any(tc.get("実行種別", "").strip() for tc in new_cases)
+    if has_shubetsu:
+        new_cases = [tc for tc in new_cases if tc.get("実行種別", "").strip() == "UI手動"]
+
+    if not new_cases:
+        print("[INFO] 増分 UI 手動テストケースはありません。v2 の生成をスキップします。")
+        sys.exit(0)
+
+    print(f"増分 UI 手動テストケース: {len(new_cases)} 件（v1 既存: {len(v1_nos)} 件）")
 
     before_cases = [tc for tc in new_cases if tc.get("タイミング", "") == "実装前"]
     after_cases  = [tc for tc in new_cases if tc.get("タイミング", "") != "実装前"]
