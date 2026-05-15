@@ -922,7 +922,7 @@ def fill_approach(ws, approach_md):
         checks = [(False, item) for item in parse_numbered_list(checks_text)]
 
     confirm_header_row = find_header_row(ws, ("■ 実施前確認事項",))
-    confirm_data_start = (confirm_header_row + 2) if confirm_header_row else 12
+    confirm_data_start = (confirm_header_row + 1) if confirm_header_row else 11
     CONFIRM_LIMIT = 4  # テンプレ修正後 標準4枠
 
     extra_confirm = max(0, len(checks) - CONFIRM_LIMIT)
