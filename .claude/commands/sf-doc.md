@@ -68,7 +68,22 @@ Read tool で `{project_dir}/docs/.sf/sf_config.yml` を読み取る。
 - いずれも存在しない場合: `last_author = ""`、`last_output_dir = ""` として扱う
 - ファイルが存在する場合: `author:` 行の値を `last_author`、`output_dir:` 行の値を `last_output_dir` として控える（値が空文字または未定義の場合は `""`）
 
-> **重要**: ここで取得した日本語値は **絶対に `python -c` の stdout 経由で再表示・再取得しない**。Read tool で得た値をそのまま AskUserQuestion の補間に使うこと（Bash stdout のラウンドトリップで日本語値が文字化けする事例あり）。
+> **重要**: 前回設定値（人名・日本語パス等）を AskUserQuestion ラベルに値置換して埋め込まない。Claude の LLM 生成段階で rare CJK 文字が近傍の頻出字に自動補正されるバイアスがあり文字化けが発生する（例: 「俣」→「係」）。代わりに以下の Bash で値を一括表示し、AskUserQuestion は generic ラベルを使う。
+
+**前回値がある場合:** まず以下を実行して前回値を表示する（stdout = IDE terminal 直接描画なので LLM 生成を経由せず文字化けしない）:
+```bash
+python -c "
+import yaml, pathlib
+p = pathlib.Path(r'{project_dir}/docs/.sf/sf_config.yml')
+if p.exists():
+    d = yaml.safe_load(p.read_text(encoding='utf-8')) or {}
+    if d:
+        print('━━ 前回の設定値（sf_config.yml）━━')
+        if d.get('author'): print('  作成者名       :', d['author'])
+        if d.get('output_dir'): print('  出力先フォルダ  :', d['output_dir'])
+        print('↑ 各項目で「前回値を使用」を選ぶと上記の値が引き継がれます')
+"
+```
 
 ### 作成者名
 
@@ -77,8 +92,10 @@ Read tool で `{project_dir}/docs/.sf/sf_config.yml` を読み取る。
 - header: "作成者名"
 - multiSelect: false
 - options:
-  - label: "前回: {last_author}"、description: "前回と同じ作成者名を使用"
+  - label: "前回値を使用"、description: "Bash 出力に表示された前回の作成者名を使用"
   - label: "スキップ"、description: "作成者名なし"
+
+「前回値を使用」が選ばれた場合は `author = last_author` を使用。「スキップ」の場合は `author = ""`。Other に値が入力された場合はその値を `author` として使用。
 
 > **注意**: 別の作成者名を入力したい場合は「Other」を選択すると自由入力が可能。
 
@@ -100,10 +117,10 @@ python -c "import pathlib; p=pathlib.Path(r'{project_dir}/docs/.sf'); p.mkdir(pa
 - header: "出力先"
 - multiSelect: false
 - options:
-  - label: "前回: {last_output_dir}"、description: "前回と同じフォルダを使用"
+  - label: "前回値を使用"、description: "Bash 出力に表示された前回の出力先フォルダを使用"
   - label: "別のフォルダを指定する"、description: "新しいパスをチャットで入力する"
 
-「別のフォルダを指定する」または Other が選ばれた場合はチャットで入力してもらう。
+「前回値を使用」が選ばれた場合は `output_dir = last_output_dir` を使用。「別のフォルダを指定する」または Other が選ばれた場合はチャットで入力してもらう。
 
 **前回値がない場合:** チャットで直接聞く:
 ```
