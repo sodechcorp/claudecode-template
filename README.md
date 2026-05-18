@@ -92,10 +92,10 @@ Salesforce 開発プロジェクト向けの Claude Code テンプレート。
 
 ```bash
 # 作成先: カレントディレクトリ
-curl -sSL https://raw.githubusercontent.com/h-omata825/sf-claude-template/main/scripts/setup.sh | bash -s プロジェクト名
+curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/scripts/setup.sh | bash -s プロジェクト名
 
 # 作成先を指定する場合
-curl -sSL https://raw.githubusercontent.com/h-omata825/sf-claude-template/main/scripts/setup.sh | bash -s プロジェクト名 /c/workspace
+curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/scripts/setup.sh | bash -s プロジェクト名 /c/workspace
 ```
 
 作成後、Python ライブラリをインストール（設計書生成機能を使う場合）:
@@ -109,13 +109,13 @@ pip install -r scripts/python/sf-doc-mcp/requirements.txt
 プロジェクトリポジトリ URL を第3引数に渡すと参加モードになる。リポジトリを clone するだけでテンプレート展開は行わない。
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/h-omata825/sf-claude-template/main/scripts/setup.sh | bash -s フォルダ名 親ディレクトリ https://github.com/your-org/project-a.git
+curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/scripts/setup.sh | bash -s フォルダ名 親ディレクトリ https://github.com/your-org/project-a.git
 
 # 例: /c/workspace/gf として clone する
-curl -sSL https://raw.githubusercontent.com/h-omata825/sf-claude-template/main/scripts/setup.sh | bash -s gf /c/workspace https://github.com/your-org/project-a.git
+curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/scripts/setup.sh | bash -s gf /c/workspace https://github.com/your-org/project-a.git
 
 # 例: 作成先が日本語フォルダの場合（クォート必須）
-curl -sSL https://raw.githubusercontent.com/h-omata825/sf-claude-template/main/scripts/setup.sh | bash -s gf "/c/workspace/16_グリーンフィールド" https://github.com/your-org/project-a.git
+curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/scripts/setup.sh | bash -s gf "/c/workspace/16_グリーンフィールド" https://github.com/your-org/project-a.git
 ```
 
 clone 完了後の次のステップ:

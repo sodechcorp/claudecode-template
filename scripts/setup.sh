@@ -11,11 +11,11 @@
 # 使い方:
 #
 #   # 新規プロジェクト（テンプレートから作成）
-#   curl -sSL https://raw.githubusercontent.com/h-omata825/sf-claude-template/main/scripts/setup.sh | bash -s my-project
-#   curl -sSL https://raw.githubusercontent.com/h-omata825/sf-claude-template/main/scripts/setup.sh | bash -s my-project /c/workspace
+#   curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/scripts/setup.sh | bash -s my-project
+#   curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/scripts/setup.sh | bash -s my-project /c/workspace
 #
 #   # 既存プロジェクトに参加（プロジェクトリポジトリからテンプレートを取得）
-#   curl -sSL https://raw.githubusercontent.com/h-omata825/sf-claude-template/main/scripts/setup.sh | bash -s my-project /c/workspace https://github.com/your-org/project-a.git
+#   curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/scripts/setup.sh | bash -s my-project /c/workspace https://github.com/your-org/project-a.git
 #
 # または clone 後:
 #   bash scripts/setup.sh my-project /c/workspace
@@ -29,7 +29,7 @@
 set -euo pipefail
 
 # --- 設定 ---
-DEFAULT_TEMPLATE_URL="https://github.com/h-omata825/sf-claude-template.git"
+DEFAULT_TEMPLATE_URL="https://github.com/sodechcorp/claudecode-template.git"
 TEMPLATE_BRANCH="main"
 
 # --- 色付き出力 ---
@@ -98,7 +98,7 @@ fi
 # README: 参加モードではプロジェクトリポジトリを介さず大本テンプレートから直接取得
 # （project repo に古い SFDX デフォルト README が入っていても正しいテンプレート内容が適用される）
 if [ -n "$PROJECT_REPO_URL" ]; then
-    TEMPLATE_README_URL="https://raw.githubusercontent.com/h-omata825/sf-claude-template/${TEMPLATE_BRANCH}/README.md"
+    TEMPLATE_README_URL="https://raw.githubusercontent.com/sodechcorp/claudecode-template/${TEMPLATE_BRANCH}/README.md"
     curl -sSfL "$TEMPLATE_README_URL" -o "$PROJECT_PATH/README.md" 2>/dev/null || \
         { [ -f "$TMP_DIR/README.md" ] && cp "$TMP_DIR/README.md" "$PROJECT_PATH/README.md"; }
 else
