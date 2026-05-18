@@ -3,7 +3,9 @@
 
 import argparse
 import json
+import platform
 import re
+import shutil
 import subprocess
 import sys
 from datetime import date
@@ -17,10 +19,22 @@ from version_manager import VersionManager, increment_version
 from writer import DefinitionWriter
 
 
+def _resolve_sf() -> str:
+    """sf CLI の実行パスを Windows / Linux 両対応で解決する。
+    Windows の Python 3.13 では PATHEXT を参照しない subprocess の挙動で sf.cmd が
+    解決できない問題があるため、明示的に .cmd / .exe を優先して which する。"""
+    candidates = ("sf.cmd", "sf.exe", "sf") if platform.system() == "Windows" else ("sf",)
+    for name in candidates:
+        path = shutil.which(name)
+        if path:
+            return path
+    return "sf"  # 最終フォールバック（既存挙動を維持）
+
+
 def connect_via_sf_cli(alias: str) -> SalesforceConnector:
     """SF CLI のアクセストークンで接続する"""
     result = subprocess.run(
-        ["sf", "org", "display", "--target-org", alias, "--json"],
+        [_resolve_sf(), "org", "display", "--target-org", alias, "--json"],
         capture_output=True, text=True, encoding="utf-8", timeout=30,
     )
     raw = result.stdout

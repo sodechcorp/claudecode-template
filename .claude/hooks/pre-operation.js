@@ -7,9 +7,9 @@
 //     sf project deploy / data ops / apex run / package / org delete を
 //     --target-org *prod* / *production* で実行しようとするとブロック。
 //
-// (2) G:\共有ドライブ（Google Drive マウント）への破壊的操作: ハードブロック
-//     Bash: rm / rmdir / del / mv / cp -f / > リダイレクト等の破壊的コマンドを検出
-//     Write / Edit / MultiEdit: file_path が共有ドライブ配下なら一律ブロック
+// (2) G:\共有ドライブ（Google Drive マウント）への削除操作: ハードブロック
+//     Bash: rm / rmdir / del / mv（移動も実質削除）/ Python rmtree・unlink を検出
+//     Write / Edit / MultiEdit は通過（書き込みはエージェントが日本語警告を出してから実行）
 // =============================================================================
 
 let buf = '';
@@ -54,30 +54,20 @@ process.stdin.on('end', () => {
   if (toolName === 'Bash') {
     const command = input.command || '';
     if (sharedDriveRe.test(command)) {
-      // rm / rmdir / del / mv / > リダイレクト 等の破壊的パターン
-      const destructiveRe = /\b(rm|rmdir|del|erase|mv|truncate)\b|Remove-Item|Move-Item|Copy-Item\s.*-[Ff]orce|\bcp\s.*-[fF]\b|copy\s+\/[Yy]|\bsed\s.*-i\b|\bawk\s.*-i\s+inplace\b|>[^=]|>>/i;
-      if (destructiveRe.test(command)) {
+      // 削除・移動のみブロック。書き込み（cp/copy/redirect/shutil.copy2 等）は通過させる
+      // mv は移動先に上書きするため削除を伴う → ブロック対象に含める
+      // Python ワンライナー経由の shutil.rmtree / pathlib.unlink も捕捉する
+      const deleteRe = /\b(rm|rmdir|del|erase|mv|truncate)\b|Remove-Item|Move-Item|shutil\.rmtree|\.unlink\s*\(|Path\s*\([^)]*\)\.unlink/i;
+      if (deleteRe.test(command)) {
         console.log(JSON.stringify({
           hookSpecificOutput: {
             hookEventName: 'PreToolUse',
             permissionDecision: 'deny',
-            permissionDecisionReason: '[HARD-BLOCK] G:\\共有ドライブ への破壊的操作はブロックされています。\n対象コマンド: ' + command
+            permissionDecisionReason: 'G:\\共有ドライブ への削除操作はブロックされました。共有データの誤削除を防ぐためです。本当に削除が必要な場合は、エクスプローラから手動で実施してください。\n対象コマンド: ' + command
           }
         }));
         return;
       }
-    }
-  } else if (toolName === 'Write' || toolName === 'Edit' || toolName === 'MultiEdit') {
-    const filePath = input.file_path || '';
-    if (sharedDriveRe.test(filePath)) {
-      console.log(JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: 'PreToolUse',
-          permissionDecision: 'deny',
-          permissionDecisionReason: '[HARD-BLOCK] G:\\共有ドライブ への書き込み操作はブロックされています。\n対象パス: ' + filePath
-        }
-      }));
-      return;
     }
   }
 });
