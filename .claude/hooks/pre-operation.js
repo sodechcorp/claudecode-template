@@ -30,17 +30,26 @@ process.stdin.on('end', () => {
   if (toolName === 'Bash') {
     const command = input.command || '';
     const segs = command.split(/&&|\|\||;/);
+
+    // 書き込み・変更を伴う sf サブコマンド
+    // data resume: 非同期 bulk DML の再開も本番では危険なため対象に含める
+    // metadata deploy: sf project deploy とは別の旧来型コマンド
+    // org assign/enable/disable: 本番の権限・機能設定変更
+    const dangerousCmdRe = /^sf\s+(?:project\s+deploy|metadata\s+deploy|data\s+(?:upsert|delete|update|create|import|bulk|resume)|apex\s+run|package\s+(?:install|uninstall)|org\s+(?:delete|assign|enable|disable))/i;
+
+    // 本番エイリアス検出: --target-org と -o 短縮形の両方に対応
+    const targetProdRe = /(?:--target-org|-o)\s+\S*(?:prod|production)/i;
+
     const prodBlocked = segs.some(s => {
       const t = s.trim();
-      return /^sf\s+(project\s+deploy|data\s+(upsert|delete|update|create|import|bulk)|apex\s+run|package\s+(install|uninstall)|org\s+delete)/i.test(t)
-          && /--target-org\s+\S*(prod|production)/i.test(t);
+      return dangerousCmdRe.test(t) && targetProdRe.test(t);
     });
     if (prodBlocked) {
       console.log(JSON.stringify({
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
           permissionDecision: 'deny',
-          permissionDecisionReason: '[HARD-BLOCK] 本番組織への変更操作はブロックされています。'
+          permissionDecisionReason: '[HARD-BLOCK] 本番組織への変更操作はブロックされています。\n対象コマンド: ' + command
         }
       }));
       return;
