@@ -80,7 +80,7 @@ Read tool で `{project_dir}/docs/.sf/sf_config.yml` を読み取る。
 - いずれも存在しない場合: `last_author = ""`、`last_output_dir = ""`、`last_project_name = ""` として扱う
 - ファイルが存在する場合: `author:` 行の値を `last_author`、`output_dir:` 行の値を `last_output_dir`、`project_name:` 行の値を `last_project_name` として控える（値が空文字、未定義、またはキー自体が存在しない場合は `""` として扱う）
 
-> **重要**: 前回設定値（人名・日本語パス等）を AskUserQuestion ラベルに値置換して埋め込まない。Claude の LLM 生成段階で rare CJK 文字が近傍の頻出字に自動補正されるバイアスがあり文字化けが発生する（例: 「俣」→「係」）。代わりに以下の Bash で値を一括表示し、AskUserQuestion は generic ラベルを使う。
+> **重要（文字化けリスク）**: AskUserQuestion の description に前回値を埋め込む場合、Claude LLM 生成段階で rare CJK 文字が近傍の頻出字に自動補正されるバイアスがある（例: 「俣」→「係」）。**人名を含む全項目の値を description に埋め込む**が、人名（rare CJK 漢字）は表示が乱れる場合がある。Bash stdout ブロックが正確な値の安全網として常に表示される。
 
 **前回値がある場合:** まず以下を実行して前回値を表示する（stdout = IDE terminal 直接描画なので LLM 生成を経由せず文字化けしない）:
 ```bash
@@ -105,7 +105,7 @@ if p.exists():
 - header: "作成者名"
 - multiSelect: false
 - options:
-  - label: "前回値を使用"、description: "Bash 出力に表示された前回の作成者名を使用"
+  - label: "前回値を使用"、description: "前回値: {last_author}（rare CJK 人名漢字は稀に表示が乱れる場合あり。正確な値は直前の Bash 出力を参照）"
   - label: "スキップ"、description: "作成者名なし"
 
 「前回値を使用」が選ばれた場合は `author = last_author` を使用。「スキップ」の場合は `author = ""`。Other に値が入力された場合はその値を `author` として使用。
@@ -128,7 +128,7 @@ python -c "import pathlib; p = pathlib.Path(r'{project_dir}/docs/.sf'); p.mkdir(
 - header: "出力先"
 - multiSelect: false
 - options:
-  - label: "前回値を使用"、description: "Bash 出力に表示された前回の出力先フォルダを使用"
+  - label: "前回値を使用"、description: "前回値: {last_output_dir}"
   - label: "別のフォルダを指定する"、description: "新しいパスをチャットで入力する"
 
 「前回値を使用」が選ばれた場合は `output_dir = last_output_dir` を使用。「別のフォルダを指定する」または Other が選ばれた場合はチャットで入力してもらう。
@@ -216,7 +216,7 @@ print('project_name:' + name)
 - header: "プロジェクト名"
 - multiSelect: false
 - options:
-  - label: "前回値を使用"、description: "Bash 出力に表示された前回のプロジェクト名を使用"
+  - label: "前回値を使用"、description: "前回値: {last_project_name}"
   - label: "自動検出値を使用"、description: "直前の Bash 出力 project_name: 行の自動取得値を使用"
 
 「前回値を使用」が選ばれた場合は `project_name = last_project_name`。「自動検出値を使用」が選ばれた場合は `project_name = detected_project_name`。Other に値が入力された場合はその値を `project_name` として使用。
