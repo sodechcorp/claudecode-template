@@ -81,6 +81,12 @@
 
 ## `business_flow[]` の書き方（重要）
 
+> **🚨 スキーマ厳守（最重要）**: `business_flow[]` の各要素のキー名は必ず `step` / `actor` / `action` / `label` / `next` の **5 つだけ**にすること。
+>
+> - **`description` キーを使用してはならない**（`process_steps[]` のスキーマと混同しない）
+> - `description` キーで書くと **業務フロー Excel シートと業務フロー図 PNG が両方とも空白**になる
+> - `process_steps[]` は `{step, title, description}` 形式、`business_flow[]` は `{step, actor, action, label, next}` 形式。**両者は別スキーマ**
+
 業務フローは**アクター（誰が）・業務アクション（何をするか）**を業務担当者視点で記述する。
 
 **`action` と `label` は役割が違う。必ず両方書くこと**:
@@ -132,6 +138,7 @@
 - Step1: GF社担当者 / **「画面フロー」** ← 技術用語、業務アクションになっていない
 - Step1: GF社担当者 / 「Create_CustomerUser.createUser() を呼び出す」 ← メソッド名、業務視点でない
 - **1 つの UC しか書いていない**（FG 配下に複数機能があるのに、パスワードリセットの 4 ステップだけで閉じる等）← FG 俯瞰になっていない
+- **`{"step": 1, "description": "..."}` 形式で書く** ← `description` キーは `process_steps[]` 専用。`business_flow[]` で使うと Excel と PNG が空になる。必ず `actor` / `action` / `label` を分けて書く
 
 ## `data_flow_overview` の書き方
 

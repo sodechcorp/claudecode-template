@@ -4,6 +4,8 @@
 - [ ] `processing_purpose` に具体的なオブジェクト名・処理名が含まれているか
 - [ ] `processing_purpose` に API 名・Apex クラス名・メソッド名が含まれていないか（quality-rules.md の API 名禁止規則準拠）
 - [ ] `data_flow_overview` が矢印で流れを示し、責務分離の意図が読み取れるか
+- [ ] `business_flow[]` の各要素に **`actor` キーと `action` キーが両方存在**するか（`description` キーだけの形は NG、`process_steps[]` のスキーマと混同していないか）
+- [ ] `business_flow[]` の各要素に `label` キーが存在するか（業務フロー図 PNG のノードラベル用、欠落すると図が崩れる）
 - [ ] `business_flow[]` に **技術用語が混入していないか**（`action` に「画面フロー」「Apex」「Flow」「Controller」等があれば NG）
 - [ ] `business_flow[]` のアクターが業務上の登場人物（お客様・GF社担当者・自動フロー等）か（コンポーネント名は NG）
 - [ ] `components` にグループ内の全コンポーネントが含まれているか

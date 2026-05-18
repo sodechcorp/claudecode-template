@@ -2417,6 +2417,11 @@ def _normalize_business_flow(flows: list[dict]) -> None:
                      "Flow", "Trigger", "LWC", "Aura", "Visualforce",
                      "VF", "Integration", "Controller", "Service", "Handler")
     for s in flows:
+        # description-only 形式の救済（LLM が process_steps[] と混同して description キーを使った場合）
+        if not s.get("action") and s.get("description"):
+            s["action"] = s["description"]
+        if not s.get("actor"):
+            s["actor"] = "業務担当者"
         actor = str(s.get("actor", "") or "").strip()
         # アクターが CamelCase クラス名風、__c 付き、（CMP-XXX）を含む等はコンポーネント名扱い → 「システム」に
         if (_RE_CAMEL_IDENT.search(actor) or _RE_LOWER_CAMEL.search(actor)
