@@ -173,9 +173,9 @@ Step 1 完了後、`selected_steps` に応じて以下のエージェントを s
 |---|---|---|
 | プロジェクト概要書のみ | sf-doc-overview-writer | `pre_confirmed=false` で /sf-memory 最新化確認を実施 |
 | オブジェクト定義書のみ | sf-doc-objects-writer | `selected_steps=["オブジェクト定義書"]` で単独モード |
-| 両方選択 | sf-doc-objects-writer | `selected_steps=["プロジェクト概要書", "オブジェクト定義書"]`。内部で Phase 1〜5 の全質問を終わらせた後、Phase 6 で sf-doc-overview-writer を `pre_confirmed=true` で連鎖呼び出し |
+| 両方選択 | sf-doc-objects-writer | `selected_steps=["プロジェクト概要書", "オブジェクト定義書"]`。Phase 1〜5 の AskUserQuestion を 1 件ずつ順次完了してから Phase 6 で sf-doc-overview-writer を `pre_confirmed=true` で連鎖呼び出し |
 
-> **両方選択時の呼び出し順序**: sf-doc-objects-writer が主役となり、Phase 1〜5 で全質問を終わらせた後、Phase 6 で sf-doc-overview-writer を `pre_confirmed=true` で呼ぶ。これにより「両方選択時は途中で確認が入らない」UX を保つ。
+> **両方選択時の呼び出し順序**: sf-doc-objects-writer が主役となる。Phase 1〜5 の AskUserQuestion を**1 件ずつ順次呼んで全て回答済みにしてから**、Phase 6 で sf-doc-overview-writer を `pre_confirmed=true` で呼ぶ。これにより「概要書生成フェーズが Phase 1〜5 の途中に割り込まない」UX を保つ。**Phase 1〜5 の確認を 1 メッセージで地の文にまとめて出すのは禁止**（各 Phase ごとに AskUserQuestion を 1 件ずつ呼ぶ）。
 
 ### プロジェクト概要書のみ → sf-doc-overview-writer
 
