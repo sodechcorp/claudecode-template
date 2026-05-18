@@ -200,10 +200,11 @@ def parse_approach_options_h3(section_md):
     """### 案A: 方針名 配下の - **概要**: ... 形式を dict リストへ変換。  [M4]
     既存 parse_md_table が空の場合の fallback として使う。
     デメリットとリスクを統合して「デメリット」キーに格納する。  [F2]
+    「採用案: 案A（単独確定）」等の前置詞・suffix 付き見出しも許容する。  [P1]
     """
     options = []
     for m in re.finditer(
-        r"^#{3,4}\s+案([A-Z])(?:[:：]\s*(.+?))?(?:\s*【.+?】)?\s*$",
+        r"^#{3,4}\s+(?:採用案[:：]\s*)?案([A-Z])(?:[（(][^）)]*[）)])?(?:[:：]\s*(.+?))?(?:\s*【.+?】)?\s*$",
         section_md, re.MULTILINE
     ):
         no, name = m.group(1), (m.group(2) or "").strip()
@@ -215,7 +216,8 @@ def parse_approach_options_h3(section_md):
         opt = {"案No": f"案{no}", "方針名": name}
         for key in ["概要", "メリット", "デメリット", "リスク", "前提", "見込み工数"]:
             # key[^*]* で「デメリット・リスク」「見込み工数（通常作業前提）」等の接尾辞を吸収
-            sub_pat = rf"^\s*-\s+\*\*{re.escape(key)}[^*]*\*\*\s*[:|：]\s*(.+?)(?=^\s*-\s+\*\*|\Z)"
+            # 先頭「- 」あり（箇条書き）と なし（インライン段落）の両形式を許容  [P1]
+            sub_pat = rf"^(?:\s*-\s+)?\*\*{re.escape(key)}[^*]*\*\*\s*[:|：]\s*(.+?)(?=^\s*[-*]\s+\*\*|\*\*\w|\Z)"
             sm = re.search(sub_pat, body, re.MULTILINE | re.DOTALL)
             if sm:
                 value_raw = sm.group(1)
@@ -224,6 +226,33 @@ def parse_approach_options_h3(section_md):
                     value_raw = value_raw.split('\n')[0]
                 value = re.sub(r"\s+", " ", value_raw).strip()
                 opt["工数" if key == "見込み工数" else key] = value
+
+        # 見込み工数が見出し形式（### 見込み工数: 5〜6h）で書かれている場合を補完  [P1]
+        if not opt.get("工数"):
+            wm = re.search(r"^#{2,4}\s+見込み工数[:：]?\s*(.+?)\s*$", section_md, re.MULTILINE)
+            if wm:
+                opt["工数"] = wm.group(1).strip().split('\n')[0]
+
+        # メリット / デメリットが別 H3「### メリット / デメリット」セクションにある場合補完  [P1]
+        if not opt.get("メリット") and not opt.get("デメリット"):
+            merit_sec = extract_section(section_md, "メリット", "メリット / デメリット", "メリット/デメリット")
+            if merit_sec:
+                for key2, dest in [("メリット", "メリット"), ("デメリット", "デメリット"), ("リスク", "デメリット")]:
+                    pat2 = rf"^(?:\s*-\s+)?\*\*{re.escape(key2)}[^*]*\*\*\s*[:|：]\s*(.+?)(?=^\s*[-*]\s+\*\*|\*\*\w|\Z)"
+                    sm2 = re.search(pat2, merit_sec, re.MULTILINE | re.DOTALL)
+                    if sm2:
+                        val2 = re.sub(r"\s+", " ", sm2.group(1)).strip()
+                        if dest == "デメリット" and opt.get("デメリット"):
+                            opt["デメリット"] = opt["デメリット"] + "　" + val2
+                        else:
+                            opt[dest] = val2
+
+        # 概要が body 内に無く、approach_md の ## 対応方針 内インライン説明がある場合補完  [P1]
+        if not opt.get("概要"):
+            # H3 見出しの直後段落（非 MD 箇条書き・非 H 見出し）を概要として取得
+            inline_m = re.search(r"\n\n([^#\n\-].*?)(?=\n\n|\n#{2,}|\Z)", body, re.DOTALL)
+            if inline_m:
+                opt["概要"] = re.sub(r"\s+", " ", inline_m.group(1)).strip()[:100]
 
         # デメリットにリスクを統合  [F2]
         if opt.get("リスク"):
@@ -841,6 +870,7 @@ def fill_approach(ws, approach_md):
         approach_md,
         "方針比較", "方針比較テーブル", "対応方針比較",
         "対応方針の各案", "案一覧",
+        "対応方針",  # planner が ## 対応方針 配下に ### 案A を書く新形式に対応  [P1]
     )
     rows = parse_md_table(table_text)
     if not rows and table_text:
@@ -885,20 +915,33 @@ def fill_approach(ws, approach_md):
     adopted_header_row = find_header_row(ws, ("■ 採用方針",))
     adopted_write_row = (adopted_header_row + 1) if adopted_header_row else 8
 
-    adopted_full = extract_section(approach_md, "採用方針", "推奨案", "推奨案と根拠")
+    adopted_full = extract_section(
+        approach_md,
+        "採用方針", "推奨案", "推奨案と根拠",
+        "対応方針",  # planner が ## 対応方針 配下に ### 採用案: 案A 形式で書く場合  [P1]
+    )
     if adopted_full:
-        # 「採用方針: 案D（...）— 理由本文」を「採用案: ... / 理由: ...」短文形式に変換
+        # パターン1: 「採用方針: 案D（...）— 理由本文」形式（既存規約）
         m = re.search(
-            r"採用方針[:|：]\s*\*?\*?(案[A-Z][^*\n]+)\*?\*?\s*[—\-]\s*(.+?)(?=\n\n|\Z)",
+            r"(?:採用方針|採用案)[:：]?\s*\*?\*?(案[A-Z][^*\n（(]+)[^*]*\*?\*?(?:[（(][^）)]*[）)])?(?:\s*[—\-]\s*(.+?))?(?=\n\n|\Z)",
             adopted_full, re.DOTALL
         )
         if m:
             plan_name = m.group(1).strip()
-            reason = re.sub(r"\s+", " ", m.group(2)).strip()[:200]
-            adopted_short = f"採用案: {plan_name}\n理由: {reason}"
+            reason_raw = (m.group(2) or "").strip()
+            reason = re.sub(r"\s+", " ", reason_raw).strip()[:200] if reason_raw else ""
+            adopted_short = f"採用案: {plan_name}" + (f"\n理由: {reason}" if reason else "")
         else:
-            # フォールバック: 先頭300字
-            adopted_short = adopted_full[:300]
+            # パターン2: 概要段落を理由として転記（箇条書き形式がない planner 出力用）[P1]
+            concepts = re.findall(
+                r"^\*\*概要\*\*[:：]\s*(.+?)$",
+                adopted_full, re.MULTILINE
+            )
+            if concepts:
+                adopted_short = f"採用案: 案A\n理由: {concepts[0].strip()[:200]}"
+            else:
+                # フォールバック: 先頭300字
+                adopted_short = adopted_full[:300]
 
         has_merge = any(
             mg.min_row == adopted_write_row and mg.max_row == adopted_write_row
@@ -996,13 +1039,17 @@ def fill_investigation(ws, inv_md):
     # コード根拠テーブル・関連コンポーネント一覧はテンプレから削除済みのため何もしない
 
     # 影響範囲: 変更によって影響を受ける外部ファイル・フロー  [A-2: ソース分離]
-    impact_text = extract_section(inv_md, "影響範囲")
+    impact_text = extract_section(inv_md, "影響範囲", "影響範囲・テスト観点")
     impact_rows = _parse_impact_bullets(impact_text)
     if not impact_rows:
-        # フォールバック: 業務文脈 > 関連フロー
+        # フォールバック1: 業務文脈 > 関連フロー
         ctx_text = extract_section(inv_md, "業務文脈", "業務文脈（docs/ から）")
         flow_text = extract_section_after_keyword(ctx_text or inv_md, "関連フロー")
         impact_rows = _parse_impact_bullets(flow_text)
+    if not impact_rows:
+        # フォールバック2: investigator が関連コンポーネント一覧のみ出した場合  [P1]
+        comp_text = extract_section(inv_md, "関連コンポーネント一覧", "関連コンポーネント")
+        impact_rows = _parse_impact_bullets(comp_text)
 
     impact_header_row = find_header_row(ws, ("■ 影響範囲テーブル", "■ 影響範囲"))
     impact_data_start = (impact_header_row + 2) if impact_header_row else 4
@@ -1230,8 +1277,8 @@ def fill_test(ws, impl_md):
         "テスト仕様", "テストケース", "テスト仕様テーブル",
         "テストシナリオ",
     ))
-    # 実行種別=UI手動 は対応記録テーブルに載せない（エビデンス.xlsx 側で管理）
-    rows = [r for r in all_rows if r.get("実行種別", "").strip() != "UI手動"]
+    # UI手動も対応記録テスト・検証シートに掲載する（確認方法の記録・エビデンスは別途）[P1]
+    rows = all_rows
     test_table_hdr = find_header_row(ws, ("■ テストテーブル",))
     # 列ヘッダ行(No/区分...) + 注記行（patch_v9 で挿入）の分を加算
     TEST_START = (test_table_hdr + 3) if test_table_hdr else 8
