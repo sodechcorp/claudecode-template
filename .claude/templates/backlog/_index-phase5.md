@@ -11,7 +11,7 @@ options:
 
   - name: option-sandbox-reproduction
     description: Sandbox 修正後の再現確認（修正前症状が出なくなったことを実機で確認）
-    category: B
+    category: C
     auto-execute-when:
       - 種別がバグ（常時実行・修正後の再現確認は必須に近い）
       - Sandbox 環境で事象を再現できる場合

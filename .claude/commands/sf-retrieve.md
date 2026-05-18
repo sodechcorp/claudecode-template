@@ -147,7 +147,7 @@ AskUserQuestion で以下を表示する:
 **質問**: 「メタデータの取得が完了しました。次のステップを選択してください。」
 
 **選択肢**:
-- `外部ツール連携を設定する（/setup-mcp）` — Backlog MCP を使う場合は先に設定（/sf-memory の前に推奨）
+- `外部ツール連携を設定する（/setup-mcp）` — 外部連携（Backlog・GitHub 等）を使う場合は必須（/sf-memory の前に実行）
 - `組織情報を収集する（/sf-memory）` — Backlog MCP 不要の場合はそのまま実行可
 
 `外部ツール連携を設定する` を選択した場合: /setup-mcp を実行する（完了後に /sf-memory の実行を案内する）

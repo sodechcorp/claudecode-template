@@ -35,9 +35,13 @@ tools:
 
 ## Step 2: 完了課題の全量取得
 
-`mcp__backlog__get_issue_types` で完了ステータスの ID を確認し、`mcp__backlog__get_issues` で完了課題を取得する:
+Backlog の標準ステータス ID は `完了 = 4` で固定されているため、`mcp__backlog__get_issues` で以下のパラメータを指定して完了課題を取得する:
+
+> ⚠️ カスタムワークフローを使用しているプロジェクトでは「完了」相当のステータス ID が異なる場合がある。
+> その場合は `mcp__backlog__get_project` のレスポンスでステータス一覧を確認し、完了相当の ID に差し替えること。
+
 - `projectId`: Step 1 で確認した値（必須）
-- `statusId`: 完了ステータスの ID
+- `statusId`: `[4]`（Backlog 標準の「完了」ステータス ID）
 - `count`: 100
 - `order`: desc
 

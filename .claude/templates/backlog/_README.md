@@ -129,6 +129,8 @@
 
 1. `options/option-{name}.md` を作成（実行手順のみ・判定情報は持たない）
 2. 該当 Phase の `_index-phase{N}.md` にエントリ追加（name / description / auto-execute-when / auto-skip-when / ask-user-prompt / category / estimated-cost）
+   - `prerequisites`（任意）: 実行前に満たすべき前提条件の一覧。例: 「test-report.md にエビデンスマッピング表が存在し全項目✅取得済」
+   - `prerequisite-fail-action`（任意）: 前提条件が満たせない場合の指示（エラー文言 or フォールバック手順）。`prerequisites` がある場合は必ずセットで記述する
 3. 横断系の場合は `_index-cross.md` に追加
 
 ### option の判定条件を変更する時
@@ -140,6 +142,16 @@
 1. `options/option-{name}.md` を削除
 2. 該当 `_index-phase{N}.md` からエントリ削除
 3. 既存の backlog-* エージェントから option 名への直接参照があれば更新（通常は _index 経由なので参照なし）
+
+### option 間に実行順序依存がある場合
+
+一部の option は別の option の実行結果を前提とする（例: counter-evidence-search は multi-cause-hypothesis で仮説が立った後に実行する）。この場合:
+
+1. 依存元の option が先に実行されていること
+2. **該当 `_index-phase{N}.md` の冒頭に明記する**（例: `# ⚠️ 実行順序依存: option-X を option-Y より先に実行すること`）
+3. `option-*.md` 本体にも前提として記述する
+
+依存関係のない option は並列・任意順で OK（明記不要）。
 
 ### _index 自動生成スクリプトについて
 
