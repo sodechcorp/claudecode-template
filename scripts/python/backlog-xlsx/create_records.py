@@ -873,6 +873,10 @@ def fill_approach(ws, approach_md):
         "対応方針",  # planner が ## 対応方針 配下に ### 案A を書く新形式に対応  [P1]
     )
     rows = parse_md_table(table_text)
+    # 方針比較テーブルか検証（案No列を持つか）。改修内容・関連コンポーネント等の
+    # 別テーブルを誤検知した場合は空とみなして parse_approach_options_h3 に fallback する [P1]
+    if rows and not any(r.get("案No") for r in rows):
+        rows = []
     if not rows and table_text:
         # H3 + 箇条書き形式 (### 案A: ... / - **概要**: ...) を fallback でパース [M4]
         rows = parse_approach_options_h3(table_text)
@@ -1302,7 +1306,7 @@ def fill_test(ws, impl_md):
             row.get("タイミング", row.get("区分", "")),
             row.get("実行種別", ""),
             row.get("確認観点", row.get("テスト項目", "")),
-            row.get("確認手順", row.get("確認方法", "")),
+            row.get("確認手順", row.get("確認方法", row.get("確認観点", ""))),  # 4列テーブル対応: 確認観点を最終 fallback に [P1]
             row.get("期待結果", ""),
             row.get("実際の結果", ""),  # テスト実行後に記入
             row.get("判定", ""),       # テスト実行後に記入
