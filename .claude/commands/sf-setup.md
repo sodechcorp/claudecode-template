@@ -108,8 +108,9 @@ find force-app -mindepth 1 -maxdepth 3 -type f 2>/dev/null | head -1
 **force-app/ にファイルがある場合（メタデータ取得済み）**:
 
 ```
-次のアクション（任意）:
-- /setup-mcp  — Backlog・Notion・GitHub 等の外部ツール連携を設定する
+次のアクション:
+- /setup-mcp  — Backlog・Notion・GitHub 等の外部連携を設定する（連携を使う場合は必須）
+- /sf-memory  — 組織情報を収集・記録する（/setup-mcp の後に実行推奨）
 ```
 
 **force-app/ が空の場合（メタデータ未取得）**:
@@ -129,11 +130,11 @@ AskUserQuestion ツールで以下を表示する:
 ```
 初期セットアップの次のステップ:
 1. /sf-retrieve  — メタデータを取得する（force-app/ に展開）
-2. /sf-memory    — 組織情報を収集・記録する（docs/ を生成） ★本番接続中に実施
-3. /sf-doc       — 設計書・定義書を生成する
-4. CLAUDE.md     — プロジェクト固有情報を記入する
-5. /setup-mcp    — 外部ツール連携（任意）
+2. CLAUDE.md     — プロジェクト固有情報を記入する
+3. /setup-mcp    — 外部ツール連携を設定する（Backlog・Notion・GitHub 連携を使う場合は必須）
+4. /sf-memory    — 組織情報を収集・記録する（docs/ を生成） ★本番接続中に実施
+5. /sf-doc       — 設計書・定義書を生成する
 
-⚠️ 本番接続中（Step 2〜4）は読み取り操作のみです。
+⚠️ 本番接続中（Step 4）は読み取り操作のみです。
    データの変更・デプロイ・force-app への書き込みは行いません。
 ```

@@ -121,7 +121,8 @@ curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/
 clone 完了後の次のステップ:
 1. `/sf-setup` — Sandbox 組織を認証する
 2. `CLAUDE.md` — 担当者名・Sandbox alias 等を記入する
-3. `/setup-mcp` — 外部ツール連携を設定する（任意）
+3. `/setup-mcp` — 外部ツール連携を設定する（Backlog・Notion・GitHub 連携を使う場合は必須）
+4. `/sf-memory` — 組織情報を収集・記録する（docs/ を生成）
 
 > **GitHub のアクセス権**: Public リポジトリは招待なしで clone できる。`git push` する場合は GitHub の Settings → Collaborators から招待が必要。
 

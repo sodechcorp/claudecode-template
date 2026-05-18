@@ -23,6 +23,7 @@
 | `/sf-memory` カテゴリ3委譲（マスタデータ・メールテンプレート・自動化設定の収集） | `sf-analyst-cat3` |
 | `/sf-memory` カテゴリ4委譲（Apex・Flow・LWC・Batch等のコンポーネント設計書生成） | `sf-analyst-cat4` |
 | `/sf-memory` カテゴリ5委譲（業務機能グループ定義 feature_groups.yml の生成） | `sf-analyst-cat5` |
+| `/sf-memory` カテゴリ6委譲（Backlog 完了課題から工数温度感ドキュメントを生成） | `sf-analyst-cat6` |
 | `/sf-memory` 全カテゴリ完了後の2周目横断補完（用語統一・矛盾解消・相互参照補完） | `sf-org-analyst` |
 | タスク開始前に docs/ から関連コンテキストを選択的に抽出（Phase 0 として各エージェントから委譲） | `sf-context-loader` |
 | `/sf-design` コマンドの詳細設計ステップ（グループ選択 + sf-detail-design-writer 委譲） | `sf-design-step1` |
@@ -32,7 +33,7 @@
 | `/sf-design` コマンド全体から委譲（詳細設計 Excel生成） | `sf-detail-design-writer` |
 
 > エージェント定義: `.claude/agents/` 配下の各 `.md` ファイル（`sf-dev.md`・`reviewer.md`・`sf-architect.md` 等）
-> コマンド専用エージェント（ユーザーからの直接指示ではなく、コマンドの内部処理として呼ばれる）: `sf-org-analyst` / `sf-design-step1〜3` / `sf-design-writer` / `sf-screen-writer` / `sf-detail-design-writer` / `sf-doc-overview-writer` / `sf-doc-objects-writer` / `backlog-investigator` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator`
+> コマンド専用エージェント（ユーザーからの直接指示ではなく、コマンドの内部処理として呼ばれる）: `sf-org-analyst` / `sf-analyst-cat6` / `sf-design-step1〜3` / `sf-design-writer` / `sf-screen-writer` / `sf-detail-design-writer` / `sf-doc-overview-writer` / `sf-doc-objects-writer` / `backlog-investigator` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator`
 > blind subagent（Task ツール経由でのみ起動・direct 呼び出し禁止・親の情報を受け取らない）: `backlog-blind-second-opinion` / `backlog-blind-final-verifier` / `backlog-blind-validator`
 
 ---

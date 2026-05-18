@@ -149,7 +149,8 @@ if [ -n "$PROJECT_REPO_URL" ]; then
     echo "    1. /sf-setup    — Sandbox組織を認証する"
     echo "    2. /sf-retrieve — メタデータを取得する（force-app/ に展開）"
     echo "    3. CLAUDE.md    — 担当者名・Sandbox alias 等を記入する"
-    echo "    4. /setup-mcp   — 外部ツール連携を設定する（任意: Backlog・Notion・GitHub 等）"
+    echo "    4. /setup-mcp   — 外部ツール連携を設定する（Backlog・Notion・GitHub 連携を使う場合は必須）"
+    echo "    5. /sf-memory   — 組織情報を収集・記録する（docs/ を生成）"
 else
     # --- 新規作成モード ---
     echo "    0. GitHubでリポジトリを作成して連携する:"
@@ -160,10 +161,10 @@ else
     echo ""
     echo "    1. /sf-setup    — 本番組織を認証する ★記憶形成は本番接続を推奨"
     echo "    2. /sf-retrieve — メタデータを取得する（force-app/ に展開）"
-    echo "    3. /sf-memory   — 組織情報を収集しドキュメントを生成する（docs/ に出力）"
-    echo "    4. /sf-doc      — 設計書・定義書を生成する"
-    echo "    5. CLAUDE.md    — プロジェクト固有情報を記入する"
-    echo "    6. /setup-mcp   — 外部ツール連携を設定する（任意）"
+    echo "    3. CLAUDE.md    — プロジェクト固有情報を記入する"
+    echo "    4. /setup-mcp   — 外部ツール連携を設定する（Backlog・Notion・GitHub 連携を使う場合は必須）"
+    echo "    5. /sf-memory   — 組織情報を収集しドキュメントを生成する（docs/ に出力）"
+    echo "    6. /sf-doc      — 設計書・定義書を生成する"
     echo ""
     echo "    ※ 初期セットアップ完了後、プロジェクトリポジトリをチームメンバーに配布してください"
 fi
