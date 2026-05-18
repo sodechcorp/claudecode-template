@@ -8,13 +8,15 @@
 
 下流の `generate_basic_doc.py` は表の左列キー名を一字一句で探索するため、**左列のキー名は以下の通り厳密に書くこと**:
 
+**重要**: プロジェクト名・システム名は `sf-analyst-cat1.md` Phase 2.5 でユーザーから取得した正式名を使う。LLM が推測・自由生成することを禁止（`〜組織` `〜システム` 等の suffix を勝手に付けない）。
+
 ```markdown
 ## プロジェクト基本情報
 
 | 項目 | 値 |
 |---|---|
-| プロジェクト名 | （例: 〇〇 Salesforce 保守プロジェクト） |
-| システム名 | （例: 〇〇 Salesforce 組織 / Experience Cloud ポータル） |
+| プロジェクト名 | （Phase 2.5 で取得した正式プロジェクト名。例: MMPC顧客管理刷新プロジェクト / リンク Salesforce 保守開発） |
+| システム名 | （Phase 2.5 で取得した正式システム名。例: MMPC顧客管理システム / リンク受注管理） |
 | 開始日 | YYYY-MM-DD |
 | 本番公開日 | YYYY-MM-DD |
 | Salesforce Edition | Enterprise / Unlimited / Professional 等 |
@@ -76,11 +78,13 @@
 | `touchpoints` | array | `name`, `platform`(Experience Cloud/LWC/API等), `users` |
 | `notes` | array | 要確認事項 |
 
+**重要**: `system_name` は Phase 2.5 で取得した正式名と org-profile.md の「システム名」を必ず一致させる。LLM 自由生成禁止。
+
 ### サンプル
 
 ```json
 {
-  "system_name": "xxx案件 Salesforce 受注管理システム",
+  "system_name": "（Phase 2.5 で確定した正式システム名 例: MMPC顧客管理システム）",
   "core": { "name": "Salesforce (Sales Cloud)", "role": "受注・契約・請求の中枢" },
   "actors": [{ "name": "営業担当", "count": 30, "channels": ["Salesforce 標準UI", "LWC受注画面"] }],
   "external_systems": [{ "name": "基幹システム", "direction": "out", "protocol": "REST", "frequency": "日次", "purpose": "受注データ連携" }],

@@ -139,9 +139,42 @@ sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsC
 - 業務フロー図・画面仕様が含まれる場合は、登場人物・操作タイミング・承認経路まで抽出する
 - 複数ファイルにわたる場合は矛盾を検出して記録する
 
+### Phase 2.5: プロジェクト基本情報の取得（必須・対話プロセス）
+
+> **重要**: プロジェクト名・システム名は **LLM 自由生成を禁止**。必ずユーザーから取得・確認した値を使う。
+> `**[要確認]**` を付けてそのまま書き込むことは禁止（下流設計書に伝播するため）。
+
+**ステップ A — 候補抽出**:
+
+以下のソースから「プロジェクト名」「システム名」の候補を収集する:
+1. 受け取ったプロジェクトフォルダ名（例: `C:\workspace\07_MMPC\mmpc_prod` → `MMPC`）
+2. 既存 `docs/overview/org-profile.md` の `プロジェクト名` / `システム名` 行（差分更新モードの前回値）
+3. 既存 `CLAUDE.md` の接続組織名・プロジェクト名記載
+4. 読み込んだ外部資料の表紙・ヘッダに記載されたプロジェクト名称
+
+**ステップ B — ユーザー確認（AskUserQuestion で必ず実施）**:
+
+| 状況 | 確認方法 |
+|---|---|
+| 候補が2件以上取れた | AskUserQuestion で候補リストを提示（選択 + Other で自由入力）|
+| 候補が1件のみ | AskUserQuestion で「このまま使う / 別の名前に変える」2択を提示 |
+| 候補が取れなかった | チャットで「正式プロジェクト名と正式システム名を教えてください」と直接質問 |
+| 差分更新モード | 既存値を「前回値（このまま使う）」として第1選択肢に提示 |
+
+確定した値を変数として保持し、Phase 3・Phase 4.1 の両方で使用する。
+
+**禁止事項**:
+- `〜組織` / `〜システム` / `〜プロジェクト` 等の suffix を LLM 側で勝手に付与しない
+- 候補抽出できなかった場合に推測で `〇〇 Salesforce 組織` のような汎用名を生成しない
+- プロジェクト名を空白のまま先の Phase に進まない（下流設計書に `**[要確認]**` が残る）
+
+---
+
 ### Phase 3: org-profile.md の生成/更新
 
 `docs/overview/org-profile.md` を生成（または更新）する。**後続の全カテゴリが参照する基盤ドキュメント**。各セクションとも数値・固有名詞を含む具体的な記述を心がける。
+
+> プロジェクト名・システム名は必ず **Phase 2.5 で確定した値** を使うこと（LLM 自由生成禁止）。
 
 > スキーマ（プロジェクト基本情報テーブル・ステークホルダーマップ・必須見出し等）:
 > [../templates/sf-analyst-cat1/file-templates.md](../templates/sf-analyst-cat1/file-templates.md)
@@ -165,6 +198,8 @@ sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsC
 
 > フィールド定義・サンプル構造:
 > [../templates/sf-analyst-cat1/file-templates.md](../templates/sf-analyst-cat1/file-templates.md)
+
+> `system_name` は **Phase 2.5 で確定したシステム名** を使うこと（org-profile.md と値を必ず同期させる）。LLM 自由生成・再推測禁止。
 
 ソース優先順位: ①既存システム構成図（画像/PPT/Visio）→最優先で読み込み再構築 ②Named Credential/Connected App/Apex HTTP呼び出し ③org-profile・要件定義書 ④不明は `notes` に記録（未確認のまま推測しない）
 
