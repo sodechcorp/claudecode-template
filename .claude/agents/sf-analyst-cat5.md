@@ -49,40 +49,10 @@ tools:
 
 ### スキーマ
 
-```yaml
-# docs/.sf/feature_groups.yml
-# sf-memoryカテゴリ5が生成。sf-design[詳細設計]の生成単位。
-# 手動追記・修正可（次回実行時に保持される）
-generated_at: "YYYY-MM-DD"
-groups:
-  - group_id: "FG-001"            # FG-001〜 で採番
-    name_ja: "商談受注後処理"       # 業務担当者が呼ぶ名前（Apex命名でなく業務名）
-    name_en: "OpportunityPostProcess"
-    description: "受注確定後に請求レコードと納品スケジュールを自動生成する処理群"
-    trigger: "Opportunity.StageName が '受注確定' に更新されたとき（トリガー起動）"
-    uc_id: "UC-03"                  # 紐付くUCのID（usecases.md の uc_id）
-    feature_ids:                   # docs/.sf/feature_ids.yml の F-xxx。存在する場合は必ず参照
-      - "CMP-001"
-      - "CMP-002"
-    components:                    # このFGに属するコンポーネントのAPI名
-      - "OpportunityTrigger"
-      - "OpportunityHandler"
-      - "BillingCreator"
-    related_objects:
-      - "Opportunity"
-      - "Billing__c"
-    related_fgs:                   # 処理が一部またがるFGのID（存在する場合）
-      - "FG-002"
-  - group_id: "FG-CMN"            # 共通FG固定ID。UCに対応付けられないコンポーネントを格納
-    name_ja: "共通基盤"
-    name_en: "Common"
-    description: "特定のUCに紐付かない汎用ユーティリティ・バッチ基盤・認証・通知等の処理群"
-    trigger: "各UCから呼び出し or スケジュール起動"
-    uc_id: null
-    feature_ids: []
-    components: []
-    related_objects: []
-```
+> **フィールド定義・サンプル構造・採番規則**:
+> [../templates/sf-analyst-cat5/feature-groups-schema.md](../templates/sf-analyst-cat5/feature-groups-schema.md)
+>
+> 生成前に必ず Read ツールで上記テンプレを読み込み、スキーマ・フィールド説明・採番規則を把握してから YAML を生成すること。
 
 ### Phase 0: 前段カテゴリの出力を読む（必須）
 

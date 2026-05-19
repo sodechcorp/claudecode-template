@@ -133,43 +133,8 @@ sf data query -q "SELECT EntityDefinition.QualifiedApiName, Field FROM FieldDefi
 
 各オブジェクトに対して `docs/catalog/{standard|custom}/<オブジェクト名>.md` を生成する。
 
-**定義書に必ず含める内容**:
-
-```markdown
-# {オブジェクト名}（{API名}）
-
-## 基本情報
-| 項目 | 値 |
-|---|---|
-| オブジェクト種別 | カスタム / 標準 |
-| 用途 | （業務的な用途を具体的に記述） |
-| レコード件数 | {件数} |
-| 関連UC | UC-XX: {UC名}、UC-XX: {UC名} |
-| 関連FR要件 | FR-XXX、FR-XXX |
-
-## リレーション
-（Mermaid ER図を含める。このオブジェクトを中心に、親・子・参照先を全て図示）
-
-## 全項目一覧
-（標準項目・カスタム項目を分けて全量記述。
-  型・必須/任意・ユニーク・デフォルト値・用途を列として持つ）
-
-## ピックリスト値
-（ピックリスト項目ごとに全値を列挙）
-
-## 入力規則
-（名前・条件（数式全文）・エラーメッセージ・有効/無効）
-
-## 自動化（このオブジェクトに関連するApex/Flow）
-（どのApexクラス・Flow・トリガーがこのオブジェクトを操作するか）
-
-## 権限マトリクス
-（プロファイル/権限セット別の Read/Create/Edit/Delete 権限）
-
-## 所見・注意点
-```
-
-**cross-reference の記載（重要）**: 「このオブジェクトがどのUCで使われるか」「どのApex/FlowがSOQL/DMLで操作するか」を必ず記載する。情報がない場合は `**[要確認]**` を入れる。
+> **定義書の必須構成・cross-reference 記載ルール・`_index.md` 列規約・Mermaid ERD 記法の規約**（下流 `generate_basic_doc.py` との連携含む）:
+> [../templates/sf-analyst-cat2/object-definition-template.md](../templates/sf-analyst-cat2/object-definition-template.md)
 
 ### Phase 4: 全体データモデル図の生成
 
@@ -183,35 +148,8 @@ sf data query -q "SELECT EntityDefinition.QualifiedApiName, Field FROM FieldDefi
 - **オブジェクト分類**: 機能別（マスタ系・トランザクション系・設定系等）にグループ化
 - **孤立オブジェクト**: どのオブジェクトにも参照されていないカスタムオブジェクトを明記（整理候補）
 
-**Mermaid ERD 記法の規約（下流の `generate_basic_doc.py` が正規表現で関係線を抽出するため厳守）**:
-
-- 関係線は次の構文で書く: `ParentApiName ||--o{ ChildApiName : "fieldLabel"`
-  - 実線 `--`・点線 `..` どちらも受理されるが、**原則は実線 `--` に統一**する
-  - 右端カーディナリティは `o{` / `|{` / `||` / `o|` のいずれか
-- 親子関係のラベル部分（`:` の右）は **FK項目の API名 または日本語ラベルを必ずダブルクォートで囲む**（空文字列は不可）
-- **標準オブジェクトも含める**: Account / Contact / Opportunity / Case / Lead 等、カスタムから参照されているものは必ずノードに含める（孤立表示を防ぐ）
-
-悪い例（関係線がマッチしない）:
-```
-Account -- ContractApplication__c
-Account o-- Contract
-```
-
-良い例:
-```
-Account ||--o{ ContractApplication__c : "AccountId__c"
-Opportunity ||--o{ ContractApplication__c : "OpportunityId__c"
-```
-
-### Phase 4.5: `_index.md` の列規約（下流パーサー連携）
-
-`_index.md` のオブジェクト一覧テーブルは**ヘッダ行に以下のキーワード**を含めること（列順は問わないが、ヘッダ名は下記表記を使用する）:
-
-- `API名`（必須） — 下流の `generate_basic_doc.py` がこの列を識別キーとして読む
-- `ラベル`（必須） — 日本語表示名。ER図のノード表示に使用される
-- `種別`（推奨） — `カスタム` / `標準`
-
-列順は `| API名 | ラベル | 種別 | ... |` でも `| ラベル | API名 | 種別 | ... |` でも良い。パーサーがヘッダから列位置を動的検出する。
+> **Mermaid ERD 記法の規約・`_index.md` 列規約**（`generate_basic_doc.py` パーサー連携ルールを含む）:
+> [../templates/sf-analyst-cat2/object-definition-template.md](../templates/sf-analyst-cat2/object-definition-template.md)
 
 ### Phase 5: インデックス生成
 

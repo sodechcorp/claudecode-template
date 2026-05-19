@@ -170,6 +170,7 @@ sf data query -q "SELECT Name, JobType, CronExpression FROM CronTrigger WHERE St
 ### Phase 1.5: ハッシュチェック（変更なしスキップ）
 
 > **目的**: ソースに変更がないコンポーネントをスキップしてLLM呼び出しを節約する。
+> **注**: 以下の Python スニペットは `scripts/python/sf-doc-mcp/` への外出し候補。直接インラインで実行する場合は `{project_dir}` / `{api_name}` / `{source_file_paths}` のプレースホルダーを置換してから実行すること（プレースホルダー未置換のまま実行するとキャッシュパスが破損する）。
 
 各コンポーネントの処理前に以下を実行し、前回実行時からソースが変わっていない場合はスキップする。
 

@@ -39,6 +39,7 @@ Glob ツールで以下のファイル存在を確認し、完了済みカテゴ
 | cat3（マスタ・ワークフロー） | `docs/data/master-data.md` |
 | cat4（設計書） | `docs/design/` 配下の任意の `.md` |
 | cat5（機能グループ） | `docs/.sf/feature_groups.yml` |
+| cat6（保守履歴） | `docs/logs/effort-calibration.md` |
 
 完了済みカテゴリが1件のみの場合は「横断補完には2件以上のカテゴリ完了が必要」と報告して終了する。2件以上完了していれば Phase 1 へ進む（未完了カテゴリのdocs/は読み込み対象から除外して進める）。
 
@@ -77,6 +78,9 @@ Phase 0 で完了確認したカテゴリのファイルのみ読む（未完了
 **cat5 出力（機能グループ定義）**（cat5 完了済みの場合のみ）:
 - `docs/.sf/feature_groups.yml`
 - `docs/.sf/feature_ids.yml`（存在する場合）
+
+**cat6 出力（保守履歴・工数温度感）**（cat6 完了済みの場合のみ）:
+- `docs/logs/effort-calibration.md`: 工数温度感（Backlog 完了課題の実績アンカー）
 
 ### Phase 2: 用語の統一
 
