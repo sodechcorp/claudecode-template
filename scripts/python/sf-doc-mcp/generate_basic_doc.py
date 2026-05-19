@@ -333,6 +333,133 @@ def parse_swimlanes(path: Path) -> dict:
     except Exception: return {}
 
 
+def _normalize_system_json(sys: dict) -> dict:
+    """sf-analyst-cat1 生成の system.json（label/systems[] 形式）を
+    diagram_gen.py が期待するスキーマ（name/core/external_systems[] 形式）に変換する。
+    すでに core キーがある場合はそのまま返す。"""
+    if not sys or "core" in sys:
+        return sys
+
+    # systems[] から Salesforce を core として抽出
+    core_sys = next(
+        (s for s in sys.get("systems", []) if s.get("id") == "salesforce"), {}
+    )
+    core = {
+        "name": core_sys.get("label", "Salesforce"),
+        "role": core_sys.get("description", ""),
+    }
+
+    # actors[].label → name
+    actors = [
+        {"name": a.get("label", a.get("name", "")), "count": a.get("count", 0)}
+        for a in sys.get("actors", [])
+    ]
+
+    # systems[] から外部システムマップを生成（salesforce 以外）
+    ext_sys_map = {
+        s["id"]: s
+        for s in sys.get("systems", [])
+        if s.get("id") and s.get("id") != "salesforce"
+    }
+
+    # integrations[] から方向・方式・頻度・用途を収集
+    direction_map: dict[str, str] = {}
+    proto_map: dict[str, str] = {}
+    freq_map: dict[str, str] = {}
+    purpose_map: dict[str, str] = {}
+    for intg in sys.get("integrations", []):
+        frm = intg.get("from", "")
+        to = intg.get("to", "")
+        method = intg.get("method", "")
+        freq = intg.get("frequency", "")
+        data = intg.get("data", "")[:60]
+        if frm != "salesforce" and to == "salesforce":
+            ext_id = frm
+            direction_map[ext_id] = "both" if direction_map.get(ext_id) == "out" else "in"
+            proto_map.setdefault(ext_id, method)
+            freq_map.setdefault(ext_id, freq)
+            purpose_map.setdefault(ext_id, data)
+        elif frm == "salesforce" and to not in ("salesforce", ""):
+            ext_id = to
+            direction_map[ext_id] = "both" if direction_map.get(ext_id) == "in" else "out"
+            proto_map.setdefault(ext_id, method)
+            freq_map.setdefault(ext_id, freq)
+            purpose_map.setdefault(ext_id, data)
+
+    external_systems = [
+        {
+            "name": ext.get("label", ext.get("id", eid)),
+            "direction": direction_map.get(eid, "out"),
+            "protocol": proto_map.get(eid, ext.get("integration_method", "")),
+            "frequency": freq_map.get(eid, ""),
+            "purpose": purpose_map.get(eid, ext.get("description", "")[:60]),
+        }
+        for eid, ext in ext_sys_map.items()
+    ]
+
+    # data_stores[].label → name
+    data_stores = [
+        {"name": ds.get("label", ds.get("name", "")), "purpose": ds.get("description", "")}
+        for ds in sys.get("data_stores", [])
+    ]
+
+    return {
+        **sys,
+        "core": core,
+        "actors": actors,
+        "external_systems": external_systems,
+        "data_stores": data_stores,
+    }
+
+
+def _normalize_flow(flow: dict) -> dict:
+    """sf-analyst-cat1 生成の swimlanes.json フロー（step/action/next:int 形式）を
+    diagram_gen.py が期待するスキーマ（id/label/transitions[] 形式）に変換する。"""
+    if not flow:
+        return flow
+    steps_in = flow.get("steps", [])
+
+    # steps: step/action → id/label
+    normalized_steps = []
+    for s in steps_in:
+        step_id = str(s.get("id", s.get("step", "")))
+        label = (
+            s.get("label")
+            or s.get("title")
+            or s.get("name")
+            or s.get("action", "")
+        )
+        normalized_steps.append({**s, "id": step_id, "label": label})
+
+    # transitions: step.next（int または list）から自動生成
+    transitions = list(flow.get("transitions", []))
+    if not transitions:
+        for s in steps_in:
+            step_id = str(s.get("id", s.get("step", "")))
+            next_val = s.get("next")
+            if next_val is None:
+                continue
+            if isinstance(next_val, (int, str)):
+                transitions.append({"from": step_id, "to": str(next_val)})
+            elif isinstance(next_val, list):
+                for dst in next_val:
+                    if isinstance(dst, dict):
+                        transitions.append({
+                            "from": step_id,
+                            "to": str(dst.get("to", "")),
+                            "condition": dst.get("condition", ""),
+                        })
+                    else:
+                        transitions.append({"from": step_id, "to": str(dst)})
+
+    return {
+        **flow,
+        "title": flow.get("title") or flow.get("name", ""),
+        "steps": normalized_steps,
+        "transitions": transitions,
+    }
+
+
 def _clean_cell(s: str) -> str:
     """テーブルセルの値を正規化する。
     - `[text](url)` マークダウンリンクは `text` に剥がす
@@ -729,8 +856,12 @@ def generate(docs_dir: Path, output: Path, author: str, project_name: str,
              source_file: str = "", version_increment: str = "minor"):
     org      = parse_org(docs_dir / "overview" / "org-profile.md")
     req      = parse_requirements(docs_dir / "requirements" / "requirements.md")
-    system   = parse_system_json(docs_dir / "architecture" / "system.json")
-    swim     = parse_swimlanes(docs_dir / "flow" / "swimlanes.json")
+    system     = _normalize_system_json(
+                     parse_system_json(docs_dir / "architecture" / "system.json"))
+    swim_raw   = parse_swimlanes(docs_dir / "flow" / "swimlanes.json")
+    swim       = ({**swim_raw,
+                   "flows": [_normalize_flow(f) for f in swim_raw.get("flows", [])]}
+                  if swim_raw else {})
     objects  = parse_catalog_index(docs_dir / "catalog" / "_index.md")
     relations = parse_data_model(docs_dir / "catalog" / "_data-model.md")
 
