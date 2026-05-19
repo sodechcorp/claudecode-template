@@ -62,6 +62,8 @@ $RECYCLE.BIN/
 # sf-design / sf-doc が確認直後に書き出す一時ファイル（コマンド中断時に残ることがある）
 docs/.sf/.author_tmp
 docs/.sf/.output_dir_tmp
+# 個人設定（作成者名・出力先パス）。各メンバーのローカル値を含むためコミット対象外
+docs/.sf/sf_config.yml
 
 # ===== データ（機密情報を含む可能性） =====
 data/*.csv
