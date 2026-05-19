@@ -1,6 +1,6 @@
 ---
 name: sf-analyst-cat4
-description: sf-memoryのカテゴリ4（設計・機能グループ定義）を担当。docs/design/ 配下にApex/Flow/LWC/Batch/Integration等のコンポーネント設計書を生成・更新し、完了後にsf-analyst-cat5に委譲してdocs/.sf/feature_groups.ymlを生成する。/sf-memoryコマンドから委譲されて実行する。カテゴリ1/2の出力を参照して業務文脈・オブジェクト構成を把握してから設計書を生成する。
+description: sf-memoryのカテゴリ4（設計・機能グループ定義）を担当。docs/design/ 配下にApex/Flow/LWC/Batch/Integration等のコンポーネント設計書を生成・更新する。完了後はコマンド側がsf-analyst-cat5を起動してdocs/.sf/feature_groups.ymlを生成する（cat4自体はcat5を呼び出さない）。/sf-memoryコマンドから委譲されて実行する。カテゴリ1/2の出力を参照して業務文脈・オブジェクト構成を把握してから設計書を生成する。
 model: opus
 tools:
   - Read
@@ -238,7 +238,7 @@ for tbd in design_dir.rglob('【TBD】{kebab_name}.md'):
 
 #### 設計書テンプレート・実装種別ごとの追加指示
 
-Read ツールで `{project_dir}/docs/templates/component-design-template.md` を読み込み、そのテンプレートと追加指示に従って設計書を生成する。
+Read ツールで `{project_dir}/docs/templates/component-design-template.md` を読み込み、そのテンプレートと追加指示に従って設計書を生成する。（テンプレ本体の `docs/templates/` 配下。`/upgrade` で各プロジェクトに配布される）
 
 > **Salesforce 標準プレースホルダの短縮版**: Communities / Site / SelfReg / AnswersHome / IdeasHome 等、Salesforce 組織生成時に自動配備される業務ロジックを持たないクラス・ページは、テンプレート末尾の「Salesforce 標準プレースホルダの短縮ルール」に従い **短縮版 MD** で生成する。判定条件（SFデフォルト命名 / 空ページ / ボイラープレート javadoc 残存）もテンプレートに記載。
 

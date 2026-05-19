@@ -1,5 +1,5 @@
 ---
-description: "Salesforce 組織情報を分析して docs/ に保存するコマンド。組織概要・オブジェクト構成・マスタデータ・設計/機能グループ定義・保守履歴の5カテゴリを会話形式で選択して実行する（cat1〜cat6 専用エージェント + sf-org-analyst に委譲。cat4 は内部で sf-analyst-cat5 に委譲して feature_groups.yml を生成する — ユーザーからは5カテゴリに見える6エージェント構成。cat6 は Backlog MCP 必須）。"
+description: "Salesforce 組織情報を分析して docs/ に保存するコマンド。組織概要・オブジェクト構成・マスタデータ・設計/機能グループ定義・保守履歴の5カテゴリを会話形式で選択して実行する（cat1〜cat6 専用エージェント + sf-org-analyst に委譲。cat4 カテゴリでは cat4 完了後にコマンドが cat5 を起動して feature_groups.yml を生成する（cat4 自体は cat5 を呼び出さない） — ユーザーからは5カテゴリに見える6エージェント構成。cat6 は Backlog MCP 必須）。"
 ---
 
 **AskUserQuestion のルール（厳守）:** [共通ルール参照](.claude/CLAUDE.md#askuserquestion-ルール厳守)

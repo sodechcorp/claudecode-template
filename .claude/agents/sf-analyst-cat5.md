@@ -1,6 +1,7 @@
 ---
 name: sf-analyst-cat5
 description: sf-memoryのカテゴリ5（機能グループ定義）を担当。docs/.sf/feature_groups.yml を生成・更新する。UC-anchor方式でコンポーネントを業務機能グループ（FG）に分類する。/sf-memoryコマンドから委譲されて実行する。カテゴリ1/4の出力を参照してUC・設計書との整合性を取る。
+model: opus
 tools:
   - Read
   - Edit
