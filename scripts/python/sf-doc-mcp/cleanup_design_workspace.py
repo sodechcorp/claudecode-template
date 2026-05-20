@@ -6,6 +6,16 @@ import shutil
 import sys
 
 
+def _is_network_path(p: pathlib.Path) -> bool:
+    """共有ドライブ・ネットワークパスかどうかを判定する。"""
+    s = str(p).replace("\\", "/")
+    if s.startswith("//"):
+        return True
+    if "共有ドライブ" in s or "shared drives" in s.lower():
+        return True
+    return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="sf-design-writer Phase 4 クリーンアップ")
     parser.add_argument("--tmp-dir", required=True, help="一時フォルダのパス（削除対象）")
@@ -18,14 +28,16 @@ def main() -> None:
         shutil.rmtree(args.tmp_dir, ignore_errors=True)
 
         # output_dir 直下に残ったゴミファイルを削除（.tmp* / *.json / *_tmp*.py）
+        # ネットワークドライブの場合は .tmp* のみスキップ（削除不可のため警告回避）
         out = pathlib.Path(args.output_dir)
         for p in out.glob("*.json"):
             p.unlink(missing_ok=True)
-        for p in out.glob(".tmp*"):
-            if p.is_file():
-                p.unlink(missing_ok=True)
-            else:
-                shutil.rmtree(p, ignore_errors=True)
+        if not _is_network_path(out):
+            for p in out.glob(".tmp*"):
+                if p.is_file():
+                    p.unlink(missing_ok=True)
+                else:
+                    shutil.rmtree(p, ignore_errors=True)
         for p in out.glob("*_tmp*.py"):
             p.unlink(missing_ok=True)
 
