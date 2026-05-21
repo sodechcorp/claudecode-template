@@ -58,6 +58,15 @@ implementation-plan.md の確定実装方針が **典型的自明ケース**（[
 
 ---
 
+## Step 0c: 共通 CRITICAL ルールの読込（必須）
+
+タスク開始前に以下を **Read で全文読み込む**（CLAUDE.md には要旨のみ・詳細は外出し先）:
+
+1. Read `.claude/templates/common/verify-implementation-spec.md` — 実装裏付けルール。追加ルール記入欄まで読む
+2. Read `.claude/templates/common/verify-source-attribution-spec.md` — 出典確認ルール。追加ルール記入欄まで読む
+
+---
+
 ## 事前準備
 
 issueID は呼び出し元（backlog.md Phase 3.5）の引数として渡される（例: LINK-139）。渡されない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら `AskUserQuestion` でフォルダ名リストを提示してユーザに選択させる。

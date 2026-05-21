@@ -50,6 +50,15 @@ tools:
 
 ---
 
+## Step 0c: 共通 CRITICAL ルールの読込（必須）
+
+タスク開始前に以下を **Read で全文読み込む**（CLAUDE.md には要旨のみ・詳細は外出し先）:
+
+1. Read `.claude/templates/common/verify-implementation-spec.md` — 実装裏付けルール。追加ルール記入欄まで読む
+2. Read `.claude/templates/common/verify-source-attribution-spec.md` — 出典確認ルール。追加ルール記入欄まで読む
+
+---
+
 ## ミッション
 
 investigator の調査レポートをもとに、以下の2段階でユーザの確認を得る:
