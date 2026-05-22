@@ -12,13 +12,14 @@ backlog-tester が Phase 5 の Step 0b で参照する横断系判定情報。2 
 options:
 
   - name: option-knowledge-extraction
-    description: 知見抽出・docs 更新（調査・対応で得た知見を decisions.md / notes.md に残す）
+    description: 知見抽出・docs 更新（調査・対応で得た知見・却下案・指摘パターンを decisions.md に残す）
     category: A
     auto-execute-when:
       - 種別がバグまたは追加要望（常時実行）
       - 調査・対応で新たな設計知見・制約・回避策が判明した場合
+      - docs/logs/{issueID}/discussion-log.md に議論・指摘・却下案が記録されている場合（必ず実行）
     auto-skip-when:
-      - typo 修正・ラベル変更のみ（知見として残す内容がない）
+      - typo 修正・ラベル変更のみ かつ discussion-log.md が存在しないまたは空（知見として残す内容が一切ない場合のみ）
     ask-user-prompt: |
       この修正は typo 修正・ラベル変更のみのようです。知見抽出・docs 更新は省略してもよさそうですか？
     estimated-cost: 軽

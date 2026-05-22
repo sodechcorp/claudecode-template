@@ -135,6 +135,32 @@ New-Item -ItemType Directory -Force -Path "docs/logs/{issueID}" | Out-Null
 
 ---
 
+### Phase 0d: 既存ログの読み込み
+
+`docs/logs/{issueID}/` 配下に既存ファイルがある場合（「途中フェーズから再開」「Phase 1 から再調査」いずれでも）、以下の順で必ず Read する:
+
+1. `discussion-log.md` — 過去の議論・ユーザー指摘・却下案の経緯
+2. `investigation.md` — 調査済み内容
+3. `approach-plan.md` — 確定済み対応方針
+4. `implementation-plan.md` — 確定済み実装方針
+5. `validation-report.md` — 実装前検証結果
+6. `test-report.md` — テスト結果
+
+横断ファイル（フォルダが空・新規対応の場合も必ず Read する）:
+- `docs/logs/decisions.md` 全件（存在し、かつ雛形のみ・実エントリ 0 件でなければ）
+- `docs/logs/changelog.md` 末尾 10 件
+
+**読み込みの目的**: 同じ調査・同じ質問・同じ却下済み方針を繰り返さない。読み込み後、ユーザーへ以下をテキストで簡潔に報告する:
+
+```
+過去ログ読み込み済み（{読み込んだファイル名を列挙}）
+前回: {最後に完了した Phase} まで完了。{discussion-log.md に記録された主な指摘・却下案を 1〜2 行で要約}
+```
+
+過去ログが一切ない場合（新規・フォルダ空）は「新規対応として進めます」とのみ報告し、通常の Phase 1 へ進む。
+
+---
+
 ### Phase 1: 調査（backlog-investigator）
 
 `backlog-investigator` エージェントを起動する:

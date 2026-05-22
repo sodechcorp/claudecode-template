@@ -243,6 +243,7 @@ A-3 の提示内容をユーザに見せたら、以下を必ず行う:
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 3 に進んでよろしいですか？」とテキストで確認する（**ここで承認が得られるまで Step 5 に進まない**）
 5. 承認後 → `docs/logs/{issueID}/approach-plan.md` に保存してユーザに提示する
+6. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）
 
 **方針確定後は、業務要件の Q への回答を approach-plan.md の「業務要件への回答」欄に記入してから次へ。**
 

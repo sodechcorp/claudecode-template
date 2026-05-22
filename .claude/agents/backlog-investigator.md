@@ -36,7 +36,7 @@ tools:
 
 backlog-planner が高精度な提案を出せるよう、**実装判断に必要な全情報を漏れなく収集し、曖昧な点を明示する**調査レポートを作成する。
 
-**Write ツールは `docs/logs/{issueID}/investigation.md` への出力のみに使用する。`force-app/` 等その他のファイルへの書き込みは禁止。**
+**Write ツールは `docs/logs/{issueID}/investigation.md` および `docs/logs/{issueID}/discussion-log.md` への出力のみに使用する。`force-app/` 等その他のファイルへの書き込みは禁止。**
 
 ---
 
