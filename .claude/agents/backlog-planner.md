@@ -194,6 +194,7 @@ project_dir: {プロジェクトルートパス}
   - 温度感参照: calibration「{軽い/中程度/大きい} の改修」({レンジ}) に該当
   - 類似アンカー: {issueID}「{件名}」= {N}h（{理由}）
   - 本件の調整: {calibration パターンからの調整理由を 1 文で}
+  - 信頼度: {高/中/低}（{判定理由}）
 
 #### 案B（`option-alternative-approaches` 実行時のみ追記）
 （同形式）
