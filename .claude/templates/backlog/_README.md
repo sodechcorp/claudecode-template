@@ -1,6 +1,6 @@
 # /backlog À la carte option 仕組み
 
-`/backlog` コマンドは「ベース処理（最小限・全課題必須）」と「オプション 62 個（必要時のみ実行）」の組み合わせで動作する。重い処理・細かいチェックを **必要な時だけ呼ぶ** ことで、軽い課題は軽く・重い課題は徹底的に対応できるようにしている。
+`/backlog` コマンドは「ベース処理（最小限・全課題必須）」と「オプション（必要時のみ実行）」の組み合わせで動作する。重い処理・細かいチェックを **必要な時だけ呼ぶ** ことで、軽い課題は軽く・重い課題は徹底的に対応できるようにしている。
 
 このファイルは、各 backlog 系エージェント（investigator / planner / validator / implementer / tester / releaser）の **Step 0** から共通参照される。
 
@@ -11,22 +11,22 @@
 ```
 .claude/templates/backlog/
 ├── _README.md                    # このファイル（仕組み説明・Step 0 共通ロジック）
-├── _index-phase1.md              # Phase 1 用判定情報（21 オプション）
-├── _index-phase2.md              # Phase 2 用判定情報（7 オプション）
-├── _index-phase3.md              # Phase 3 用判定情報（8 オプション）
-├── _index-phase3-5.md            # Phase 3.5 用判定情報（5 オプション）
-├── _index-phase4.md              # Phase 4 用判定情報（5 オプション）
-├── _index-phase5.md              # Phase 5 用判定情報（8 オプション）
-├── _index-phase5-5.md            # Phase 5.5 用判定情報（4 オプション）
-├── _index-phase6.md              # Phase 6 用判定情報（3 オプション）
-├── _index-cross.md               # 横断系判定情報（2 オプション・全 Phase 参照）
+├── _index-phase1.md              # Phase 1 用判定情報
+├── _index-phase2.md              # Phase 2 用判定情報
+├── _index-phase3.md              # Phase 3 用判定情報
+├── _index-phase3-5.md            # Phase 3.5 用判定情報
+├── _index-phase4.md              # Phase 4 用判定情報
+├── _index-phase5.md              # Phase 5 用判定情報
+├── _index-phase5-5.md            # Phase 5.5 用判定情報
+├── _index-phase6.md              # Phase 6 用判定情報
+├── _index-cross.md               # 横断系判定情報（全 Phase 参照）
 ├── xlsx-setup.md                 # Phase 1.5 対応記録ファイル作成手順
 ├── deploy-skip-judgment.md       # デプロイ適否の判定基準
 ├── resume-phase-routing.md       # 途中フェーズからの再開ルーティング
 ├── test-fail-routing.md          # Phase 5 NG 時の戻り先テーブル
 ├── customer-signoff.md           # お客様確認サインの種別別ルール
 ├── discussion-log-spec.md        # discussion-log.md の記録仕様（各エージェントから参照）
-└── options/                      # 各オプションの実行手順（62 ファイル）
+└── options/                      # 各オプションの実行手順
     ├── option-{name}.md
     └── ...
 ```
@@ -120,7 +120,7 @@
 | option-final-verifier | `backlog-blind-final-verifier` | 実装の経緯を知らず課題本文と実挙動だけで blind 解決判定 |
 | option-validator-blind | `backlog-blind-validator` | implementation-plan を見ずに別案を独立に書いて比較 |
 
-それ以外の 59 オプションは parent 内実行で OK（blind 性が要件でないため）。
+それ以外のオプションは parent 内実行で OK（blind 性が要件でないため）。
 
 ---
 
@@ -156,7 +156,7 @@
 
 ### _index 自動生成スクリプトについて
 
-現状は **手動メンテ**。62 個のオプションが揃って判定パターンが安定したら、`scripts/python/backlog-options/build_index.py` などの自動生成スクリプトを後付けで導入する。先に自動化すると判定情報のフォーマット制約が増えて柔軟性が落ちるため、現段階では手動を選択している。
+現状は **手動メンテ**。オプションが揃って判定パターンが安定したら、`scripts/python/backlog-options/build_index.py` などの自動生成スクリプトを後付けで導入する。先に自動化すると判定情報のフォーマット制約が増えて柔軟性が落ちるため、現段階では手動を選択している。
 
 ---
 

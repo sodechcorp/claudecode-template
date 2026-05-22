@@ -172,7 +172,7 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 ### 3.5. xlsx 対応記録の追記
 
-`{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、それ以外の値ガードは Python 側に委譲）。`{issueID}` が変数名のまま展開されていない場合（`{issueID}` という形式のまま）も同様にスキップする。
+> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
 > **注**: リリース実施記録（デプロイ日時・対象環境・結果）は **人間がデプロイ後に手動で xlsx に記録する**。Claude Code は関与しない。対応記録テンプレートから「■ リリース実施記録」セクションは削除済み。
 
@@ -221,7 +221,7 @@ python scripts/python/backlog-xlsx/update_records.py \
    - **その他**: リマインド省略可
 3. ユーザーから「サイン取得済み」「サイン不要」の報告を受けるまで **完了報告に進まない**（バグの場合は必須）
 4. ユーザーから報告を受けた後、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が設定されている場合のみ xlsx タイムラインに記録:
-   > `{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、Python 側に委譲）。
+   > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする（[xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \

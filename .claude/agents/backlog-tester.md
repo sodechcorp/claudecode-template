@@ -231,7 +231,7 @@ NG 項目:
 
 ### 8. xlsx 対応記録の追記（`{xlsx_folder}` が設定されている場合のみ）
 
-`{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、それ以外の値ガードは Python 側に委譲）。`{issueID}` が変数名のまま展開されていない場合（`{issueID}` という形式のまま）も同様にスキップする。
+> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
 **① テスト・検証シート: 実際の結果（G列）・判定（H列）追記（タイミング=実装後・実行種別 != UI手動 行のみ・必須）**
 

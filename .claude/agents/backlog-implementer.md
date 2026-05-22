@@ -147,7 +147,7 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 
 ### 7. xlsx 対応記録の追記（`{xlsx_folder}` が設定されている場合のみ）
 
-`{xlsx_folder}` が未設定の場合はこのステップをスキップする（CLI 側 `_common.validate_folder` が無効値を検出して early-exit するため、それ以外の値ガードは Python 側に委譲）。
+> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
 **① バックアップ情報（実装着手前に必ず実行）**:
 ```bash
