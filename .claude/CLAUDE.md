@@ -194,6 +194,7 @@ docs がない場合: 「命名は一般的なSalesforce慣例に従います」
 | `/sf-memory` カテゴリ4委譲（Apex・Flow・LWC・Batch等のコンポーネント設計書生成） | `sf-analyst-cat4` |
 | `/sf-memory` カテゴリ5委譲（業務機能グループ定義 feature_groups.yml の生成） | `sf-analyst-cat5` |
 | `/sf-memory` カテゴリ6委譲（Backlog 完了課題から工数温度感ドキュメントを生成） | `sf-analyst-cat6` |
+| 工数 / effort / 見積 / 「何時間」「どのくらい」系の新規見積依頼（コマンド内外問わず） | `sf-effort-estimator` |
 | `/sf-memory` 全カテゴリ完了後の2周目横断補完（用語統一・矛盾解消・相互参照補完） | `sf-org-analyst` |
 | タスク開始前に docs/ から関連コンテキストを選択的に抽出（Phase 0 として各エージェントから委譲） | `sf-context-loader` |
 | `/sf-design` コマンドの詳細設計ステップ（グループ選択 + sf-detail-design-writer 委譲） | `sf-design-step1` |
@@ -203,6 +204,7 @@ docs がない場合: 「命名は一般的なSalesforce慣例に従います」
 
 > エージェント定義: `.claude/agents/` 配下の各 `.md` ファイル（`sf-dev.md`・`reviewer.md`・`sf-architect.md` 等）
 > コマンド専用エージェント（**直接呼び出し禁止** / コマンドの内部処理からのみ起動）: `sf-org-analyst` / `sf-analyst-cat1〜cat6` / `sf-design-step1〜3` / `sf-design-writer` / `sf-screen-writer` / `sf-detail-design-writer` / `sf-doc-overview-writer` / `sf-doc-objects-writer` / `backlog-investigator` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator`
+> **工数見積の強制集約**: `工数 / effort / 見積 / 何時間 / どのくらい` 等の語を含む**新規見積依頼**は、他エージェントが回答を始める前に必ず `sf-effort-estimator` に委譲する。例外なし。ファイル操作・閲覧依頼（例：「工数ログを開いて」「effort-log を確認して」）は除外。
 > blind subagent（**Task ツール経由のみ・直接呼び出し禁止** / 親の情報を受け取らない）: `backlog-blind-second-opinion` / `backlog-blind-final-verifier` / `backlog-blind-validator`
 > `sf-design-step2` の委譲先（順番厳守）: ① `sf-screen-writer`（画面系: LWC/画面フロー/Aura/VF）→ ② `sf-design-writer`（Apex系・機能一覧、①の結果を集約）の順に両方委譲
 
