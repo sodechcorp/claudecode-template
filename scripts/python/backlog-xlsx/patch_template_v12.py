@@ -58,9 +58,15 @@ def patch_test_sheet_font(ws):
     hdr_row = _find_header_row(ws)
     col_hdr_row = (hdr_row + 1) if hdr_row else 6
 
-    # 冪等チェック: ヘッダ行 C 列が既に游ゴシックなら skip
-    if _get_font_name(ws.cell(col_hdr_row, 3)) == _YAGOTHIC:
-        print("[SKIP] テスト・検証: C 列フォントは既に「游ゴシック」 → スキップ")
+    # 冪等チェック: ヘッダ行 + データ行の C 列が全て游ゴシックなら skip
+    hdr_ok = _get_font_name(ws.cell(col_hdr_row, 3)) == _YAGOTHIC
+    data_ok = all(
+        _get_font_name(ws.cell(r, 3)) == _YAGOTHIC
+        for r in range(col_hdr_row + 1, ws.max_row + 1)
+        if ws.cell(r, 3).value is not None
+    )
+    if hdr_ok and data_ok:
+        print("[SKIP] テスト・検証: C 列フォントは既に「游ゴシック」 (ヘッダ・データ行とも) → スキップ")
         return
 
     if str(ws.cell(col_hdr_row, 3).value or "").strip() != "実行種別":

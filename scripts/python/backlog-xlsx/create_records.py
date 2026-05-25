@@ -1300,19 +1300,20 @@ def fill_test(ws, impl_md):
         _shrink_table(ws, TEST_START, len(rows), TEST_LIMIT)
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
-        # A=No, B=タイミング, C=実行種別, D=テスト項目, E=確認方法, F=期待結果, G=実際の結果, H=判定  [G0]
+        # A=No, B=タイミング, C=実行種別, D=テスト項目, E-F=確認方法(結合), G=期待結果, H=実際の結果  [Q0]
         vals = [
             row.get("No", str(i + 1)),
             row.get("タイミング", row.get("区分", "")),
             row.get("実行種別", ""),
             row.get("確認観点", row.get("テスト項目", "")),
-            row.get("確認手順", row.get("確認方法", row.get("確認観点", ""))),  # 4列テーブル対応: 確認観点を最終 fallback に [P1]
-            row.get("期待結果", ""),
-            row.get("実際の結果", ""),  # テスト実行後に記入
-            row.get("判定", ""),       # テスト実行後に記入
+            row.get("確認手順", row.get("確認方法", row.get("確認観点", ""))),  # E (E-F 結合の左端)
+            row.get("期待結果", ""),    # G
+            row.get("実際の結果", ""),  # H (テスト実行後に記入)
         ]
-        for j, val in enumerate(vals, start=1):
-            wset(ws, TEST_START + i, j, val, fill)
+        # E-F 結合のため F(col=6) はスキップ。G=col7, H=col8 に書く
+        col_map = [1, 2, 3, 4, 5, 7, 8]
+        for j_idx, val in enumerate(vals):
+            wset(ws, TEST_START + i, col_map[j_idx], val, fill)
         auto_fit_row(ws, TEST_START + i)
 
 

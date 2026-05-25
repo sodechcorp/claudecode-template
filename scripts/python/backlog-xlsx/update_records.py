@@ -305,16 +305,13 @@ def cmd_test_precheck(args, wb):
         if no_val is None and timing_val is None:
             break
         if str(timing_val or "").strip() == "実装前":
-            result_cell = ws.cell(r, 6)
-            verdict_cell = ws.cell(r, 7)
+            # H 列 (col=8) = 実際の結果  [Q0: 判定列廃止、G=期待結果, H=実際の結果]
+            result_cell = ws.cell(r, 8)
             if not result_cell.value or getattr(args, "force", False):
                 result_cell.value = summary
                 result_cell.alignment = WRAP
                 fill = _stripe_fill(updated)
                 result_cell.fill = fill
-            if not verdict_cell.value or getattr(args, "force", False):
-                verdict_cell.value = "OK"
-                verdict_cell.alignment = WRAP
             updated += 1
 
     print(f"[OK] 実装前テスト行 {updated} 件に validation-report.md の結果を反映しました")

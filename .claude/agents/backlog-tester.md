@@ -97,7 +97,7 @@ sf apex run test --target-org <alias> --class-names <テストクラス名> --re
 | `メタデータ確認` | 対象 XML / JSON ファイルを Read / Grep して期待値と照合 |
 | `ファイル確認` | force-app/ 配下の cls / js / html / xml を Read して期待内容を確認 |
 
-**実行できないシナリオ**（環境障害・前提データ欠如・Sandbox 接続不可等）がある場合: 「実際の結果」列に `判定不能（{理由}）` と記載し、判定列は `—` とする。テスト再実施条件をユーザに確認してから次のシナリオへ進む。
+**実行できないシナリオ**（環境障害・前提データ欠如・Sandbox 接続不可等）がある場合: 「実際の結果」列に `判定不能（{理由}）` と記載する（空欄禁止）。テスト再実施条件をユーザに確認してから次のシナリオへ進む。
 
 > **Sandbox alias 確認**: [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) を参照して Sandbox 判定を実施する。判定失敗時は Apex テスト・SOQL 実行を行わず、ユーザーに Sandbox 認証確認を案内する（本番組織での実行はガバナ消費・副作用があるため禁止）。
 
@@ -233,17 +233,18 @@ NG 項目:
 
 > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
-**① テスト・検証シート: 実際の結果（G列）・判定（H列）追記（タイミング=実装後・実行種別 != UI手動 行のみ・必須）**
+**① テスト・検証シート: 実際の結果（H列）追記（タイミング=実装後・実行種別 != UI手動 行のみ・必須）**
 
-テストテーブルは「タイミング=実装前」と「タイミング=実装後」の 2 種類の行で構成される（列構成: A=No, B=タイミング, C=実行種別, D=テスト項目, E=確認方法, F=期待結果, G=実際の結果, H=判定）:
+テストテーブルの列構成（Group Q 仕様）: A=No, B=タイミング, C=実行種別, D=テスト項目, E-F=確認方法（結合）, G=期待結果, H=実際の結果
 
-| タイミング | G/H 列の担当 | 記入時期 |
+| タイミング | H 列の担当 | 記入時期 |
 |---|---|---|
 | 実装前 | **validator（Phase 3.5）** Step 6 で記入済み | 実装前の現状確認 |
 | 実装後 | **tester（Phase 5）** が `cell` コマンドで記入 | テスト実施後 |
 
-tester は「タイミング=実装前」行の G/H 列に触れない（上書き禁止）。
-「タイミング=実装後」かつ「実行種別 != UI手動」行のみ G/H 列を埋める。全行が埋まっていないと Phase 6 に進めない。
+tester は「タイミング=実装前」行の H 列に触れない（上書き禁止）。
+「タイミング=実装後」かつ「実行種別 != UI手動」行のみ H 列を埋める。全行が埋まっていないと Phase 6 に進めない。
+**H 列の値は「OK」または「NG: <理由・観察値>」で始めること（空欄・PASS/FAIL 表記禁止）。**
 
 まず実装後行の行番号を確認する（UI手動行を除外）:
 ```bash
@@ -258,17 +259,13 @@ for r in range(1, ws.max_row + 1):
 "
 ```
 
-確認した「実装後（UI手動以外）」行の番号に対してのみ cell コマンドで G/H を埋める:
+確認した「実装後（UI手動以外）」行の番号に対してのみ cell コマンドで H 列を埋める:
 ```bash
 # タイミング=実装後・実行種別 != UI手動 の行ごとに繰り返す
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "テスト・検証" --row {N} --col 7 \
-  --value "{実際の結果テキスト}"
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
   cell --sheet "テスト・検証" --row {N} --col 8 \
-  --value "PASS"  # FAIL の場合は "FAIL"
+  --value "OK"  # NG の場合は "NG: <理由・観察値>"
 ```
 
 **② 残対応追記**（テスト中に「現課題スコープ外」の問題を発見した場合のみ）:
