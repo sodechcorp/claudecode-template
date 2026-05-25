@@ -34,8 +34,8 @@ _THIN_BORDER = Border(
     left=_THIN_SIDE, right=_THIN_SIDE,
     top=_THIN_SIDE, bottom=_THIN_SIDE,
 )
-_HEADER_FONT  = Font(name=_YAGOTHIC, bold=True, color="FFFFFFFF", size=11)
-_DATA_FONT    = Font(name=_YAGOTHIC, size=11)
+_HEADER_FONT  = Font(name=_YAGOTHIC, bold=True, color="FFFFFFFF", size=10)
+_DATA_FONT    = Font(name=_YAGOTHIC, size=10)
 _HEADER_ALIGN = Alignment(wrap_text=True, horizontal="center", vertical="center")
 _DATA_ALIGN   = Alignment(wrap_text=True, vertical="top")
 

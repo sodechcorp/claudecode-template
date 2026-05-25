@@ -123,15 +123,17 @@ def patch_test_sheet(ws):
         print("[SKIP] テスト・検証: E-F セル結合は全行適用済み")
 
     # ─ Step 3: C 列データ行フォントを游ゴシックに統一───────────────────────
-    data_font = Font(name=_YAGOTHIC, size=11)
-    hdr_font  = Font(name=_YAGOTHIC, bold=True, color="FFFFFFFF", size=11)
+    data_font = Font(name=_YAGOTHIC, size=10)
+    hdr_font  = Font(name=_YAGOTHIC, bold=True, color="FFFFFFFF", size=10)
     ws.cell(col_hdr_row, 3).font = hdr_font
     c_fixed = 0
     for r in range(data_start, data_end + 1):
         cell = ws.cell(r, 3)
         if isinstance(cell, _MergedCell):
             continue
-        if (cell.font.name if cell.font else "") != _YAGOTHIC:
+        fname = cell.font.name if cell.font else ""
+        fsize = cell.font.size if cell.font else None
+        if fname != _YAGOTHIC or fsize != 10:
             cell.font = data_font
             c_fixed += 1
     if c_fixed:
@@ -237,10 +239,11 @@ def main():
             c = ws2.cell(r, 3)
             if not isinstance(c, _MergedCell) and c.value is not None:
                 fname = c.font.name if c.font else ""
-                if fname != _YAGOTHIC:
-                    bad_fonts.append(f"C{r}={fname!r}")
+                fsize = c.font.size if c.font else None
+                if fname != _YAGOTHIC or fsize != 10:
+                    bad_fonts.append(f"C{r}={fname!r}(size={fsize})")
         ok5 = len(bad_fonts) == 0
-        msg5 = "C 列データ行フォントが全て游ゴシック" if ok5 else f"NG セル: {bad_fonts[:5]}"
+        msg5 = "C 列データ行フォントが全て游ゴシック(10pt)" if ok5 else f"NG セル: {bad_fonts[:5]}"
         _v(ok5, msg5)
         if not ok5: ok = False
 
