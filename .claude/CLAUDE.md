@@ -197,6 +197,7 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 | 要件確認 | `docs/requirements/requirements.md` | 要件番号・ビジネスルール・受入基準を確認 |
 | マスタ参照 | `docs/data/master-data.md` | ピックリスト値・商品名等の正確な値を使う |
 | メール関連 | `docs/data/email-templates.md` | 既存テンプレートのトーン・差し込み項目を把握 |
+| 自動化・承認関連 | `docs/data/automation-config.md` | 既存のキュー・承認プロセスを把握 |
 
 ### 指示パターン別の動き方
 
