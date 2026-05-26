@@ -25,6 +25,7 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 | パス | 理由 |
 |---|---|
 | `docs/logs/` | 課題対応ログ・changelogは各担当者が個別に積み上げる |
+| `docs/decisions.md` | /backlog 完了時に判断記録が追記される。各担当者が個別に積み上げる |
 
 ---
 
@@ -59,15 +60,15 @@ AskUserQuestion で操作を選択:
 
 ```bash
 git fetch origin {Step 0 で取得したブランチ名}
-git checkout origin/{Step 0 で取得したブランチ名} -- docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/decisions.md docs/_README.md CLAUDE.md 2>/dev/null || true
+git checkout origin/{Step 0 で取得したブランチ名} -- docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/_README.md CLAUDE.md 2>/dev/null || true
 ```
 
-> `git pull` ではなく `git checkout origin/{branch} -- {paths}` で対象パスのみ取得する。課題作業ログ（docs/logs/）はリモートの状態に上書きされない。
+> `git pull` ではなく `git checkout origin/{branch} -- {paths}` で対象パスのみ取得する。docs/logs/ / docs/decisions.md はリモートの状態に上書きされない。
 
 完了後、更新されたファイル一覧を `git status --short` で確認し報告:
 ```
 ✅ 取得完了 — {更新ファイル数}件のファイルが更新されました
-（docs/logs/ は取得対象外）
+（docs/logs/ / docs/decisions.md は取得対象外）
 ```
 
 変更がなかった場合:
@@ -97,7 +98,7 @@ AskUserQuestion で選択:
 同期対象パスに変更があるか確認:
 
 ```bash
-git status --short docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/decisions.md docs/_README.md CLAUDE.md
+git status --short docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/_README.md CLAUDE.md
 ```
 
 変更が1件もない場合は「保存対象の変更がありません」と報告して終了。
