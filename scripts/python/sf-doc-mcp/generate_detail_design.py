@@ -811,6 +811,45 @@ def _parse_vf_fields(vf_path: Path) -> dict[str, set]:
     return result
 
 
+def _parse_aura_fields(cmp_path: "Path") -> tuple[dict[str, set], str | None]:
+    """Aura コンポーネント（.cmp）から使用オブジェクト+フィールドと Apex コントローラー名を抽出する。
+
+    - controller="ClassName" → Apex コントローラー名を返す（VF と同様に _SF_COMP_FIELDS から引き継ぐ）
+    - {!v.record.fields.Field__c.value} パターン → フィールドを直接抽出
+    - <aura:attribute type="SomeObject__c"> → オブジェクト型を特定
+    戻り値: (obj_fields, apex_ctrl_name)
+    """
+    try:
+        content = cmp_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return {}, None
+
+    result: dict[str, set] = {}
+
+    # controller="ClassName" — Apex コントローラー名を取得（VF と同様）
+    ctrl_m = _re.search(r'controller="([A-Za-z][A-Za-z0-9_]*)"', content)
+    ctrl_name = ctrl_m.group(1) if ctrl_m else None
+
+    # {!v.record.fields.FieldName.value} パターンからフィールドを抽出
+    # Lightning Data Service 経由のフィールドバインディング
+    for m in _re.finditer(
+        r'\{!v\.record\.fields\.([A-Za-z][A-Za-z0-9_]*(?:__c)?)\b', content
+    ):
+        result.setdefault("__any__", set()).add(m.group(1))
+
+    # <aura:attribute type="ObjectAPI__c"> からオブジェクト型を特定
+    for m in _re.finditer(
+        r'<aura:attribute\b[^>]+type="([A-Za-z][A-Za-z0-9_]*__c)"', content
+    ):
+        result.setdefault(m.group(1), set())
+
+    # recordId などの標準 Id アトリビュート
+    if _re.search(r'<aura:attribute\b[^>]+name="recordId"', content):
+        result.setdefault("__any__", set())
+
+    return result, ctrl_name
+
+
 def _parse_vf_ops(content: str, fields_by_obj: dict[str, set]) -> dict[str, str]:
     """VF ページから {obj_api: op} を推定する。
     - <apex:inputField> を含む → W（ユーザー入力で更新される）
@@ -920,6 +959,25 @@ def _load_sf_metadata(sf_project_path: str) -> None:
                     _merge_op(vf_ops, k, v)
             if vf_ops:
                 _SF_COMP_OPS[comp_api] = vf_ops
+
+    # aura: Aura コンポーネントから使用オブジェクト+フィールドを抽出する
+    aura_dir = base / "aura"
+    if aura_dir.exists():
+        for cmp_file in aura_dir.glob("*/*.cmp"):
+            comp_api = cmp_file.stem  # フォルダ名 = コンポーネント名
+            obj_fields, ctrl_name = _parse_aura_fields(cmp_file)
+            # Apex コントローラーのフィールド情報を引き継ぐ（VF と同じ方式）
+            if ctrl_name:
+                ctrl_fields = _SF_COMP_FIELDS.get(ctrl_name, {})
+                for k, v in ctrl_fields.items():
+                    obj_fields.setdefault(k, set()).update(v)
+            if obj_fields:
+                _SF_COMP_FIELDS[comp_api] = {k: v for k, v in obj_fields.items()}
+            # op: コントローラー Apex の op をそのままマージ
+            if ctrl_name and ctrl_name in _SF_COMP_OPS:
+                aura_ops = dict(_SF_COMP_OPS[ctrl_name])
+                if aura_ops:
+                    _SF_COMP_OPS[comp_api] = aura_ops
 
     # objects: field-meta.xml からラベルを補完（objectTranslations にないカスタムフィールド対応）
     objects_dir = base / "objects"

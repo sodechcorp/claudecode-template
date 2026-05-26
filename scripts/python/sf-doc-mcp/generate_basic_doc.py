@@ -232,15 +232,43 @@ def parse_org(path: Path) -> dict:
     t = path.read_text(encoding="utf-8")
 
     # 用語集
+    # ヘッダー行を先にスキャンして列構成を検出する（2列: biz|desc, 3列: biz|sf|desc）
     glossary = []
     sec = _section_text(t, ["用語集", "Glossary"])
+    _SF_HDR_WORDS = {"sf対応", "sf名称", "api名", "salesforce", "オブジェクト", "項目名", "対応項目"}
+    _DESC_HDR_WORDS = {"説明", "補足", "備考", "description", "内容", "詳細"}
+    biz_col, sf_col, desc_col = 0, 1, 2  # デフォルト: 3列想定
+    _header_detected = False
     for line in sec.splitlines():
-        if not line.strip().startswith("|"): continue
+        if not line.strip().startswith("|"):
+            continue
         cols = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cols) >= 2 and cols[0] and cols[0] not in ("業務用語", "用語", "---") \
-                and not re.fullmatch(r'[-:\s]+', cols[0]):
-            glossary.append({"biz": cols[0], "sf": cols[1] if len(cols) > 1 else "",
-                             "desc": cols[2] if len(cols) > 2 else ""})
+        if not cols or not cols[0]:
+            continue
+        cols_lower = [c.lower() for c in cols]
+        # 区切り行（`| --- |` 等）はスキップ
+        if all(re.fullmatch(r'[-:\s]*', c) for c in cols):
+            continue
+        # ヘッダー行を検出（"業務用語"/"用語" 等が最初の列にある行）
+        if not _header_detected and cols[0] in ("業務用語", "用語", "Term", "term"):
+            _header_detected = True
+            if len(cols) == 2:
+                # 2列構成: biz | desc（SF対応列なし）
+                sf_col, desc_col = -1, 1
+            elif len(cols) >= 3:
+                # 3列構成: 2列目が SF対応かどうかをヘッダーラベルで判定
+                is_sf_col1 = any(w in cols_lower[1] for w in _SF_HDR_WORDS)
+                is_desc_col1 = any(w in cols_lower[1] for w in _DESC_HDR_WORDS)
+                if is_desc_col1 and not is_sf_col1:
+                    sf_col, desc_col = -1, 1
+                else:
+                    sf_col, desc_col = 1, 2
+            continue
+        # データ行
+        if len(cols) >= 2 and cols[0] and not re.fullmatch(r'[-:\s]+', cols[0]):
+            sf_val = cols[sf_col] if sf_col >= 0 and sf_col < len(cols) else ""
+            desc_val = cols[desc_col] if desc_col < len(cols) else ""
+            glossary.append({"biz": cols[0], "sf": sf_val, "desc": desc_val})
 
     # 体制（セクション名の候補を横断探索）
     stakeholders: list[dict] = []
@@ -417,9 +445,20 @@ def _normalize_flow(flow: dict) -> dict:
     diagram_gen.py が期待するスキーマ（id/label/transitions[] 形式）に変換する。"""
     if not flow:
         return flow
+    lanes_raw = flow.get("lanes", [])
     steps_in = flow.get("steps", [])
 
-    # steps: step/action → id/label
+    # lane id → name 解決マップを構築（id 有無どちらにも対応）
+    # lanes に id がある場合: {id: name} と {name: name} を両方登録
+    # lanes に id がない場合: {name: name} のみ（name 直接参照で動作する）
+    lane_resolve: dict[str, str] = {}
+    for i, ll in enumerate(lanes_raw):
+        name = ll.get("name", f"Lane{i+1}")
+        if ll.get("id"):
+            lane_resolve[ll["id"]] = name
+        lane_resolve[name] = name
+
+    # steps: step/action → id/label、lane を name に事前解決（diagram_gen に渡す前に確定）
     normalized_steps = []
     for s in steps_in:
         step_id = str(s.get("id", s.get("step", "")))
@@ -429,7 +468,9 @@ def _normalize_flow(flow: dict) -> dict:
             or s.get("name")
             or s.get("action", "")
         )
-        normalized_steps.append({**s, "id": step_id, "label": label})
+        lane_raw = str(s.get("lane", ""))
+        lane_resolved = lane_resolve.get(lane_raw, lane_raw)
+        normalized_steps.append({**s, "id": step_id, "label": label, "lane": lane_resolved})
 
     # transitions: step.next（int または list）から自動生成
     transitions = list(flow.get("transitions", []))
