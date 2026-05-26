@@ -261,11 +261,19 @@ class MetadataFetcher:
         ]
 
     def _fetch_validation_rules(self, api_name: str) -> list[dict]:
-        records = self._tooling_query(
-            f"SELECT Id, ValidationName, Active, Description, "
-            f"ErrorMessage, ErrorDisplayField, Metadata "
-            f"FROM ValidationRule WHERE EntityDefinition.QualifiedApiName = '{api_name}'"
+        id_records = self._tooling_query(
+            f"SELECT Id FROM ValidationRule "
+            f"WHERE EntityDefinition.QualifiedApiName = '{api_name}'"
         )
+        records = []
+        for r in id_records:
+            detail = self._tooling_query(
+                f"SELECT Id, ValidationName, Active, Description, "
+                f"ErrorMessage, ErrorDisplayField, Metadata "
+                f"FROM ValidationRule WHERE Id = '{r['Id']}'"
+            )
+            if detail:
+                records.append(detail[0])
         return [
             {
                 "id":                 r["Id"],
