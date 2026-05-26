@@ -35,6 +35,8 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 **すべて存在しない場合**: 即座に「該当コンテキストなし（docs/ 未整備）」を返して終了。
 
+> **設計メモ（意図的）**: `docs/_README.md`（情報所在マップ）は参照対象外とする。メインスレッドは `_README.md` 経由で情報所在を特定するが、sf-context-loader は CMP・オブジェクト名等の構造化マッチングで直接 docs/ を辿る独立した入口設計。`_README.md` が未整備でも動作するよう意図されている。`_README.md` に手動追記した情報をエージェント経由タスクで活用したい場合は、対応するファイルを上記4ファイルのいずれかに記録することで反映される。
+
 ---
 
 ## Phase 1.5: knowledge-only モード（focus_hints に "knowledge-only" が含まれる場合のみ）
