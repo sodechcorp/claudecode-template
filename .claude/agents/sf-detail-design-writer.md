@@ -35,7 +35,7 @@ tools:
 |---|---|
 | `project_dir` | プロジェクトルート |
 | `output_dir` | 出力先フォルダ |
-| `tmp_dir` | 一時ファイル置き場（`{output_dir}/.tmp`） |
+| `tmp_dir` | 一時ファイル置き場（親エージェントが `tempfile.mkdtemp` で生成したローカルパス） |
 | `author` | 作成者名 |
 | `project_name` | プロジェクト名 |
 | `target_group_ids` | 対象グループIDリスト。空の場合は全グループ |

@@ -36,7 +36,7 @@ tools:
 |---|---|
 | `project_dir` | プロジェクトルート（カレントディレクトリ） |
 | `output_dir` | 出力先フォルダ |
-| `tmp_dir` | 一時ファイル置き場（`{output_dir}/.tmp`） |
+| `tmp_dir` | 一時ファイル置き場（親エージェントが `tempfile.mkdtemp` で生成したローカルパス） |
 | `author` | 作成者名 |
 | `project_name` | プロジェクト名 |
 | `sf_alias` | Salesforce 組織エイリアス |
@@ -297,10 +297,10 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate_screen_design.py" \
 出力先サブフォルダ（スクリプトが type フィールドに基づいて自動決定）:
 | 種別 | 出力先 | ファイル名 |
 |---|---|---|
-| LWC | `{output_dir}/lwc/` | `【F-XXX】{name}.xlsx` |
-| 画面フロー | `{output_dir}/flow/` | `【F-XXX】{name}.xlsx` |
-| Aura | `{output_dir}/aura/` | `【F-XXX】{name}.xlsx` |
-| Visualforce | `{output_dir}/visualforce/` | `【F-XXX】{name}.xlsx` |
+| LWC | `{output_dir}/lwc/` | `【{id}】{name}.xlsx` |
+| 画面フロー | `{output_dir}/flow/` | `【{id}】{name}.xlsx` |
+| Aura | `{output_dir}/aura/` | `【{id}】{name}.xlsx` |
+| Visualforce | `{output_dir}/visualforce/` | `【{id}】{name}.xlsx` |
 
 スクリプトが非ゼロ終了した場合: エラー内容を確認し修正後に再実行する。解決できない場合はエラー内容を完了報告に含めて中断する。
 
