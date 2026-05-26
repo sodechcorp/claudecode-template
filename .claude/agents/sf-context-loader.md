@@ -32,6 +32,8 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 - `{project_dir}/docs/catalog/_index.md`
 - `{project_dir}/docs/decisions.md`
 - `{project_dir}/docs/knowledge/case-index.md`
+- `{project_dir}/docs/overview/org-profile.md`
+- `{project_dir}/docs/requirements/requirements.md`
 
 **すべて存在しない場合**: 即座に「該当コンテキストなし（docs/ 未整備）」を返して終了。
 
@@ -70,6 +72,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | オブジェクト名（日本語・英語） | VisaApplication, 申請管理 | `docs/catalog/_index.md` → `docs/catalog/custom/{object}.md` |
 | キーワード（自動化系） | トリガ, バッチ, フロー, 自動化 | `docs/data/automation.md` |
 | キーワード（業務フロー系） | 業務フロー, 申請フロー, 画面フロー, ユースケース | `docs/flow/usecases.md` |
+| キーワード（スイムレーン系） | スイムレーン, レーン, AS-IS, TO-BE, asis, tobe | `docs/flow/swimlanes.json` |
 | キーワード（通知系） | 通知, メール, テンプレート | `docs/data/email-templates.md` |
 | キーワード（連携系） | API, 連携, 外部, callout | `docs/architecture/system.json` |
 | キーワード（要件系） | スコープ, 要件, `BR-\d+`, ビジネスルール | `docs/requirements/requirements.md` |
@@ -121,6 +124,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | CMP-xxx マッチ | `feature_list.json` の `design_doc` パスから `docs/design/{種別}/【CMP-xxx】*.md` |
 | オブジェクト名マッチ | `docs/catalog/custom/{オブジェクト名}.md` |
 | UC-xx マッチ | `docs/flow/usecases.md`（全体を読み、該当UC番号のセクションを抽出） |
+| スイムレーン/AS-IS/TO-BE マッチ | `docs/flow/swimlanes.json`（該当 `flow_type` のフローと所属レーンの actor 名・type を抽出。全文展開はしない） |
 | 自動化キーワード | `docs/data/automation.md` |
 | 通知キーワード | `docs/data/email-templates.md` |
 | 連携キーワード | `docs/architecture/system.json` |

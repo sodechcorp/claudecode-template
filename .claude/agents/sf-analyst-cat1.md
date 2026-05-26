@@ -299,6 +299,9 @@ org-profile.md の品質を高めるため、以下の 5 項目を**読み込ん
 生成・更新した以下のファイルを Grep で品質マーカーを検出する:
 - `docs/overview/org-profile.md`
 - `docs/requirements/requirements.md`
+- `docs/flow/usecases.md`
+- `docs/architecture/system.json`（JSON: 値文字列として含まれる場合のみ検出）
+- `docs/flow/swimlanes.json`（JSON: 値文字列として含まれる場合のみ検出）
 
 検索対象マーカー: `[要確認]` / `[推定]` / `[出典不明]` / `[未ヒアリング]` / `[資料未確認]` / `[組織未調査]`
 
@@ -307,8 +310,10 @@ org-profile.md の品質を高めるため、以下の 5 項目を**読み込ん
 | 0件 | 解消完了。Phase 最終へ進む |
 | 1件以上 | 件数・箇所（ファイル名・行番号・内容）をリスト化して提示 → AskUserQuestion: 「今ここで解消する / 後で記入する（マーカーは残置）」 |
 
-「今ここで解消する」を選んだ場合: 各マーカーごとに AskUserQuestion で内容を確認し、取得した値でファイルを更新する。
+「今ここで解消する」を選んだ場合: 各マーカーごとに AskUserQuestion で内容を確認し、取得した値でファイルを更新する（markdown ファイルのみ。JSON ファイルは下記参照）。
 「後で記入する」を選んだ場合: 「要確認事項: {N}件あり（{ファイル名}:{行番号}）」として最終報告に記載し担当者への申し送り内容に含める。
+
+> JSON ファイル（system.json / swimlanes.json）のマーカーは、AskUserQuestion による直接編集を行わず、件数・キーパスをリスト化して最終報告に申し送る（構文破壊回避のため）。
 
 ### Phase 最終: クリーンアップ
 
