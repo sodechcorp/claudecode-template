@@ -173,6 +173,8 @@ Phase 1（investigator）で取得した Before エビデンスと対になる A
 
 ### 7. テスト結果報告
 
+以下の形式で `{project_dir}/docs/logs/{issueID}/test-report.md` に保存する（project_dir が不明な場合はカレントディレクトリを使用）:
+
 ```
 ## テスト結果: {issueID}
 
@@ -339,3 +341,4 @@ python scripts/python/backlog-xlsx/update_records.py \
    - Before/After エビデンスマッピング表で未取得行がある場合の対処
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 6 に進んでよろしいですか？」とテキストで確認する
+5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。テスト NG・Phase 4/3/2 戻りが発生した場合は原因と差し戻し先を必ず記録する。

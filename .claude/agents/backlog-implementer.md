@@ -234,3 +234,4 @@ Before/After をユーザに提示した後、以下を必ず行う:
    - 経路 2/3 で Phase 3/3.5 に戻った際の再確認ポイント
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 5 に進んでよろしいですか？」とテキストで確認する
+5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
