@@ -2,6 +2,27 @@
 
 **「読んだものは全て書く」**。ソースを読んで得た情報を端折らない。
 
+### 推測禁止（API名・項目名・オブジェクト名）
+
+- `force-app/` および `docs/catalog/` に**実在しない** API 名・項目名・オブジェクト名を JSON に含めない
+- ソース・メタデータ・docs を読んでも特定できない場合は値を `[要確認]` とする（空文字や推測で埋めない）
+- 「たぶんこの項目名だろう」「この命名規則なら〜だろう」という推測は禁止。実在を確認できないものは必ず `[要確認]` を使う
+
+### 参照ファイルの記録（references）
+
+Phase 1 で `docs/design/` / `docs/requirements/` / `docs/catalog/` 等を参照した場合、生成 JSON に `references` フィールドを追加して参照ファイルのパスを記録する（リスト形式）。
+
+```json
+{
+  "references": [
+    "docs/design/apex/SomeController.md",
+    "docs/catalog/Quote__c.md"
+  ]
+}
+```
+
+> スクリプト（generate_feature_design.py）はこのフィールドを処理しない（unknown field として無視される）。デバッグ・監査・後続レビューで「どの docs を根拠に書いたか」を追跡するための情報。参照しなかった場合は省略してよい。
+
 ### API名 vs 日本語ラベルの使い分け（全箇所共通）
 
 | 記述対象 | 表記ルール | 例 |
