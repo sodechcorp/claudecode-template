@@ -75,8 +75,8 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md` |
 | `[A-Z]{2,}-\d+`（issueID） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（TL;DR / 課題サマリーセクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） |
 | キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件を Grep） + `docs/knowledge/case-index.md`（症状列を Grep） |
-| キーワード（落とし穴・注意） | 落とし穴, ハマる, 気を付ける, 注意, 地雷, 壊れる | `docs/knowledge/pitfalls.md` |
-| キーワード（Salesforce標準仕様） | ガバナ制限, トリガ順序, sharing, FLS評価, PermissionSet優先, 標準仕様, governor | `docs/knowledge/sf-standard.md`（該当セクションのみ Grep） |
+| キーワード（落とし穴・注意） | 落とし穴, ハマる, ハマった, 気を付ける, 気をつけて, 注意, 地雷, 壊れる, 想定外, 罠 | `docs/knowledge/pitfalls.md` |
+| キーワード（Salesforce標準仕様） | ガバナ制限, API制限, API上限, SOQL上限, SOQL制限, リストビュー上限, レポート上限, トリガ順序, トリガ実行順序, sharing, FLS評価, PermissionSet優先, 標準仕様, governor, 制限値, 何件まで, 何行まで | `docs/knowledge/sf-standard.md`（該当セクションのみ Grep） |
 
 `{project_dir}/docs/overview/org-profile.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（用語集・命名規則の共通参照として）。
 

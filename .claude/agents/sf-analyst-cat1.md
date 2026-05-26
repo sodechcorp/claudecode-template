@@ -170,19 +170,69 @@ sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsC
 - 候補抽出できなかった場合に推測で `〇〇 Salesforce 組織` のような汎用名を生成しない
 - プロジェクト名を空白のまま先の Phase に進まない（下流設計書に `**[要確認]**` が残る）
 
-### Phase 2.6: 引継ぎ重要情報のヒアリング（必須）
+### Phase 2.6: 引継ぎ重要情報の自動抽出（必須）
 
-org-profile.md の品質を高めるため、以下の 5 項目を AskUserQuestion で順番にヒアリングする。
-全項目に「後で記入する（スキップ）」選択肢を設ける（すでに既存資料から取得済みの項目はスキップ可）。
+org-profile.md の品質を高めるため、以下の 5 項目を**読み込んだ資料・組織メタデータから自動抽出**する。
+**AskUserQuestion による対話ヒアリングは行わない**（ユーザーは答えられない前提で設計する）。
+抽出できない項目は `**[資料未確認]**`（資料に記載なし）または `**[組織未調査]**`（CLI でも取得できなかった）マーカーを残置し、Phase 5.5 で確認を促す。
 
-1. **業務カレンダー**: 年度開始月・締日・繁忙期・閑散期・SF 操作禁止期間
-2. **キーパーソン**: 社長・部長・現場リーダー・SF 管理者の氏名・問い合わせ可否・連絡手段
-3. **組織規模**: 売上規模（年商目安）・部署数・営業所数（Phase 1 CLI でユーザー数取得済みの場合は省略可）
-4. **過去のトラブル史・地雷**: 直近 1 年で起きた重大な問題・絶対に繰り返してはいけないこと
-5. **対応禁止事項**: 触ってはいけない設定・データ・運用ルール
+#### 2.6-1: 業務カレンダー
+
+以下のソースから情報を抽出する（優先順位順）:
+
+1. **読み込んだ外部資料**: 要件定義書・運用手順書・契約書等から年度・繁忙期・締日を探す
+2. **Salesforce 組織メタデータ**:
+   ```bash
+   sf data query --query "SELECT Id, Name, FiscalYearStartMonth FROM Organization LIMIT 1" --json
+   sf data query --query "SELECT Id, Name, ActivityDate FROM Holiday ORDER BY ActivityDate LIMIT 50" --json
+   ```
+3. 取得できない項目は `**[資料未確認]**` を残置
+
+#### 2.6-2: キーパーソン一覧
+
+以下のソースから情報を抽出する:
+
+1. **Salesforce 組織ユーザー情報**（管理者プロファイル保有者を特定）:
+   ```bash
+   sf data query --query "SELECT Id, Name, Profile.Name, IsActive FROM User WHERE IsActive = true AND Profile.Name LIKE '%Admin%' ORDER BY Name LIMIT 20" --json
+   sf data query --query "SELECT Id, Name, Profile.Name FROM User WHERE IsActive = true AND Profile.Name = 'System Administrator' LIMIT 10" --json
+   ```
+2. **読み込んだ外部資料**: 組織図・連絡先一覧・提案書等から役職・氏名を抽出
+3. **個人情報ルール**: 氏名のみ記録。メールアドレス・電話番号は記録しない
+4. 取得できない場合は `**[組織未調査]**` を残置
+
+#### 2.6-3: 売上・組織規模
+
+以下のソースから推定する:
+
+1. **読み込んだ外部資料**: 会社案内・提案書・要件定義書等から年商・部署数・拠点数を抽出
+2. **Salesforce 組織統計**（規模推定の参考）:
+   ```bash
+   sf data query --query "SELECT COUNT() FROM Account WHERE IsDeleted = false" --json
+   sf data query --query "SELECT COUNT() FROM Opportunity WHERE IsWon = true" --json
+   ```
+3. Phase 1 で取得した User 件数・プロファイル分布を参照する
+4. 取得できない場合は `**[資料未確認]**` を残置。年商規模は資料記載がなければ推測せず `**[資料未確認]**` のみ
+
+#### 2.6-4: 過去のトラブル史・地雷
+
+以下のソースから抽出する:
+
+1. **読み込んだ外部資料**: 議事録・対応報告書・障害報告書等に過去トラブルの記載を探す
+2. **docs/decisions.md**（既存プロジェクトのみ）: ファイルが存在する場合 Read して「絶対」「禁止」「注意」「失敗」等のキーワードを含む重要判断を抽出
+3. 取得できない場合は `**[資料未確認]**` を残置（推測・生成禁止）
+
+#### 2.6-5: 対応禁止事項
+
+以下のソースから抽出する:
+
+1. **読み込んだ外部資料**: 運用ルール・社内規程・引継ぎ資料等に禁止事項の記載を探す
+2. **docs/decisions.md**（既存プロジェクトのみ）: 「禁止」「しない」「触らない」等の表現を含む判断記録から抽出
+3. 取得できない場合は `**[資料未確認]**` を残置
+
+---
 
 取得した内容は Phase 3 で org-profile.md の対応セクション（「業務カレンダー」「キーパーソン一覧」「売上・組織規模」「過去のトラブル史」「対応禁止事項」）に記載する。
-スキップした項目は `**[未ヒアリング]**` マーカーを残置し、Phase 5.5 で再確認する。
 
 > スキーマ（各セクションのテーブル形式）:
 > [../templates/sf-analyst-cat1/file-templates.md](../templates/sf-analyst-cat1/file-templates.md) §追加セクション
@@ -250,7 +300,7 @@ org-profile.md の品質を高めるため、以下の 5 項目を AskUserQuesti
 - `docs/overview/org-profile.md`
 - `docs/requirements/requirements.md`
 
-検索対象マーカー: `[要確認]` / `[推定]` / `[出典不明]` / `[未ヒアリング]`
+検索対象マーカー: `[要確認]` / `[推定]` / `[出典不明]` / `[未ヒアリング]` / `[資料未確認]` / `[組織未調査]`
 
 | 件数 | 対応 |
 |---|---|

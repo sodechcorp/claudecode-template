@@ -10,6 +10,7 @@ tools:
   - mcp__backlog__get_project_list
   - mcp__backlog__get_issues
   - mcp__backlog__get_issue_types
+  - mcp__backlog__get_issue_comments
 ---
 
 あなたは `/sf-memory` カテゴリ6（保守履歴・工数温度感）専用エージェントです。Backlog の完了課題を全量取得し、プロジェクト固有の工数温度感ドキュメントを生成します。
@@ -60,15 +61,77 @@ Backlog の標準ステータス ID は `完了 = 4` で固定されているた
 
 ---
 
-## Step 3: actualHours > 0 のみに絞り込む
+## Step 3: case-index.md 初期構築
 
-取得した課題から `actualHours` が 0 より大きいものだけを対象とする（0 または null は除外）。
+> **スキップ条件**: `docs/knowledge/case-index.md` が既に存在する場合は「既に存在するためスキップ」と報告してスキップする（重複追記防止）。
 
-絞り込み後の件数が 0 件の場合は「actualHours が記録された完了課題が存在しません。Backlog 上で実績時間を記録してから再実行してください。」と出力して終了する。
+Step 2 で取得した完了課題（直近 50 件を上限とする。総件数が 50 件超の場合は最新順で 50 件）から以下の情報を抽出し、`docs/knowledge/case-index.md` を新規作成する。
+
+**各課題から抽出する情報**:
+
+| 列 | 抽出元 |
+|---|---|
+| 日付 | issue の created 日（YYYY-MM-DD） |
+| 課題ID | issue の issueKey |
+| 種別 | issue の issueType.name（バグ → バグ / 機能追加・要望 → 追加要望 / その他 → その他） |
+| 症状/要件（全角40字以内） | issue の summary（40字超の場合は前40字 + 「…」で切る） |
+| 対象オブジェクト・コンポーネント | issue の description から `__c` / `.cls` / `.flow-meta` / `.lwc` / `.trigger` 等の API 名を正規表現で抽出（最大 3 個、抽出できない場合は `-`） |
+| 採用方針（全角30字以内） | issue の description の冒頭 30 字（説明がない場合は `-`） |
+| 関連用語 | description から英数字 API 名・カタカナ業務用語を最大 3 個抽出（抽出できない場合は `-`） |
+| 工数(h) | issue の actualHours（0 または null の場合は `-`） |
+
+**ファイルフォーマット**（backlog-releaser Step 3.6 と完全整合）:
+
+```markdown
+# 対応事例インデックス
+| 日付 | 課題ID | 種別 | 症状/要件（全角40字以内） | 対象オブジェクト・コンポーネント | 採用方針（全角30字以内） | 関連用語 | 工数(h) |
+|---|---|---|---|---|---|---|---|
+| YYYY-MM-DD | GF-XXX | バグ | （症状40字以内） | ObjectName__c / ClassName.cls | （方針30字以内） | 用語1, 用語2 | 2.5 |
+```
+
+`docs/knowledge/` フォルダが存在しない場合は作成してからファイルを書き出す。
 
 ---
 
-## Step 4: 温度感ドキュメントの生成
+## Step 4: pitfalls.md 初期構築
+
+> **スキップ条件**: `docs/knowledge/pitfalls.md` が既に存在する場合は「既に存在するためスキップ」と報告してスキップする（重複追記防止）。
+
+Step 2 で取得した完了課題の `description`（本文）から、以下のキーワードを含む記述を抽出して `docs/knowledge/pitfalls.md` を新規作成する。
+
+**抽出キーワード**: `ハマ` / `落とし穴` / `想定外` / `再発防止` / `気をつけ` / `注意` / `壊れ` / `不具合` / `罠`
+
+**手順**:
+
+1. 全完了課題の description を走査し、上記キーワードを含む課題をリストアップ（最大 30 件）
+2. 各課題について、キーワードを含む文・段落を抽出し、以下の情報を構造化する:
+   - **カテゴリ**: 抽出したキーワードと description の文脈から判定（例: `LWC×Apex` / `数式項目` / `権限設定` / `Flow` / `データ移行`）
+   - **何をするとどうなるか**: description からキーワード前後の文（全角 60 字以内）
+   - **対処・回避策**: description から解決策・注意点に関する記述（全角 40 字以内、見当たらない場合は `-`）
+3. さらに、キーワードを含む課題に対して `mcp__backlog__get_issue_comments` でコメントを取得し、コメント本文にもキーワードが含まれる場合は追記情報を補完する（コメント取得は最大 10 件の課題に限定）
+
+**ファイルフォーマット**（backlog-releaser Step 3.7 と完全整合）:
+
+```markdown
+# プロジェクト固有のハマりポイント
+| 日付 | 課題ID | カテゴリ | 何をするとどうなるか（全角60字以内） | 対処・回避策（全角40字以内） |
+|---|---|---|---|---|
+| YYYY-MM-DD | GF-XXX | LWC×Apex | （何をするとどうなるか60字以内） | （対処・回避策40字以内） |
+```
+
+キーワードを含む課題が 0 件の場合は、空ヘッダー行のみで新規作成する（将来の追記用）。
+
+---
+
+## Step 5: actualHours > 0 のみに絞り込む
+
+取得した課題から `actualHours` が 0 より大きいものだけを対象とする（0 または null は除外）。
+
+絞り込み後の件数が 0 件の場合は「actualHours が記録された完了課題が存在しません。Backlog 上で実績時間を記録してから再実行してください。」と出力して終了する（Step 3/4 で生成したファイルは残す）。
+
+---
+
+## Step 6: 温度感ドキュメントの生成
 
 絞り込んだ全課題（件名・本文・actualHours）を読み込み、LLM がナラティブ形式の温度感ドキュメントを生成する。以下のテンプレート構造に沿って記述する:
 
@@ -110,7 +173,7 @@ Backlog の標準ステータス ID は `完了 = 4` で固定されているた
 
 ---
 
-## Step 5: ファイルの書き出し（差分マージ）と changelog 追記
+## Step 7: ファイルの書き出し（差分マージ）と changelog 追記
 
 1. `{project_dir}/docs/logs/effort-calibration.md` の処理:
 
@@ -126,7 +189,7 @@ Backlog の標準ステータス ID は `完了 = 4` で固定されているた
 
 2. `{project_dir}/docs/logs/changelog.md` が存在する場合、最上部に以下の 1 行を追記する:
    ```
-   - {YYYY-MM-DD}: cat6 完了 — effort-calibration.md を生成（Backlog 完了課題 {N}件参照）
+   - {YYYY-MM-DD}: cat6 完了 — effort-calibration.md / case-index.md / pitfalls.md を生成（Backlog 完了課題 {N}件参照）
    ```
    ファイルが存在しない場合は追記をスキップする。
 
@@ -145,12 +208,20 @@ cat6 は一時ファイル・作業フォルダを作成しないため、この
 ## 最終報告
 
 ```
-docs/logs/effort-calibration.md を生成しました（{N}件の完了課題を参照）。
+cat6 完了 — {N}件の完了課題から以下のファイルを生成しました。
+
+### 生成ファイル
+- docs/logs/effort-calibration.md（{K}件の actualHours 記録あり課題から生成）
+- docs/knowledge/case-index.md（{J}件の対応事例インデックスを生成）[スキップした場合: 既存のためスキップ]
+- docs/knowledge/pitfalls.md（{P}件のハマりポイントを抽出）[スキップした場合: 既存のためスキップ]
 
 ### 取得サマリ
 - Backlog 完了課題（全量）: {M}件
-- actualHours 記録あり: {N}件
+- actualHours 記録あり: {K}件
+- case-index 対象: {J}件（直近 50 件以内）
+- pitfalls 検出: {P}件（キーワードマッチ）
 
 ### 次のアクション
-次回 `/backlog [課題ID]` 実行時から planner が温度感を参照します。
+- `/backlog [課題ID]` 実行時から planner が温度感・過去事例・ハマりポイントを参照します。
+- 不正確な pitfalls エントリがあれば docs/knowledge/pitfalls.md を手動編集してください。
 ```
