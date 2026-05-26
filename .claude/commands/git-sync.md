@@ -1,10 +1,10 @@
 ---
-description: "プロジェクトGitリポジトリとの同期コマンド。初期設定系ドキュメント（docs/overview/ docs/requirements/ 等）とCLAUDE.mdのpull/pushを実行する。積み上げ系（docs/logs/ docs/decisions.md docs/knowledge/）は各担当者が独自に蓄積するため対象外。テンプレート更新は /upgrade を使用。"
+description: "プロジェクトGitリポジトリとの同期コマンド。引継ぎ対象ドキュメント（docs/ のうち logs/ 除く）とCLAUDE.mdのpull/pushを実行する。課題作業ログ（docs/logs/）は各担当者が独自に蓄積するため対象外。テンプレート更新は /upgrade を使用。"
 ---
 
 ## 同期スコープ定義
 
-### 同期対象（チーム共有・初期設定系）
+### 同期対象（チーム共有・引継ぎ対象）
 
 | パス | 内容 |
 |---|---|
@@ -15,16 +15,16 @@ description: "プロジェクトGitリポジトリとの同期コマンド。初
 | `docs/architecture/` | システム構成図用データ |
 | `docs/design/` | 機能別設計書 |
 | `docs/data/` | マスタデータ・メールテンプレート |
+| `docs/knowledge/` | ナレッジ（ハマりポイント・案件索引・標準仕様）|
+| `docs/decisions.md` | 判断記録（なぜその方針にしたか） |
 | `docs/_README.md` | 情報所在マップ |
 | `CLAUDE.md` | プロジェクト固有ルール |
 
-### 同期対象外（担当者ごとに独立蓄積・上書き禁止）
+### 同期対象外（担当者ごとに独立蓄積）
 
 | パス | 理由 |
 |---|---|
-| `docs/logs/` | 課題対応ログ・changelogは各担当者が積み上げる |
-| `docs/decisions.md` | 判断記録は各担当者が随時追記する |
-| `docs/knowledge/` | case-index.md / pitfalls.md は各担当者が独自蓄積する |
+| `docs/logs/` | 課題対応ログ・changelogは各担当者が個別に積み上げる |
 
 ---
 
@@ -59,15 +59,15 @@ AskUserQuestion で操作を選択:
 
 ```bash
 git fetch origin {Step 0 で取得したブランチ名}
-git checkout origin/{Step 0 で取得したブランチ名} -- docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/_README.md CLAUDE.md 2>/dev/null || true
+git checkout origin/{Step 0 で取得したブランチ名} -- docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/decisions.md docs/_README.md CLAUDE.md 2>/dev/null || true
 ```
 
-> `git pull` ではなく `git checkout origin/{branch} -- {paths}` で対象パスのみ取得する。積み上げ系（docs/logs/ / docs/decisions.md / docs/knowledge/）はリモートの状態に上書きされない。
+> `git pull` ではなく `git checkout origin/{branch} -- {paths}` で対象パスのみ取得する。課題作業ログ（docs/logs/）はリモートの状態に上書きされない。
 
 完了後、更新されたファイル一覧を `git status --short` で確認し報告:
 ```
 ✅ 取得完了 — {更新ファイル数}件のファイルが更新されました
-（積み上げ系 docs/logs/ / docs/decisions.md / docs/knowledge/ は取得対象外）
+（docs/logs/ は取得対象外）
 ```
 
 変更がなかった場合:
@@ -86,18 +86,18 @@ AskUserQuestion で選択:
 **質問**: 「保存するファイルを選択してください」
 
 **選択肢**（multiSelect: false、排他選択）:
-- 初期設定系のみ（docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/_README.md + CLAUDE.md）
-- 初期設定系 docs/ のみ（CLAUDE.md 除く）
+- 全て（引継ぎ対象 docs/ + CLAUDE.md）
+- 引継ぎ対象 docs/ のみ（CLAUDE.md 除く）
 - CLAUDE.md のみ
 
-> docs/logs/ / docs/decisions.md / docs/knowledge/ は選択肢に含まれません（積み上げ系・対象外）。
+> docs/logs/ は選択肢に含まれません（課題作業ログ・対象外）。
 
 ### 2. 変更確認
 
 同期対象パスに変更があるか確認:
 
 ```bash
-git status --short docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/_README.md CLAUDE.md
+git status --short docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/decisions.md docs/_README.md CLAUDE.md
 ```
 
 変更が1件もない場合は「保存対象の変更がありません」と報告して終了。
