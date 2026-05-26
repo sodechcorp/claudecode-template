@@ -208,7 +208,65 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 ---
 
-### 3.6. お客様確認サイン取得
+### 3.6. case-index.md への自動追記
+
+> **スキップ判定**: `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする。
+
+`docs/knowledge/case-index.md` に当課題の1行サマリーを先頭挿入する。
+
+1. `docs/logs/{issueID}/approach-plan.md` から「採用方針」「Q 回答」を Read する
+2. `docs/logs/{issueID}/implementation-plan.md` から「対象オブジェクト・コンポーネント一覧」を Read する
+3. `docs/logs/effort-log.md` の当該行から見込み工数を取得する
+4. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
+   ```
+   | {YYYY-MM-DD} | {issueID} | {種別: バグ/追加要望/その他} | {症状/要件 全角40字以内} | {対象オブジェクト・コンポーネント} | {採用方針 全角30字以内} | {関連用語カンマ区切り3〜5語} | {見込み工数} |
+   ```
+5. `docs/knowledge/case-index.md` が存在しない場合は以下のヘッダー付きで新規作成してから追記:
+   ```markdown
+   # 対応事例インデックス
+   | 日付 | 課題ID | 種別 | 症状/要件（全角40字以内） | 対象オブジェクト・コンポーネント | 採用方針（全角30字以内） | 関連用語 | 工数(h) |
+   |---|---|---|---|---|---|---|---|
+   ```
+
+**スキップ条件**: 当課題の行がすでに存在する場合はスキップ（重複防止）。  
+**失敗時**: 「`docs/knowledge/case-index.md` の追記に失敗しました。以下の1行を手動で先頭に追加してください」とユーザーに案内する。
+
+---
+
+### 3.7. 知見の自動還流（pitfalls.md + verify-spec 追加ルール欄）
+
+> **スキップ判定**: `docs/logs/{issueID}/discussion-log.md` が存在しない場合はスキップする。
+
+`docs/logs/{issueID}/discussion-log.md` から「次のプロジェクトで役立つ知見」を抽出し、還流先に追記する。ユーザー確認後に追記する。
+
+**抽出ルール**:
+
+| 検出パターン | 還流先 |
+|---|---|
+| 「○○すると××が壊れる」「○○は気を付けないと」「バグる」等の落とし穴 | `docs/knowledge/pitfalls.md` |
+| 「ユーザーから流された→実コード Read で違うことが判明」の経緯 | `verify-implementation-spec.md` §追加ルール記入欄 |
+| 「出典を誤って引用→修正」の経緯 | `verify-source-attribution-spec.md` §追加ルール記入欄 |
+
+**手順**:
+
+1. `docs/logs/{issueID}/discussion-log.md` を Read して上記パターンに該当する記述を抽出する
+2. 抽出件数は最大5件（過剰追記防止）。既に `docs/knowledge/pitfalls.md` に類似80%以上の内容があれば除外する
+3. 抽出結果をユーザーにテキストで提示する
+4. ユーザーから「追記して」「OK」等の応答があった場合のみ追記を実行する
+
+**pitfalls.md への追記フォーマット**（最新行を先頭挿入）:
+```
+| {YYYY-MM-DD} | {issueID} | {カテゴリ（例: LWC×Apex / 数式項目）} | {何をするとどうなるか（全角60字以内）} | {対処・回避策（全角40字以内）} |
+```
+
+**verify-*.md 追加ルール記入欄への追記フォーマット**:
+```
+- [{YYYY-MM-DD}] {ルール内容}（由来: {issueID}）
+```
+
+---
+
+### 3.8. お客様確認サイン取得
 
 > ルール定義: [.claude/templates/backlog/customer-signoff.md](../templates/backlog/customer-signoff.md) を参照
 

@@ -27,11 +27,13 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 ## Phase 1: docs/ の存在確認
 
-以下のどちらかが存在するか確認する:
+以下のいずれかが存在するか確認する:
 - `{project_dir}/docs/.sf/feature_list.json`
 - `{project_dir}/docs/catalog/_index.md`
+- `{project_dir}/docs/decisions.md`
+- `{project_dir}/docs/knowledge/case-index.md`
 
-**どちらも存在しない場合**: 即座に「該当コンテキストなし（docs/ 未整備）」を返して終了。
+**すべて存在しない場合**: 即座に「該当コンテキストなし（docs/ 未整備）」を返して終了。
 
 ---
 
@@ -52,14 +54,20 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | キーワード（要件系） | スコープ, 要件, `BR-\d+`, ビジネスルール | `docs/requirements/requirements.md` |
 | キーワード（マスタ系） | マスタ, ピックリスト, 選択リスト, 商品 | `docs/data/master-data.md` |
 | キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md` |
+| `[A-Z]{2,}-\d+`（issueID） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（TL;DR / 課題サマリーセクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） |
+| キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件を Grep） + `docs/knowledge/case-index.md`（症状列を Grep） |
+| キーワード（落とし穴・注意） | 落とし穴, ハマる, 気を付ける, 注意, 地雷, 壊れる | `docs/knowledge/pitfalls.md` |
+| キーワード（Salesforce標準仕様） | ガバナ制限, トリガ順序, sharing, FLS評価, PermissionSet優先, 標準仕様, governor | `docs/knowledge/sf-standard.md`（該当セクションのみ Grep） |
 
 `{project_dir}/docs/overview/org-profile.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（用語集・命名規則の共通参照として）。
+
+`{project_dir}/docs/knowledge/sf-standard.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（Salesforce 標準仕様の基盤知識として。ただし該当セクションのみ抽出し全文読込は避ける）。
 
 **マッチが全くない場合**: 「該当コンテキストなし（タスクにSFプロジェクト固有の参照対象が見当たらない）」を返して終了。
 
 ---
 
-## Phase 3: 関連ファイルの特定と読込（最大5ファイル）
+## Phase 3: 関連ファイルの特定と読込（最大7ファイル）
 
 ### ステップ3-1: 軽量インデックスを先読み
 
@@ -72,7 +80,16 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 ### ステップ3-2: 詳細ファイルを必要な分だけ Read
 
-抽出したマッチに基づき詳細ファイルを Read する（**読込上限: 合計5ファイル**）。上限超過時は CMP/オブジェクト優先（同優先度内は CMP 番号昇順、オブジェクトは `_index.md` 出現順で打ち切り）:
+抽出したマッチに基づき詳細ファイルを Read する（**読込上限: 合計7ファイル**）。
+
+**内訳ガード**（合計7ファイルの内訳上限）:
+- CMP・オブジェクト関連: 最大4ファイル（同優先度内は CMP 番号昇順・オブジェクトは `_index.md` 出現順）
+- logs/{issueID}/ 関連: 最大2ファイル（investigation.md / approach-plan.md）
+- decisions.md: 1ファイル（Grep による部分抽出のみ・全文 Read しない）
+- case-index.md: 1ファイル（Grep による症状列マッチのみ）
+- sf-standard.md: 1ファイル（Grep による該当セクション抽出のみ）
+- pitfalls.md: 1ファイル（全文 Read・小さいため）
+→ 上記の合算が7を超えた場合: CMP/オブジェクト → 過去課題 → 標準仕様 の優先順で打ち切る
 
 | マッチ種別 | 読むファイル |
 |---|---|
@@ -83,8 +100,12 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | 通知キーワード | `docs/data/email-templates.md` |
 | 連携キーワード | `docs/architecture/system.json` |
 | 要件キーワード | `docs/requirements/requirements.md`（先頭100行程度） |
+| issueID マッチ | `docs/logs/{issueID}/investigation.md`（`^## (TL;DR\|課題サマリー)` セクションのみ Grep） + `docs/decisions.md`（issueID 行 + 前後20行を Grep） |
+| 過去判断キーワード | `docs/decisions.md`（直近10件: 末尾200行を Read）+ `docs/knowledge/case-index.md`（症状列を Grep） |
+| 落とし穴キーワード | `docs/knowledge/pitfalls.md`（全文 Read） |
+| SF標準仕様キーワード | `docs/knowledge/sf-standard.md`（該当§を Grep: `^## §` パターンで章を特定してセクション抽出） |
 
-各ファイルの Read が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。
+各ファイルの Read / Grep が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。
 
 ---
 
@@ -111,11 +132,21 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 ### 要件・ビジネスルール
 - {requirements.md から該当BR-xxx等を抜粋}
 
-### 注意事項
-- {設計書・automation.md から読み取れる競合リスク・ガバナ制限・特記事項があれば記載}
+### 過去の判断・採用方針（docs/decisions.md / case-index.md より）
+- {issueID}「{件名}」: {採用方針1行} / {選定理由または注意点}
+
+### 類似過去課題（docs/logs/ より）
+- {issueID}: 症状={1行} / 原因={1行} / 採用方針={1行}
+  → 詳細: docs/logs/{issueID}/investigation.md
+
+### Salesforce 標準仕様（docs/knowledge/sf-standard.md より）
+- {ガバナ制限の数値・トリガ順序・sharing ルール等、今タスクに直接関係する仕様のみ抜粋}
+
+### 注意事項・落とし穴
+- {docs/knowledge/pitfalls.md / 設計書・automation.md から読み取れる競合リスク・ハマりポイント}
 ```
 
-> **文字数オーバーの場合**: 「注意事項」→「要件・ビジネスルール」→「自動化・通知・連携」の順に省略して2000文字以内に収める。
+> **文字数オーバーの場合**: 「Salesforce 標準仕様」→「注意事項・落とし穴」→「過去の判断」→「要件・ビジネスルール」→「自動化・通知・連携」の順に省略して2000文字以内に収める。
 
 ---
 
