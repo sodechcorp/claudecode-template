@@ -266,7 +266,7 @@ docs がない場合: 「命名は一般的なSalesforce慣例に従います」
 
 | 起動コマンド | エージェント |
 |---|---|
-| `/sf-memory` cat1〜cat6 / 横断補完 | `sf-analyst-cat1〜cat6` / `sf-org-analyst` |
+| `/sf-memory` cat1〜cat6・cat8 / 横断補完 | `sf-analyst-cat1〜cat6` / `sf-analyst-cat8` / `sf-org-analyst` |
 | `/sf-memory` Phase 0 コンテキスト読込 | `sf-context-loader` |
 | `/sf-design` 各ステップ | `sf-design-step1〜3` / `sf-design-writer` / `sf-screen-writer` / `sf-detail-design-writer` / `sf-doc-overview-writer` / `sf-doc-objects-writer` |
 | `/backlog` 各 Phase | `backlog-investigator` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator` |
@@ -333,7 +333,7 @@ SF_CLIENT_BIN="$(dirname "$(where sf | head -1 | sed 's/\\/\//g')")/../client/bi
 
 ## 品質原則（sf-memory 全カテゴリ共通）
 
-sf-analyst-cat1〜cat5、および sf-org-analyst が共通して守る原則。各カテゴリ固有の品質原則は各エージェント定義ファイル内に記載。
+sf-analyst-cat1〜cat6、および sf-org-analyst が共通して守る原則。各カテゴリ固有の品質原則は各エージェント定義ファイル内に記載（cat8 は外部 SF 公式仕様を扱うため独立した品質原則を持つ — sf-analyst-cat8.md を参照）。
 
 1. **網羅的に読む**: 指定資料・ソースコードは配下を再帰的に**全て**読む。サンプリングや抜粋禁止。大きいファイルは分割読みで**最後まで**目を通す。
 2. **事実と推定を分ける**: メタデータ・資料・コードに明記されている事項は事実として記述。補間・推測した箇所は `**[推定]**` を付ける。確認が必要な箇所は `**[要確認]**` を付ける。空欄を勝手に埋めない。
