@@ -37,6 +37,25 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 ---
 
+## Phase 1.5: knowledge-only モード（focus_hints に "knowledge-only" が含まれる場合のみ）
+
+`focus_hints` に `"knowledge-only"` が含まれる場合、通常の Phase 2/3/4 をバイパスして以下のみ実行する（backlog-investigator / backlog-planner から呼ばれる用途）:
+
+1. `{project_dir}/docs/knowledge/case-index.md` が存在するか確認
+2. 存在しない場合: 「該当ナレッジなし（knowledge/ 未整備）」を返して終了
+3. 存在する場合: `task_description` からキーワードを抽出し、以下4ファイルに対してマッチングを実行:
+   - `docs/knowledge/case-index.md` → 症状・キーワード列を Grep でマッチング
+   - `docs/knowledge/pitfalls.md` → 本文を Grep でマッチング（存在する場合）
+   - `docs/knowledge/sf-standard.md` → 該当§を Grep でマッチング（存在する場合）
+   - `docs/decisions.md` → 末尾 200 行 Read、またはキーワード Grep（存在する場合）
+
+4. マッチあり → 該当箇所のみを Phase 4 の「過去の判断・採用方針」「注意事項・落とし穴」「Salesforce 標準仕様」セクションのみで返す（最大 1000 字）
+5. マッチなし → 「該当ナレッジなし（knowledge-only: キーワードマッチなし）」を返す
+
+**Phase 1.5 を通過した場合、Phase 2/3/4 には進まず終了する。**
+
+---
+
 ## Phase 2: タスク内容からキーワード抽出
 
 `task_description` と `focus_hints` から以下のパターンを探す（一部のみのマッチで可）:

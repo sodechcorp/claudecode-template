@@ -31,16 +31,19 @@ tools:
 
 ## Step 0: 関連オプションの判定
 
-### Step 0a: 知識ベース先読み（限定版）
+### Step 0a: 知識ベース選択読込（sf-context-loader 経由）
 
-以下のファイルが存在する場合は Read して内容を把握する（存在しない場合はスキップ）:
+`sf-context-loader` を knowledge-only モードで呼び出す:
 
-1. `docs/knowledge/sf-standard.md` — Salesforce 標準仕様の照合表
-2. `docs/knowledge/case-index.md` — 過去の対応事例インデックス（症状×採用方針）
-3. `docs/knowledge/pitfalls.md` — プロジェクト固有の落とし穴
-4. `docs/decisions.md` — 過去の判断記録（先頭 20 件程度）
+```
+task_description: 「{課題タイトル + 調査レポートの課題サマリー 200 字}」
+project_dir: 「{プロジェクトルート}」
+focus_hints: ["knowledge-only"]
+```
 
-取得した内容は方針策定（Phase A/B）で「同様の症状の前例」「標準仕様との相違」「既知の落とし穴」の判断材料として使う。docs/ の Glob 絞り込みは別途実施するため重複しない。
+sf-context-loader が返した関連ナレッジ（case-index エントリ・pitfalls エントリ・sf-standard 仕様・decisions 判断）を方針策定（Phase A/B）で「同様の症状の前例」「標準仕様との相違」「既知の落とし穴」の判断材料として保持する。
+
+「該当ナレッジなし」が返った場合はスキップして Step 0b に進む。docs/ の Glob 絞り込みは別途実施するため重複しない。
 
 Step 0b（オプション index 読込）は Step 0a 完了後に続けて実施する。（Step 0/0a/0b の詳細定義: 下記リンク §Step 0 を参照）
 

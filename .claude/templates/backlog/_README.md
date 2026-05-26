@@ -44,10 +44,8 @@
 > 共通手順: [.claude/templates/common/sf-context-load-phase0.md](../common/sf-context-load-phase0.md)
 
 **Step 0a を持つエージェント**:
-- backlog-validator / backlog-implementer / backlog-tester / backlog-releaser
-
-**Step 0a を持たないエージェント**:
-- backlog-investigator / backlog-planner（`docs/` を直接全件読みするため不要）
+- backlog-investigator / backlog-planner — **knowledge-only モード**（sf-context-loader を `focus_hints: ["knowledge-only"]` で呼び出し、knowledge/ ファイルの選択的読込のみを行う。docs/ 全件読みは別途 Step C / Phase B で実施するため重複しない）
+- backlog-validator / backlog-implementer / backlog-tester / backlog-releaser — **通常モード**（sf-context-loader を標準 focus_hints で呼び出す）
 
 ### Step 0b: 関連オプションの判定（全エージェント必須）
 

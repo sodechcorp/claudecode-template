@@ -25,6 +25,8 @@ tools:
 - 権限・設定系: 権限 / プロファイル / 権限セット / FLS / FieldSecurity
 - マスタ・データ系: マスタ / ピックリスト / 選択リスト
 - 通知・連携系: 通知 / メールテンプレート / API 連携 / callout
+- **課題 ID 系**: `GF-\d+` / `LINK-\d+` / `ASNO-\d+` / `SNM-\d+` / `INTERNALTASK-\d+`（課題対応・過去経緯の質問）
+- **業務理解系**: 「〜って何？」「〜の流れは？」「〜の経緯は？」「〜さんって誰？」「なぜ〜なの？」（業務理解 0 モード）
 
 該当する場合は sf-context-loader を呼び出す:
 
@@ -34,8 +36,31 @@ project_dir: {カレントディレクトリ}
 focus_hints: []
 ```
 
+課題 ID パターンが含まれる場合は `focus_hints` に該当 issueID を追加する（例: `focus_hints: ["GF-328"]`）。
+
 - **「該当コンテキストなし」が返った場合**: スキップして対応範囲へ
 - **関連コンテキストが返った場合**: 回答精度向上のため情報を保持して対応する
+
+### Step 0c: 品質 spec 読込（SF 関連 / 業務理解系の場合のみ）
+
+Phase 0 で SF 関連または業務理解系と判定した場合、以下を Read する:
+
+1. Read `.claude/templates/common/verify-implementation-spec.md`
+2. Read `.claude/templates/common/verify-source-attribution-spec.md`
+3. Read `.claude/templates/common/answer-scope-spec.md`
+
+### Step 0d: 業務理解 0 モード（業務理解系の場合のみ）
+
+ユーザーが「〜って何？」「〜の流れは？」「〜の経緯は？」「〜さんって誰？」「なぜ〜なの？」と質問している場合:
+
+1. `docs/_README.md` を Read して情報所在を把握する
+2. 該当ファイルを Read して回答する
+3. 業務用語が出てきたら `docs/overview/org-profile.md` の Glossary セクションで API 名対応を提示する
+4. 過去の判断・採用方針が関わる場合は `docs/decisions.md` を引用する
+5. 同類の過去案件があれば `docs/knowledge/case-index.md` を引用する
+6. 既存資料に答えがない場合は「これは資料に記載がありません。〜さん（`docs/overview/org-profile.md` §キーパーソン一覧 参照）に確認することを推奨します」と明示する
+
+**絶対禁止**: 記憶で答える（プロジェクト固有事項）/ docs に書いていないことを「たぶん〜」と推測する / 「一般的には〜」と Salesforce 一般論にすり替える（プロジェクト固有事項の質問の場合）
 
 ---
 
