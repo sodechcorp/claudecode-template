@@ -87,6 +87,23 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 
 ---
 
+## Web 検索による裏取り（全エージェント共通）
+
+以下のいずれかに該当する場合、回答前に WebFetch / WebSearch で公式情報を確認する（tools に WebSearch/WebFetch がある場合のみ）:
+
+| パターン | 検索先 |
+|---|---|
+| Salesforce 標準仕様（API・UI・ガバナ制限・トリガ順序等） | help.salesforce.com / developer.salesforce.com |
+| 第三者ライブラリ・MCP・ツールの仕様 | 公式ドキュメント・GitHub README |
+| バージョン依存の挙動・最新リリース情報 | release notes / changelog |
+| 「最新の〜は？」「今〜できる？」型の質問 | 公式サイト・公式ブログ |
+
+**Salesforce 標準仕様は sf-standard.md を先に Read する**: `docs/knowledge/sf-standard.md` が存在する場合は WebFetch の前に Read して照合する。記載があれば Web 検索を省略してよい（「出典: sf-standard.md §{セクション名}」と明示）。
+
+**記憶で答えてよい範囲**: 構文・基本概念・自明な API 名等の不変知識のみ。バージョン依存事項・組織固有設定・最近の仕様変更・リリース後に変更される可能性がある情報は必ず Web 確認。
+
+---
+
 ## コマンド・エージェント共通ルール
 
 ### AskUserQuestion ルール（厳守）
@@ -308,3 +325,29 @@ SFプロジェクトの状態（オブジェクト定義・設計書・要件・
 削除コマンド: `python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"`
 
 エージェント定義への組み込み方・原則・確認コマンド: `.claude/templates/common/agent-cleanup-template.md` 参照
+
+---
+
+## ユーザー回答時のスコープ管理（全エージェント共通）
+
+1. **質問に直接答える1行を最初に書く** — 冒頭に結論を置く
+2. **補足は最大3項目まで** — 関連情報の羅列は禁止
+3. **質問外の派生事項は「## 派生事項（質問外）」セクションで明示分離する**
+4. **質問されていないコード書き換え・リファクタの提案は禁止**（聞かれてから「派生事項」で提案）
+5. **「ついでに〜」型の追加作業は承認なし実施禁止** — 派生事項として提示してから実施
+
+詳細・適用例・追加ルール記入欄: `.claude/templates/common/answer-scope-spec.md` 参照
+
+---
+
+## Auto Memory と docs/knowledge/ の棲み分け（全エージェント共通）
+
+| 蓄積先 | 範囲 | 対象 | Git 同期 |
+|---|---|---|---|
+| Auto Memory (`~/.claude/projects/{ws}/memory/`) | 個人ローカル | ユーザー個人の好み・操作スタイル・LLM コミュニケーション方針 | なし |
+| `docs/knowledge/case-index.md` | チーム共有 | 案件の症状×対策の構造化索引 | あり |
+| `docs/knowledge/pitfalls.md` | チーム共有 | プロジェクト固有のハマりポイント | あり |
+| `docs/knowledge/sf-standard.md` | テンプレート共有 | Salesforce 標準仕様の照合表 | あり |
+| `docs/decisions.md` | チーム共有 | 案件の詳細判断記録（why） | あり |
+
+**判断基準**: 「次の担当者がこの情報を知らないと困る」→ `docs/knowledge/` / `docs/decisions.md` / `docs/logs/` へ。「自分の操作スタイル・LLM への伝達事項」→ Auto Memory。両方に書く必要がある場合は docs 側を正とし、Auto Memory は要約のみ。

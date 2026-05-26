@@ -214,8 +214,14 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 `docs/knowledge/case-index.md` に当課題の1行サマリーを先頭挿入する。
 
-1. `docs/logs/{issueID}/approach-plan.md` から「採用方針」「Q 回答」を Read する
-2. `docs/logs/{issueID}/implementation-plan.md` から「対象オブジェクト・コンポーネント一覧」を Read する
+1. `docs/logs/{issueID}/approach-plan.md` を Read して「採用方針」セクションから採用方針を取得する
+   - **症状/要件（全角40字以内）** の取得優先順位:
+     1. `docs/logs/{issueID}/investigation.md` の「課題サマリー」または「TL;DR」セクション冒頭1行
+     2. `docs/logs/{issueID}/approach-plan.md` の「バグの概要」または課題の種別説明冒頭
+     3. Backlog 課題タイトル
+   - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
+   - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
+2. `docs/logs/{issueID}/implementation-plan.md` を Read して「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
 3. `docs/logs/effort-log.md` の当該行から見込み工数を取得する
 4. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
    ```
@@ -250,9 +256,15 @@ python scripts/python/backlog-xlsx/update_records.py \
 **手順**:
 
 1. `docs/logs/{issueID}/discussion-log.md` を Read して上記パターンに該当する記述を抽出する
-2. 抽出件数は最大5件（過剰追記防止）。既に `docs/knowledge/pitfalls.md` に類似80%以上の内容があれば除外する
-3. 抽出結果をユーザーにテキストで提示する
-4. ユーザーから「追記して」「OK」等の応答があった場合のみ追記を実行する
+   - 種別タグ `落とし穴` / `ハマり` が付いた行を優先的に抽出する（discussion-log-spec.md 参照）
+   - タグなしの場合も「○○すると××が壊れる」「気を付けないと」等の自然言語パターンを検出する
+2. 抽出件数は最大5件（過剰追記防止）。既に `docs/knowledge/pitfalls.md` に以下の基準で類似度80%以上の行があれば除外する:
+   - `(カテゴリが同一 ? 0.4 : 0) + (落とし穴の発生箇所・対象語彙の Jaccard 類似度 × 0.4) + (対処方針の語彙 Jaccard 類似度 × 0.2) ≥ 0.8` でスキップ
+   - 簡易判定: 「同じオブジェクトの同じ操作パターン」が既存行にあれば類似と見なしてよい
+3. 抽出結果をユーザーにテキストで提示する:
+   - 1件の場合: 「この落とし穴を pitfalls.md に追記しますか？ [追記する / スキップ]」
+   - 複数件の場合: 番号付きリストで各件を提示し「全件追記 / 個別選択（番号で指定）/ スキップ」の3択で確認
+4. ユーザーが承認した件のみ追記を実行する
 
 **pitfalls.md への追記フォーマット**（最新行を先頭挿入）:
 ```

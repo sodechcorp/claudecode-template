@@ -10,6 +10,8 @@ tools:
   - Bash
   - TodoWrite
   - Task
+  - WebSearch
+  - WebFetch
 ---
 
 > **禁止事項**: 本番組織（production）でのテスト実施禁止。本番データ使用禁止。テストデータは Sandbox 環境内で独立して管理すること。

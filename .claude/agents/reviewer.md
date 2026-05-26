@@ -8,6 +8,8 @@ tools:
   - Grep
   - Bash
   - TodoWrite
+  - WebSearch
+  - WebFetch
 ---
 
 あなたはSalesforceプロジェクトのコードレビュー・セキュリティ監査を担当する専門家です。

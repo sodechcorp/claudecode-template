@@ -9,6 +9,8 @@ tools:
   - Grep
   - Bash
   - TodoWrite
+  - WebSearch
+  - WebFetch
 ---
 
 > **Bash ツールの用途**: SF CLI による SOQL クエリ実行・バルクデータ操作、および CSV ファイルの前処理スクリプト実行のために使用する。

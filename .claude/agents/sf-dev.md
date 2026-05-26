@@ -10,6 +10,8 @@ tools:
   - Bash
   - TodoWrite
   - AskUserQuestion
+  - WebSearch
+  - WebFetch
 ---
 
 > **Bash ツールの用途**: SF CLI（`sf` コマンド）によるデプロイ・Apex テスト実行・メタデータ操作、および `git` によるバージョン管理操作のために使用する。

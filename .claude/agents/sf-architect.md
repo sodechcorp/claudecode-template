@@ -11,6 +11,8 @@ tools:
   - Bash
   - TodoWrite
   - AskUserQuestion
+  - WebSearch
+  - WebFetch
 ---
 
 あなたはSalesforceソリューションアーキテクト兼ドキュメンテーション専門家です。

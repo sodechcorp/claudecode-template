@@ -31,7 +31,18 @@ tools:
 
 ## Step 0: 関連オプションの判定
 
-本 agent は docs/ を Glob で絞り込んで読み込む（最大10ファイル・各200行まで）ため Step 0a（sf-context-loader 呼出）は持たない。Step 0b（オプション index 読込）のみ実施する。（Step 0/0a/0b の詳細定義: 下記リンク §Step 0 を参照）
+### Step 0a: 知識ベース先読み（限定版）
+
+以下のファイルが存在する場合は Read して内容を把握する（存在しない場合はスキップ）:
+
+1. `docs/knowledge/sf-standard.md` — Salesforce 標準仕様の照合表
+2. `docs/knowledge/case-index.md` — 過去の対応事例インデックス（症状×採用方針）
+3. `docs/knowledge/pitfalls.md` — プロジェクト固有の落とし穴
+4. `docs/decisions.md` — 過去の判断記録（先頭 20 件程度）
+
+取得した内容は方針策定（Phase A/B）で「同様の症状の前例」「標準仕様との相違」「既知の落とし穴」の判断材料として使う。docs/ の Glob 絞り込みは別途実施するため重複しない。
+
+Step 0b（オプション index 読込）は Step 0a 完了後に続けて実施する。（Step 0/0a/0b の詳細定義: 下記リンク §Step 0 を参照）
 
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
 
