@@ -50,7 +50,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 3. 存在する場合: `task_description` からキーワードを抽出し、以下4ファイルに対してマッチングを実行:
    - `docs/knowledge/case-index.md` → 症状・キーワード列を Grep でマッチング
    - `docs/knowledge/pitfalls.md` → 本文を Grep でマッチング（存在する場合）
-   - `docs/knowledge/sf-standard.md` → 該当§を Grep でマッチング（存在する場合）
+   - `docs/knowledge/sf-standard.md` → 該当セクションを Grep でマッチング（存在する場合）
    - `docs/decisions.md` → 末尾 200 行 Read、またはキーワード Grep（存在する場合）
 
 4. マッチあり → 該当箇所のみを Phase 4 の「過去の判断・採用方針」「注意事項・落とし穴」「Salesforce 標準仕様」セクションのみで返す（最大 1000 字）
@@ -134,7 +134,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | 過去判断キーワード | `docs/decisions.md`（直近10件: 末尾200行を Read）+ `docs/knowledge/case-index.md`（症状列を Grep） |
 | 変更履歴キーワード | `docs/logs/changelog.md`（末尾30行 Read） |
 | 落とし穴キーワード | `docs/knowledge/pitfalls.md`（全文 Read） |
-| SF標準仕様キーワード | `docs/knowledge/sf-standard.md`（該当§を Grep: `^## §` パターンで章を特定してセクション抽出） |
+| SF標準仕様キーワード | `docs/knowledge/sf-standard.md`（該当セクションを Grep: `^## ` パターンで章を特定してセクション抽出） |
 
 各ファイルの Read / Grep が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。
 
