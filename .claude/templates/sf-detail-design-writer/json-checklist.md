@@ -9,6 +9,7 @@
 - [ ] `business_flow[]` の各要素に `label` キーが存在するか（業務フロー図 PNG のノードラベル用、欠落すると図が崩れる）
 - [ ] `business_flow[]` に **技術用語が混入していないか**（`action` に「画面フロー」「Apex」「Flow」「Controller」等があれば NG）
 - [ ] `business_flow[]` のアクターが業務上の登場人物（お客様・GF社担当者・自動フロー等）か（コンポーネント名は NG）
+- [ ] `components[].responsibility` が空文字 `""` のものが過半数（50%超）でないか（**空は標準 VF ボイラープレートのみ許可**。空が多い場合は Phase 2 に戻って書き直すこと。空で提出すると「〜処理を担当する。」プレースホルダーが機械挿入される）
 - [ ] `components` にグループ内の全コンポーネントが含まれているか
 - [ ] VF/LWC/Aura があるとき、その `controller`/`apex` 参照先の **Apex クラスも `components` に含まれている**か（source-reading-guide.md Phase 1-2.6 参照）
 - [ ] `components[].responsibility` が主語欠落の断片でなく完全文（または空文字列）か

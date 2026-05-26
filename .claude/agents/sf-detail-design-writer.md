@@ -90,6 +90,24 @@ print(json.dumps(data, ensure_ascii=False, indent=2))
 
 ---
 
+## Phase 0.3: グループリストの確定（ループ制御）
+
+`target_group_ids` が渡されている場合はそのグループのみ、空の場合は `feature_groups.yml` 全グループを対象とする。
+
+> **⛔ 重要: Phase 0.5〜Phase 4 は以下のループを各グループ 1 件ずつ完遂してから次へ進む。**
+>
+> ```
+> for group_id in [target_group_ids の各要素]:
+>     Phase 0.5 → Phase 0.7 → Phase 1 → Phase 2 → Phase 3 → Phase 4
+>     ↑ このグループの全フェーズが完了してから次の group_id へ
+> ```
+>
+> - **複数グループをまとめて Phase 2 に投入しない**（コンテキスト圧迫で業務フロー・責務記述が省略される）
+> - **`{group_id}` プレースホルダーはループの先頭で実際のID（例: `FG-001`）に置換してから Bash コマンドに渡す**
+> - `{tmp_dir}/{group_id}_detail.json` の `{group_id}` が文字通り `{group_id}` のまま出力されると全グループが同一ファイルに上書きされる。必ず実値に置換すること
+
+---
+
 ## Phase 0.5: 他層設計 JSON + docs/flow/usecases.md の参照（存在する場合）
 
 基本設計・プログラム設計が生成済みの場合（順次実行時も単体実行時も）、その JSON を読み込んで設計の文脈として活用する。
