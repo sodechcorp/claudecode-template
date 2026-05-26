@@ -4,6 +4,7 @@
 - [ ] `processing_purpose` に具体的なオブジェクト名・処理名が含まれているか
 - [ ] `processing_purpose` に API 名・Apex クラス名・メソッド名が含まれていないか（quality-rules.md の API 名禁止規則準拠）
 - [ ] `data_flow_overview` が矢印で流れを示し、責務分離の意図が読み取れるか
+- [ ] `business_flow[]` が空配列（`[]`）になっていないか（**最低1件必須・5〜8件推奨**。空のまま渡すと「処理を起動する」1ノードのみの図が生成される）
 - [ ] `business_flow[]` の各要素に **`actor` キーと `action` キーが両方存在**するか（`description` キーだけの形は NG、`process_steps[]` のスキーマと混同していないか）
 - [ ] `business_flow[]` の各要素に `label` キーが存在するか（業務フロー図 PNG のノードラベル用、欠落すると図が崩れる）
 - [ ] `business_flow[]` に **技術用語が混入していないか**（`action` に「画面フロー」「Apex」「Flow」「Controller」等があれば NG）

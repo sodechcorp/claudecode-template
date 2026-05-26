@@ -2205,6 +2205,10 @@ def _build_process_steps(data: dict) -> list[dict]:
 
         # 3) フォールバック: Apex は API 名の suffix 推論を優先（AA-2i）、それ以外は型別デフォルト
         if not desc_main:
+            _fid2 = data.get("feature_id") or data.get("name_ja") or "?"
+            print(f"[WARNING] {_fid2} / {_raw_api}: responsibility が空のため型別デフォルトで補完します。"
+                  "sf-detail-design-writer の JSON で components[].responsibility を記入してください。",
+                  file=sys.stderr)
             if comp_type in ("Apex", "ApexClass", "ApexTrigger", "Apex Class", "Apex Trigger"):
                 suffix_role = _apex_role_from_api_name(_raw_api)
                 desc_main = suffix_role or _TYPE_DEFAULTS.get(comp_type, "処理を担当する。")
@@ -2958,6 +2962,9 @@ def _normalize_schema(data: dict) -> dict:
     # business_flow: 業務レベルフロー生成 or 既存をクリーニング
     _bf = data.get("business_flow") or []
     if not _bf:
+        _fid = data.get("feature_id") or data.get("name_ja") or "?"
+        print(f"[WARNING] {_fid}: business_flow が空のため機械生成します。"
+              "sf-detail-design-writer の JSON で business_flow[] を記入してください。", file=sys.stderr)
         data["business_flow"] = _build_business_flow(data)
     else:
         _normalize_business_flow(_bf)
