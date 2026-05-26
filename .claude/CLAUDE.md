@@ -337,17 +337,3 @@ SFプロジェクトの状態（オブジェクト定義・設計書・要件・
 5. **「ついでに〜」型の追加作業は承認なし実施禁止** — 派生事項として提示してから実施
 
 詳細・適用例・追加ルール記入欄: `.claude/templates/common/answer-scope-spec.md` 参照
-
----
-
-## Auto Memory と docs/knowledge/ の棲み分け（全エージェント共通）
-
-| 蓄積先 | 範囲 | 対象 | Git 同期 |
-|---|---|---|---|
-| Auto Memory (`~/.claude/projects/{ws}/memory/`) | 個人ローカル | ユーザー個人の好み・操作スタイル・LLM コミュニケーション方針 | なし |
-| `docs/knowledge/case-index.md` | チーム共有 | 案件の症状×対策の構造化索引 | あり |
-| `docs/knowledge/pitfalls.md` | チーム共有 | プロジェクト固有のハマりポイント | あり |
-| `docs/knowledge/sf-standard.md` | テンプレート共有 | Salesforce 標準仕様の照合表 | あり |
-| `docs/decisions.md` | チーム共有 | 案件の詳細判断記録（why） | あり |
-
-**判断基準**: 「次の担当者がこの情報を知らないと困る」→ `docs/knowledge/` / `docs/decisions.md` / `docs/logs/` へ。「自分の操作スタイル・LLM への伝達事項」→ Auto Memory。両方に書く必要がある場合は docs 側を正とし、Auto Memory は要約のみ。
