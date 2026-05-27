@@ -307,6 +307,8 @@ org-profile.md の品質を高めるため、以下の 5 項目を**読み込ん
 > スキーマ・flow_type定義・レーンtype・粒度ルール・フィールド制約:
 > [../templates/sf-analyst-cat1/file-templates.md](../templates/sf-analyst-cat1/file-templates.md)
 
+> **粒度原則（最重要）**: steps の `title` は usecases.md と同じく **業務単位** で書く。Apex クラス単位・バッチジョブ単位・項目更新単位での分割は禁止（粒度が細かすぎる）。バッチ時刻・コンポーネント名・データ更新詳細は `title` に入れず `trigger` / `output` に分離する。1フローあたり 12 steps を超える場合は flow を分割する。
+
 > **transitions[] 生成ルール（必須）**:
 > - steps が 1件以上あるフローは必ず transitions[] を生成する。`"transitions": []`（空配列）は出力禁止
 > - フローが直列の場合: step の出現順に `from → to` を全件列挙する（step 1→2、2→3、3→4…）
@@ -327,6 +329,8 @@ NG が1件でもあれば **その場で修正してから** `docs/flow/swimlane
 | lanes.name 言語 | レーン名が日本語（または「Salesforce (Flow: xxx)」等の混在可） | 純英字の API スラグ（`asis_customer` 等） |
 | transitions 非空 | 全フローの transitions[] が 1件以上ある | `"transitions": []` が1件でもある |
 | transitions 網羅 | 全 step が何らかの遷移（from または to）に含まれる | 孤立した step（どの遷移にも出てこない id）がある |
+| title 業務単位 | 全 step の title が業務単位（10〜14字目安・複数操作の連結なし） | 複数バッチを1 title に詰めている / Apex クラス名がそのまま title |
+| steps 数上限 | 1フローあたり steps が 12 件以下 | 1フロー 13件以上（超過時は flow を分割） |
 
 #### 生成後機械検証（必須・書き出し後に実施）
 
