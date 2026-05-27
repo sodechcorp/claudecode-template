@@ -117,6 +117,8 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 
 **鉄則**: 間違った確証ある回答 > 正直なわからない回答 ではない。**逆**。判断材料の優先度: `docs/` > Web 公式ドキュメント > 記憶
 
+> SF系エージェント（sf-dev / sf-architect / qa-engineer / reviewer / data-manager / integration-dev）は、Phase 0 直後に [`.claude/templates/common/step-0c-template.md`](.claude/templates/common/step-0c-template.md) を Read して本決定木・CRITICAL 3 spec（実装裏付け・出典確認・スコープ管理）・不確実マーカーを一括確認する。
+
 ---
 
 ## メインスレッド直接応答ルール（専門エージェント委譲しない時）

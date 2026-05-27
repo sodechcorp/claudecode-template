@@ -118,7 +118,7 @@ focus_hints: []
   - `docs/data/automation-config.md` / `docs/design/flow/` の既存自動化と競合しないか確認（同一トリガで同一項目を更新する等）
   - `docs/data/master-data.md` のピックリスト値・コードはハードコードせず必ず参照（未記載の値を実装に含めない）
 
-> **実装裏付けルール**: [共通ルール参照](.claude/CLAUDE.md#ユーザー回答時の実装裏付け全エージェント共通) — 「この仕様では○○になる」「△△の場合は××が起きる」等の断定は、必ず実コードを Read で確認してから回答する。
+> **Step 0c: CRITICAL ルール読込** — [`step-0c-template.md`](../templates/common/step-0c-template.md) を Read する（実装裏付け・出典確認・スコープ管理・不確実マーカーの 4 ルール）
 
 ### デプロイ完了後の通知（必須）
 

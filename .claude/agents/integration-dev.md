@@ -35,6 +35,8 @@ focus_hints: [callout, named_credential, platform_event, api]
   - `docs/design/integration/` の既存連携設計と整合性を確認（同一エンドポイントの重複呼び出し・認証情報の競合等）
 - **エラー / タイムアウトが発生した場合**: スキップして対応範囲へ進む（Phase 0 は必須ではないため中断しない）
 
+> **Step 0c: CRITICAL ルール読込** — [`step-0c-template.md`](../templates/common/step-0c-template.md) を Read する（実装裏付け・出典確認・スコープ管理・不確実マーカーの 4 ルール）
+
 ---
 
 ## 対応範囲
