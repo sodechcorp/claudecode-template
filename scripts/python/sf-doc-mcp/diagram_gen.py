@@ -354,8 +354,8 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         "bgcolor": "white",
         "rankdir": _sw_rankdir,
         "splines": "polyline",
-        "nodesep": "0.4",
-        "ranksep": "0.8",          # 0.6 → 0.8: cluster 跨ぎ遷移の視認性向上
+        "nodesep": "0.3",
+        "ranksep": "0.6",          # 箱サイズ縮小に合わせて調整
         "fontname": FONT_JP,
         "pad": "0.3",
         "dpi": str(DPI),
@@ -431,12 +431,13 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                         fillcolor=C_STEP_BG,
                         fontcolor=C_STEP_FG,
                         fontname=FONT_JP,
-                        fontsize="12",
-                        width="2.2",
-                        height="0.9",
-                        penwidth="1.5",
+                        fontsize="11",
+                        width="1.8",
+                        height="0.7",
+                        fixedsize="true",
+                        penwidth="1.2",
                         color=C_STEP_BORDER,
-                        margin="0.22,0.12",
+                        margin="0.15,0.10",
                     )
 
     known_lanes = set(lane_names) | set(lane_id_to_name.keys())
@@ -466,8 +467,35 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                     _render_lane(gg, gi, lane_color_idx, lane_name)
                     lane_color_idx += 1
 
+    # col フィールドが無い場合、transitions の DAG から topological depth を自動採番する
+    # これにより既存 swimlanes.json（col 未記載）でも 2D レイアウトが機能する
+    def _auto_assign_col(steps, transitions):
+        if any(s.get("col") is not None for s in steps):
+            return
+        step_by_id = {str(s.get("id", "")): s for s in steps}
+        pred: dict[str, list[str]] = {sid: [] for sid in step_by_id}
+        for t in transitions:
+            f, to = str(t.get("from", "")), str(t.get("to", ""))
+            # cross フラグに関わらず全遷移を col 採番の predecessor として使用
+            if f in step_by_id and to in step_by_id:
+                pred[to].append(f)
+        memo: dict[str, int] = {}
+        def col_of(sid: str, depth: int = 0) -> int:
+            if depth > 50:
+                return 0
+            if sid in memo:
+                return memo[sid]
+            if not pred.get(sid):
+                memo[sid] = 0
+                return 0
+            memo[sid] = max(col_of(p, depth + 1) for p in pred[sid]) + 1
+            return memo[sid]
+        for sid, s in step_by_id.items():
+            s["col"] = col_of(sid)
+
+    _auto_assign_col(steps_in, trans_in if trans_in else [])
+
     # col-based rank 同期: 同一 col のステップを rank=same で揃える（cluster 跨ぎ 2D 配置）
-    # steps[].col が指定されている場合のみ動作。なければ何もしないので既存挙動を壊さない
     _col_to_sids: dict[int, list[str]] = {}
     for _s in steps_in:
         _c = _s.get("col")

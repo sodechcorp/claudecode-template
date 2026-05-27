@@ -97,6 +97,36 @@ tools:
 
 **このチェックをスキップすると、下流の `/sf-doc` が空欄・フォールバック表示のまま直らない**。差分更新モードでも必ず実施すること。
 
+### Phase 0.5.5: 技術識別子チェック（差分更新時必須）
+
+**ルール参照**: `.claude/spec/sf-memory-quality.md` の「技術識別子禁止の原則」セクション
+
+#### 適用フィールド
+
+| 対象ファイル | 適用フィールド | 適用外（API 名記録目的のため許容） |
+|---|---|---|
+| `docs/overview/org-profile.md` | 用語集の「業務での呼び方」「説明」列、ステークホルダーマップの「担当領域」「備考」列 | 用語集の「Salesforce 上の API 名」列 |
+| `docs/requirements/requirements.md` | 導入背景・対象スコープ・対象外スコープ本文、ビジネスルール本文（BR-XXX） | FR-XXX 採番のみの行 |
+| `docs/flow/usecases.md` | UC 名・トリガー・主な登場人物・例外ケース本文、主要オブジェクト名は業務語表記（API 名併記禁止） | 「主要オブジェクト」列に API 名 1 つだけを記録する場合は許容 |
+| `docs/architecture/system.json` | `components[].label` / `components[].description` | `components[].api_name` |
+| `docs/flow/swimlanes.json` | `lanes[].name`, `steps[].title`, `steps[].action`（`check_swimlanes.py` でも別途検出される） | — |
+
+#### 検出パターン
+
+- `[A-Z][a-zA-Z]+__c`（カスタム API 名）
+- `（Aura: |（Apex: |（LWC: |（Flow: |（Batch: |（Trigger:`（併記接尾辞）
+- `sdch_(Batch|Trigger|Flow)_[A-Za-z_]+` 等のプロジェクト固有クラス名直書き
+
+#### 実行手順
+
+1. 上記「適用フィールド」を Grep でスキャンする
+2. ヒットした語が許容語リスト（`Pardot` / `GMOサイン` / `LINE` / `SMS` / `Experience サイト` / `Salesforce` / `OPROARTS` / `Reserve` / `URL` / `PDF` / `CSV` / `Web` 等）に該当する場合は除外
+3. 違反は `org-profile.md` 用語集の「業務での呼び方」列を引いて Edit で置換
+4. 用語集に対応する業務語が見つからなければ `**[要確認: 業務語へ変換要]**` を付与
+5. **手動追記であっても規約違反は修正対象**（L72 「規約適合は保護より優先」の方針に合致）
+
+このチェックも上記「規約適合チェック」と同じく、差分更新モードでスキップ禁止。
+
 ### Phase 1: 組織情報の自動収集
 
 #### 1-1. 組織基本情報・コンポーネント一覧（エラー時は早期停止して報告）
