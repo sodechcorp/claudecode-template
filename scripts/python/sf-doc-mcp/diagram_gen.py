@@ -354,8 +354,9 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         "bgcolor": "white",
         "rankdir": _sw_rankdir,
         "splines": "polyline",
-        "nodesep": "0.3",
-        "ranksep": "0.6",          # 箱サイズ縮小に合わせて調整
+        "nodesep": "0.2",
+        "ranksep": "0.4",
+        "ratio": "compress",
         "fontname": FONT_JP,
         "pad": "0.3",
         "dpi": str(DPI),
@@ -422,7 +423,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 if step_lane_name == lane_name:
                     sid = str(step.get("id", ""))
                     label = str(step.get("label", "") or step.get("title", "") or step.get("action", "") or step.get("name", "") or sid)
-                    label = _wrap_jp(label, 16)
+                    label = _wrap_jp(label, 12)
                     sg.node(
                         sid,
                         label=label,
@@ -431,13 +432,13 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                         fillcolor=C_STEP_BG,
                         fontcolor=C_STEP_FG,
                         fontname=FONT_JP,
-                        fontsize="11",
-                        width="1.8",
-                        height="0.7",
+                        fontsize="9",
+                        width="1.4",
+                        height="0.5",
                         fixedsize="true",
-                        penwidth="1.2",
+                        penwidth="1.0",
                         color=C_STEP_BORDER,
-                        margin="0.15,0.10",
+                        margin="0.10,0.06",
                     )
 
     known_lanes = set(lane_names) | set(lane_id_to_name.keys())
@@ -546,8 +547,8 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
             arrowsize="0.8",
         )
         if t.get("cross"):
-            edge_kw["constraint"] = "false"
             edge_kw["style"] = "dashed"
+            edge_kw["weight"] = "0.5"
         g.edge(src, dst, **edge_kw)
 
     png_bytes = g.pipe(format="png")
