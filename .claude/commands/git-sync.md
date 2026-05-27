@@ -15,6 +15,7 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 | `docs/architecture/` | システム構成図用データ |
 | `docs/design/` | 機能別設計書 |
 | `docs/data/` | マスタデータ・メールテンプレート |
+| `docs/knowledge/sf-standard.md` | Salesforce 標準機能仕様（sf-memory cat8 出力） |
 | `docs/_README.md` | 情報所在マップ |
 | `CLAUDE.md` | プロジェクト固有ルール |
 
@@ -66,7 +67,7 @@ AskUserQuestion で操作を選択:
 
 ```bash
 git fetch origin {Step 0 で取得したブランチ名}
-git checkout origin/{Step 0 で取得したブランチ名} -- docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/_README.md CLAUDE.md 2>/dev/null || true
+git checkout origin/{Step 0 で取得したブランチ名} -- docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/sf-standard.md docs/_README.md CLAUDE.md 2>/dev/null || true
 ```
 
 ### Step 2: 積み上げ同期型ファイルのマージ取得
