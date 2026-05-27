@@ -24,7 +24,7 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 | パス | マージキー |
 |---|---|
 | `docs/decisions.md` | `## YYYY-MM-DD` で始まる各エントリ（同キーは local 優先） |
-| `docs/knowledge/case-index.md` | テーブル行の第1列（課題ID）（同キーは local 優先） |
+| `docs/knowledge/case-index.md` | テーブル行の第2列（課題ID）（同キーは local 優先） |
 | `docs/knowledge/pitfalls.md` | `##` / `###` 見出し（同キーは local 優先） |
 | `docs/knowledge/cases/` | ファイル名（issueKey）単位で新規のみ追加（既存は上書きしない） |
 
@@ -135,7 +135,7 @@ def merge_table(local, remote):
         for line in lines:
             if line.startswith("|"):
                 cols = [c.strip() for c in line.split("|")[1:-1]]
-                key = cols[0] if cols else ""
+                key = cols[1] if len(cols) > 1 else ""
                 if key and not re.match(r'^[-:]+$', key) and key not in ("課題ID", "issueKey"):
                     rows[key] = line
                     in_table = True
