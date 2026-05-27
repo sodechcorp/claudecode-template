@@ -421,7 +421,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 step_lane_name = lane_id_to_name.get(step_lane_raw, step_lane_raw)
                 if step_lane_name == lane_name:
                     sid = str(step.get("id", ""))
-                    label = str(step.get("label", "") or step.get("title", "") or step.get("name", "") or sid)
+                    label = str(step.get("label", "") or step.get("title", "") or step.get("action", "") or step.get("name", "") or sid)
                     label = _wrap_jp(label, 16)
                     sg.node(
                         sid,
@@ -489,7 +489,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         step_lane_resolved = lane_id_to_name.get(step_lane_raw, step_lane_raw)
         if step_lane_resolved not in known_lanes:
             sid = str(step.get("id", ""))
-            g.node(sid, label=str(step.get("label", "") or step.get("title", "") or step.get("name", "") or sid),
+            g.node(sid, label=str(step.get("label", "") or step.get("title", "") or step.get("action", "") or step.get("name", "") or sid),
                    shape="box", style="filled,rounded",
                    fillcolor=C_STEP_BG, fontcolor=C_STEP_FG,
                    fontname=FONT_JP, fontsize="10")
