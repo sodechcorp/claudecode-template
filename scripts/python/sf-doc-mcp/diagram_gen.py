@@ -80,7 +80,7 @@ def render_system_diagram(system: dict, out_path: str) -> tuple[int, int]:
         "system",
         graph_attr={
             "bgcolor": "white",
-            "rankdir": "LR",
+            "rankdir": "TB",
             "splines": "polyline",
             "nodesep": "0.5",
             "ranksep": "1.2",
@@ -91,7 +91,10 @@ def render_system_diagram(system: dict, out_path: str) -> tuple[int, int]:
     )
 
     core = system.get("core") or {}
-    core_label = _gv_label(core.get("name", "Salesforce"), core.get("role", ""))
+    _role = core.get("role", "")
+    if len(_role) > 25:
+        _role = _role[:24] + "…"
+    core_label = _gv_label(core.get("name", "Salesforce"), _role)
 
     # 中核 Salesforce ノード
     g.node(

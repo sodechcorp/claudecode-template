@@ -475,8 +475,8 @@ def _normalize_flow(flow: dict) -> dict:
 
     # steps: step/action → id/label、lane を name に事前解決（diagram_gen に渡す前に確定）
     normalized_steps = []
-    for s in steps_in:
-        step_id = str(s.get("id", s.get("step", "")))
+    for i, s in enumerate(steps_in):
+        step_id = str(s.get("id", s.get("step", s.get("order", i))))
         label = (
             s.get("label")
             or s.get("title")
@@ -490,8 +490,8 @@ def _normalize_flow(flow: dict) -> dict:
     # transitions: step.next（int または list）から自動生成
     transitions = list(flow.get("transitions", []))
     if not transitions:
-        for s in steps_in:
-            step_id = str(s.get("id", s.get("step", "")))
+        for i, s in enumerate(steps_in):
+            step_id = str(s.get("id", s.get("step", s.get("order", i))))
             next_val = s.get("next")
             if next_val is None:
                 continue
