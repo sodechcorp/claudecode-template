@@ -41,6 +41,8 @@ tools:
 | `feat_id` | 各 feature の ID（`feature_list` 各要素の `id` フィールド値。例: `CMP-001`）。Phase 0.7 のハッシュチェックや既存 Excel 検索で使用する |
 | `feature_list_dir` | 機能一覧の出力先フォルダ（`{output_dir}/../01_基本設計` 相当のパス。sf-design コマンドが明示的に渡す） |
 | `version_increment` | `"minor"` または `"major"`（初回生成時は `"minor"`・スクリプト側が v1.0 から開始） |
+| `generate_feature_list` | `true`（デフォルト）/ `false`。`false` の場合は Phase 3（機能一覧 Excel 生成）をスキップする。バッチ処理の中間バッチで sf-design-step2 が指定する |
+| `skip_cleanup` | `false`（デフォルト）/ `true`。`true` の場合は Phase 4 の tmp_dir 削除をスキップして完了報告のみ行う。後続バッチが同じ tmp_dir を使用するため中間バッチで指定される |
 
 ---
 
@@ -291,7 +293,9 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate_feature_design.py" \
 
 ---
 
-## Phase 3: 機能一覧 Excel の生成（必ず実行・スキップ禁止）
+## Phase 3: 機能一覧 Excel の生成
+
+> **`generate_feature_list = false` の場合はこの Phase をスキップして Phase 4 へ進む。**（sf-design-step2 のバッチ処理中間バッチで指定される。最終バッチでは true が渡されるため通常通り実行する）
 
 > **このエージェントが機能一覧を担当する**。`sf-design-step2` が sf-screen-writer と sf-design-writer に**同じ `{tmp_dir}` を渡す設計**になっており、sf-screen-writer が先に実行された場合はその design JSON も `{tmp_dir}` に残っている。ない場合（sf-screen-writer が未実行・LWC/画面フロー対象なし）は sf-design-writer 分の JSON のみで機能一覧を生成する。
 
@@ -374,7 +378,9 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate_feature_list.py" \
 
 ---
 
-## Phase 4: 後処理・完了報告（必ず実行・スキップ禁止）
+## Phase 4: 後処理・完了報告
+
+> **`skip_cleanup = true` の場合は tmp_dir 削除（cleanup_design_workspace.py の実行）をスキップして完了報告のみ行う。**（後続バッチが同じ tmp_dir を使用するため中間バッチでは削除しない）
 
 [共通ルール参照]({project_dir}/.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
 

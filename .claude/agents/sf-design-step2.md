@@ -135,24 +135,54 @@ print(f'画面系（sf-screen-writer対象）: {len(screen_list)}件')
 "
 ```
 
-> **⚠️ 件数上限チェック（50件超 warn）**: Phase 4 で確認した Apex系 + 画面系の合計件数が **50件を超える場合**、Phase 5 委譲前に以下の warn を必ず出力する（処理は中断せず続行する）:
+> **件数チェック＆バッチ分割**:
 >
+> ```bash
+> python -c "
+> import json, math
+> with open(r'{tmp_dir}/feature_list.json', encoding='utf-8') as f:
+>     fl = json.load(f)
+> raw_ids = r'{target_ids}'
+> try:
+>     tids = set(json.loads(raw_ids)) if raw_ids.strip() and raw_ids.strip() != '[]' else set()
+> except Exception:
+>     tids = set(x.strip() for x in raw_ids.split(',') if x.strip())
+> apex_types   = {'Apex', 'Batch', 'Integration', 'Trigger'}
+> screen_types = {'LWC', '画面フロー', 'Visualforce', 'Aura'}
+> targets     = [f for f in fl if not tids or f['id'] in tids]
+> apex_list   = [f for f in targets if f.get('type') in apex_types]
+> screen_list = [f for f in targets if f.get('type') in screen_types]
+> total = len(apex_list) + len(screen_list)
+> BATCH_SIZE = 50
+> n_batches = max(1, math.ceil(total / BATCH_SIZE))
+> all_ids = [f['id'] for f in targets]
+> batches = [all_ids[i:i+BATCH_SIZE] for i in range(0, len(all_ids), BATCH_SIZE)]
+> print(f'total:{total}')
+> print(f'apex:{len(apex_list)}')
+> print(f'screen:{len(screen_list)}')
+> print(f'n_batches:{n_batches}')
+> for i, b in enumerate(batches):
+>     print(f'batch_{i}:' + ','.join(b))
+> "
 > ```
-> ⚠️ 対象 {N} 件（Apex系 {n1} 件 + 画面系 {n2} 件）は推奨上限（50件/回）を超えています。
-> コンテキスト圧迫により sf-design-writer / sf-screen-writer が途中で止まるリスクがあります。
-> 推奨: /sf-design → プログラム設計のみ を 50件単位に分割して複数回実行してください。
-> このまま全件処理を続行します（中止したい場合は Ctrl+C または /sf-design を再実行してください）。
-> ```
+>
+> 出力から `total` / `n_batches` / `batch_N` を読み取り保持する。
+> - `total ≤ 50`: `n_batches=1`、`batch_0` = 全件 → Phase 5 を1回だけ実行（既存と同じ）
+> - `total > 50`: `n_batches` 回のループを Phase 5 で実行。各バッチ開始時に「バッチ {i+1}/{n_batches} 処理中（{len(batch_i)} 件）」と出力する
 
 ---
 
-## Phase 5: 処理の委譲（① sf-screen-writer → ② sf-design-writer の順）
+## Phase 5: 処理の委譲（バッチループ）
 
 > **実行順序は必ず守ること**: sf-design-writer の機能一覧生成は sf-screen-writer が出力した design JSON も収集するため、sf-screen-writer を先に完了させてから sf-design-writer を起動する。
 
 **上位設計 JSON の参照**: `detail_design_tmp` が渡されている場合（step1 連鎖時）、その旨をエージェント起動時に明示する。
 
-**① LWC・画面フロー・Visualforce・Aura → sf-screen-writer に委譲（先に実行）:**
+`n_batches` 回ループする（`batch_i = 0` から `n_batches - 1`）。各バッチ開始時に「バッチ {i+1}/{n_batches} 処理中」と出力する。前のバッチの完了を確認してから次へ進む。
+
+**各バッチで `current_batch_ids = batch_{i}` のIDリストを確定し、以下の順で委譲する:**
+
+**① 画面系 → sf-screen-writer（current_batch_ids に画面系が1件以上ある場合のみ実行）:**
 ```
 project_dir:       {project_dir}
 output_dir:        {output_dir}/03_プログラム設計
@@ -161,34 +191,40 @@ author:            {author}
 project_name:      {project_name}
 sf_alias:          {sf_alias}
 feature_list:      {feature_list}（全件。sf-screen-writer が自前で画面系のみ type フィルタする）
-target_ids:        {target_ids}
+target_ids:        {current_batch_ids}（このバッチのIDのみ）
 version_increment: {version_increment}
 上位設計参照:      {detail_design_tmp}（渡されている場合。なければ省略）
 ```
 
 sf-screen-writer の完了を確認してから次へ進む。
 
-**② Apex・Batch・Flow(非画面)・Integration → sf-design-writer に委譲（sf-screen-writer 完了後）:**
+**② Apex系 → sf-design-writer（current_batch_ids に Apex系が1件以上ある場合のみ実行）:**
 ```
-project_dir:       {project_dir}
-output_dir:        {output_dir}/03_プログラム設計
-tmp_dir:           {tmp_dir}
-feature_list_dir:  {output_dir}/01_基本設計
-author:            {author}
-project_name:      {project_name}
-feature_list:      {feature_list}（全件。エージェント側が Apex 系のみフィルタする）
-target_ids:        {target_ids}
-version_increment: {version_increment}
-上位設計参照:      {detail_design_tmp}（渡されている場合。なければ省略）
+project_dir:           {project_dir}
+output_dir:            {output_dir}/03_プログラム設計
+tmp_dir:               {tmp_dir}
+feature_list_dir:      {output_dir}/01_基本設計
+author:                {author}
+project_name:          {project_name}
+feature_list:          {feature_list}（全件。エージェント側が Apex 系のみフィルタする）
+target_ids:            {current_batch_ids}（このバッチのIDのみ）
+version_increment:     {version_increment}
+generate_feature_list: {最終バッチ（i == n_batches - 1）なら true、それ以外は false}
+skip_cleanup:          {最終バッチ（i == n_batches - 1）なら false、それ以外は true}
+上位設計参照:          {detail_design_tmp}（渡されている場合。なければ省略）
 ```
 
-sf-design-writer は機能一覧（全コンポーネント索引 Excel）を `{output_dir}/01_基本設計/機能一覧.xlsx` に生成する。sf-screen-writer の design JSON が `{tmp_dir}` に揃っている状態で起動すること。
+sf-design-writer の完了を確認してから次のバッチへ進む。
 
-テンプレートパス:
+> **current_batch_ids に画面系のみ含まれる場合**: sf-screen-writer のみ実行。sf-design-writer はスキップ。
+> **current_batch_ids に Apex系のみ含まれる場合**: sf-screen-writer をスキップ。sf-design-writer のみ実行。
+> **どちらも0件のバッチ**: スキップして次のバッチへ。
+
+> **ループ完了後**: 最終バッチの sf-design-writer が `generate_feature_list=true` で機能一覧 Excel を生成し `tmp_dir` を削除する。このエージェントでは追加クリーンアップ不要。
+
+テンプレートパス（sf-design-writer / sf-screen-writer に参考として伝える）:
 - Apex/Flow/Batch/Integration: `{project_dir}/scripts/python/sf-doc-mcp/プログラム設計書テンプレート.xlsx`
 - LWC/画面フロー/VF/Aura: `{project_dir}/scripts/python/sf-doc-mcp/プログラム設計書（画面）テンプレート.xlsx`
-
-sf-design-writer の完了を確認してからこのエージェントを終了する。
 
 ---
 
