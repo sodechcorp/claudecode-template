@@ -850,7 +850,7 @@ def _build_flow_sheet(ws, asis_flow: dict | None, tobe_flow: dict | None,
         r = _sub_section_row(ws, r, f"{sub} フロー図")
         if img_path:
             n_img_rows = dg.embed_image_in_sheet(ws, img_path, anchor_row=r,
-                                                 anchor_col=GRID_LEFT, max_width_px=1400)
+                                                 anchor_col=GRID_LEFT, max_width_px=9999)
             r += n_img_rows
         else:
             r = _text_area(ws, r, 12, "（フローデータなし）")
