@@ -492,8 +492,8 @@ Sandbox で再現できる場合は使わない（最終手段）。
 
 **結果の分岐**:
 - 再現仮説 ≥ 1 件 → `hypothesis-verification.md` を保存してフェーズ完了提示へ
-- 再現仮説 = 0 件 → 「全仮説が再現しませんでした。investigation.md の仮説を見直して Phase 1 を再実施します」とユーザに提示し、`investigation.md` に新仮説を追記してから再度 Phase 1.6 を実施する
-- 検証中に新事実発見 → `investigation.md` の仮説・再現条件を更新してから Phase 1.6 を再実施する
+- 再現仮説 = 0 件 → 「全仮説が再現しませんでした。investigation.md の仮説を見直して Phase 1 を再実施します」とユーザに提示し、`investigation.md` に新仮説を追記してから再度 Phase 1.6 を実施する（**再実施前に `docs/logs/{issueID}/discussion-log.md` の改版履歴から Phase 1.6 再実施回数を確認すること。2 回以上に達していれば backlog.md のカウント上限処理に従い自動再実施を停止する**）
+- 検証中に新事実発見 → `investigation.md` の仮説・再現条件を更新してから Phase 1.6 を再実施する（同上の回数確認を行う）
 
 **フェーズ完了の提示**:
 1. 検証結果の 2〜3 行サマリー（再現仮説 N 件・除外仮説 N 件・検証不可 N 件）
