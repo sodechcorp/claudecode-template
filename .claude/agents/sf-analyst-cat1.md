@@ -287,8 +287,21 @@ org-profile.md の品質を高めるため、以下の 5 項目を**読み込ん
 
 `docs/flow/swimlanes.json` を生成する。**プロジェクト資料の業務フロー図スライド群の唯一のソース**。
 
-> スキーマ・flow_type定義・レーンtype・粒度ルール:
+> スキーマ・flow_type定義・レーンtype・粒度ルール・フィールド制約:
 > [../templates/sf-analyst-cat1/file-templates.md](../templates/sf-analyst-cat1/file-templates.md)
+
+#### 生成後自己検証（必須・書き出し前に実施）
+
+生成した JSON を書き出す前に、全フローについて以下を確認する。
+NG が1件でもあれば **その場で修正してから** `docs/flow/swimlanes.json` に Write する。
+
+| チェック項目 | OK 条件 | NG パターン（即修正） |
+|---|---|---|
+| steps キー名 | 全ステップに `"id"` キーが存在する | `"order"`, `"step"`, `"seq"`, `"no"` キーがある |
+| steps.id ユニーク性 | 同一フロー内で `id` 値が重複しない | 全件 `""` / 全件 `0` / 重複あり |
+| steps.lane 参照先 | `steps[].lane` の値が全て同フローの `lanes[].name` のいずれかと一致する | API名・英字スラグ・存在しないレーン名 |
+| lanes.id フィールド | `lanes[]` のどの要素にも `id` キーが存在しない | `"id": "asis_customer"` 等がある |
+| lanes.name 言語 | レーン名が日本語（または「Salesforce (Flow: xxx)」等の混在可） | 純英字の API スラグ（`asis_customer` 等） |
 
 ### Phase 5: changelog への記録
 
