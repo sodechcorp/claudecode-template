@@ -847,11 +847,13 @@ def _build_flow_sheet(ws, asis_flow: dict | None, tobe_flow: dict | None,
             r = _empty_rows(ws, r, 5 - len(steps), [(2,3),(4,8),(9,22),(23,31)], row_h=18)
         r = _margin(ws, r)
 
-        # フロー図（表の後）
+        # フロー図（表の後）: 画像を圧縮せず自然サイズで埋込
+        # max_width_px を大きく設定することで boxes が縮小されないようにする
+        # ボックスサイズの統一は Phase A（粒度ルール）+ Phase B（2D 配置）で担保
         r = _sub_section_row(ws, r, f"{sub} フロー図")
         if img_path:
             n_img_rows = dg.embed_image_in_sheet(ws, img_path, anchor_row=r,
-                                                 anchor_col=GRID_LEFT, max_width_px=1100)
+                                                 anchor_col=GRID_LEFT, max_width_px=2200)
             r += n_img_rows
         else:
             r = _text_area(ws, r, 12, "（フローデータなし）")

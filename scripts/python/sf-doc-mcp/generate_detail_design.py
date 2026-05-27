@@ -184,53 +184,15 @@ def MW(ws, row, cs, ce, value="", border=None, bg=None, **kwargs):
 
 # ── PNG埋め込み ────────────────────────────────────────────────────
 def _pad_png_to_aspect(png_path: str, target_w_h: float, align: str = "center") -> str:
-    """PNG を target_w_h（幅/高さ）のアスペクトに白背景で padding して返す。
-    FG ごとに異なる graphviz 出力アスペクトを正規化し、全 FG で同一表示サイズを保証する。
-    元ファイルは保持し、padding 済みファイルを隣接 .pad.png として返す。
-    align="left" にすると画像を左寄せで貼り付け（右端に白帯）。デフォルトは中央。
-    """
-    try:
-        from PIL import Image as _PILImage
-        img = _PILImage.open(png_path)
-        w, h = img.width, img.height
-        cur = w / h if h else 1.0
-        if abs(cur - target_w_h) < 0.02:
-            return png_path
-        if cur < target_w_h:
-            new_w = int(h * target_w_h)
-            new_h = h
-        else:
-            new_w = w
-            new_h = int(w / target_w_h)
-        canvas = _PILImage.new("RGBA", (new_w, new_h), (255, 255, 255, 255))
-        paste_x = 0 if align == "left" else (new_w - w) // 2
-        paste_y = (new_h - h) // 2
-        canvas.paste(img, (paste_x, paste_y))
-        out = png_path[:-4] + ".pad.png"
-        canvas.convert("RGB").save(out, "PNG")
-        return out
-    except Exception as e:
-        print(f"  [WARN] PNG padding 失敗({png_path}): {e}")
-        return png_path
+    """diagram_gen の同名関数に委譲する（共通実装は diagram_gen.py に集約）。"""
+    import diagram_gen as _dg
+    return _dg._pad_png_to_aspect(png_path, target_w_h, align)
 
 
 def _resize_png_to_width(png_path: str, target_width: int) -> str:
-    """PNG を target_width にアスペクト維持リサイズ。FG 間でノード密度を揃えるため
-    graphviz の size 強制スケーリングを撤廃した代わりに、埋め込み前に幅を固定する。"""
-    try:
-        from PIL import Image as _PILImage
-        img = _PILImage.open(png_path)
-        if img.width == target_width:
-            return png_path
-        scale = target_width / img.width
-        new_h = max(1, int(img.height * scale))
-        resized = img.resize((target_width, new_h), _PILImage.LANCZOS)
-        out = png_path[:-4] + ".wfix.png"
-        resized.save(out, "PNG")
-        return out
-    except Exception as e:
-        print(f"  [WARN] PNG リサイズ失敗({png_path}): {e}")
-        return png_path
+    """diagram_gen の同名関数に委譲する（共通実装は diagram_gen.py に集約）。"""
+    import diagram_gen as _dg
+    return _dg._resize_png_to_width(png_path, target_width)
 
 
 def _embed_image(ws, png_path: str, anchor: str,
