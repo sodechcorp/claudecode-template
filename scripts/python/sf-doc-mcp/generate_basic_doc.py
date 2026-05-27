@@ -364,9 +364,24 @@ def parse_swimlanes(path: Path) -> dict:
 def _normalize_system_json(sys: dict) -> dict:
     """sf-analyst-cat1 生成の system.json（label/systems[] 形式）を
     diagram_gen.py が期待するスキーマ（name/core/external_systems[] 形式）に変換する。
-    すでに core キーがある場合はそのまま返す。"""
+    すでに core キーがある場合はそのまま返す。
+    external_systems[] が直接形式で存在する場合（sf-org-analyst 生成）はそのまま使用する。"""
     if not sys or "core" in sys:
         return sys
+
+    # external_systems[] 直接形式（sf-org-analyst 生成）の場合
+    # systems[]/integrations[] からの再生成は行わず、既存値をそのまま使用する
+    if sys.get("external_systems"):
+        core = {"name": "Salesforce", "role": sys.get("description", "")}
+        actors = [
+            {"name": a.get("label", a.get("name", "")), "count": a.get("count", 0)}
+            for a in sys.get("actors", [])
+        ]
+        data_stores = [
+            {"name": ds.get("label", ds.get("name", "")), "purpose": ds.get("description", "")}
+            for ds in sys.get("data_stores", [])
+        ]
+        return {**sys, "core": core, "actors": actors, "data_stores": data_stores}
 
     # systems[] から Salesforce を core として抽出
     core_sys = next(
