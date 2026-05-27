@@ -155,7 +155,7 @@ if [ -d "$TMP_DIR/scripts" ]; then
         elif ! diff -q "$rel" "$f" >/dev/null 2>&1; then
             CHANGES+=("$rel")
         fi
-    done < <(find "$TMP_DIR/scripts" -type f)
+    done < <(find "$TMP_DIR/scripts" -type f -not -path "*/__pycache__/*" -not -name "*.py[co]")
 fi
 
 # scripts/ の削除検出（プロジェクト側にあってテンプレートに無いファイル）
@@ -165,7 +165,7 @@ if [ -d "scripts" ] && [ -d "$TMP_DIR/scripts" ]; then
         if [ ! -f "$TMP_DIR/$f" ]; then
             DELETIONS+=("$f（テンプレートから削除済み）")
         fi
-    done < <(find "scripts" -type f)
+    done < <(find "scripts" -type f -not -path "*/__pycache__/*" -not -name "*.py[co]")
 fi
 
 # docs scaffold（.claude/templates/docs-scaffold/）→ docs/ への新規ファイル検出（既存ファイルは対象外）
@@ -283,7 +283,7 @@ if [ -d "$TMP_DIR/scripts" ]; then
         [ "$name" = "upgrade.sh" ] && continue  # 自身はスキップ
         mkdir -p "$(dirname "$rel")"
         cp "$f" "$rel"
-    done < <(find "$TMP_DIR/scripts" -type f)
+    done < <(find "$TMP_DIR/scripts" -type f -not -path "*/__pycache__/*" -not -name "*.py[co]")
 fi
 
 # docs scaffold の配布（既存ファイル上書き禁止・新規作成のみ）
