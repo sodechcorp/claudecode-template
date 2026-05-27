@@ -508,16 +508,6 @@ def _normalize_flow(flow: dict) -> dict:
                     else:
                         transitions.append({"from": step_id, "to": str(dst)})
 
-    # transitions も step.next も存在しない場合: lane 内で出現順に順次遷移を合成
-    # GF/Link は transitions が明示されているためこのブロックは実行されない
-    if not transitions and normalized_steps:
-        lane_order: dict[str, list] = {}
-        for s in normalized_steps:
-            lane_order.setdefault(s.get("lane", ""), []).append(s["id"])
-        for ids in lane_order.values():
-            for i in range(len(ids) - 1):
-                transitions.append({"from": str(ids[i]), "to": str(ids[i + 1])})
-
     return {
         **flow,
         "title": flow.get("title") or flow.get("name", ""),

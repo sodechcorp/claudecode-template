@@ -303,6 +303,12 @@ org-profile.md の品質を高めるため、以下の 5 項目を**読み込ん
 > スキーマ・flow_type定義・レーンtype・粒度ルール・フィールド制約:
 > [../templates/sf-analyst-cat1/file-templates.md](../templates/sf-analyst-cat1/file-templates.md)
 
+> **transitions[] 生成ルール（必須）**:
+> - steps が 1件以上あるフローは必ず transitions[] を生成する。`"transitions": []`（空配列）は出力禁止
+> - フローが直列の場合: step の出現順に `from → to` を全件列挙する（step 1→2、2→3、3→4…）
+> - フローに分岐がある場合: 各分岐先に対して `"condition"` 付きの遷移を生成する
+> - レーンをまたぐ遷移: `"cross": true` を付与する
+
 #### 生成後自己検証（必須・書き出し前に実施）
 
 生成した JSON を書き出す前に、全フローについて以下を確認する。
@@ -315,6 +321,8 @@ NG が1件でもあれば **その場で修正してから** `docs/flow/swimlane
 | steps.lane 参照先 | `steps[].lane` の値が全て同フローの `lanes[].name` のいずれかと一致する | API名・英字スラグ・存在しないレーン名 |
 | lanes.id フィールド | `lanes[]` のどの要素にも `id` キーが存在しない | `"id": "asis_customer"` 等がある |
 | lanes.name 言語 | レーン名が日本語（または「Salesforce (Flow: xxx)」等の混在可） | 純英字の API スラグ（`asis_customer` 等） |
+| transitions 非空 | 全フローの transitions[] が 1件以上ある | `"transitions": []` が1件でもある |
+| transitions 網羅 | 全 step が何らかの遷移（from または to）に含まれる | 孤立した step（どの遷移にも出てこない id）がある |
 
 #### 生成後機械検証（必須・書き出し後に実施）
 

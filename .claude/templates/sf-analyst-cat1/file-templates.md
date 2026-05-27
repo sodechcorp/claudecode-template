@@ -221,6 +221,36 @@
 > - `"step": 2` → NG。`"id": 2` を使う
 > - `"lane": "asis_customer"` → NG。`"lane": "顧客（法人）"` のように `lanes[].name` の日本語を使う
 
+### transitions フィールド制約（厳守）
+
+| 項目 | ルール |
+|---|---|
+| 生成 | **必須**。steps が 1件以上あるフローは transitions[] を必ず生成する。`"transitions": []`（空配列）は禁止 |
+| from / to | step の `id` 値（整数または文字列）で指定する。lanes の name・id を書いてはならない |
+| 網羅性 | **全 step を何らかの遷移に含める**（孤立した step を作らない） |
+| 条件分岐 | 分岐がある場合は `"condition"` を記述する。単純な次ステップへの遷移は省略可 |
+| レーン跨ぎ | 別レーンの step へ遷移する場合は `"cross": true` を付与する |
+
+> ⛔ **NG 例（禁止）**: `"transitions": []` — steps があるのに空のまま出力
+>
+> **OK 例（直列フロー）**:
+> ```json
+> "transitions": [
+>   { "from": 1, "to": 2 },
+>   { "from": 2, "to": 3 },
+>   { "from": 3, "to": 4 }
+> ]
+> ```
+>
+> **OK 例（分岐・レーン跨ぎ）**:
+> ```json
+> "transitions": [
+>   { "from": 1, "to": 2, "condition": "承認OK", "cross": true },
+>   { "from": 1, "to": 3, "condition": "差し戻し" },
+>   { "from": 2, "to": 4 }
+> ]
+> ```
+
 ### flow_type の使い分け
 
 | flow_type | 用途 | 必須性 |
