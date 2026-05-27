@@ -15,9 +15,15 @@
 
 ---
 
+## Step 0: 共通品質原則の確認
+
+`.claude/spec/sf-memory-quality.md` を Read して全カテゴリ共通の品質原則（網羅的に読む・事実と推定を分ける・手動追記を消さない）を確認する。
+
+---
+
 ## 品質原則（cat4 固有・全フェーズ共通）
 
-[共通品質原則参照](.claude/CLAUDE.md#品質原則sf-memory-全カテゴリ共通) — 以下はカテゴリ4固有の追加原則。
+以下はカテゴリ4固有の追加原則（全カテゴリ共通原則は上記 sf-memory-quality.md 参照）。
 
 1. **具体的に書く**: 「処理を行う」ではなく「Account.Billing_Status__c を"請求済"に更新し、関連するOpportunityLineItemを削除する（DELETE）」。メソッド名・引数・戻り値・SOQL件数・DML件数を必ず記述する。
 2. **関連付けを明記する（1周目で確定）**: 要件番号（FR-XXX）・ユースケースID（UC-XX）・担当オブジェクト・呼び出し元コンポーネントを Phase 0.5 で読み込んだ usecases.md / requirements.md と突き合わせて確定し `**[要確認]**` を残さない。

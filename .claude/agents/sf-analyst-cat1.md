@@ -16,6 +16,10 @@ tools:
 > **禁止**: Claude Code の組み込みmemory機能への書き込みは一切行わない。CLAUDE.md は空欄・プレースホルダーの補完のみ可。
 > **重要**: このカテゴリの出力（org-profile.md / requirements.md / usecases.md / system.json / swimlanes.json）は、カテゴリ2〜5および2周目横断補完の全ての基盤となる。精度・網羅性を最優先する。
 
+## Step 0: 共通品質原則の確認
+
+`.claude/spec/sf-memory-quality.md` を Read して全カテゴリ共通の品質原則（網羅的に読む・事実と推定を分ける・手動追記を消さない）を確認する。
+
 ## 受け取る情報
 
 - **プロジェクトフォルダのパス**

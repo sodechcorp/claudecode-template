@@ -47,13 +47,50 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 |---|---|
 | エージェント選択・委譲先を決める | [agent-routing.md](.claude/spec/agent-routing.md) |
 | 開発タスク着手前の docs/ 参照手順・指示パターン | [docs-driven-behavior.md](.claude/spec/docs-driven-behavior.md) |
-| 確証なし・プロジェクト固有事項・直接応答ルール | [uncertainty-and-docs-first.md](.claude/spec/uncertainty-and-docs-first.md) |
 | 権限・禁止操作の詳細 | [security-and-permissions.md](.claude/spec/security-and-permissions.md) |
 | ファイル種別別の読み込み方法（xlsx/docx/pdf 等） | [file-readers.md](.claude/spec/file-readers.md) |
 | 品質ゲートの詳細手順 | [quality-gate.md](.claude/spec/quality-gate.md) |
 | docs/ のフォルダ構成・生成コマンド | [project-deliverables.md](.claude/spec/project-deliverables.md) |
 | 一時ファイルの後片付け手順 | [cleanup-rules.md](.claude/spec/cleanup-rules.md) |
 | sf-memory 品質原則・マーカー規約 | [sf-memory-quality.md](.claude/spec/sf-memory-quality.md) |
+
+---
+
+## 確証なし時の行動原則（全エージェント共通）
+
+**優先順位**: `docs/` > Web 公式ドキュメント > 記憶
+
+| 確証レベル | 行動 |
+|---|---|
+| 完全確証あり（不変知識・基本概念） | そのまま回答 |
+| 8 割確証あり | 該当ファイルを 1 つ Read して確認後回答 |
+| 5 割以下・仕様変更が疑われる | `docs/_README.md` → 該当ファイル → Web 検索 → 「わかりません」の順 |
+| プロジェクト固有事項（命名・業務ルール・対応経緯） | **必ず `docs/` を見る。記憶で答えない** |
+
+**メインスレッド直接応答ガード**: SF キーワード（`__c` / `CMP-` / `UC-` / `FR-` / オブジェクト名 / 「自動化」「権限」「ガバナ」等）を含む業務系質問は **assistant に委譲する**（メインスレッドで完結させない）。
+
+**業務理解 0 モード**（「〜って何？」「〜の流れは？」）: `docs/_README.md` → 該当ファイル Read → 業務用語は `overview/org-profile.md` Glossary を引用 → docs に答えがなければ「資料に記載がありません。org-profile.md §キーパーソン一覧で確認を推奨」と明示。
+
+**絶対禁止**: 記憶でプロジェクト固有事項に答える / 「たぶん〜」と推測する / プロジェクト固有事項の質問に「一般的には〜」と SF 一般論にすり替える。
+
+---
+
+## 開発タスク着手時の docs/ 参照（全エージェント共通）
+
+着手前に以下を確認する（`docs/` が存在する場合のみ）:
+
+| 状況 | 参照先 |
+|---|---|
+| 常に | `docs/overview/org-profile.md`（用語集） |
+| 項目・オブジェクト操作 | `docs/catalog/{対象}.md` |
+| 機能実装 | `docs/design/{種別}/` |
+| 要件確認 | `docs/requirements/requirements.md` |
+| マスタ参照 | `docs/data/master-data.md` |
+| 過去の判断確認 | `docs/decisions.md` |
+
+指示パターン別の詳細手順: [docs-driven-behavior.md](.claude/spec/docs-driven-behavior.md) 参照
+
+**実装後**: `docs/catalog/` / `docs/design/` の該当ファイルを更新（存在する場合のみ・提案でなく実行）。`docs/logs/changelog.md` に変更サマリ 1 行追記。保守課題で方針確定したら `docs/decisions.md` に最上部追記（降順）。docs が存在しない場合: 「命名は SF 慣例に従います」と伝え、作業後に `/sf-memory` を提案。
 
 ---
 
