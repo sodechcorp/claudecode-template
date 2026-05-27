@@ -158,7 +158,7 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 > **changelog.md フォールバック**: `docs/logs/changelog.md` に当該 issueID のエントリが既に存在するか Grep で確認する。存在しなければ「日付 / 変更内容 / 関連課題ID」の1行を追記する（管理画面操作のみで対応した場合・implementer を通らなかった場合の取りこぼし防止）。changelog.md 自体が存在しない場合は `# Changelog` ヘッダー＋空行を作成してから追記する。
 
-`docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/implementation-plan.md` を Read して採用方針・判断ポイント・業務要件回答を把握してから（Step 0a の sf-context-loader 出力に `approach_plan_summary` または `implementation_plan_summary` フィールドが含まれている場合はその値を使い、本体 Read をスキップする） `docs/decisions.md` に判断記録を追記する。前工程ファイルが存在しない場合は「approach-plan.md / implementation-plan.md が見つかりません」とユーザに通知して続行し、decisions.md の対応する空欄（採用方針・実装の主な判断・業務要件への回答）は「不明（前工程ファイルなし）」と記入する。
+`docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/implementation-plan.md` を Read して採用方針・判断ポイント・業務要件回答を把握してから `docs/decisions.md` に判断記録を追記する。前工程ファイルが存在しない場合は「approach-plan.md / implementation-plan.md が見つかりません」とユーザに通知して続行し、decisions.md の対応する空欄（採用方針・実装の主な判断・業務要件への回答）は「不明（前工程ファイルなし）」と記入する。
 
 ```markdown
 ## {issueID}: {件名}（{YYYY-MM-DD}）

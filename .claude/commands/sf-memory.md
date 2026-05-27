@@ -1,5 +1,5 @@
 ---
-description: "Salesforce 組織情報を分析して docs/ に保存するコマンド。組織概要・オブジェクト構成・マスタデータ・設計/機能グループ定義・保守履歴・情報所在マップ・SF標準仕様の7カテゴリを会話形式で選択して実行する（cat1〜cat6/cat8 専用エージェント + sf-org-analyst に委譲。cat4 カテゴリでは cat4 完了後にコマンドが cat5 を起動して feature_groups.yml を生成する — ユーザーからは7カテゴリに見える8エージェント構成。cat6 は Backlog MCP 必須。cat7 は sf-org-analyst を readme-only モードで呼び出す。cat8 は WebFetch 必須）。"
+description: "Salesforce 組織情報を分析して docs/ に保存するコマンド。組織概要・オブジェクト構成・マスタデータ・設計/機能グループ定義・保守履歴・情報所在マップ・SF標準仕様の7カテゴリを会話形式で選択して実行する（cat1〜cat6/cat8 専用エージェント + sf-org-analyst に委譲。cat3 は cat2 の後に逐次実行して承認プロセス・キュー情報を cat4/cat5 に提供する。cat4 は Apex/Flow/LWC の3エージェントに分割して並列実行する。cat4 完了後にコマンドが cat5 を起動して feature_groups.yml を生成する — ユーザーからは7カテゴリに見える構成。cat6 は Backlog MCP 必須。cat7 は sf-org-analyst を readme-only モードで呼び出す。cat8 は WebFetch 必須）。"
 ---
 
 **AskUserQuestion のルール（厳守）:** [共通ルール参照](.claude/CLAUDE.md#askuserquestion-ルール厳守)
@@ -147,27 +147,36 @@ Phase 2: カテゴリ2 をエージェントへ委譲（順次）
     → docs/catalog/ を生成
     → 完了サマリを返す
 
-Phase 3: カテゴリ3・4・6・8 を並列でエージェントへ委譲
+Phase 2.5: カテゴリ3 をエージェントへ委譲（順次）
   ※ カテゴリ2完了後に実行（docs/catalog/ を参照するため）
-  ※ cat3・cat4・cat6・cat8はいずれも cat1/2 にのみ依存し互いには独立しているため並列実行可
+  ※ cat3 を前段に置くことで、承認プロセス・キュー情報が cat4*/cat5 で参照可能になる
+  sf-analyst-cat3（カテゴリ3: マスタデータ・ワークフロー設定）
+    → docs/data/ を生成（master-data.md / email-templates.md / automation-config.md 等）
+    → 完了サマリを返す
+
+Phase 3: カテゴリ4・6・8 を並列でエージェントへ委譲
+  ※ カテゴリ3完了後に実行（docs/data/automation-config.md を参照するため）
+  ※ cat4-apex/cat4-flow/cat4-lwc・cat6・cat8はいずれも互いに独立しているため並列実行可
   ※ cat6 実行前に Backlog MCP を確認する: `grep -q '"backlog"' .mcp.json 2>/dev/null && echo "configured" || echo "not-configured"`
     未設定の場合は「Backlog MCP 未設定のため cat6 をスキップしました（`/setup-mcp` で設定後に再実行してください）」と通知してスキップ
   ※ cat8 は「SF 標準仕様記録（cat8）」が Q2 で選択されている場合のみ並列に追加する（未選択時はスキップ）
   ※ 並列実行は「1つの assistant メッセージ内で Agent ツールを複数同時に呼び出す」ことで実現する
-  sf-analyst-cat3（カテゴリ3: マスタデータ・ワークフロー設定）┐ 並列実行
-  sf-analyst-cat4（カテゴリ4: 設計書生成）                     │
-  sf-analyst-cat6（カテゴリ6: 保守履歴・工数温度感）           │ ※ Backlog MCP 設定済みの場合のみ
-  sf-analyst-cat8（カテゴリ8: SF 標準仕様記録）                ┘ ※ Q2 で選択された場合のみ
+  ※ cat4 は Apex/Flow/LWC の3種別エージェントに分割して並列実行する
+  sf-analyst-cat4-apex（カテゴリ4-Apex: Apex・Trigger・Batch 設計書生成）┐
+  sf-analyst-cat4-flow（カテゴリ4-Flow: Flow・承認プロセス 設計書生成）  │ 並列実行
+  sf-analyst-cat4-lwc（カテゴリ4-LWC: LWC・VF・Aura 設計書生成）       │
+  sf-analyst-cat6（カテゴリ6: 保守履歴・工数温度感）                     │ ※ Backlog MCP 設定済みの場合のみ
+  sf-analyst-cat8（カテゴリ8: SF 標準仕様記録）                          ┘ ※ Q2 で選択された場合のみ
     → 各カテゴリの docs/ を生成
-      - cat3: docs/data/ を生成
-      - cat4: docs/design/ を生成
-      - cat6: docs/logs/effort-calibration.md / docs/knowledge/case-index.md / docs/knowledge/pitfalls.md を生成
+      - cat4-apex: docs/design/apex/ / docs/design/batch/ / docs/design/integration/ を生成
+      - cat4-flow: docs/design/flow/ / docs/design/config/ を生成
+      - cat4-lwc: docs/design/lwc/ / docs/design/vf/ / docs/design/aura/ を生成
+      - cat6: docs/logs/effort-calibration.md / docs/knowledge/case-index.md / docs/knowledge/pitfalls.md / docs/.sf/_cmp_case_index.json を生成
       - cat8: docs/knowledge/sf-standard.md を生成
     → 完了サマリを返す
 
 Phase 3b: 機能グループ定義をエージェントへ委譲（順次）
-  ※ cat4 完了後に実行（docs/design/ の「関連UC」フィールドを参照するため）
-  ※ cat4 が先に完了した場合は cat3 の完了を待たず直ちに cat5 を起動する（cat5 は cat4 出力にのみ依存）
+  ※ cat4-apex/cat4-flow/cat4-lwc の全完了後に実行（docs/design/ の「関連UC」フィールドと _apex_skeletons.json/_lwc_skeletons.json/_flow_index.json を参照するため）
   sf-analyst-cat5（機能グループ定義）
     → docs/.sf/feature_groups.yml を生成
     → 完了サマリを返す
@@ -183,7 +192,7 @@ Phase 4: 2周目（横断補完）＋ cat7（情報所在マップ）
 | 組織概要・環境情報 | `sf-analyst-cat1` | なし |
 | オブジェクト・項目構成 | `sf-analyst-cat2` | cat1（org-profile.md 必須） |
 | マスタデータ・ワークフロー設定 | `sf-analyst-cat3` | cat1 + cat2（org-profile.md と docs/catalog/_index.md 必須） |
-| 設計・機能グループ定義 | `sf-analyst-cat4`（設計書生成）→ `sf-analyst-cat5`（feature_groups.yml 生成）※コマンド側で順次起動 | cat1 + cat2（catalog/ 必須） |
+| 設計・機能グループ定義 | `sf-analyst-cat4-apex` / `sf-analyst-cat4-flow` / `sf-analyst-cat4-lwc`（並列・設計書生成）→ `sf-analyst-cat5`（feature_groups.yml 生成）※コマンド側で起動 | cat1 + cat2（catalog/ 必須）+ cat3（automation-config.md 推奨） |
 | 保守履歴・工数温度感（cat6） | `sf-analyst-cat6` | なし（Backlog MCP 必須 — `.mcp.json` に `backlog` キーが必要） |
 | 情報所在マップ更新（cat7） | `sf-org-analyst`（mode: readme-only） | cat1（org-profile.md 必須） |
 | SF 標準仕様記録（cat8） | `sf-analyst-cat8` | なし（WebFetch 必須 — インターネット接続が必要） |
@@ -196,16 +205,16 @@ Phase 4: 2周目（横断補完）＋ cat7（情報所在マップ）
 
 > **複数カテゴリ部分選択時の実行順序**（全カテゴリ選択時のフローを縮約して適用する）:
 > - 実行前に「**前提チェック**」セクションを適用し、前提不足の場合はユーザー確認を先に行う（ユーザーが「このまま続行する」を選択した場合のみ下記フローに進む）。
-> - 全カテゴリ選択時の順序（Phase 1: cat1 → Phase 2: cat2 → Phase 3: cat3+cat4+cat6 並列 → Phase 3b: cat5 → Phase 4: 横断補完）から、**選択されたカテゴリのみを抽出して同じ順序で実行**する。
-> - cat1 と cat2 は依存先のため、選択されている場合は最初に順次実行する。
-> - cat3・cat4・cat6 は互いに独立しているため、複数選択された場合は並列実行する（1メッセージ内で Agent ツールを同時呼び出し）。個別選択時は単独実行。cat6 は Backlog MCP 未設定の場合はスキップ（MCP 確認後に実行）。
+> - 全カテゴリ選択時の順序（Phase 1: cat1 → Phase 2: cat2 → Phase 2.5: cat3 → Phase 3: cat4-apex+cat4-flow+cat4-lwc+cat6 並列 → Phase 3b: cat5 → Phase 4: 横断補完）から、**選択されたカテゴリのみを抽出して同じ順序で実行**する。
+> - cat1・cat2・cat3 は依存先のため、選択されている場合は順次実行する。
+> - cat4-apex/cat4-flow/cat4-lwc・cat6 は互いに独立しているため、複数選択された場合は並列実行する（1メッセージ内で Agent ツールを同時呼び出し）。cat6 は Backlog MCP 未設定の場合はスキップ（MCP 確認後に実行）。「設計・機能グループ定義」1カテゴリを選択した場合は cat4-apex/cat4-flow/cat4-lwc を並列起動する。
 > - **cat7（情報所在マップ更新）**: 他の cat1〜cat6 と並行可能。cat1〜cat6 の選択と同時に cat7 が選ばれている場合は、cat1〜cat6 完了後に Phase 4（横断補完）の一部として実行する。**cat7 のみ単独選択**の場合は sf-org-analyst を `mode: readme-only` で呼び出してから終了する（Phase 4 スキップ）。
 > - **cat8（SF 標準仕様記録）**: cat1〜cat6 とは独立して並列実行可（docs/ を参照しない）。cat1〜cat6 のいずれかと同時に選択された場合は Phase 3 に追加して並列実行する。**cat8 のみ単独選択**の場合は sf-analyst-cat8 を単独起動して終了する（Phase 4 スキップ）。
-> - 単一カテゴリ選択時は Phase 1 のみ（Phase 4 はスキップ）。ただし cat4 単独選択時は cat4 完了後に cat5 を起動する（cat5 は cat4 に付属する内部処理のため Phase 4 スキップには影響しない）。
+> - 単一カテゴリ選択時は Phase 1 のみ（Phase 4 はスキップ）。ただし「設計・機能グループ定義」選択時は cat4-apex/cat4-flow/cat4-lwc 完了後に cat5 を起動する（cat5 は cat4 に付属する内部処理のため Phase 4 スキップには影響しない）。
 > - 例: cat1+cat3 → cat1 実行後に cat3 を単独実行 → Phase 4
-> - 例: cat3+cat4 → cat3 と cat4 を並列実行 → cat5 → Phase 4
-> - 例: cat3+cat6 → cat3 と cat6 を並列実行（cat6 は Backlog MCP 確認後）→ Phase 4
-> - 例: cat1+cat2+cat4 → cat1 → cat2 → cat4 → cat5 → Phase 4
+> - 例: cat3+cat4 → cat3 実行後に cat4-apex/cat4-flow/cat4-lwc を並列実行 → cat5 → Phase 4
+> - 例: cat3+cat6 → cat3 実行後に cat6 を単独実行（cat6 は Backlog MCP 確認後）→ Phase 4
+> - 例: cat1+cat2+cat4 → cat1 → cat2 → cat3（前提推奨のため automation-config.md 無しで続行）→ cat4-apex/cat4-flow/cat4-lwc 並列 → cat5 → Phase 4
 > - 例: cat8 のみ → sf-analyst-cat8 を単独起動して終了（Phase 4 スキップ）
 > - 例: cat6+cat8 → cat6 と cat8 を並列実行（各前提チェック後）→ Phase 4
 > - 例: cat7 のみ → sf-org-analyst（readme-only）を単独起動して終了

@@ -21,7 +21,11 @@ tools: Read, Glob, Grep, mcp__backlog__get_issue, mcp__backlog__get_issues
 
 | パラメータ | 必須 | 説明 |
 |---|---|---|
-| `issueID` | 任意 | BacklogID。あれば MCP で件名・本文・種別を取得 |
+| `issueID` | 任意 | BacklogID。`件名`/`本文`/`種別` が未渡しの場合のみ MCP で取得する |
+| `件名` | 任意 | 課題の件名。渡された場合 MCP 取得をスキップ |
+| `本文` | 任意 | 課題の本文。渡された場合 MCP 取得をスキップ |
+| `種別` | 任意 | `バグ` / `追加要望` / `その他`。渡された場合 MCP 取得をスキップ |
+| `actualHours` | 任意 | Backlog の実績時間（h）。渡された場合 MCP 取得をスキップ |
 | `課題内容` | 任意 | issueID 無しのアドホック見積用（フリーテキスト） |
 | `対応方針` | 任意 | approach-plan.md 採用案サマリ（あれば引用） |
 | `スコープ` | 任意 | 変更ファイル数・対象オブジェクト・既存パターン流用可否 |
@@ -41,7 +45,7 @@ tools: Read, Glob, Grep, mcp__backlog__get_issue, mcp__backlog__get_issues
 - 存在しない場合: `no_log=true` として Step 3 の score 算出をスキップする
 - **v1（8 列）でも v2（10 列）でも Read 可能**。estimator は Read のみ（Write/Edit なし）のためスキーマ変換は行わない。マイグレーション（8列→10列）は `/backlog` Phase 2 Step 2.5 が担当する
 
-`issueID` が渡されている場合: `mcp__backlog__get_issue` で件名・本文・種別・実績時間（actualHours）を取得する。
+`issueID` が渡されている場合: `件名` / `本文` / `種別` / `actualHours` がパラメータとして渡されていればそれを優先して使用し `mcp__backlog__get_issue` の呼び出しをスキップする。これらのうち1つでも欠けている場合のみ MCP で取得する。
 
 **両ファイルが存在しない場合**:
 - `mode=quick` または必要データが確認できない場合は信頼度=低のままステップを継続する

@@ -269,7 +269,7 @@ docs がない場合: 「命名は一般的なSalesforce慣例に従います」
 
 | 起動コマンド | エージェント |
 |---|---|
-| `/sf-memory` cat1〜cat6・cat8 / 横断補完 | `sf-analyst-cat1〜cat6` / `sf-analyst-cat8` / `sf-org-analyst` |
+| `/sf-memory` cat1〜cat6・cat8 / 横断補完 | `sf-analyst-cat1〜cat3` / `sf-analyst-cat4-apex` / `sf-analyst-cat4-flow` / `sf-analyst-cat4-lwc` / `sf-analyst-cat5〜cat6` / `sf-analyst-cat8` / `sf-org-analyst` |
 | `/sf-memory` Phase 0 コンテキスト読込 | `sf-context-loader` |
 | `/sf-design` 各ステップ | `sf-design-step1〜3` / `sf-design-writer` / `sf-screen-writer` / `sf-detail-design-writer` / `sf-doc-overview-writer` / `sf-doc-objects-writer` |
 | `/backlog` 各 Phase | `backlog-investigator` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator` |
@@ -339,8 +339,25 @@ SF_CLIENT_BIN="$(dirname "$(where sf | head -1 | sed 's/\\/\//g')")/../client/bi
 sf-analyst-cat1〜cat6、および sf-org-analyst が共通して守る原則。各カテゴリ固有の品質原則は各エージェント定義ファイル内に記載（cat8 は外部 SF 公式仕様を扱うため独立した品質原則を持つ — sf-analyst-cat8.md を参照）。
 
 1. **網羅的に読む**: 指定資料・ソースコードは配下を再帰的に**全て**読む。サンプリングや抜粋禁止。大きいファイルは分割読みで**最後まで**目を通す。
-2. **事実と推定を分ける**: メタデータ・資料・コードに明記されている事項は事実として記述。補間・推測した箇所は `**[推定]**` を付ける。確認が必要な箇所は `**[要確認]**` を付ける。空欄を勝手に埋めない。
+2. **事実と推定を分ける**: メタデータ・資料・コードに明記されている事項は事実として記述。補間・推測した箇所は不確実マーカー（下記参照）を付ける。空欄を勝手に埋めない。
 3. **手動追記を消さない**: 差分更新モードでは既存の手動記入・設計コメント・要件番号・判断根拠を絶対に保持する。
+
+### マーカー規約（sf-memory 全カテゴリ共通）
+
+全カテゴリで使用可・全カテゴリで検出対象とするマーカー一覧。各エージェントの個別マーカー定義はこの規約に統一し、追加定義は不要。
+
+| マーカー | 意味 |
+|---|---|
+| `**[要確認]**` | 確認が必要（SF 組織・設計書・ユーザーへの問い合わせが必要） |
+| `**[推定]**` | 補間・推測した内容（事実として断定できない） |
+| `**[資料未確認]**` | 指定資料に該当記載なし（存在するはずだが見当たらない） |
+| `**[組織未調査]**` | メタデータ・ソースコードで未確認 |
+| `**[未ヒアリング]**` | ユーザー・ステークホルダーへの確認が取れていない |
+| `**[出典不明]**` | 記載の出所が辿れない |
+| `**[未実装]**` | ソースが欠落・実装が途中の状態 |
+| `**[要確認: <理由>]**` | コロン後に理由を付与する複合形（例: `**[要確認: 他ファイルと矛盾あり]**`） |
+
+**sf-org-analyst Phase 4 / Phase 6 の検出対象**: 上記 7 種すべてを Grep 対象とする（`\[要確認\|推定\|資料未確認\|組織未調査\|未ヒアリング\|出典不明\|未実装\]`）。
 
 ---
 

@@ -131,6 +131,19 @@ sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsC
 sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__c' AND IsHierarchyNestingSupported = false" --use-tooling-api --json
 ```
 
+#### Phase 1 末尾: メタデータキャッシュ生成
+
+Phase 1-1 の主要クエリ結果を `docs/.sf/_metadata_cache.json` に保存する。cat4-apex/flow/lwc/cat5 が 5 分以内のキャッシュがあれば再クエリしない（R1 解消）。
+
+```bash
+sf data query -q "SELECT Name, IsTest FROM ApexClass WHERE NamespacePrefix = null AND IsTest = false ORDER BY Name" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_classes
+sf data query -q "SELECT Name, TableEnumOrId FROM ApexTrigger WHERE NamespacePrefix = null" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_triggers
+sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null ORDER BY ApiName" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key flow_definitions
+sf data query -q "SELECT DeveloperName, Endpoint FROM NamedCredential" --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key named_credentials
+```
+
+> クエリが失敗した場合はスキップして次へ（キャッシュは best-effort）。`{project_dir}` を実際のパス（forward slash）に置換してから実行する。
+
 ### Phase 2: 既存資料の読み込み
 
 以下のフォルダに既存資料があれば全て読み込む:
@@ -303,9 +316,27 @@ NG が1件でもあれば **その場で修正してから** `docs/flow/swimlane
 | lanes.id フィールド | `lanes[]` のどの要素にも `id` キーが存在しない | `"id": "asis_customer"` 等がある |
 | lanes.name 言語 | レーン名が日本語（または「Salesforce (Flow: xxx)」等の混在可） | 純英字の API スラグ（`asis_customer` 等） |
 
-### Phase 5: changelog への記録
+#### 生成後機械検証（必須・書き出し後に実施）
 
-`docs/logs/changelog.md` に追記する（日時・実行カテゴリ・生成/更新ファイル・主な変更点）。
+`swimlanes.json` を書き出した後、スキーマ違反を機械検証する（exit 0 固定・警告のみ・処理はブロックしない）:
+
+```bash
+python {project_dir}/scripts/python/sf-doc-mcp/check_swimlanes.py {project_dir}
+```
+
+> 警告が出た場合は内容を確認して修正判断する（完了報告に記録）。
+
+### Phase 4.4: コンテキストキャッシュ生成
+
+org-profile.md / usecases.md / requirements.md の生成完了後に実行する。cat2〜cat5 がこのキャッシュを参照して前段ファイルの直接 Read を省略できる（R3 解消）。
+
+```bash
+python {project_dir}/scripts/python/sf-doc-mcp/build_context_cache.py {project_dir}
+```
+
+### Phase 5: 実行記録（内部メモ）
+
+変更サマリを内部に記録しておく（日時・実行カテゴリ・生成/更新ファイル・主な変更点）。`docs/logs/changelog.md` への追記は sf-org-analyst Phase 7.5 で 1 セッション 1 行に集約するためここでは行わない（F-4）。
 
 ### Phase 5.5: [要確認] / [未ヒアリング] 解消フロー（必須）
 
@@ -316,7 +347,7 @@ NG が1件でもあれば **その場で修正してから** `docs/flow/swimlane
 - `docs/architecture/system.json`（JSON: 値文字列として含まれる場合のみ検出）
 - `docs/flow/swimlanes.json`（JSON: 値文字列として含まれる場合のみ検出）
 
-検索対象マーカー: `[要確認]` / `[推定]` / `[出典不明]` / `[未ヒアリング]` / `[資料未確認]` / `[組織未調査]`
+検索対象マーカー: [共通マーカー規約参照](.claude/CLAUDE.md#マーカー規約sf-memory-全カテゴリ共通) — `[要確認]` / `[推定]` / `[資料未確認]` / `[組織未調査]` / `[未ヒアリング]` / `[出典不明]` / `[未実装]`
 
 | 件数 | 対応 |
 |---|---|

@@ -51,19 +51,25 @@ docs/catalog/
 
 ### Phase 0: 前段カテゴリの出力を読む（必須）
 
-カテゴリ2 は **カテゴリ1の完了後に実行**される。以下を事前に読み込んでコンテキストを把握する:
+カテゴリ2 は **カテゴリ1の完了後に実行**される。まず `docs/.sf/_context_cache.json` が存在するか確認する:
+- **存在する場合**: Read して `glossary` / `uc_ids` / `related_objects` / `fr_ids` フィールドを取得する（cat1 が Phase 4.4 で生成したインデックス）
+- **存在しない場合**: 直接 Read する: `docs/overview/org-profile.md`（用語集）・`docs/flow/usecases.md`（各UCで操作されるオブジェクト）・`docs/requirements/requirements.md`（FR-XXX）
 
-```bash
-# cat1の生成物を読み込む
-# 1. org-profile.md: 用語集（Glossary）・業種・ステークホルダー情報
-# 2. usecases.md: 各UCで操作されるオブジェクト（related_objects）
-# 3. requirements.md: 機能要件（FR-XXX）とオブジェクトの対応
-```
-
-これらの情報を参照して:
+取得した情報を参照して:
 - **用語集（Glossary）の表記に統一**する（cat1 と表記がズレないようにする）
 - **各UCで使われているオブジェクトに「関連UC」情報を付与**する
 - **要件番号と対応するオブジェクト**を定義書に記載する
+
+### Phase 0.5: 既存ファイルの規約適合チェック（差分更新モード時必須）
+
+[共通手順参照](.claude/templates/sf-memory/phase0.5-common.md) — cat2 固有の必須 H2:
+
+```
+必須 H2: 基本情報 / 項目一覧 / リレーション / 権限マトリクス / 自動化・ビジネスルール / 被参照（被 Lookup）
+```
+
+1. `docs/catalog/` 配下の既存 `.md` を Glob で列挙 → 先頭 80 行を Read して H2 見出しを抽出
+2. 上記必須項目と照合し、欠落があれば Phase 3 で末尾追記（手動追記は保護）
 
 次に `docs/catalog/` 配下にmdファイルが存在するか確認する:
 - **存在しない → 初回生成モード**: Phase 1 へ進む
@@ -164,9 +170,9 @@ sf data query -q "SELECT EntityDefinition.QualifiedApiName, Field FROM FieldDefi
 - 既存の手動追記・設計コメント・要件番号を絶対に消さない
 - 各オブジェクト定義書の冒頭バージョン番号を1インクリメントする
 
-### Phase 7: 変更履歴の記録
+### Phase 7: 実行記録（内部メモ）
 
-`docs/logs/changelog.md` に追記する（日時・実行カテゴリ・生成/更新ファイル一覧・主な変更点）。
+変更サマリを内部に記録しておく（日時・生成/更新ファイル一覧・主な変更点）。`docs/logs/changelog.md` への追記は sf-org-analyst Phase 7.5 で 1 セッション 1 行に集約するためここでは行わない（F-4）。
 
 ### Phase 最終: クリーンアップ
 
