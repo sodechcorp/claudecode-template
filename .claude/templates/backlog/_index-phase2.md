@@ -13,15 +13,18 @@ options:
     description: 推奨案 A 以外の対応方針 B / C を生成して比較検討
     category: D
     auto-execute-when:
-      - 課題優先度が「高」または「緊急」
-      - 推奨案 A に既存実装パターンとの不整合・トレードオフあり
-      - 課題に「設計判断が必要」「複数の方向性」等の言及
+      - 課題本文・コメントに「設計判断が必要」「複数の方向性」「方針 A/B」等の明示的な言及がある
+      - 推奨案 A に既存実装パターンとの**構造的**不整合がある（命名・責務境界・設計原則違反）
+      - 推奨案 A が複数オブジェクトに横断的影響を持ち、影響範囲が異なる代替案が技術的に成立する
     auto-skip-when:
-      - typo 修正・ラベル変更・単純な値修正
+      - 種別がバグ（原則として唯一解。blind 別案は option-validator-blind に委譲）
+      - typo・ラベル・コメント・単一値修正
       - 推奨案 A が業務的・技術的に唯一解
     ask-user-prompt: |
       この課題は推奨案 A が唯一解のようです。代替案 B/C の生成は省略してもよさそうですか？
     estimated-cost: 重
+    # 注意: 「課題優先度が高/緊急」は auto-execute-when に含めない。保守課題はデフォルト「高」のため
+    #       ほぼ全件 hit してノイズになる。blind 別案は option-validator-blind（category=A）が担う
 
   - name: option-tradeoff-analysis
     description: 各対応案のメリット・デメリットを深掘り（コスト・工期・将来影響を含む）
