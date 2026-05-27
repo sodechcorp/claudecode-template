@@ -78,6 +78,7 @@ fi
 # hooks（.claude/hooks/*.js）
 if [ -d "$TMP_DIR/.claude/hooks" ]; then
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         rel="${f#$TMP_DIR/}"
         if [ ! -f "$rel" ]; then
             ADDITIONS+=("$rel（新規 hook）")
@@ -126,6 +127,7 @@ done
 # テンプレート（エージェント参照用の独立 MD ファイル群、サブディレクトリ含む再帰チェック）
 if [ -d "$TMP_DIR/.claude/templates" ]; then
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         rel="${f#$TMP_DIR/}"
         if [ ! -f "$rel" ]; then
             ADDITIONS+=("$rel（新規テンプレート）")
@@ -136,6 +138,7 @@ if [ -d "$TMP_DIR/.claude/templates" ]; then
 fi
 if [ -d ".claude/templates" ] && [ -d "$TMP_DIR/.claude/templates" ]; then
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         if [ ! -f "$TMP_DIR/$f" ]; then
             DELETIONS+=("$f（テンプレートから削除済み）")
         fi
@@ -145,6 +148,7 @@ fi
 # スクリプト（サブディレクトリ含む再帰チェック）
 if [ -d "$TMP_DIR/scripts" ]; then
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         rel="${f#$TMP_DIR/}"
         if [ ! -f "$rel" ]; then
             ADDITIONS+=("$rel（新規）")
@@ -157,6 +161,7 @@ fi
 # scripts/ の削除検出（プロジェクト側にあってテンプレートに無いファイル）
 if [ -d "scripts" ] && [ -d "$TMP_DIR/scripts" ]; then
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         if [ ! -f "$TMP_DIR/$f" ]; then
             DELETIONS+=("$f（テンプレートから削除済み）")
         fi
@@ -167,6 +172,7 @@ fi
 SCAFFOLD_ADDITIONS=()
 if [ -d "$TMP_DIR/.claude/templates/docs-scaffold" ]; then
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         rel="${f#$TMP_DIR/.claude/templates/docs-scaffold/}"
         dst="docs/$rel"
         if [ ! -f "$dst" ]; then
@@ -240,6 +246,7 @@ info "適用中..."
 if [ -d "$TMP_DIR/.claude/hooks" ]; then
     mkdir -p .claude/hooks
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         rel="${f#$TMP_DIR/}"
         cp "$f" "$rel"
     done < <(find "$TMP_DIR/.claude/hooks" -type f -name "*.js")
@@ -260,6 +267,7 @@ done
 # テンプレート（サブディレクトリ含む再帰コピー）
 if [ -d "$TMP_DIR/.claude/templates" ]; then
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         rel="${f#$TMP_DIR/}"
         mkdir -p "$(dirname "$rel")"
         cp "$f" "$rel"
@@ -269,6 +277,7 @@ fi
 # スクリプト（サブディレクトリ含む再帰コピー、upgrade.sh 自身は最後に上書き）
 if [ -d "$TMP_DIR/scripts" ]; then
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         rel="${f#$TMP_DIR/}"
         name=$(basename "$f")
         [ "$name" = "upgrade.sh" ] && continue  # 自身はスキップ
@@ -281,6 +290,7 @@ fi
 if [ ${#SCAFFOLD_ADDITIONS[@]} -gt 0 ]; then
     info "docs/ 雛形ファイルを配布中..."
     while IFS= read -r f; do
+        [ -z "$f" ] && continue
         rel="${f#$TMP_DIR/.claude/templates/docs-scaffold/}"
         dst="docs/$rel"
         if [ ! -f "$dst" ]; then
