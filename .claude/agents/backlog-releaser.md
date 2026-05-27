@@ -210,40 +210,14 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 ---
 
-### 3.6. case-index.md への自動追記
+### 3.6. 知見の自動還流（pitfalls.md + verify-spec 追加ルール欄）
 
-> **スキップ判定**: `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする。
-
-`docs/knowledge/case-index.md` に当課題の1行サマリーを先頭挿入する。
-
-1. `docs/logs/{issueID}/approach-plan.md` を Read して「採用方針」セクションから採用方針を取得する
-   - **症状/要件（全角40字以内）** の取得優先順位:
-     1. `docs/logs/{issueID}/investigation.md` の「課題サマリー」または「TL;DR」セクション冒頭1行
-     2. `docs/logs/{issueID}/approach-plan.md` の「バグの概要」または課題の種別説明冒頭
-     3. Backlog 課題タイトル
-   - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
-   - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
-2. `docs/logs/{issueID}/implementation-plan.md` を Read して「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
-3. `docs/logs/effort-log.md` の当該行から見込み工数を取得する
-4. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
-   ```
-   | {YYYY-MM-DD} | {issueID} | {種別: バグ/追加要望/その他} | {症状/要件 全角40字以内} | {対象オブジェクト・コンポーネント} | {採用方針 全角30字以内} | {関連用語カンマ区切り3〜5語} | {見込み工数} |
-   ```
-5. `docs/knowledge/case-index.md` が存在しない場合は以下のヘッダー付きで新規作成してから追記:
-   ```markdown
-   # 対応事例インデックス
-   | 日付 | 課題ID | 種別 | 症状/要件（全角40字以内） | 対象オブジェクト・コンポーネント | 採用方針（全角30字以内） | 関連用語 | 工数(h) |
-   |---|---|---|---|---|---|---|---|
-   ```
-
-**スキップ条件**: 当課題の行がすでに存在する場合はスキップ（重複防止）。  
-**失敗時**: 「`docs/knowledge/case-index.md` の追記に失敗しました。以下の1行を手動で先頭に追加してください」とユーザーに案内する。
-
----
-
-### 3.7. 知見の自動還流（pitfalls.md + verify-spec 追加ルール欄）
-
-> **スキップ判定**: `docs/logs/{issueID}/discussion-log.md` が存在しない場合はスキップする。
+> **スキップ判定**: `docs/logs/{issueID}/discussion-log.md` が存在しない場合は以下のフォールバック抽出を試みる:
+> 1. `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/test-report.md` が存在するか確認
+> 2. 両方とも存在しない場合は完全スキップ
+> 3. いずれか存在する場合は、以下のキーワードリストで Grep してマッチした段落を抽出: `ハマ` / `落とし穴` / `想定外` / `再発防止` / `気をつけ` / `注意` / `壊れ` / `不具合` / `罠`
+> 4. 抽出件数は最大 3 件まで（誤検出抑制のため）。各エントリは後段の類似度判定（重複防止ロジック）を経由してから追記する
+> 5. フォールバック経路で抽出したエントリは「カテゴリ」欄に `[fallback]` プレフィックスを付与する
 
 `docs/logs/{issueID}/discussion-log.md` から「次のプロジェクトで役立つ知見」を抽出し、還流先に追記する。ユーザー確認後に追記する。
 
@@ -280,7 +254,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 ---
 
-### 3.8. お客様確認サイン取得
+### 3.7. お客様確認サイン取得
 
 > ルール定義: [.claude/templates/backlog/customer-signoff.md](../templates/backlog/customer-signoff.md) を参照
 
@@ -340,7 +314,38 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 ---
 
-### 4.5. 完了前チェックリスト（セルフレビュー）
+### 4.5. case-index.md への自動追記（実績工数確定後）
+
+> **スキップ判定**: `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする。
+
+`docs/knowledge/case-index.md` に当課題の1行サマリーを先頭挿入する。
+
+1. `docs/logs/{issueID}/approach-plan.md` を Read して「採用方針」セクションから採用方針を取得する
+   - **症状/要件（全角40字以内）** の取得優先順位:
+     1. `docs/logs/{issueID}/investigation.md` の「課題サマリー」または「TL;DR」セクション冒頭1行
+     2. `docs/logs/{issueID}/approach-plan.md` の「バグの概要」または課題の種別説明冒頭
+     3. Backlog 課題タイトル
+   - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
+   - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
+2. `docs/logs/{issueID}/implementation-plan.md` を Read して「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
+3. Step 4 で確定した実績工数を使用する（actualHours 未確定の場合は - とする）
+4. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
+   ```
+   | {YYYY-MM-DD} | {issueID} | {種別: バグ/追加要望/その他} | {症状/要件 全角40字以内} | {対象オブジェクト・コンポーネント} | {採用方針 全角30字以内} | {関連用語カンマ区切り3〜5語} | {実績工数} |
+   ```
+5. `docs/knowledge/case-index.md` が存在しない場合は以下のヘッダー付きで新規作成してから追記:
+   ```markdown
+   # 対応事例インデックス
+   | 日付 | 課題ID | 種別 | 症状/要件（全角40字以内） | 対象オブジェクト・コンポーネント | 採用方針（全角30字以内） | 関連用語 | 工数(h) |
+   |---|---|---|---|---|---|---|---|
+   ```
+
+**スキップ条件**: 当課題の行がすでに存在する場合はスキップ（重複防止）。  
+**失敗時**: 「`docs/knowledge/case-index.md` の追記に失敗しました。以下の1行を手動で先頭に追加してください」とユーザーに案内する。
+
+---
+
+### 4.6. 完了前チェックリスト（セルフレビュー）
 
 Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質問・確認に対応するフェーズ）に進む前に以下を自己点検する:
 
