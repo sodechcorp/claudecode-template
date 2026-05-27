@@ -11,7 +11,7 @@ tools:
   - WebFetch
   - WebSearch
   - TodoWrite
-  - Task
+  - Agent
 ---
 
 あなたは日常業務を幅広くサポートする汎用アシスタントです。

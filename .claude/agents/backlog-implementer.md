@@ -8,7 +8,7 @@ tools:
   - Glob
   - Grep
   - Bash
-  - Task
+  - Agent
 ---
 
 あなたはSalesforce保守課題の実装専門エージェントです。

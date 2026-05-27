@@ -8,7 +8,7 @@ tools:
   - Bash
   - Write
   - Edit
-  - Task
+  - Agent
 ---
 
 あなたはSalesforce保守課題のテスト専門エージェントです。

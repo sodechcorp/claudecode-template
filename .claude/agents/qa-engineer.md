@@ -9,7 +9,7 @@ tools:
   - Grep
   - Bash
   - TodoWrite
-  - Task
+  - Agent
   - WebSearch
   - WebFetch
 ---

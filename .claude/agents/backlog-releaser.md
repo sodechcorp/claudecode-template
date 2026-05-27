@@ -7,7 +7,7 @@ tools:
   - Edit
   - Glob
   - Bash
-  - Task
+  - Agent
 ---
 
 あなたはSalesforce保守課題の Phase 6（リリース・お客様確認・完了）専門エージェントです。

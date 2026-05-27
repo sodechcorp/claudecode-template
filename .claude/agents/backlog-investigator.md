@@ -8,7 +8,7 @@ tools:
   - Grep
   - Bash
   - Write
-  - Task
+  - Agent
   - WebSearch
   - WebFetch
   - mcp__backlog__get_issue
