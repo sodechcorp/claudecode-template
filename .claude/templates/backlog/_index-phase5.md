@@ -36,6 +36,7 @@ options:
     ask-user-prompt: |
       Sandbox データで十分確認できそうです。本番 SELECT 参照は省略してもよさそうですか？
     estimated-cost: 重
+    default-when-uncertain: skip
 
   - name: option-unit-test-creation
     description: Apex 単体テスト作成（新規・修正したメソッドの Apex テストクラス追加）
@@ -106,6 +107,7 @@ options:
     ask-user-prompt: |
       この修正はパフォーマンス影響が無さそうです。パフォーマンステストは省略してもよさそうですか？
     estimated-cost: 重
+    default-when-uncertain: skip
 
   - name: option-security-audit
     description: セキュリティ監査（CRUD/FLS 一括確認・SOQL インジェクション・XSS・with sharing）
@@ -121,4 +123,5 @@ options:
     ask-user-prompt: |
       この修正はセキュリティリスクが低い変更のようです。セキュリティ監査は省略してもよさそうですか？
     estimated-cost: 重
+    default-when-uncertain: skip
 ```

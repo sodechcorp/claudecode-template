@@ -23,6 +23,7 @@ options:
     ask-user-prompt: |
       この課題は推奨案 A が唯一解のようです。代替案 B/C の生成は省略してもよさそうですか？
     estimated-cost: 重
+    default-when-uncertain: skip
     # 注意: 「課題優先度が高/緊急」は auto-execute-when に含めない。保守課題はデフォルト「高」のため
     #       ほぼ全件 hit してノイズになる。blind 別案は option-validator-blind（category=A）が担う
 

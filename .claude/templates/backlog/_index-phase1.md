@@ -49,6 +49,7 @@ options:
     ask-user-prompt: |
       この修正はごく狭い範囲の値変更のようです。プロジェクト内の類似実装を広く探す手順は省略してもよさそうですか？
     estimated-cost: 重
+    default-when-uncertain: skip
 
   - name: option-sf-docs-verification
     description: Salesforce 公式ドキュメント（help.salesforce.com / developer.salesforce.com）で標準仕様を裏取り
@@ -103,6 +104,7 @@ options:
     ask-user-prompt: |
       この課題は影響範囲が小さい修正のようです。blind 別仮説（subagent）の検証は省略してもよさそうですか？
     estimated-cost: 重
+    default-when-uncertain: skip
 
   - name: option-related-issue-search
     description: 関連 Backlog 過去課題の履歴検索（mcp__backlog__get_issues / get_issue_comments）

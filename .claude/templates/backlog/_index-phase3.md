@@ -48,6 +48,7 @@ options:
     ask-user-prompt: |
       この修正は段階展開不要のようです。フィーチャーフラグ設計は省略してもよさそうですか？
     estimated-cost: 重
+    default-when-uncertain: skip
 
   - name: option-data-migration-plan
     description: データ移行計画（既存レコードの一括更新・新項目バックフィル等）
@@ -62,6 +63,7 @@ options:
     ask-user-prompt: |
       この修正はデータ移行を含まないようです。データ移行計画は省略してもよさそうですか？
     estimated-cost: 重
+    default-when-uncertain: skip
 
   - name: option-deployment-dependency-check
     description: デプロイ順序・依存関係確認（オブジェクト → フィールド → Apex の順序等）
