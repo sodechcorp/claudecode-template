@@ -163,8 +163,20 @@ if [ -d "scripts" ] && [ -d "$TMP_DIR/scripts" ]; then
     done < <(find "scripts" -type f)
 fi
 
+# docs scaffold（.claude/templates/docs-scaffold/）→ docs/ への新規ファイル検出（既存ファイルは対象外）
+SCAFFOLD_ADDITIONS=()
+if [ -d "$TMP_DIR/.claude/templates/docs-scaffold" ]; then
+    while IFS= read -r f; do
+        rel="${f#$TMP_DIR/.claude/templates/docs-scaffold/}"
+        dst="docs/$rel"
+        if [ ! -f "$dst" ]; then
+            SCAFFOLD_ADDITIONS+=("$dst（テンプレ雛形・新規作成）")
+        fi
+    done < <(find "$TMP_DIR/.claude/templates/docs-scaffold" -type f)
+fi
+
 # --- 結果判定 ---
-TOTAL=$(( ${#CHANGES[@]} + ${#ADDITIONS[@]} + ${#DELETIONS[@]} ))
+TOTAL=$(( ${#CHANGES[@]} + ${#ADDITIONS[@]} + ${#DELETIONS[@]} + ${#SCAFFOLD_ADDITIONS[@]} ))
 
 if [ "$TOTAL" -eq 0 ]; then
     ok "テンプレートは最新です。変更はありません。"
@@ -187,13 +199,16 @@ done
 for item in "${DELETIONS[@]+"${DELETIONS[@]}"}"; do
     echo -e "  \033[1;31m削除対象:\033[0m $item"
 done
+for item in "${SCAFFOLD_ADDITIONS[@]+"${SCAFFOLD_ADDITIONS[@]}"}"; do
+    echo -e "  \033[1;32m追加:\033[0m $item"
+done
 
 echo ""
 echo "  合計: ${TOTAL}件の変更"
 echo ""
 echo "  ※ 以下は変更されません:"
 echo "    - CLAUDE.md（プロジェクト固有ルール）"
-echo "    - docs/（プロジェクト資材）"
+echo "    - docs/（プロジェクト資材・既存ファイルは上書きしない）"
 echo "    - .mcp.json（個人設定）"
 echo "    - force-app/（Salesforceメタデータ）"
 echo ""
@@ -262,6 +277,20 @@ if [ -d "$TMP_DIR/scripts" ]; then
     done < <(find "$TMP_DIR/scripts" -type f)
 fi
 
+# docs scaffold の配布（既存ファイル上書き禁止・新規作成のみ）
+if [ ${#SCAFFOLD_ADDITIONS[@]} -gt 0 ]; then
+    info "docs/ 雛形ファイルを配布中..."
+    while IFS= read -r f; do
+        rel="${f#$TMP_DIR/.claude/templates/docs-scaffold/}"
+        dst="docs/$rel"
+        if [ ! -f "$dst" ]; then
+            mkdir -p "$(dirname "$dst")"
+            cp "$f" "$dst"
+            ok "新規作成: $dst"
+        fi
+    done < <(find "$TMP_DIR/.claude/templates/docs-scaffold" -type f)
+fi
+
 # --- 削除対象の処理（テンプレートから削除されたファイルを自動削除） ---
 if [ ${#DELETIONS[@]} -gt 0 ]; then
     echo ""
@@ -290,7 +319,7 @@ fi
 
 # --- Git コミット（リポジトリがある場合のみ・pushは手動） ---
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    git add .claude/ scripts/ .gitignore 2>/dev/null || true
+    git add .claude/ scripts/ .gitignore docs/ 2>/dev/null || true
     if ! git diff --cached --quiet; then
         git commit -m "chore: upgrade template (${TEMPLATE_COMMIT})"
         ok "コミット完了。push は手動で実行してください: git push origin HEAD"
