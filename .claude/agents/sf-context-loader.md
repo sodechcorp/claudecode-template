@@ -37,7 +37,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 **すべて存在しない場合**: 即座に「該当コンテキストなし（docs/ 未整備）」を返して終了。
 
-> **設計メモ（意図的）**: `docs/_README.md`（情報所在マップ）は参照対象外とする。メインスレッドは `_README.md` 経由で情報所在を特定するが、sf-context-loader は CMP・オブジェクト名等の構造化マッチングで直接 docs/ を辿る独立した入口設計。`_README.md` が未整備でも動作するよう意図されている。`_README.md` に手動追記した情報をエージェント経由タスクで活用したい場合は、対応するファイルを上記4ファイルのいずれかに記録することで反映される。
+> **設計メモ**: sf-context-loader は CMP・オブジェクト名等の構造化マッチングで直接 docs/ を辿る独立した入口設計。通常は `_README.md` を参照しないが、Phase 2 でキーワードマッチが無かった場合に限り、Phase 2.5 で `_README.md` をフォールバック Grep する（cat7 成果物や手動追記情報をエージェント経由タスクに流すため）。
 
 ---
 
@@ -92,7 +92,21 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 `{project_dir}/docs/knowledge/sf-standard.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（Salesforce 標準仕様の基盤知識として。ただし該当セクションのみ抽出し全文読込は避ける）。
 
-**マッチが全くない場合**: 「該当コンテキストなし（タスクにSFプロジェクト固有の参照対象が見当たらない）」を返して終了。
+**マッチが全くない場合**: Phase 2.5 へ進む。
+
+---
+
+## Phase 2.5: _README.md フォールバック（Phase 2 でキーワードマッチなしの場合のみ）
+
+`{project_dir}/docs/_README.md` が存在するか確認する。
+
+- **存在しない場合**: 「該当コンテキストなし（タスクにSFプロジェクト固有の参照対象が見当たらない）」を返して終了。
+- **存在する場合**: 以下を実行する:
+  1. `task_description` と `focus_hints` からキーワードを抽出し、`_README.md` 全文を Grep（テーブル行・リスト項目をターゲット）
+  2. マッチした行 + 前後 3 行を抽出し、行内のファイルパス（`docs/` から始まるパス）を参照先パスとして収集
+  3. 収集したパスを Phase 3 の読込対象に追加（**最大 2 ファイル**・Phase 3 合計 7 の枠内でカウント）
+  4. マッチした参照先パスがあれば Phase 3 へ進む
+  5. マッチしなかった場合: 「該当コンテキストなし（タスクにSFプロジェクト固有の参照対象が見当たらない）」を返して終了。
 
 ---
 
@@ -120,7 +134,8 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 - case-index.md: 1ファイル（Grep による症状列マッチのみ）
 - sf-standard.md: 1ファイル（Grep による該当セクション抽出のみ）
 - pitfalls.md: 1ファイル（全文 Read・小さいため）
-→ 上記の合算が7を超えた場合: CMP/オブジェクト → 過去課題 → 標準仕様 の優先順で打ち切る
+- `_README.md` フォールバック由来: 最大 2 ファイル（Phase 2.5 経由のみ）
+→ 上記の合算が7を超えた場合: CMP/オブジェクト → 過去課題 → 標準仕様 → `_README.md` 由来 の優先順で打ち切る
 
 | マッチ種別 | 読むファイル |
 |---|---|
