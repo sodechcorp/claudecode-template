@@ -69,6 +69,8 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 `docs/design/` 配下にmdファイルが存在するか確認する。存在しない → 初回生成モード、存在する → アップデートモード（手動追記・設計判断の根拠を絶対に消さない）。
 
+**アップデートモード時の技術識別子チェック**: [phase0.5-common.md 参照](.claude/templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各設計書の **responsibility（責務）/ 概要 / 注意点・備考 の自然文セクション**。Mermaid コードブロック内の `Apex: ClassName` も対象（業務語または `**[要確認: 業務語へ変換要]**` へ）。担当オブジェクト列（API 名を記録する目的）は適用外。
+
 ---
 
 ## Phase 1.5: ハッシュチェック（変更なしスキップ）

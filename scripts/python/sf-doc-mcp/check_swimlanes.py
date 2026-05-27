@@ -13,8 +13,18 @@ VALID_FLOW_TYPES = {
 }
 # 英字チェック: 純英字 identifier（括弧内外問わずアルファベット連続3字以上）を検出
 _EN_PATTERN = re.compile(r"[A-Za-z]{3,}")
-# 許容する英字（助詞・URL キーワード等の2字以下は MAX_STEPS チェックだけ）
-_ALLOWED_EN = re.compile(r"^(SF|ID|URL|OK|NG|CS|AD|PR|UC|IT)$")
+# 許容する短い略号（2字以下は事前フィルタで弾かれるため3字以上のもの）
+_ALLOWED_EN = re.compile(r"^(SF|ID|URL|OK|NG|CS|AD|PR|UC|IT|PDF|CSV|FAQ|BCC|API|HTTP|HTTPS|NFR)$")
+# 業務固有名詞・SF 一般用語（プロジェクト横断で許容）
+_ALLOWED_BUSINESS_TERMS = {
+    # SF 製品・機能
+    "Salesforce", "Experience", "Pardot", "Chatter", "Einstein",
+    # 業務サービス名
+    "GMO", "OPROARTS", "Reserve", "LINE", "SMS", "Slack", "Teams", "Zoom",
+    "Outlook", "Gmail", "Excel", "Word", "PowerPoint", "Box", "Drive",
+    # 汎用業務語
+    "Web", "Mail", "File",
+}
 
 
 def _get_label(step: dict) -> str:
@@ -28,10 +38,13 @@ def _get_label(step: dict) -> str:
 
 
 def _has_english(text: str) -> bool:
-    """業務語として不適切な英字表現が含まれるか（3字以上の連続アルファベット）"""
+    """技術識別子（技術名・API 名・クラス名）が含まれるか（業務固有名詞は許容）"""
     for m in _EN_PATTERN.findall(text):
-        if not _ALLOWED_EN.match(m):
-            return True
+        if _ALLOWED_EN.match(m):
+            continue
+        if m in _ALLOWED_BUSINESS_TERMS:
+            continue
+        return True
     return False
 
 

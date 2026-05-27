@@ -84,6 +84,7 @@ tools:
 `docs/.sf/feature_groups.yml` の存在を確認する:
 - **存在しない → 初回生成モード**: Phase 1 から全量生成する
 - **存在する → 差分更新モード**: 既存 YAML を Read して必須キーを確認する。`assignment_confidence` が欠落していればPhase 3 で追記する。手動修正は保持する
+  - **技術識別子チェック**: [phase0.5-common.md 参照](.claude/templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各グループの `name_ja` のみ（`id` / `components` 等の識別子フィールドは適用外）
 
 ### Phase 1: コンポーネント一覧の収集
 

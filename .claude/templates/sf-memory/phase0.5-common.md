@@ -46,3 +46,32 @@
 必須キー: generated_at / groups（dict 形式）
 グループ毎の必須フィールド: id / name / actor / uc_anchors / components / assignment_confidence
 ```
+
+---
+
+## 技術識別子チェック（差分更新時のみ）
+
+各カテゴリのエージェント定義で「適用フィールド」が宣言されている場合、差分更新時に以下を実行する。
+
+**ルール参照**: `.claude/spec/sf-memory-quality.md` の「技術識別子禁止の原則」セクション
+
+### 検出パターン
+
+```
+[A-Z][a-zA-Z]+__c              # API 名（DailyReport__c 等）
+（Aura: |（Apex: |（LWC: |（Flow: |（Batch: |（Trigger:   # 併記接尾辞
+sdch_(Batch|Trigger|Flow)_[A-Za-z_]+   # プロジェクト固有クラス名の直書き
+```
+
+### 実行手順
+
+1. 各カテゴリの Phase 0.5 ブロックに記載の「適用フィールド」を確認する
+2. 対象ファイルの該当フィールドを Read / Grep して上記パターンを検出する
+3. 許容語リスト（Pardot / GMOサイン / LINE / SMS / Experience サイト / URL / PDF / CSV 等）に該当しない場合のみ違反と判定する
+4. 違反箇所は org-profile.md 用語集で業務語を引いて Edit で置換する
+5. 用語集に対応語がなければ `**[要確認: 業務語へ変換要]**` を付与する
+
+**注意**:
+- 適用フィールドが宣言されていないカテゴリはこのチェックをスキップする
+- 初回生成モードでは実行しない（生成時にルール適用済みの想定）
+- 過剰検出を防ぐため、API 名カラム・Mermaid 内の技術ラベル（ `Apex: ClassName` 等）は設計書上の図示目的として許容する

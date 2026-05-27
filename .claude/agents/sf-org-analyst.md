@@ -108,6 +108,7 @@ Phase 0 で完了確認したカテゴリのファイルのみ読む（未完了
 | 業務フロー上の状態値 | org-profile.md Glossary | ピックリスト値の表記 |
 | UCのname表記 | usecases.md の name フィールド | 略称・別名の混在 |
 | システム名・外部サービス名 | system.json の name | 英語/日本語の混在 |
+| 技術識別子 → 業務語 | org-profile.md 用語集 | `（Aura: XYZ）` `（Apex: XYZ）` 等の接尾辞、`*__c` の業務本文への混入（usecases.md / requirements.md / design/ の責務・概要文が対象。catalog 項目一覧・case-index 関連用語は対象外） |
 
 修正方法: 各ファイルを Edit ツールで直接修正する。変更箇所・変更理由を記録する。
 

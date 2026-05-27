@@ -79,6 +79,7 @@ email-templates.md: テンプレート一覧 / 差し込み項目
 
 1. `docs/data/` 配下の既存 `.md` を Glob で列挙 → 先頭 80 行を Read して H2 見出しを抽出
 2. 上記必須項目と照合し、欠落があれば対応 Phase で末尾追記（手動追記は保護）
+3. **技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](.claude/templates/sf-memory/phase0.5-common.md) — 適用フィールド: `master-data.md` の説明列・`automation-config.md` のフロー・承認プロセス説明文。**注意**: DeveloperName カラム・件数カラムは適用外
 
 次に `docs/data/` 配下にmdファイルが存在するか確認する:
 - **存在しない → 初回生成モード**: Phase 1 へ進む
