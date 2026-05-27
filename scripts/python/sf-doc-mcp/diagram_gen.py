@@ -80,7 +80,7 @@ def render_system_diagram(system: dict, out_path: str) -> tuple[int, int]:
         "system",
         graph_attr={
             "bgcolor": "white",
-            "rankdir": "TB",
+            "rankdir": "LR",
             "splines": "polyline",
             "nodesep": "0.5",
             "ranksep": "1.2",
