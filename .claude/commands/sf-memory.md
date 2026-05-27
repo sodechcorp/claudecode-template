@@ -47,12 +47,15 @@ AskUserQuestion ツールを **1回** 呼び出す。`questions` 配列に以下
   - 組織概要・環境情報 — org-profile.md / requirements.md / usecases.md 等を生成（業務フロー・システム構成含む）
   - オブジェクト・項目構成 — docs/catalog/ 配下のオブジェクト定義書・ER図を生成
   - マスタデータ・ワークフロー設定 — マスタデータ・承認プロセス・自動化設定を記録
-  - 設計・機能グループ定義 — docs/design/ 設計書 + docs/.sf/feature_groups.yml を生成
+  - このページはスキップ（Cat4以降へ）— Cat1〜Cat3 を実行せず次ページへ進む
+
+> **「このページはスキップ（Cat4以降へ）」が選択された場合**: Cat1〜Cat3 の実行をゼロとして扱う（Q1 で他の選択肢と同時に選ばれた場合も Cat1〜Cat3 は実行しない）。
 
 **第2問**（`multiSelect: true`）:
-- **question**: 「追加で実行するカテゴリはありますか？（複数選択可）」
-- **header**: 「追加カテゴリ」
+- **question**: 「実行するカテゴリを選択してください（複数選択可）」
+- **header**: 「カテゴリ選択2」
 - **選択肢**:
+  - 設計・機能グループ定義（cat4）— docs/design/ 設計書 + docs/.sf/feature_groups.yml を生成
   - 保守履歴・工数温度感（cat6）— Backlog 完了課題から工数温度感・過去事例インデックス・ハマりポイントを生成（Backlog MCP 必須）
   - 情報所在マップ更新（cat7）— docs/_README.md を単独で再生成・更新する
   - SF 標準仕様記録（cat8）— Salesforce 公式ドキュメントからガバナ制限・API制限・トリガ順序等を収集して sf-standard.md を生成
