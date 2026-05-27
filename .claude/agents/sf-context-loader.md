@@ -70,7 +70,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | `UC-\d+` | UC-01, UC-03 | `docs/flow/usecases.md` |
 | `\w+__c`（項目API名） | Status__c, ApplicantId__c | `docs/catalog/_index.md` → `docs/catalog/custom/{object}.md` |
 | オブジェクト名（日本語・英語） | VisaApplication, 申請管理 | `docs/catalog/_index.md` → `docs/catalog/custom/{object}.md` |
-| キーワード（自動化系） | トリガ, バッチ, フロー, 自動化 | `docs/data/automation.md` |
+| キーワード（自動化系） | トリガ, バッチ, フロー, 自動化 | `docs/data/automation-config.md` |
 | キーワード（業務フロー系） | 業務フロー, 申請フロー, 画面フロー, ユースケース | `docs/flow/usecases.md` |
 | キーワード（スイムレーン系） | スイムレーン, レーン, AS-IS, TO-BE, asis, tobe | `docs/flow/swimlanes.json` |
 | キーワード（通知系） | 通知, メール, テンプレート | `docs/data/email-templates.md` |
@@ -83,6 +83,9 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件を Grep） + `docs/knowledge/case-index.md`（症状列を Grep） |
 | キーワード（変更履歴系） | 変更履歴, changelog, 最近の変更, デプロイ, リリース | `docs/logs/changelog.md`（末尾30行 Tail Read） |
 | キーワード（落とし穴・注意） | 落とし穴, ハマる, ハマった, 気を付ける, 気をつけて, 注意, 地雷, 壊れる, 想定外, 罠 | `docs/knowledge/pitfalls.md` |
+| キーワード（レポート/ダッシュボード系） | レポート, ダッシュボード, report, dashboard | `docs/data/reports-dashboards.md` |
+| キーワード（キュー/承認/割り当て系） | キュー, 承認, 承認プロセス, 割り当て, アサインメントルール | `docs/data/automation-config.md` |
+| キーワード（データ品質系） | データ品質, 空欄, 空欄率, 重複, 重複率, クレンジング | `docs/data/data-quality.md` |
 | キーワード（Salesforce標準仕様） | ガバナ制限, API制限, API上限, SOQL上限, SOQL制限, リストビュー上限, レポート上限, トリガ順序, トリガ実行順序, sharing, FLS評価, PermissionSet優先, 標準仕様, governor, 制限値, 何件まで, 何行まで | `docs/knowledge/sf-standard.md`（該当セクションのみ Grep） |
 
 `{project_dir}/docs/overview/org-profile.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（用語集・命名規則の共通参照として）。
@@ -125,7 +128,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | オブジェクト名マッチ | `docs/catalog/custom/{オブジェクト名}.md` |
 | UC-xx マッチ | `docs/flow/usecases.md`（全体を読み、該当UC番号のセクションを抽出） |
 | スイムレーン/AS-IS/TO-BE マッチ | `docs/flow/swimlanes.json`（該当 `flow_type` のフローと所属レーンの actor 名・type を抽出。全文展開はしない） |
-| 自動化キーワード | `docs/data/automation.md` |
+| 自動化キーワード | `docs/data/automation-config.md` |
 | 通知キーワード | `docs/data/email-templates.md` |
 | 連携キーワード | `docs/architecture/system.json` |
 | 要件キーワード | `docs/requirements/requirements.md`（先頭100行程度） |
@@ -134,6 +137,9 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | 過去判断キーワード | `docs/decisions.md`（直近10件: 末尾200行を Read）+ `docs/knowledge/case-index.md`（症状列を Grep） |
 | 変更履歴キーワード | `docs/logs/changelog.md`（末尾30行 Read） |
 | 落とし穴キーワード | `docs/knowledge/pitfalls.md`（全文 Read） |
+| レポート/ダッシュボードキーワード | `docs/data/reports-dashboards.md` |
+| キュー/承認/割り当てキーワード | `docs/data/automation-config.md` |
+| データ品質キーワード | `docs/data/data-quality.md` |
 | SF標準仕様キーワード | `docs/knowledge/sf-standard.md`（該当セクションを Grep: `^## ` パターンで章を特定してセクション抽出） |
 
 各ファイルの Read / Grep が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。
@@ -158,7 +164,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 - {UC-xx}: {フロー名・主な登場人物・ポイント1〜2行}
 
 ### 自動化・通知・連携
-- {automation.md / email-templates.md / system.json から関連箇所のみ抜粋}
+- {automation-config.md / email-templates.md / system.json から関連箇所のみ抜粋}
 
 ### 要件・ビジネスルール
 - {requirements.md から該当BR-xxx等を抜粋}
@@ -174,7 +180,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 - {ガバナ制限の数値・トリガ順序・sharing ルール等、今タスクに直接関係する仕様のみ抜粋}
 
 ### 注意事項・落とし穴
-- {docs/knowledge/pitfalls.md / 設計書・automation.md から読み取れる競合リスク・ハマりポイント}
+- {docs/knowledge/pitfalls.md / 設計書・automation-config.md から読み取れる競合リスク・ハマりポイント}
 ```
 
 > **文字数オーバーの場合**: 「Salesforce 標準仕様」→「注意事項・落とし穴」→「過去の判断」→「要件・ビジネスルール」→「自動化・通知・連携」の順に省略して2000文字以内に収める。
