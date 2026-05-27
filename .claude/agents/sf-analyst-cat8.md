@@ -5,6 +5,7 @@ model: opus
 tools:
   - Read
   - Write
+  - Edit
   - Glob
   - Grep
   - WebFetch
@@ -193,10 +194,13 @@ https://developer.salesforce.com/docs/atlas.en-us.salesforce_large_data_volumes_
 
 1. **新規作成の場合**: Step 3 の構造化済みコンテンツを `{project_dir}/docs/knowledge/sf-standard.md` に書き出す。
 2. **差分更新の場合**: 既存ファイルの各テーブルに新規行を追記する。既存行の値が異なる場合は、値の後に `（更新: YYYY-MM-DD）` を付けて上書き更新する。手動追記した行（コメントや追加行）は絶対に削除しない。
-3. `{project_dir}/docs/logs/changelog.md` が存在する場合、最上部に以下の 1 行を追記する:
-   ```
-   - {YYYY-MM-DD}: cat8 完了 — sf-standard.md を生成（Salesforce 公式ドキュメント参照）
-   ```
+3. `{project_dir}/docs/logs/changelog.md` への追記:
+   - **追記行**:
+     ```
+     - {YYYY-MM-DD}: cat8 完了 — sf-standard.md を生成（Salesforce 公式ドキュメント参照）
+     ```
+   - **ファイルが存在する場合**: Edit ツールを使い、先頭コメント行（`<!-- コマンド実行時に自動追記される -->` 等）の直後に上記 1 行を挿入する。**`Write` ツールで全文を再書き出ししない**（既存の変更履歴が消失するリスクがあるため）。
+   - **ファイルが存在しない場合**: 追記をスキップする。
 
 ---
 
