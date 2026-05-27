@@ -335,14 +335,15 @@ fi
 # --- Git コミット（リポジトリがある場合のみ・pushは手動） ---
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     git add .claude/ scripts/ .gitignore 2>/dev/null || true
+    for item in "${SCAFFOLD_ADDITIONS[@]+"${SCAFFOLD_ADDITIONS[@]}"}"; do
+        rel="${item%（テンプレ雛形・新規作成）}"
+        [ -n "$rel" ] && git add "$rel" 2>/dev/null || true
+    done
     if ! git diff --cached --quiet; then
         git commit -m "chore: upgrade template (${TEMPLATE_COMMIT})"
         ok "コミット完了。push は手動で実行してください: git push origin HEAD"
     else
         info "Git: コミット対象の変更なし（スキップ）"
-    fi
-    if [ ${#SCAFFOLD_ADDITIONS[@]} -gt 0 ]; then
-        info "docs/ に雛形ファイルを新規配布しました。コミットは /git-sync で行ってください"
     fi
 else
     info "Git リポジトリ未設定。Git 操作はスキップしました"
