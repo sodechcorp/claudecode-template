@@ -1,0 +1,34 @@
+# Security & Permissions — 詳細規則
+
+## settings.json による技術的ブロック
+
+`settings.json` は Git管理対象。`.claude/` 編集・`rm -rf .claude` は行動指示のみ。本番デプロイは deny（⚠️ `*prod*`/`*production*` エイリアスパターン依存）。`git push origin main` 等の破壊操作は未実装（チーム導入時に追加）。
+
+テンプレート更新は `/upgrade` コマンド経由のみ。
+
+## 本番組織接続時の絶対ルール
+
+ルートの `CLAUDE.md` に「接続組織: 本番」と記録、または `sf org display` で `isSandbox: false` の場合は以下を **絶対に実行しない**（ユーザー指示があっても解除不可）:
+
+- DML 操作（`sf data create/update/delete/upsert`・Apex 匿名 DML）
+- デプロイ（`sf project deploy start`）
+- メタデータ変更・force-app への書き込み
+
+**許可**: SOQL SELECT・`sf project retrieve`・ファイル読み取り・docs/ への書き込み
+
+## 共有フォルダ保護
+
+- `G:\共有ドライブ` 削除: hook ハードブロック（bypass 不可）
+- `G:\共有ドライブ` 書き込み: 実行前に日本語警告を地の文で出し、ユーザー明示承認後のみ実行（AskUserQuestion 禁止・回避経由禁止）
+- 警告文体・例外パターン詳細: `.claude/templates/common/shared-folder-protection.md` 参照
+
+## ファイル変更ルール
+
+`.claude/` 配下は読み取りのみ。`CLAUDE.md`（ルート）/ `docs/` / `force-app/` は編集可。`.mcp.json` は .gitignore 対象（個人設定）。`.gitignore` 変更時はユーザー確認。
+
+## 確認必須操作
+
+以下は必ずユーザー確認を取る:
+- Slack / メール / 外部サービスへのメッセージ送信
+- 機密情報（トークン・パスワード・個人情報・組織ID）の出力・ログへの記録
+- 既存ファイルの削除・上書き（読み取り確認なしに）
