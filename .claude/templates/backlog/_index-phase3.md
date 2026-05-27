@@ -11,16 +11,14 @@ options:
 
   - name: option-validator-blind
     description: implementation-plan を見ずに別案を書いて比較（blind reviewer）— subagent 化必須
-    category: D
+    category: A
     auto-execute-when:
-      - 課題優先度が「高」または「緊急」
-      - 影響範囲が広い修正（共通コンポーネント・複数オブジェクト）
-      - 推奨案 A に判断ポイントが多い（5 件以上）
+      - 常時実行（auto-skip-when に該当しない場合は必ず実行）
     auto-skip-when:
-      - typo 修正・ラベル変更レベル
-      - 推奨案 A が唯一解で別案が立てられない
+      - 典型的自明ケース（_README.md §典型的自明ケース定義 を参照）
+      - 推奨案 A が唯一解で別案が構造的に立てられない（実装選択肢がゼロ）
     ask-user-prompt: |
-      この課題は影響範囲が小さい修正のようです。blind 別案レビュー（subagent）は省略してもよさそうですか？
+      この課題は唯一解のため別案が立てられない可能性があります。blind 別案レビュー（subagent）は省略してもよさそうですか？
     estimated-cost: 重
 
   - name: option-staged-deployment-plan
