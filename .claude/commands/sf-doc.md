@@ -180,17 +180,67 @@ finally:
 
 ---
 
+### /sf-memory 最新化確認
+
+`selected_steps` の内容に応じて確認内容を切り替える。
+
+#### 「プロジェクト概要書」のみ選択時
+
+> 概要書は docs/overview, docs/requirements, docs/architecture, docs/flow, docs/catalog/_data-model.md を読む。これらは /sf-memory カテゴリ1・2 で更新される。
+
+AskUserQuestion で確認:
+- question: "/sf-memory の最新化状況を確認してください？"
+- header: "最新化確認"
+- multiSelect: false
+- options:
+  - label: "最新化済み・このまま続ける"、description: "Step 2 以降の生成に進む"
+  - label: "先に /sf-memory を実行する"、description: "コマンドを終了し、/sf-memory 実行を促す"
+
+#### 「オブジェクト定義書」のみ選択時
+
+> オブジェクト定義書は docs/catalog/_index.md（候補リスト用）を読む。フィールドメタは Salesforce 組織から直接取得するため更新不要。
+
+AskUserQuestion で確認:
+- question: "docs/catalog/_index.md は最新化済みですか？"
+- header: "最新化確認"
+- multiSelect: false
+- options:
+  - label: "このまま続ける"、description: "Step 2 以降の生成に進む"
+  - label: "先に /sf-memory カテゴリ2 を実行する"、description: "コマンドを終了"
+
+#### 両方選択時
+
+> 概要書（カテゴリ1・2 由来）+ オブジェクト定義書（カテゴリ2 由来）の両方が対象。
+
+AskUserQuestion で確認:
+- question: "/sf-memory の最新化状況を確認してください？"
+- header: "最新化確認"
+- multiSelect: false
+- options:
+  - label: "両カテゴリとも最新化済み・このまま続ける"、description: "Step 2 以降の生成に進む"
+  - label: "先に /sf-memory を実行する"、description: "コマンドを終了"
+
+#### 共通：「先に実行する」が選ばれた場合
+
+「`/sf-memory` を実行して docs/ を最新化してから、再度 `/sf-doc` を実行してください」と案内してコマンドを終了する。Step 2 以降に進まない。
+
+#### 「このまま続ける」が選ばれた場合
+
+`pre_confirmed=true` として保持し、Step 2 に進む。
+
+---
+
 ## Step 2: 各エージェントへの委譲
 
 Step 1 完了後、`selected_steps` に応じて以下のエージェントを self-contained プロンプトで起動する。
 
 | 選択 | 委譲先 | 備考 |
 |---|---|---|
-| プロジェクト概要書のみ | sf-doc-overview-writer | `pre_confirmed=false` で /sf-memory 最新化確認を実施 |
+| プロジェクト概要書のみ | sf-doc-overview-writer | `pre_confirmed=true`（Step 1 で確認済み） |
 | オブジェクト定義書のみ | sf-doc-objects-writer | `selected_steps=["オブジェクト定義書"]` で単独モード |
-| 両方選択 | sf-doc-objects-writer | `selected_steps=["プロジェクト概要書", "オブジェクト定義書"]`。Phase 1〜5 の AskUserQuestion を 1 件ずつ順次完了してから Phase 6 で sf-doc-overview-writer を `pre_confirmed=true` で連鎖呼び出し |
+| 両方選択 | sf-doc-objects-writer | `selected_steps=["プロジェクト概要書", "オブジェクト定義書"]`。Phase 2〜5 の AskUserQuestion を 1 件ずつ順次完了してから Phase 6 で sf-doc-overview-writer を `pre_confirmed=true` で連鎖呼び出し |
 
-> **両方選択時の呼び出し順序**: sf-doc-objects-writer が主役となる。Phase 1〜5 の AskUserQuestion を**1 件ずつ順次呼んで全て回答済みにしてから**、Phase 6 で sf-doc-overview-writer を `pre_confirmed=true` で呼ぶ。これにより「概要書生成フェーズが Phase 1〜5 の途中に割り込まない」UX を保つ。**Phase 1〜5 の確認を 1 メッセージで地の文にまとめて出すのは禁止**（各 Phase ごとに AskUserQuestion を 1 件ずつ呼ぶ）。
+> **両方選択時の呼び出し順序**: sf-doc-objects-writer が主役となる。Phase 2〜5 の AskUserQuestion を**1 件ずつ順次呼んで全て回答済みにしてから**、Phase 6 で sf-doc-overview-writer を `pre_confirmed=true` で呼ぶ。これにより「概要書生成フェーズが Phase 2〜5 の途中に割り込まない」UX を保つ。**Phase 2〜5 の確認を 1 メッセージで地の文にまとめて出すのは禁止**（各 Phase ごとに AskUserQuestion を 1 件ずつ呼ぶ）。
 
 ### プロジェクト概要書のみ → sf-doc-overview-writer
 
@@ -220,7 +270,7 @@ print('PATH:', str(p))
 project_dir:       {project_dir}
 output_dir:        {output_dir}
 author:            {author}
-pre_confirmed:     false
+pre_confirmed:     true
 version_increment: {version_increment}
 source_file:       {source_file}
 ```
@@ -231,6 +281,7 @@ source_file:       {source_file}
 project_dir:    {project_dir}
 output_dir:     {output_dir}
 author:         {author}
+pre_confirmed:  true
 selected_steps: ["オブジェクト定義書"]
 ```
 
@@ -242,6 +293,7 @@ selected_steps: ["オブジェクト定義書"]
 project_dir:    {project_dir}
 output_dir:     {output_dir}
 author:         {author}
+pre_confirmed:  true
 selected_steps: ["プロジェクト概要書", "オブジェクト定義書"]
 ```
 
