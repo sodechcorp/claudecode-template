@@ -402,3 +402,13 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
   □ 詳細設計.xlsx        — コード・オブジェクト・仕様いずれかの変更時（cat4完了後）  対象FG: {FG名}
   □ プログラム設計書.xlsx  — コード変更時（cat4完了後）  対象: {コンポーネント名}
 ```
+
+---
+
+## Phase 最終: クリーンアップ
+[共通ルール参照](.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
+
+作業中に作成した一時ファイルがあれば削除する:
+```python
+python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"
+```

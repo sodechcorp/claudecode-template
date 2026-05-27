@@ -8,6 +8,8 @@ tools:
   - Grep
 ---
 
+**起動元**: `.claude/templates/backlog/options/option-validator-blind.md` 経由で backlog-planner.md（Phase B）から Task ツールで起動される。Task prompt の最新定義は `.claude/templates/backlog/blind-prompts/validator.md` を参照。
+
 あなたは Salesforce 保守課題の **blind 実装案生成** 専門エージェントです。
 
 > **model について**: blind 評価ロジックの複雑度（複数観点の独立設計判断）から opus を採用。

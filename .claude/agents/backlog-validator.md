@@ -71,13 +71,32 @@ implementation-plan.md の確定実装方針が **典型的自明ケース**（[
 
 ## 事前準備
 
-issueID は呼び出し元（backlog.md Phase 3.5）の引数として渡される（例: LINK-139）。渡されない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら `AskUserQuestion` でフォルダ名リストを提示してユーザに選択させる。
+issueID は呼び出し元（backlog.md Phase 3.5）の引数として渡される（例: LINK-139）。渡されない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら「対象 issueID を `XXX-1`、`XXX-2`... のどれにしますか？」とテキストで確認する。
 
 Grep で「確定した実装方針まとめ」「Implementation Summary」「テストシナリオ」「Test Scenarios」「フィールドAPI名」「Field API Names」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md` と `docs/logs/{issueID}/investigation.md`。
 
 **いずれかのファイルが存在しない場合**: `Phase 3（実装方針策定）が未完了です（不足: {欠落ファイル名}）。/backlog を実行して Phase 3 から進めてください。` とユーザに案内し、処理を終了する。
 
 以下の5項目が揃っていることを確認してから各ステップに進む: 「確定した実装方針まとめテーブル」「判断ポイント一覧」「関連コンポーネント一覧（変更対象ファイル）」「テストシナリオ」「フィールドAPI名確認済み一覧」。いずれかが欠けている場合は不足項目を列挙してユーザに案内し、処理を終了する。
+
+---
+
+### 必須確認（Step 0b のオプション判定に関わらず必ず実行）
+
+以下の3点は option ファイルの有無に関わらず、validator 本体で確認する:
+
+1. **implementation-plan.md と investigation.md の整合性チェック**
+   - investigation.md に記載された「未確認 Q」がすべて approach-plan.md の「Q回答」欄で回答済みか確認
+   - implementation-plan.md の対象オブジェクト・項目・トリガー条件が investigation.md の調査結果と矛盾していないか確認
+   - 矛盾がある場合は「矛盾あり: {内容}」として validation-report.md に記録し、Phase 3 戻りを提案する
+
+2. **Q 答え未確定の有無確認**
+   - approach-plan.md の「判断ポイント一覧」を Read し、「回答: 未確定」「保留」「TBD」等の未確定 Q が残っていないか確認
+   - 未確定 Q がある場合は実装前に解決が必要として Phase 3 戻りを提案する
+
+3. **implementation-plan.md の改版履歴妥当性確認**
+   - 改版履歴テーブルの最終更新日と内容が、discussion-log.md の最後の方針変更と一致しているか確認
+   - 乖離がある場合は「改版漏れの可能性: {内容}」として validation-report.md に記録する
 
 ---
 
@@ -254,3 +273,13 @@ NG 項目（あれば）:
 5. やり取りが落ち着いたら「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？ エビデンス取得まで待機しますか？」とテキストで確認する。**Phase 3 に戻る場合**はユーザに「Phase 3（実装方針策定）に戻ります。/backlog を再実行して Phase 3 から進めてください（または同一セッション内で『Phase 3 に戻ってください』と指示）」と案内する。
 
 **Phase 4 に進む前に必ずユーザの明示的な承認を得る。**
+
+---
+
+## Phase 最終: クリーンアップ
+[共通ルール参照](.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
+
+作業中に作成した一時ファイルがあれば削除する:
+```python
+python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"
+```

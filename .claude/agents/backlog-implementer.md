@@ -235,3 +235,13 @@ Before/After をユーザに提示した後、以下を必ず行う:
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 5 に進んでよろしいですか？」とテキストで確認する
 5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
+
+---
+
+## Phase 最終: クリーンアップ
+[共通ルール参照](.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
+
+作業中に作成した一時ファイルがあれば削除する:
+```python
+python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"
+```

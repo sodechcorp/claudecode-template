@@ -35,6 +35,8 @@ tools:
 
 `sf-context-loader` を knowledge-only モードで呼び出す:
 
+※ **knowledge-only モードの理由**: investigator と同様、planner 段階でも SF docs のフルロードは実施しない。docs の詳細読込は implementer 以降でタスク特化型のフルロードを行う設計。
+
 ```
 task_description: 「{課題タイトル + 調査レポートの課題サマリー 200 字}」
 project_dir: 「{プロジェクトルート}」
@@ -300,7 +302,8 @@ Phase A で方針が確定した後に実施する。
 Phase B の提示を行う**前に**、以下を実施する:
 
 1. **類似する既存実装を読む**（調査レポートに記載された類似実装 + 追加で見つかったもの。最大3件を優先度順に選択。超過分は件数を記録して省略）  
-   各実装について「どういうパターンで実装しているか」を把握する
+   各実装について「どういうパターンで実装しているか」を把握する  
+   investigation.md の末尾「参照ファイル一覧」を Read して investigator が読んだファイルを確認し、**investigator が読んでいない補完範囲のみ**を追加で読む。investigator が既に読んだファイルを再度読む必要はない。
 
 2. **判断ポイントに関わる全フィールドのAPI名を確認する**  
    `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` を確認する（最優先）。  
@@ -418,6 +421,9 @@ Phase B の提示を行う**前に**、以下を実施する:
 - [ ] 確認内容2
 
 ## テスト仕様
+
+investigation.md の Step G に記載されたテストシナリオを **元に** テスト仕様テーブルを作成する（investigator のシナリオをそのまま流用し、検証コマンド・SF CLI・SOQLを追加する形で詳化する）。investigator のシナリオと矛盾するテスト仕様を作ってはならない。
+
 | No | 確認観点 | タイミング | 実行種別 | 確認手順 | 期待結果 |
 |---|---|---|---|---|---|
 | 1 | | 実装前 | Apex Test | | |
@@ -462,28 +468,7 @@ Phase B の提示を行う**前に**、以下を実施する:
 > **`option-validator-blind` 使用時**: B-4 でユーザが全判断ポイントを承認し implementation-plan.md を保存した直後に、以下の Task 起動 prompt を使って `backlog-blind-validator` subagent を呼び出すこと。subagent 実行後に `## blind 実装案レビュー` セクションが implementation-plan.md の末尾に追記される。
 > 渡し情報の詳細は `.claude/templates/backlog/options/option-validator-blind.md` L11-17 を参照。
 
-```
-Task(
-  subagent_type="backlog-blind-validator",
-  prompt="""
-課題ID: {issueID}
-
-課題本文:
-{課題本文の全文}
-
-コメント全文:
-{全コメントのテキスト}
-
-investigation.md の内容:
-{investigation.md のテキスト}
-
-approach-plan.md の採用方針（「採用方針:」行のみ。「### 判断ポイント一覧」以降は含めない）:
-{採用方針テキスト}
-
-implementation-plan.md の内容は一切伝えない。あなたは上記情報だけで独立に実装案を生成してください。
-"""
-)
-```
+Task prompt は `.claude/templates/backlog/blind-prompts/validator.md` を Read して、その内容を Task の prompt として使用すること。プレースホルダー（`{issueID}` `{課題本文の全文}` `{全コメントのテキスト}` `{investigation.md のテキスト}` `{採用方針テキスト}`）は実行時の値で置換する。
 
 ---
 
@@ -537,3 +522,15 @@ B-3 の提示内容をユーザに見せたら、以下を必ず行う:
 - **approach-plan.md 未取得（Phase B 起動時）**: `Phase A（対応方針策定）から先に実施してください` とユーザに案内し、処理を中止する
 - **approach-plan.md 保存失敗**: 生成済みの方針内容をチャットにそのまま再出力してユーザが内容を保全できるようにする。エラー内容をユーザに提示する。ディレクトリ不在が原因の場合は「`docs/logs/{issueID}/` ディレクトリを手動で作成してください（例: `mkdir -p docs/logs/{issueID}/`）」とユーザに依頼してから再試行する。それでも失敗する場合は手動保存を依頼して処理を中止する
 - **implementation-plan.md 保存失敗**: approach-plan.md 保存失敗と同じ手順を適用する（コンテンツ再出力 → エラー提示 → ディレクトリ作成依頼 → 再試行 → 手動依頼）
+
+---
+
+## Phase 最終: クリーンアップ
+
+[共通ルール参照](.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
+
+作業中に作成した一時ファイルがあれば削除する:
+
+```python
+python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"
+```
