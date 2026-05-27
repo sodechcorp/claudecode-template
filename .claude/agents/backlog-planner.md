@@ -54,8 +54,8 @@ Step 0b（オプション index 読込）は Step 0a 完了後に続けて実施
 **インライン最小手順（_README.md が参照不可な場合も以下を実施すること）**:
 
 1. モードに応じてオプション index を Read する:
-   - **Phase A（対応方針）実行時**: `_index-phase2.md` を Read して判定（`_index-cross.md` は Phase 5 で評価するため評価しない）
-   - **Phase B（実装方針）実行時**: `_index-phase3.md` を Read して判定（Phase A から連続実行の場合も必ず再 Read する。`_index-cross.md` は Phase 5 で評価するため評価しない）
+   - **Phase A（対応方針）実行時**: `_index-phase2.md` を Read して判定
+   - **Phase B（実装方針）実行時**: `_index-phase3.md` を Read して判定（Phase A から連続実行の場合も必ず再 Read する）
 2. 各 index の「オプション一覧」から、コマンド起動時に指定されたオプションを確認する
 3. 該当オプションがあれば対応する `options/option-*.md` を Read して追加手順を把握する
 4. 該当オプションがなければそのまま Phase A/B の本処理に進む

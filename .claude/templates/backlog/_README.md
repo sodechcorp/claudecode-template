@@ -19,7 +19,6 @@
 ├── _index-phase5.md              # Phase 5 用判定情報
 ├── _index-phase5-5.md            # Phase 5.5 用判定情報
 ├── _index-phase6.md              # Phase 6 用判定情報
-├── _index-cross.md               # 横断系判定情報（全 Phase 参照）
 ├── xlsx-setup.md                 # Phase 1.5 対応記録ファイル作成手順
 ├── deploy-skip-judgment.md       # デプロイ適否の判定基準
 ├── resume-phase-routing.md       # 途中フェーズからの再開ルーティング
@@ -50,8 +49,7 @@
 ### Step 0b: 関連オプションの判定（全エージェント必須）
 
 1. **このフェーズ用の `_index-phase{N}.md` を Read**（Phase 1 なら `_index-phase1.md`、Phase 3.5 なら `_index-phase3-5.md`）
-2. **Phase 5 (tester) のみ `_index-cross.md` を Read**（横断系オプション・他 Phase では評価しない）
-3. 各オプションについて以下の 3 分岐で判定:
+2. 各オプションについて以下の 3 分岐で判定:
 
    | 判定 | 条件 | 挙動 |
    |---|---|---|
@@ -135,7 +133,7 @@
 2. 該当 Phase の `_index-phase{N}.md` にエントリ追加（name / description / auto-execute-when / auto-skip-when / ask-user-prompt / category / estimated-cost）
    - `prerequisites`（任意）: 実行前に満たすべき前提条件の一覧。例: 「test-report.md にエビデンスマッピング表が存在し全項目✅取得済」
    - `prerequisite-fail-action`（任意）: 前提条件が満たせない場合の指示（エラー文言 or フォールバック手順）。`prerequisites` がある場合は必ずセットで記述する
-3. 横断系の場合は `_index-cross.md` に追加
+3. Phase 5 向けの場合は `_index-phase5.md` に追加（横断系オプションも Phase 5 に統合済み）
 
 ### option の判定条件を変更する時
 

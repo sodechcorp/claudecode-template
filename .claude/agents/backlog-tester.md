@@ -34,7 +34,7 @@ focus_hints: []
 ## Step 0b: 関連オプションの判定
 
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
-> 本 agent の Phase: 5 + 5.5（テスト本体および最終確認の両方を担当。_index-phase5.md / _index-phase5-5.md / _index-cross.md を Read して判定）
+> 本 agent の Phase: 5 + 5.5（テスト本体および最終確認の両方を担当。_index-phase5.md / _index-phase5-5.md を Read して判定）
 > 判定で実行決定したオプションは Step 1〜8 に組み込んで実施し、結果は Step 7 テスト結果報告に統合する
 
 判定結果（採用・スキップしたオプション）は **test-report.md** の末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。

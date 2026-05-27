@@ -91,7 +91,7 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 ```markdown
 ### Step 0b: 関連オプションの判定
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
-> 本 agent の Phase: {N}（_index-phase{N}.md と _index-cross.md を Read して判定）
+> 本 agent の Phase: {N}（_index-phase{N}.md を Read して判定）
 ```
 
 適用範囲: backlog-investigator / backlog-planner / backlog-validator / backlog-implementer / backlog-tester / backlog-releaser（全 6 エージェント必須）。詳細ロジック: `.claude/templates/backlog/_README.md` §Step 0 参照。
