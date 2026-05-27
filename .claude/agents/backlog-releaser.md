@@ -244,8 +244,9 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 **pitfalls.md への追記フォーマット**（最新行を先頭挿入）:
 ```
-| {YYYY-MM-DD} | {issueID} | {カテゴリ（例: LWC×Apex / 数式項目）} | {何をするとどうなるか（全角60字以内）} | {対処・回避策（全角40字以内）} |
+| {YYYY-MM-DD} | {issueID} | {カテゴリ（例: LWC×Apex / 数式項目）} | {何をするとどうなるか（全角60字以内）} | {対処・回避策（全角40字以内）} | [fallback] |
 ```
+> 検出方法列: Phase 3.6 経由の追記は常に `[fallback]`（discussion-log.md から抽出のため）。
 
 **verify-*.md 追加ルール記入欄への追記フォーマット**:
 ```
@@ -276,6 +277,55 @@ python scripts/python/backlog-xlsx/update_records.py \
   --source "顧客" \
   --content "確認サイン取得: {ユーザー報告内容}"
 ```
+
+---
+
+### 3.8. cases/{issueID}.md 詳細ファイル生成
+
+> **スキップ判定**: `docs/knowledge/cases/{issueID}.md` が既に存在する場合はスキップ（cat6 が生成済みの可能性）。`{issueID}` が空 / 未設定 / 変数名リテラルの場合もスキップする。
+
+`docs/logs/{issueID}/` 配下の前工程ファイルを集約し、`docs/knowledge/cases/{issueID}.md` として知識ベース形式で書き出す。
+
+**手順**:
+
+1. 以下のファイルを Read する（存在するもののみ）:
+   - `docs/logs/{issueID}/investigation.md`
+   - `docs/logs/{issueID}/approach-plan.md`
+   - `docs/logs/{issueID}/implementation-plan.md`
+   - `docs/logs/{issueID}/test-report.md`
+2. `docs/knowledge/cases/` フォルダが存在しない場合は作成する
+3. 以下のテンプレートで `docs/knowledge/cases/{issueID}.md` を新規作成する:
+
+```markdown
+# {issueID}: {件名}
+
+生成日: {YYYY-MM-DD} / データソース: /backlog フロー成果物
+実績工数: {実績工数}h / 種別: {issue_type}
+
+## TL;DR
+（investigation.md の「課題サマリー」「TL;DR」セクションから200字以内で要約）
+
+## 症状・要件
+（investigation.md の「要件理解」または「問題の概要」セクションを整形。ない場合は approach-plan.md から補完）
+
+## 調査・検討の経緯
+（approach-plan.md の「案A〜X 比較」「不確実点」等から「検討の流れ・排除案・採用理由」を抽出）
+
+## 採用方針
+（approach-plan.md の「採用方針」セクションから転記）
+
+## 却下案・代替案
+（approach-plan.md の比較表・却下案の理由を整形）
+
+## 教訓・再発防止
+（investigation.md または approach-plan.md の「再発防止」「注意点」セクションから抽出。ない場合は省略）
+
+## 関連リンク
+- Backlog: （{issueID} で Backlog 検索）
+- docs/logs/{issueID}/: 前工程ファイル一式
+```
+
+前工程ファイルがいずれも存在しない場合は「前工程ファイルが見当たらないため cases ファイルをスキップ」とログに記録してスキップする。
 
 ---
 
@@ -320,24 +370,27 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 `docs/knowledge/case-index.md` に当課題の1行サマリーを先頭挿入する。
 
-1. `docs/logs/{issueID}/approach-plan.md` を Read して「採用方針」セクションから採用方針を取得する
-   - **症状/要件（全角40字以内）** の取得優先順位:
+1. `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/investigation.md` を Read して各列の値を取得する:
+   - **症状/要件（全角60字以内）** の取得優先順位:
      1. `docs/logs/{issueID}/investigation.md` の「課題サマリー」または「TL;DR」セクション冒頭1行
      2. `docs/logs/{issueID}/approach-plan.md` の「バグの概要」または課題の種別説明冒頭
      3. Backlog 課題タイトル
+   - **根本原因（全角60字以内）**: バグ種別のみ。investigation.md の「根本原因」「原因」セクションから抽出。見当たらない場合は `-`
+   - **採用方針（全角40字以内）**: approach-plan.md の「採用方針」セクションから抽出
+   - **教訓（全角40字以内）**: investigation.md または approach-plan.md から「再発防止」「教訓」「注意点」に関する記述を抽出。見当たらない場合は `-`
    - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
    - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
 2. `docs/logs/{issueID}/implementation-plan.md` を Read して「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
-3. Step 4 で確定した実績工数を使用する（actualHours 未確定の場合は - とする）
+3. Step 4 で確定した実績工数を使用する（actualHours 未確定の場合は `-` とする）
 4. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
    ```
-   | {YYYY-MM-DD} | {issueID} | {種別: バグ/追加要望/その他} | {症状/要件 全角40字以内} | {対象オブジェクト・コンポーネント} | {採用方針 全角30字以内} | {関連用語カンマ区切り3〜5語} | {実績工数} |
+   | {YYYY-MM-DD} | {issueID} | {種別} | {症状60字} | {根本原因60字} | {採用方針40字} | {教訓40字} | {対象コンポーネント} | {関連用語} | {実績工数} | [cases/{issueID}.md](cases/{issueID}.md) |
    ```
 5. `docs/knowledge/case-index.md` が存在しない場合は以下のヘッダー付きで新規作成してから追記:
    ```markdown
    # 対応事例インデックス
-   | 日付 | 課題ID | 種別 | 症状/要件（全角40字以内） | 対象オブジェクト・コンポーネント | 採用方針（全角30字以内） | 関連用語 | 工数(h) |
-   |---|---|---|---|---|---|---|---|
+   | 日付 | 課題ID | 種別 | 症状/要件（60字） | 根本原因（60字） | 採用方針（40字） | 教訓（40字） | 対象コンポーネント | 関連用語 | 工数(h) | 詳細 |
+   |---|---|---|---|---|---|---|---|---|---|---|
    ```
 
 **スキップ条件**: 当課題の行がすでに存在する場合はスキップ（重複防止）。  
