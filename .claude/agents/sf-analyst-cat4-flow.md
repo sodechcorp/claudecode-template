@@ -79,7 +79,7 @@ sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefin
 
 > **Inactive Flow（Draft/Obsolete）の扱い**: `ActiveVersionId == null` の Flow（Inactive）は本クエリの対象外＝設計書生成対象外とする（「設計書は稼働中の組織を記述する」という意図的な設計）。ただし silent 除外を避けるため、Phase 0 で生成した `_flow_index.json` の各エントリの `status` が `Active` 以外（Draft/Obsolete/InvalidDraft 等）の Flow を抽出し、その API 名と件数を**最終報告の「主な発見・所見」に1行**記載する（例: `Inactive Flow 2 件を設計書生成対象から除外（Draft）: GH_UpdateTaskLastActivityDate, GH_UpdateToDoLastActivityDate`）。物理ファイルは存在するが稼働していないため、文書化要否は人間が個別判断する。
 
-各フローのソースを以下の **段階的読み戦略** で読み込む（全量を一気に読まない）:
+各フローのソースを以下の手順で読み込む。**容量・行数を理由に主要ノード・DML・Apex 呼び出しを `[要確認]` で放置しない**（早期終了禁止）。
 
 **Pass 1（骨格把握）**: Grep で主要タグの name 属性を抽出してノード一覧と接続関係を把握。
 
@@ -87,7 +87,7 @@ sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefin
 python -c "
 import re, pathlib
 text = pathlib.Path(r'{project_dir}/force-app/main/default/flows/{api_name}.flow-meta.xml').read_text(encoding='utf-8', errors='replace')
-tags = ['screens','decisions','actionCalls','recordLookups','recordUpdates','recordCreates','subflows','loops','scheduleStart']
+tags = ['screens','decisions','actionCalls','recordLookups','recordUpdates','recordCreates','recordDeletes','assignments','apexPluginCalls','waits','subflows','loops','scheduleStart']
 for tag in tags:
     names = re.findall(rf'<{tag}[^>]*>.*?<name>([^<]+)</name>', text, re.DOTALL)
     if names:
@@ -95,11 +95,18 @@ for tag in tags:
 "
 ```
 
-**Pass 2（詳細読み）**: 骨格で特定した主要ノード（Decision 条件式・RecordUpdate 対象項目等）を `Read` の offset/limit で部分読み込み（各 50〜150 行）。
+**Pass 2（DML・Apex・バージョンの確定）**: 以下を Grep で全件抽出し設計書に確定値を記録する（`[要確認]` にしない）。
 
-**Pass 3（Scheduled Flow）**: `<scheduleStart>` or `<schedule>` タグがある場合はそのブロックを Read して `frequency / startDate / startTime / offsetNumber / offsetUnit` を抽出し、設計書の「処理タイミング」欄に記述する。
+- DML 操作: `<recordCreates>` / `<recordUpdates>` / `<recordDeletes>` の対象オブジェクト（`<object>` タグ）を抽出
+- Apex 呼び出し: `<actionType>APEX</actionType>` + 直前の `<apexClass>` を抽出
+- フローバージョン・説明: `<label>` / `<description>` / `<processType>` を抽出
 
-> 500 行以下の小規模 Flow は Pass 1 のみで十分な場合が多い。Pass 2/3 は必要に応じて実施。
+**Pass 3（全文走査・省略不可）**: ソース XML を先頭から末尾まで順次読み込み、全ノードの詳細（Decision 条件式・Assignment 対象変数・RecordUpdate 対象項目等）を把握する。
+
+- **500 行以下**: `Read` で全文1回読み込む
+- **500 行超**: `Read` の offset/limit で先頭から末尾まで **200〜300 行ずつ順次**読み込む（cat4-apex / cat4-lwc と同方式）。サンプリング・中断禁止。
+
+**Pass 4（Scheduled Flow）**: `<scheduleStart>` or `<schedule>` タグがある場合はそのブロックを Read して `frequency / startDate / startTime / offsetNumber / offsetUnit` を抽出し、設計書の「処理タイミング」欄に記述する。
 
 既存設計書がある場合はそのファイルも Read してアップデートモードで更新する。
 

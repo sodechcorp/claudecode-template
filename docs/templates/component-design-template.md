@@ -127,7 +127,7 @@ flowchart TD
 
 **Flow**:
 - `flow-meta.xml` を**全文読み込み**、全ノード（Start / Decision / Assignment / RecordCreate / RecordUpdate / ActionCall / SubflowRef等）をMermaid図で**全分岐図示**（省略不可）
-  - ただし 1000行超の大規模 Flow は概要（ノード一覧・主要分岐）を先に出力し、詳細は節ごとに分割して読み込む（コンテキスト節約）
+  - 大規模 Flow（1000行超）も省略不可。`Read` の offset/limit で先頭から末尾まで 200〜300 行ずつ順次読み込み、全ノードを把握してから図示する。容量を理由に主要分岐・DML・Apex 呼び出しを `[要確認]` で放置しない
 - 入力変数・出力変数を全量テーブルで記述（型・必須/任意・初期値）
 - Apex呼び出し箇所（`<actionType>APEX</actionType>`）は対象クラス名を明記
 - 起動条件（Record-Triggered の場合: オブジェクト・タイミング・条件式）を基本情報に記述
