@@ -211,6 +211,12 @@ FG確定後、以下の観点で割り当てを検証する:
 
 スケルトン JSON 不在でフォールバックした場合も `low` とする。
 
+#### generated_at の扱い（厳守）
+
+- `generated_at` には **本セッションの実行日（ISO 8601: `YYYY-MM-DD`）のみ** を書く
+- 修正経緯・補足・運用メモ・改行は絶対に含めない。書く先は `docs/logs/changelog.md`（sf-org-analyst Phase 7.5 が集約する）
+- **差分更新モードの例外**: 既存 `generated_at` が `^\d{4}-\d{2}-\d{2}$` に一致しない場合（長文・改行混入等）は、品質原則 5「手動追記を消さない」の**例外**として実行日で上書きする。保持対象は FG 構造の手動編集（FG名・コメント・割り当て）であり、`generated_at`（履歴フィールド）は対象外
+
 ### Phase 3.5: 整合チェック
 
 `feature_groups.yml` 生成直後に `check_feature_groups.py` を実行して、`feature_ids.yml` との整合性を検証する（sf-design より前のこの段階で不整合を潰す）。

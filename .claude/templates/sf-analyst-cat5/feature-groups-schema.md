@@ -8,7 +8,7 @@
 # docs/.sf/feature_groups.yml
 # sf-memoryカテゴリ5が生成。sf-design[詳細設計]の生成単位。
 # 手動追記・修正可（次回実行時に保持される）
-generated_at: "YYYY-MM-DD"
+generated_at: "YYYY-MM-DD"    # 実行日のみ（YYYY-MM-DD）。メモ・経緯・改行は絶対に書かない
 groups:
   - group_id: "FG-001"            # FG-001〜 で採番
     name_ja: "商談受注後処理"       # 業務担当者が呼ぶ名前（Apex命名でなく業務名）
@@ -45,7 +45,7 @@ groups:
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| `generated_at` | string | 生成日（YYYY-MM-DD） |
+| `generated_at` | string | 実行日（`^\d{4}-\d{2}-\d{2}$` のみ）。修正経緯・メモ・改行は**絶対に書かない** |
 | `groups` | array | FGのリスト |
 | `group_id` | string | `FG-001`〜 で採番。共通基盤は `FG-CMN` 固定 |
 | `name_ja` | string | 業務担当者が呼ぶ名前。Apex命名ではなく業務名 |
@@ -57,6 +57,16 @@ groups:
 | `components` | array | このFGに属するコンポーネントのAPI名リスト |
 | `related_objects` | array | 関連するSalesforceオブジェクトのAPI名リスト |
 | `related_fgs` | array | 処理が一部またがる他FGのIDリスト |
+
+---
+
+## generated_at の書式（厳守）
+
+- **書く内容**: 本セッションの実行日のみ。例: `"2026-05-28"`
+- **書式**: ISO 8601 日付。`^\d{4}-\d{2}-\d{2}$` に完全一致する 10 文字の文字列
+- **禁止**: 修正経緯・運用メモ・補足・改行を一切含めない
+- **修正経緯の置き場所**: `docs/logs/changelog.md`（sf-org-analyst Phase 7.5 が 1 セッション 1 行に集約する）
+- **差分更新時の例外**: 既存の `generated_at` が上記書式に一致しない場合（汚染済み）は、「手動追記を消さない」原則の例外として実行日で上書きしてよい
 
 ---
 
