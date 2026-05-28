@@ -346,17 +346,17 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     trans_in = flow.get("transitions", [])
     title    = flow.get("title", "業務フロー")
 
-    # Swimlane は常に LR（レーン＝横長の帯、ステップは左→右に流れる）
-    # rankdir=TB にするとクラスター（レーン）が横並びになり結果が横長になる
-    _sw_rankdir = "LR"
+    # TB: 時間軸=縦（steps が上→下）、レーン=横に並ぶ列 → near-square になる
+    # LR だとステップ数 × ノード幅で横長になるため TB に統一
+    _sw_rankdir = "TB"
 
     _sw_graph_attr = {
         "bgcolor": "white",
         "rankdir": _sw_rankdir,
         "splines": "polyline",
-        "nodesep": "0.2",
-        "ranksep": "0.4",
-        "ratio": "compress",
+        "nodesep": "0.4",   # TB モード: 同時間ステップの列間隔（水平）
+        "ranksep": "0.4",   # TB モード: 時間軸方向の間隔（垂直）
+        "ratio": "1.3",   # 高さ/幅 = 1.3 に正規化（縦長フロー→横を引き伸ばす）
         "fontname": FONT_JP,
         "pad": "0.3",
         "dpi": str(DPI),
@@ -548,7 +548,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         )
         if t.get("cross"):
             edge_kw["style"] = "dashed"
-            edge_kw["weight"] = "0.5"
+            edge_kw["weight"] = "0.3"
         g.edge(src, dst, **edge_kw)
 
     png_bytes = g.pipe(format="png")
