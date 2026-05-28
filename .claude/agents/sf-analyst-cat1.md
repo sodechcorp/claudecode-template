@@ -165,6 +165,34 @@ sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsC
 sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__c' AND IsHierarchyNestingSupported = false" --use-tooling-api --json
 ```
 
+#### Phase 1-6. ピックリスト値分布サンプリング（best-effort）
+
+主要標準オブジェクト（Account / Opportunity / Lead / Contact / Case）と、Phase 1-1 で取得したカスタムオブジェクトのうち上位 10〜20 件について、ピックリスト項目の値分布を取得して `docs/.sf/_picklist_samples.json` に保存する。cat2 がこのキャッシュを参照してマーカー付与可否を機械判定する（`[推定]` 件数の削減）。
+
+**手順**:
+
+```bash
+# 1. 対象オブジェクトのピックリスト項目一覧を取得
+sf data query -q "SELECT EntityDefinition.QualifiedApiName, QualifiedApiName, Label FROM FieldDefinition WHERE (EntityDefinition.QualifiedApiName IN ('Account', 'Opportunity', 'Lead', 'Contact', 'Case') OR EntityDefinition.IsCustom = true) AND DataType = 'Picklist' AND EntityDefinition.IsQueryable = true ORDER BY EntityDefinition.QualifiedApiName, QualifiedApiName" --use-tooling-api --json 2>/dev/null
+
+# 2. 取得した各（オブジェクト, 項目）ペアに対して値分布クエリを実行:
+#    sf data query -q "SELECT <ApiName>, COUNT(Id) cnt FROM <ObjectApiName> WHERE <ApiName> != null GROUP BY <ApiName> ORDER BY COUNT(Id) DESC LIMIT 20" --json 2>/dev/null
+#    ※ クエリ失敗（権限不足・サポート外）はスキップして次へ（best-effort）
+#    ※ 全ピックリスト項目ではなく、1オブジェクトあたり最大 10項目・全体で最大 100クエリに抑える
+
+# 3. 結果を _picklist_samples.json に蓄積（build_metadata_cache.py を流用）
+#    フォーマット例: { "Account.Type": [{"value":"Customer","count":150},{"value":"Partner","count":30},...], ... }
+#    ※ 取得した values・count を配列形式で格納する（value:ラベル, count:件数）
+#    ※ build_metadata_cache.py の汎用キー機能を活用:
+#       echo '{"result":{"records":<分布データ>}}' | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key picklist_samples
+```
+
+- 失敗した場合は完了報告に「picklist_samples 取得失敗: {対象オブジェクト名}」として記録する（空欄・無記載禁止）
+- 取得成功した場合のみキャッシュに書き込む（失敗分は従来通り cat2 が `**[推定]**` で記述）
+- キャッシュ有効期限は `_metadata_cache.json` と同じ 300 秒（同一スクリプト経由）
+
+> **自動判定基準**（cat2 / sf-org-analyst で共通参照）: [sf-memory-quality.md の「[推定] マーカー自動解消基準」](.claude/spec/sf-memory-quality.md#推定マーカー自動解消基準) を参照。
+
 #### Phase 1 末尾: メタデータキャッシュ生成
 
 Phase 1-1 の主要クエリ結果を `docs/.sf/_metadata_cache.json` に保存する。cat4-apex/flow/lwc/cat5 が 5 分以内のキャッシュがあれば再クエリしない（R1 解消）。
