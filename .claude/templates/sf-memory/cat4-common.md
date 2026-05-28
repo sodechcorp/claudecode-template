@@ -26,7 +26,7 @@
 以下はカテゴリ4固有の追加原則（全カテゴリ共通原則は上記 sf-memory-quality.md 参照）。
 
 1. **具体的に書く**: 「処理を行う」ではなく「Account.Billing_Status__c を"請求済"に更新し、関連するOpportunityLineItemを削除する（DELETE）」。メソッド名・引数・戻り値・SOQL件数・DML件数を必ず記述する。
-2. **関連付けを明記する（1周目で確定）**: 要件番号（FR-XXX）・ユースケースID（UC-XX）・担当オブジェクト・呼び出し元コンポーネントを Phase 0.5 で読み込んだ usecases.md / requirements.md と突き合わせて確定し `**[要確認]**` を残さない。
+2. **関連付けを明記する（1周目で確定）**: 要件番号（FR-XXX）・ユースケースID（UC-XX）・担当オブジェクト・呼び出し元コンポーネントを Phase 0.5 で読み込んだ usecases.md / requirements.md と突き合わせて確定する。**FR 番号の確定ルール（厳守）**: `docs/requirements/requirements.md` 本文の FR 見出し（`FR-xxx: タイトル`）と設計書の機能を**意味照合**して特定する。UC 番号からの算術推測（例: UC-20 → FR-020）は禁止。確証ある一致がなければ `**[要確認: 要件番号未特定]**`、requirements.md に該当 FR が存在しない場合は `**[要確認: requirements.md に該当FRなし]**` とする（推測値を確定番号として書かない）。
 3. **未実装を明示する**: ソースが存在しない場合は骨格を生成し全セクションに `**[未実装]**` を付ける。
 
 ---
@@ -49,7 +49,8 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 - `docs/overview/org-profile.md`（または _context_cache.json の glossary フィールド） — 用語集
 - `docs/flow/usecases.md`（または _context_cache.json の uc_ids / related_objects フィールド） — UC / 担当オブジェクト
-- `docs/requirements/requirements.md`（または _context_cache.json の fr_ids フィールド） — FR-XXX
+- `docs/requirements/requirements.md`（または _context_cache.json の fr_ids フィールド） — FR-XXX  
+  > **注意**: `_context_cache.json` の `fr_ids` は FR 番号のみ（タイトルなし）。要件番号を確定する際は必ず `docs/requirements/requirements.md` 本文を Read し FR 見出し（`FR-xxx: タイトル`）で意味照合すること。キャッシュの番号リストだけで確定しない。
 - `docs/catalog/_index.md` — オブジェクト一覧
 - 当該コンポーネントが触るオブジェクトに絞って `docs/catalog/custom/*.md` を Read
 
