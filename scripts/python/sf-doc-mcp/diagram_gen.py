@@ -356,7 +356,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         "splines": "polyline",
         "nodesep": "0.4",       # TB モード: 同時間ステップの列間隔（水平）
         "ranksep": "0.4",       # TB モード: 時間軸方向の間隔（垂直）
-        "ratio": "1.3",         # 高さ/幅 = 1.3 に正規化（縦長フロー→横を引き伸ばす）
+        "size": "16,12",        # 上限 16×12 インチ = 2400×1800px @DPI150（超えたらスケールダウン）
         "fontname": FONT_JP,
         "pad": "0.3",
         "dpi": str(DPI),
@@ -422,7 +422,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 if step_lane_name == lane_name:
                     sid = str(step.get("id", ""))
                     label = str(step.get("label", "") or step.get("title", "") or step.get("action", "") or step.get("name", "") or sid)
-                    label = _wrap_jp(label, 12)
+                    label = _wrap_jp(label, 16)
                     sg.node(
                         sid,
                         label=label,
@@ -432,12 +432,9 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                         fontcolor=C_STEP_FG,
                         fontname=FONT_JP,
                         fontsize="9",
-                        width="1.4",
-                        height="0.5",
-                        fixedsize="true",
                         penwidth="1.0",
                         color=C_STEP_BORDER,
-                        margin="0.10,0.06",
+                        margin="0.12,0.08",
                     )
 
     known_lanes = set(lane_names) | set(lane_id_to_name.keys())
