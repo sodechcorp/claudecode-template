@@ -356,8 +356,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         "splines": "polyline",
         "nodesep": "0.4",       # TB モード: 同時間ステップの列間隔（水平）
         "ranksep": "0.4",       # TB モード: 時間軸方向の間隔（垂直）
-        "size": "16,14",        # 上限 16×14 インチ = 2400×2100px @DPI150
-        "ratio": "fill",        # size bounding box を必ず埋める（縦横独立スケール）
+        "size": "16,12",        # 上限 16×12 インチ = 2400×1800px @DPI150（超えたらスケールダウン）
         "fontname": FONT_JP,
         "pad": "0.3",
         "dpi": str(DPI),
