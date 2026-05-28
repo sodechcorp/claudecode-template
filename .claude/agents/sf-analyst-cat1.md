@@ -412,6 +412,16 @@ python {project_dir}/scripts/python/sf-doc-mcp/build_context_cache.py {project_d
 
 変更サマリを内部に記録しておく（日時・実行カテゴリ・生成/更新ファイル・主な変更点）。`docs/logs/changelog.md` への追記は sf-org-analyst Phase 7.5 で 1 セッション 1 行に集約するためここでは行わない（F-4）。
 
+### Phase 5.4: 集計値の自己検算（必須）
+
+[共通原則参照](.claude/spec/sf-memory-quality.md#集計値の自己検算原則テーブル合計期間集計)
+
+以下を org-profile.md / requirements.md に対して実施する:
+
+1. **プロファイル分布表の算術確認**: ユーザー数列を合算し、構成サマリ（または Phase 1-2 の実測値 `SELECT COUNT() FROM User WHERE IsActive = true`）と照合する。不一致なら内訳の和で合計行を上書き。
+2. **期間合計 vs 日次レートの整合確認**: 「+N件（M日）」と「+X件/日」を両方記述している箇所を Grep し、`X × M ≈ N` を確認する。50% 超の乖離は信頼できる方のみ残し他方を `**[要確認: X/日 × M日 ≠ N件]**` にする。
+3. **承認プロセス等の個数の同一ファイル内一致**: requirements.md と org-profile.md で同一対象の個数を複数箇所に記述している場合、Grep で全出現を確認して統一する。
+
 ### Phase 5.5: [要確認] / [未ヒアリング] 解消フロー（必須）
 
 生成・更新した以下のファイルを Grep で品質マーカーを検出する:
