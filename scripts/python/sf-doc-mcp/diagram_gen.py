@@ -367,7 +367,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         "bgcolor": "white",
         "rankdir": _sw_rankdir,
         "splines": "polyline",
-        "nodesep": "0.4",       # TB モード: 同時間ステップの列間隔（水平）
+        "nodesep": "0.3" if _use_anchor_pre else "0.4",  # anchor フロー: 詰めてコンパクトに
         "ranksep": _ranksep,    # anchor フロー: 1.2インチ（2D 縦積みで高さを確保）/ 小フロー: 0.4
         "size": "16,12",        # 上限 16×12 インチ = 2400×1800px @DPI150（超えたらスケールダウン）
         "fontname": FONT_JP,
@@ -438,6 +438,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 fontname=FONT_JP,
                 fontcolor=C_LANE_HDR,
                 fontsize="12",
+                margin="4",
             )
             for step in steps_in:
                 step_lane_raw = str(step.get("lane", ""))
@@ -489,6 +490,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                     fontname=FONT_JP,
                     fontcolor=C_LANE_HDR,
                     fontsize="13",
+                    margin="6",
                 )
                 if use_anchor_layout:
                     # 不可視アンカーノード: グループ間の垂直順序制御に使用
@@ -546,6 +548,30 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                         constraint="true",
                         minlen=minlen,
                     )
+
+        # レーン内 root ノードが多い場合、縦2列（MAX_LANE_ROW_WIDTH=2）に折り返す
+        # root ノード = 同レーン内に predecessor がないノード（cross=false 遷移の dst でない）
+        _sid_to_lane_map: dict[str, str] = {
+            str(s.get("id", "")): lane_id_to_name.get(str(s.get("lane", "")), str(s.get("lane", "")))
+            for s in steps_in
+        }
+        same_lane_dst: set[str] = {str(t.get("to", "")) for t in trans_in if not t.get("cross")}
+        MAX_LANE_ROW_WIDTH = 2
+        for _ln in lane_names:
+            roots = [
+                str(s.get("id", ""))
+                for s in steps_in
+                if _sid_to_lane_map.get(str(s.get("id", ""))) == _ln
+                and str(s.get("id", "")) not in same_lane_dst
+            ]
+            if len(roots) > MAX_LANE_ROW_WIDTH:
+                for col in range(MAX_LANE_ROW_WIDTH):
+                    for row_start in range(0, len(roots) - MAX_LANE_ROW_WIDTH, MAX_LANE_ROW_WIDTH):
+                        src_idx = row_start + col
+                        dst_idx = row_start + col + MAX_LANE_ROW_WIDTH
+                        if src_idx < len(roots) and dst_idx < len(roots):
+                            g.edge(roots[src_idx], roots[dst_idx],
+                                   style="invis", constraint="true", weight="2")
 
     # 未分類ステップ（lane 指定なし or 未知のレーン）
     for step in steps_in:
