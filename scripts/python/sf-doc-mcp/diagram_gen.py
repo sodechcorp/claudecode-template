@@ -314,7 +314,7 @@ _TYPE_GROUP_MAP: dict[str, tuple[str, str]] = {
     "system":          ("Salesforce",    "#FFF9E6"),
     "external_system": ("外部システム",   "#F3E5F5"),
 }
-_TYPE_GROUP_ORDER = ["external_actor", "internal_actor", "system", "external_system"]
+_TYPE_GROUP_ORDER = ["system", "external_actor", "internal_actor", "external_system"]
 
 # cluster_group の垂直配置レベル（0=top, 大きいほど下）
 # 同レベルのグループは横並びになる（external_actor + external_system が level 0 で隣接）
@@ -356,7 +356,6 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     title    = flow.get("title", "業務フロー")
 
     # 全フロー共通: TB rankdir + anchor 2D レイアウト
-    _use_anchor_pre = True
     _sw_rankdir = "TB"
     _ranksep = "0.4"
 
@@ -508,7 +507,8 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 if _sid_to_group.get(sid) == key:
                     g.edge(anchor_id, sid, style="invis", weight="1", constraint="true")
 
-        # 同一グループ内の最長チェーン長を計算（アンカー間 minlen の算出に使用）
+        # _dyn_group_level に基づきクラスタグループを垂直に積む（不可視エッジで rank 強制）
+        # minlen = 上段グループの最長チェーン + 1 でランク範囲の重複を防ぐ
         def _max_group_chain_len(group_key: str) -> int:
             adj: dict[str, list[str]] = {}
             for t in trans_in:
@@ -524,7 +524,6 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
             nodes = [s for s, grp in _sid_to_group.items() if grp == group_key]
             return max((dp(n) for n in nodes), default=1) if nodes else 1
 
-        # グループ種別から動的にレベルを決定（固定配置ルールなし）
         _groups_present = {v for v in _sid_to_group.values() if v is not None}
         if "external_system" in _groups_present:
             _dyn_group_level: dict[str, int] = {
@@ -537,8 +536,6 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 "system": 1,
             }
 
-        # _dyn_group_level に基づきクラスタグループを垂直に積む（不可視エッジで rank 強制）
-        # minlen = 上段グループの最長チェーン + 1 でランク範囲の重複を防ぐ
         level_to_keys: dict[int, list[str]] = {}
         for k in group_anchor:
             lvl = _dyn_group_level.get(k, 99)
@@ -552,29 +549,30 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
             minlen = str(max_chain + 1)
             for src_key in level_to_keys[lvl]:
                 for dst_key in level_to_keys[next_lvl]:
+                    # system の横位置: external_actor 側からは強く引く、internal_actor 側は弱く
+                    if dst_key == "system" and src_key == "internal_actor":
+                        _w = "2"
+                    else:
+                        _w = "10"
                     g.edge(
                         group_anchor[src_key],
                         group_anchor[dst_key],
                         style="invis",
-                        weight="10",
+                        weight=_w,
                         constraint="true",
                         minlen=minlen,
                     )
 
-        # 水平バランシング: 最上段(level 0) → 最下段(level max) へ constraint=false エッジ
-        # 目的: level 0 の左右アンカー両方から最下段を同等に引っ張り、
-        #       片側（外部システム＝右）の flow 引力を打ち消して均等配置する
-        _max_lvl = max(level_to_keys.keys())
-        if _max_lvl >= 2:
-            for _src_key in level_to_keys.get(0, []):
-                for _dst_key in level_to_keys.get(_max_lvl, []):
-                    g.edge(
-                        group_anchor[_src_key],
-                        group_anchor[_dst_key],
-                        style="invis",
-                        weight="3",
-                        constraint="false",
-                    )
+        # system を左端に寄せる: external_actor(最左) → system anchor へ強い barycenter エッジ
+        # constraint=false なのでランクに影響しない。crossing-min で system が左へ引き寄せられる。
+        if "external_actor" in group_anchor and "system" in group_anchor:
+            g.edge(
+                group_anchor["external_actor"],
+                group_anchor["system"],
+                style="invis",
+                constraint="false",
+                weight="100",
+            )
 
         # レーン内 root ノードが多い場合、縦2列（MAX_LANE_ROW_WIDTH=2）に折り返す
         # root ノード = 同レーン内に predecessor がないノード（cross=false 遷移の dst でない）
