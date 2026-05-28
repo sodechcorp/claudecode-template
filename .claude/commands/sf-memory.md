@@ -36,6 +36,15 @@ test -d "$(pwd)/force-app" && echo OK || echo MISSING
 - `MISSING` の場合: **コマンドを中止する**。「このフォルダは Salesforce プロジェクトとして認識できません（`force-app/` ディレクトリが存在しません）。Salesforce プロジェクトルートで実行してください」とユーザーに伝える。
 - `OK` の場合: 続行する（`docs/` の有無はチェック不要。初回実行で生成するのが /sf-memory の役割）。
 
+**品質 spec の確認（必須）**: force-app チェック通過後、以下を実行して品質原則 spec が存在することを確認する。
+
+```bash
+test -f "$(pwd)/.claude/spec/sf-memory-quality.md" && echo OK || echo MISSING
+```
+
+- `MISSING` の場合: **コマンドを中止する**。「`.claude/spec/sf-memory-quality.md` が見つかりません。テンプレートの spec が未同期の可能性があります。`/upgrade` を実行してから再度お試しください。各カテゴリの品質チェック（マーカー規約・技術識別子禁止・[推定]自動解消基準）はこの spec に依存するため、欠落状態での実行は品質低下（未解消マーカー乱立等）を招きます」とユーザーに伝える。
+- `OK` の場合: 続行する。
+
 ---
 
 AskUserQuestion ツールを **1回** 呼び出す。`questions` 配列に以下の **3問** を入れて3ページ形式で表示する。
