@@ -149,6 +149,8 @@ sf data query -q "SELECT Name, Subject, Body, HtmlValue, Encoding FROM EmailTemp
 
 記録内容: テンプレート名・件名・フォルダ・タイプ・利用UC（推定）
 
+**セクション番号の付与（厳守）**: 各メールテンプレートを `## N. {テンプレート名}` の形式で番号付き H2 として列挙する場合、番号は **1 から連番で自動付与**し重複させない。差分更新（追記）モードでは既存 `email-templates.md` の**末尾セクション番号を確認し、その +1 から開始**する（`## 9.` の重複のような採番ミスを防ぐ）。
+
 **Body・HtmlValue の扱い（厳守）**: 取得した `Body` / `HtmlValue` には個人情報（実名・実顧客番号・担当者名等）が運用事故でハードコードされている可能性がある。**本文テキストそのものを docs/data/email-templates.md に書き出さない**。代わりに `{!Recipient.FirstName}` のような差し込み項目（merge field）の**変数名だけを抽出して列挙する**。本文の要約・抜粋・例示も禁止。
 
 ### Phase 3: レポート・ダッシュボードの収集（reports-dashboards.md）
