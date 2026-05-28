@@ -41,7 +41,7 @@ _KIND_DESIGN_DIRS = {
     "lwc": ["lwc", "vf", "aura"],
 }
 
-_CMP_PATTERN = re.compile(r"【(CMP-\d+)】")
+_CMP_PATTERN = re.compile(r"【([A-Z]+-\d+)】")
 
 
 def main():
