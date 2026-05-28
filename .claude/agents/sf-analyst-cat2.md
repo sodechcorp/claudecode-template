@@ -112,6 +112,49 @@ grep -rE "FROM\s+\w+|INSERT\s+\w+|UPDATE\s+\w+|UPSERT\s+\w+|DELETE\s+\w+" force-
 
 指定されたオブジェクトのみ処理する。
 
+### Phase 1.5: 本番突合モードの確認
+
+**目的**: Sandbox/dev 組織と本番組織を突合して「本番デプロイ待ち項目」を検出するかを確認する。
+
+AskUserQuestion で突合モードを選択させる:
+
+- question: "本番デプロイ待ち項目の検出を行いますか？"
+- header: "本番突合"
+- multiSelect: false
+- options:
+  - label: "本番 alias で突合する"、description: "Sandbox にあって本番にない項目を検出し、備考欄に **[本番デプロイ待ち]** を付与する"
+  - label: "スキップ（単一 org で生成）"、description: "従来通り default org のみで定義書を生成する。注記は付かない"
+
+**「スキップ」が選ばれた場合**: `_prod_alias` を空として Phase 2 へ進む。
+
+**「本番 alias で突合する」が選ばれた場合**: CLAUDE.md から本番 alias の候補を取得する:
+
+```bash
+python -c "
+import re, pathlib
+text = pathlib.Path(r'{project_dir}/CLAUDE.md').read_text(encoding='utf-8', errors='ignore')
+m = re.search(r'接続組織[^(\n]*\(alias:\s*([^)\s]+)\)', text)
+print('prod_alias_candidate:', m.group(1).strip() if m else '')
+"
+```
+
+候補が取得できた場合（prod_alias_candidate が空でない）、AskUserQuestion で確認する:
+
+- question: "本番 alias を確認してください？"
+- header: "本番alias"
+- multiSelect: false
+- options:
+  - label: "{prod_alias_candidate}"、description: "CLAUDE.md から検出した本番 alias"
+  - label: "別のエイリアスを使用"、description: "sf org list で確認できる認証済み alias をチャットで入力する"
+
+> **重要**: "別のエイリアスを使用" が選ばれた場合はチャットで alias を入力させる。`（` を含むラベル選択の場合は `（` より前の部分のみを alias として使う。
+
+候補が取得できなかった場合（prod_alias_candidate が空）: チャットで直接「本番 alias（`sf org list` で確認できる alias 名）を入力してください」と聞く。
+
+入力された alias を `_prod_alias` として記録し、Phase 2 へ進む。
+
+---
+
 ### Phase 2: 組織メタデータの収集
 
 対象オブジェクトごとに実行:
@@ -120,6 +163,14 @@ grep -rE "FROM\s+\w+|INSERT\s+\w+|UPDATE\s+\w+|UPSERT\s+\w+|DELETE\s+\w+" force-
 sf sobject describe -s <オブジェクト名> --json
 sf data query -q "SELECT COUNT() FROM <オブジェクト名>" --json
 ```
+
+> **本番突合モード（`_prod_alias` が指定されている場合のみ）**: default org describe の結果を `_sandbox_fields[Object]`（項目名の集合）として記録し、さらに本番 alias に対しても同じコマンドを実行して結果を `_prod_fields[Object]` として保持する:
+>
+> ```bash
+> sf sobject describe -s <オブジェクト名> --target-org <_prod_alias> --json
+> ```
+>
+> 本番 alias の describe が失敗した場合（接続不可・権限不足など）: 「⚠️ 本番 ({_prod_alias}) への describe に失敗しました。そのオブジェクトは注記なしで生成します。」と警告出力し、処理を継続する（中断しない）。
 
 さらに以下も取得する（精度向上のため）:
 ```bash
@@ -170,12 +221,30 @@ cat1 Phase 1-6 が生成した `docs/.sf/_picklist_samples.json` を Read し、
 
 > **制約**: `_picklist_samples.json` 取得はカスタムオブジェクト（`__c`）が網羅されているとは限らない。キャッシュにない項目はスキップして従来の `**[推定]**` で書く（フォールバック）。
 
+### Phase 2.6: 本番突合差分の計算（本番突合モード時のみ）
+
+`_prod_alias` が指定されていない場合はこのフェーズをスキップする。
+
+各オブジェクトについて:
+
+1. `_sandbox_fields[Object]` と `_prod_fields[Object]` の項目名集合（API 名）の差分を計算する
+   - `deploy_pending_fields[Object]` = Sandbox にあって本番にない項目（= `_sandbox_fields ∖ _prod_fields`）
+   - `prod_only_fields[Object]` = 本番にあって Sandbox にない項目（= `_prod_fields ∖ _sandbox_fields`）
+
+2. `prod_only_fields[Object]` が空でない場合:
+   - 「⚠️ 本番 ({_prod_alias}) にあって Sandbox にない項目があります: {フィールド名一覧}。force-app の取得漏れの可能性があります。」と警告出力する
+   - Phase 3 のオブジェクト定義書生成には影響させない（注記は付けない）
+
+3. `deploy_pending_fields[Object]` を内部メモとして保持し、Phase 3 の項目テーブル生成に使用する
+
 ### Phase 3: オブジェクト定義書の生成
 
 各オブジェクトに対して `docs/catalog/{standard|custom}/<オブジェクト名>.md` を生成する。
 
 > **定義書の必須構成・cross-reference 記載ルール・`_index.md` 列規約・Mermaid ERD 記法の規約**（下流 `generate_basic_doc.py` との連携含む）:
 > [../templates/sf-analyst-cat2/object-definition-template.md](../templates/sf-analyst-cat2/object-definition-template.md)
+
+> **本番突合モード（`_prod_alias` 指定時）**: 各項目のテーブル行を生成する際、その項目の API 名が `deploy_pending_fields[Object]` に含まれていれば、備考列の先頭に `**[本番デプロイ待ち]**` を追加する。備考列が空の場合は `**[本番デプロイ待ち]**` のみ記載する。
 
 ### Phase 4: 全体データモデル図の生成
 
