@@ -346,17 +346,16 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     trans_in = flow.get("transitions", [])
     title    = flow.get("title", "業務フロー")
 
-    # TB: 時間軸=縦（steps が上→下）、レーン=横に並ぶ列 → near-square になる
-    # LR だとステップ数 × ノード幅で横長になるため TB に統一
-    _sw_rankdir = "TB"
+    # LR: 時間軸=横（steps が左→右）、レーン=縦に並ぶ帯 → cluster_lane がコンパクト
+    # TB だと cluster の bounding box が時間軸全体をカバーして外枠が大きくなるため LR に変更
+    _sw_rankdir = "LR"
 
     _sw_graph_attr = {
         "bgcolor": "white",
         "rankdir": _sw_rankdir,
         "splines": "polyline",
-        "nodesep": "0.4",   # TB モード: 同時間ステップの列間隔（水平）
-        "ranksep": "0.4",   # TB モード: 時間軸方向の間隔（垂直）
-        "ratio": "1.3",   # 高さ/幅 = 1.3 に正規化（縦長フロー→横を引き伸ばす）
+        "nodesep": "0.3",       # LR モード: 同レーン内のノード縦間隔
+        "ranksep": "0.5",       # LR モード: 時間軸方向（横）の間隔
         "fontname": FONT_JP,
         "pad": "0.3",
         "dpi": str(DPI),

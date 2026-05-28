@@ -854,7 +854,7 @@ def _build_flow_sheet(ws, asis_flow: dict | None, tobe_flow: dict | None,
             r += n_img_rows
         else:
             r = _text_area(ws, r, 12, "（フローデータなし）")
-        r = _margin(ws, r)
+        r = _margin(ws, r, 3)
 
 
 # ── シート 4: ER図 ──────────────────────────────────────────────
