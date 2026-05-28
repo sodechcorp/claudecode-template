@@ -241,6 +241,16 @@ cat1 Phase 1-6 が生成した `docs/.sf/_picklist_samples.json` を Read し、
 
 3. `deploy_pending_fields[Object]` を内部メモとして保持し、Phase 3 の項目テーブル生成に使用する
 
+### Phase 2.7: レコードタイプの実測正本化（cat1 申し送り照合）
+
+Phase 2 の `sf sobject describe` 出力の `recordTypeInfos`（マスター含む実在レコードタイプ）を、**そのオブジェクトのレコードタイプの正本**とする。cat1 の申し送り（org 全体 SOQL 由来）は他オブジェクトのレコードタイプを誤って混入している場合があるため、件数・名前をそのまま転記しない。
+
+1. 各オブジェクトについて describe の `recordTypeInfos` からレコードタイプ一覧（DeveloperName・ラベル・有効/無効・マスターか否か）を確定し、Phase 3 のレコードタイプ記述の正本として保持する。
+2. cat1 の申し送り値（`docs/flow/usecases.md` 本文・差分更新時の既存定義書に残る「N record types（cat1 申送り）」等の記述）と describe 実測を照合し、件数・名前が異なる場合:
+   - Phase 3 では **describe 実測値で記述する**（基本情報の用途欄・レコードタイプ記述に cat1 申し送りの件数/名前を残さない）
+   - 差分の理由を「所見・注意点」セクションに 1 行記録する。例: `**[要確認]** レコードタイプ: describe 実測 {X} 件に対し cat1 申し送りは {Y} 件。差分は他オブジェクトのレコードタイプ（例: {名前}）の誤混入の可能性`
+3. describe 実測と force-app XML（`force-app/main/default/objects/<Object>/recordTypes/*.recordType-meta.xml` の数）が異なる場合も describe を正本とし、差分（XML 未取得・本番デプロイ待ち等）を「所見・注意点」に注記する。
+
 ### Phase 3: オブジェクト定義書の生成
 
 各オブジェクトに対して `docs/catalog/{standard|custom}/<オブジェクト名>.md` を生成する。
