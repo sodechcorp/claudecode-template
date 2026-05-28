@@ -838,7 +838,7 @@ def _build_flow_sheet(ws, asis_flow: dict | None, tobe_flow: dict | None,
             sid = str(s.get("id",""))
             cond_text = " / ".join(step_conds.get(sid, []))
             r = _data_row(ws, r, [
-                (2,3,sid),
+                (2,3,str(i+1)),
                 (4,8,str(s.get("lane",""))),
                 (9,22,str(s.get("label","") or s.get("title",""))),
                 (23,31,cond_text),
@@ -896,14 +896,13 @@ def _build_glossary_sheet(ws, glossary: list):
     _set_h(ws, 1, 8)
     r = _title_row(ws, r, "用語集")
     r = _margin(ws, r)
-    r = _section_row(ws, r, "業務用語・Salesforce用語 対照表")
-    r = _hdr_row(ws, r, [(2,3,"No"),(4,10,"業務用語"),
-                          (11,18,"Salesforce用語 / オブジェクト名"),(19,31,"説明")])
+    r = _section_row(ws, r, "業務用語 対照表")
+    r = _hdr_row(ws, r, [(2,3,"No"),(4,16,"業務用語"),(17,31,"説明")])
     for i, t in enumerate(glossary):
-        r = _data_row(ws, r, [(2,3,str(i+1)),(4,10,t["biz"]),
-                               (11,18,t["sf"]),(19,31,t["desc"])], row_h=18)
+        r = _data_row(ws, r, [(2,3,str(i+1)),(4,16,t["biz"]),
+                               (17,31,t["desc"])], row_h=18)
     if len(glossary) < 10:
-        r = _empty_rows(ws, r, 10 - len(glossary), [(2,3),(4,10),(11,18),(19,31)], row_h=18)
+        r = _empty_rows(ws, r, 10 - len(glossary), [(2,3),(4,16),(17,31)], row_h=18)
 
 
 # ── メイン ──────────────────────────────────────────────────────

@@ -147,7 +147,7 @@
 
 ソース優先順位: ①既存システム構成図（画像/PPT/Visio）→最優先で読み込み再構築 ②Named Credential/Connected App/Apex HTTP呼び出し ③org-profile・要件定義書 ④不明は `notes` に記録
 
-外部連携は**方向・方式・頻度**を必ず抽出。不明な場合は `**[要確認]**`。
+外部連携は `direction` / `protocol`（方式: REST/SOAP/Bulk/Platform Event/File）/ `frequency` を**必ず全フィールドに値を入れる**。不明でも空文字・省略禁止。判定できない場合は `"[要確認]"` を入れること。
 
 ---
 

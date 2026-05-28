@@ -346,9 +346,9 @@ org-profile.md の品質を高めるため、以下の 5 項目を**読み込ん
 
 > `system_name` は **Phase 2.5 で確定したシステム名** を使うこと（org-profile.md と値を必ず同期させる）。LLM 自由生成・再推測禁止。
 
-ソース優先順位: ①既存システム構成図（画像/PPT/Visio）→最優先で読み込み再構築 ②Named Credential/Connected App/Apex HTTP呼び出し ③org-profile・要件定義書 ④不明は `notes` に記録（未確認のまま推測しない）
+ソース優先順位: ①既存システム構成図（画像/PPT/Visio）→最優先で読み込み再構築 ②Named Credential/Connected App/Apex HTTP呼び出し ③org-profile・要件定義書 ④不明は `notes` に補足記録（各フィールドは空のままにしない）
 
-外部連携は **方向・方式・頻度** を必ず抽出。不明な場合は `**[要確認]**` で空欄ではなく「要確認」を入れる。
+外部連携は `direction` / `protocol`（方式: REST/SOAP/Bulk/Platform Event/File） / `frequency` を **必ず全フィールドに値を入れる**。不明・判定不能な場合でも、該当フィールド自体に `"[要確認]"` を入れること。**空文字・フィールド省略・notes への逃がしは禁止**。`notes` は要確認フィールドの補足説明にのみ使う。
 
 ### Phase 4.2: usecases.md の生成
 
