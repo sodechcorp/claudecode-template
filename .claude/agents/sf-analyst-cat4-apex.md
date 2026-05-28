@@ -32,7 +32,7 @@ tools:
 | バッチ・スケジュールジョブ | `batch/` | `Database.Batchable` or `Schedulable` 実装 |
 | 外部 API・Named Credential 連携 | `integration/` | NamedCredential 使用 or callout 含む Apex |
 
-> **ハンドラクラスの扱い**: 単一 Trigger/Batch から排他的に呼ばれる Handler は呼び出し元に統合。複数から共通に呼ばれる場合は独立ファイル。統合時のファイル名は `【CMP-002〜CMP-003】name.md` のように全 CMP を列挙する。
+> **ハンドラクラスの扱い**: 単一 Trigger/Batch から排他的に呼ばれる Handler は呼び出し元に統合。複数から共通に呼ばれる場合は独立ファイル。統合時のファイル名は `【CMP-002〜CMP-003】name.md` のように全 CMP を列挙する。統合した CMP は個別ファイルを別途作らない（cat4-common.md Phase 2「ファイル粒度の原則」に従う）。
 
 ---
 
