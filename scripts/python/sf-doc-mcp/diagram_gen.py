@@ -314,7 +314,7 @@ _TYPE_GROUP_MAP: dict[str, tuple[str, str]] = {
     "system":          ("Salesforce",    "#FFF9E6"),
     "external_system": ("外部システム",   "#F3E5F5"),
 }
-_TYPE_GROUP_ORDER = ["system", "external_actor", "internal_actor", "external_system"]
+_TYPE_GROUP_ORDER = ["external_actor", "internal_actor", "system", "external_system"]
 
 # cluster_group の垂直配置レベル（0=top, 大きいほど下）
 # 同レベルのグループは横並びになる（external_actor + external_system が level 0 で隣接）
@@ -355,23 +355,24 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     trans_in = flow.get("transitions", [])
     title    = flow.get("title", "業務フロー")
 
-    # 全フロー共通: TB rankdir + anchor 2D レイアウト
-    _sw_rankdir = "TB"
-    _ranksep = "0.4"
-
-    n_steps = len(steps_in)
-    _img_w = min(16.0, max(8.0, n_steps * 0.6))
-    _img_h = round(_img_w / (16 / 9), 1)
+    # anchor フロー（steps >= 20）は TB で 2D 縦積み
+    # uc_specific / exception / data_flow は LR で横スイムレーン（縦並び解消）
+    # asis は TB を維持（ユーザー承認済みレイアウト）
+    _LR_FLOW_TYPES = {"uc_specific", "exception", "data_flow"}
+    _flow_type = flow.get("flow_type", "")
+    _use_anchor_pre = len(steps_in) >= 20
+    _sw_rankdir = "TB" if (_use_anchor_pre or _flow_type not in _LR_FLOW_TYPES) else "LR"
+    _ranksep = "0.8" if _use_anchor_pre else "0.4"
 
     _sw_graph_attr = {
         "bgcolor": "white",
         "rankdir": _sw_rankdir,
         "splines": "polyline",
-        "nodesep": "0.3",
-        "ranksep": _ranksep,
-        "size": f"{_img_w:.1f},{_img_h:.1f}",
+        "nodesep": "0.3" if _use_anchor_pre else "0.4",
+        "ranksep": _ranksep,    # anchor フロー: 0.8インチ（2D 縦積み）/ small フロー: 0.4
+        "size": "16,12",        # 上限 16×12 インチ = 2400×1800px @DPI150（超えたらスケールダウン）
         "fontname": FONT_JP,
-        "pad": "0.05",
+        "pad": "0.1",
         "dpi": str(DPI),
         "label": title,
         "labelloc": "t",
@@ -438,7 +439,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 fontname=FONT_JP,
                 fontcolor=C_LANE_HDR,
                 fontsize="12",
-                margin="2",
+                margin="4",
             )
             for step in steps_in:
                 step_lane_raw = str(step.get("lane", ""))
@@ -465,8 +466,10 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     lane_color_idx = 0
     group_anchor: dict[str, str] = {}  # group key → anchor node id
 
-    # 全フロー共通: anchor 2D レイアウトを適用する
-    use_anchor_layout = True
+    # ステップ数が多いフロー（TO-BE など）はクラスタグループが全横並びになりやすい。
+    # 20ステップ超の場合のみ anchor 強制レイアウトを適用する。
+    # 小フロー（AS-IS・UC個別）は DOT の自然レイアウトを使う（変更なし）。
+    use_anchor_layout = len(steps_in) >= 20
 
     for gi, key in enumerate(sorted_keys):
         lanes_in_group = group_to_lanes[key]
@@ -488,7 +491,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                     fontname=FONT_JP,
                     fontcolor=C_LANE_HDR,
                     fontsize="13",
-                    margin="2",
+                    margin="6",
                 )
                 if use_anchor_layout:
                     # 不可視アンカーノード: グループ間の垂直順序制御に使用
@@ -507,8 +510,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 if _sid_to_group.get(sid) == key:
                     g.edge(anchor_id, sid, style="invis", weight="1", constraint="true")
 
-        # _dyn_group_level に基づきクラスタグループを垂直に積む（不可視エッジで rank 強制）
-        # minlen = 上段グループの最長チェーン + 1 でランク範囲の重複を防ぐ
+        # 同一グループ内の最長チェーン長を計算（アンカー間 minlen の算出に使用）
         def _max_group_chain_len(group_key: str) -> int:
             adj: dict[str, list[str]] = {}
             for t in trans_in:
@@ -524,21 +526,11 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
             nodes = [s for s, grp in _sid_to_group.items() if grp == group_key]
             return max((dp(n) for n in nodes), default=1) if nodes else 1
 
-        _groups_present = {v for v in _sid_to_group.values() if v is not None}
-        if "external_system" in _groups_present:
-            _dyn_group_level: dict[str, int] = {
-                "external_actor": 0, "external_system": 0,
-                "internal_actor": 1, "system": 2,
-            }
-        else:
-            _dyn_group_level = {
-                "external_actor": 0, "internal_actor": 0,
-                "system": 1,
-            }
-
+        # _GROUP_LEVEL に基づきクラスタグループを垂直に積む（不可視エッジで rank 強制）
+        # minlen = 上段グループの最長チェーン + 1 でランク範囲の重複を防ぐ
         level_to_keys: dict[int, list[str]] = {}
         for k in group_anchor:
-            lvl = _dyn_group_level.get(k, 99)
+            lvl = _GROUP_LEVEL.get(k, 99)
             level_to_keys.setdefault(lvl, []).append(k)
 
         for lvl in sorted(level_to_keys):
@@ -549,30 +541,14 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
             minlen = str(max_chain + 1)
             for src_key in level_to_keys[lvl]:
                 for dst_key in level_to_keys[next_lvl]:
-                    # system の横位置: external_actor 側からは強く引く、internal_actor 側は弱く
-                    if dst_key == "system" and src_key == "internal_actor":
-                        _w = "2"
-                    else:
-                        _w = "10"
                     g.edge(
                         group_anchor[src_key],
                         group_anchor[dst_key],
                         style="invis",
-                        weight=_w,
+                        weight="10",
                         constraint="true",
                         minlen=minlen,
                     )
-
-        # system を左端に寄せる: external_actor(最左) → system anchor へ強い barycenter エッジ
-        # constraint=false なのでランクに影響しない。crossing-min で system が左へ引き寄せられる。
-        if "external_actor" in group_anchor and "system" in group_anchor:
-            g.edge(
-                group_anchor["external_actor"],
-                group_anchor["system"],
-                style="invis",
-                constraint="false",
-                weight="100",
-            )
 
         # レーン内 root ノードが多い場合、縦2列（MAX_LANE_ROW_WIDTH=2）に折り返す
         # root ノード = 同レーン内に predecessor がないノード（cross=false 遷移の dst でない）
@@ -633,7 +609,6 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
             arrowsize="0.8",
         )
         if t.get("cross"):
-            edge_kw["style"] = "dashed"
             edge_kw["weight"] = "0.3"
             if use_anchor_layout:
                 # グループをまたぐエッジはランク計算に含めない（同グループ内の cross-lane はそのまま）
@@ -1427,7 +1402,7 @@ def _crop_and_pad_png(png_path: str, target_wh: float = 16 / 9, margin_px: int =
         w, h = img.size
         cur = w / h if h else 1.0
         # 極端なアスペクト比（target の 1.8 倍超）はパディングせずそのまま保存
-        if abs(cur - target_wh) < 0.05 or cur > target_wh * 1.8:
+        if abs(cur - target_wh) < 0.05 or cur > target_wh * 1.8 or cur < target_wh / 1.8:
             img.save(png_path, "PNG")
             return
         if cur < target_wh:
