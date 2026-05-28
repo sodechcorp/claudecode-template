@@ -561,6 +561,21 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                         minlen=minlen,
                     )
 
+        # 水平バランシング: 最上段(level 0) → 最下段(level max) へ constraint=false エッジ
+        # 目的: level 0 の左右アンカー両方から最下段を同等に引っ張り、
+        #       片側（外部システム＝右）の flow 引力を打ち消して均等配置する
+        _max_lvl = max(level_to_keys.keys())
+        if _max_lvl >= 2:
+            for _src_key in level_to_keys.get(0, []):
+                for _dst_key in level_to_keys.get(_max_lvl, []):
+                    g.edge(
+                        group_anchor[_src_key],
+                        group_anchor[_dst_key],
+                        style="invis",
+                        weight="3",
+                        constraint="false",
+                    )
+
         # レーン内 root ノードが多い場合、縦2列（MAX_LANE_ROW_WIDTH=2）に折り返す
         # root ノード = 同レーン内に predecessor がないノード（cross=false 遷移の dst でない）
         _sid_to_lane_map: dict[str, str] = {
