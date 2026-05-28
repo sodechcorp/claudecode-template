@@ -25,7 +25,7 @@ bash scripts/upgrade.sh -y $ARGUMENTS
 ```
 
 `-y` フラグで「適用しますか？」の確認を自動承認する。
-テンプレートから削除されたファイルは **自動削除される**（対象: `.claude/agents/` / `.claude/commands/` / `.claude/templates/` / `scripts/` 配下のファイル。`.claude/CLAUDE.md` / `.claude/settings.json` / `.gitignore` は上書きコピーのみで削除検出対象外）。
+テンプレートから削除されたファイルは **自動削除される**（対象: `.claude/agents/` / `.claude/commands/` / `.claude/templates/` / `.claude/spec/` / `scripts/` 配下のファイル。`.claude/CLAUDE.md` / `.claude/settings.json` / `.gitignore` は上書きコピーのみで削除検出対象外）。
 
 > **なぜ `.claude/` に書き込めるか**:
 > `settings.json` の deny ルールは `Bash` ツールに対する特定コマンドパターン（sf 系の本番組織保護）のみで、`.claude/` 配下の書き換え自体に deny 制限はない（PreToolUse hook による追加制御が設定されている場合はその限りでない）。

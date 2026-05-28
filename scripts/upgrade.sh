@@ -155,6 +155,27 @@ if [ -d ".claude/templates" ] && [ -d "$TMP_DIR/.claude/templates" ]; then
     done < <(find ".claude/templates" -type f -name "*.md")
 fi
 
+# spec（.claude/spec/*.md）
+if [ -d "$TMP_DIR/.claude/spec" ]; then
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        rel="${f#$TMP_DIR/}"
+        if [ ! -f "$rel" ]; then
+            ADDITIONS+=("$rel（新規 spec）")
+        elif ! diff -q "$rel" "$f" >/dev/null 2>&1; then
+            CHANGES+=("$rel")
+        fi
+    done < <(find "$TMP_DIR/.claude/spec" -type f -name "*.md")
+fi
+if [ -d ".claude/spec" ] && [ -d "$TMP_DIR/.claude/spec" ]; then
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        if [ ! -f "$TMP_DIR/$f" ]; then
+            DELETIONS+=("$f（テンプレートから削除済み）")
+        fi
+    done < <(find ".claude/spec" -type f -name "*.md")
+fi
+
 # スクリプト（サブディレクトリ含む再帰チェック）
 if [ -d "$TMP_DIR/scripts" ]; then
     while IFS= read -r f; do
@@ -282,6 +303,16 @@ if [ -d "$TMP_DIR/.claude/templates" ]; then
         mkdir -p "$(dirname "$rel")"
         cp "$f" "$rel"
     done < <(find "$TMP_DIR/.claude/templates" -type f -name "*.md")
+fi
+
+# spec（.claude/spec/*.md）
+if [ -d "$TMP_DIR/.claude/spec" ]; then
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        rel="${f#$TMP_DIR/}"
+        mkdir -p "$(dirname "$rel")"
+        cp "$f" "$rel"
+    done < <(find "$TMP_DIR/.claude/spec" -type f -name "*.md")
 fi
 
 # スクリプト（サブディレクトリ含む再帰コピー、upgrade.sh 自身は最後に上書き）
