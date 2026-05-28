@@ -365,7 +365,6 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         "fontsize": "14",
         "fontcolor": C_LANE_HDR,
         "compound": "true",        # cluster 跨ぎエッジを cluster 境界に正しく接続
-        "newrank": "true",         # cluster をまたぐ rank 整合（縦並び解消）
     }
     # AA: graphviz 自然サイズ算出。size/ratio 強制なし → FG 間でノード密度が揃う
 
@@ -468,50 +467,6 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 for lane_name in lanes_in_group:
                     _render_lane(gg, gi, lane_color_idx, lane_name)
                     lane_color_idx += 1
-
-    # col フィールドが無い場合、transitions の DAG から topological depth を自動採番する
-    # これにより既存 swimlanes.json（col 未記載）でも 2D レイアウトが機能する
-    def _auto_assign_col(steps, transitions):
-        if any(s.get("col") is not None for s in steps):
-            return
-        step_by_id = {str(s.get("id", "")): s for s in steps}
-        pred: dict[str, list[str]] = {sid: [] for sid in step_by_id}
-        for t in transitions:
-            f, to = str(t.get("from", "")), str(t.get("to", ""))
-            # cross フラグに関わらず全遷移を col 採番の predecessor として使用
-            if f in step_by_id and to in step_by_id:
-                pred[to].append(f)
-        memo: dict[str, int] = {}
-        def col_of(sid: str, depth: int = 0) -> int:
-            if depth > 50:
-                return 0
-            if sid in memo:
-                return memo[sid]
-            if not pred.get(sid):
-                memo[sid] = 0
-                return 0
-            memo[sid] = max(col_of(p, depth + 1) for p in pred[sid]) + 1
-            return memo[sid]
-        for sid, s in step_by_id.items():
-            s["col"] = col_of(sid)
-
-    _auto_assign_col(steps_in, trans_in if trans_in else [])
-
-    # col-based rank 同期: 同一 col のステップを rank=same で揃える（cluster 跨ぎ 2D 配置）
-    _col_to_sids: dict[int, list[str]] = {}
-    for _s in steps_in:
-        _c = _s.get("col")
-        if _c is None:
-            continue
-        _sid = str(_s.get("id", ""))
-        if _sid:
-            _col_to_sids.setdefault(int(_c), []).append(_sid)
-    for _sids in _col_to_sids.values():
-        if len(_sids) >= 2:
-            with g.subgraph() as _rsg:
-                _rsg.attr(rank="same")
-                for _sid in _sids:
-                    _rsg.node(_sid)
 
     # 未分類ステップ（lane 指定なし or 未知のレーン）
     for step in steps_in:
