@@ -73,6 +73,16 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 ---
 
+## Phase 1.5 前提: 全件反復処理の明示
+
+受け取った対象 API 名リスト（Phase 1 で取得した N 件すべて）に対し、**1 件ずつ順次** Phase 1.5（ハッシュチェック）→ Phase 2（設計書生成）→ ハッシュキャッシュ更新を実行する。
+
+- **コンテキスト枯渇時の挙動**: 途中停止して「完了」と宣言してはならない。1 件処理完了ごとにハッシュキャッシュへ書き込めば、次のイテレーションで未処理分から再開可能
+- **進捗報告**: 概ね 10 件処理ごとに `処理済 X/N 件` を 1 行報告する
+- **完了条件**: Phase 3.5 の `verify_cat4_completeness.py` が exit 0 を返した場合のみ「完了」を宣言する。exit 非 0 の場合は missing 一覧から未処理 API 名を抽出して Phase 1.5/Phase 2 を再実行する
+
+---
+
 ## Phase 1.5: ハッシュチェック（変更なしスキップ）
 
 ```bash
@@ -168,6 +178,23 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 ---
 
+## Phase 3.5: 完了性検証（必須）
+
+Phase 2 の反復完了後、`_metadata_cache.json` の対象種別件数と生成済み設計書件数を突合する。
+
+```bash
+python {project_dir}/scripts/python/sf-doc-mcp/verify_cat4_completeness.py \
+  --project-dir "{project_dir}" \
+  --kind {flow|apex|lwc}
+```
+
+- stdout 最終 1 行: `[verify_cat4] kind=K expected=N generated=M missing=Z deprecated=D`
+- exit 0（missing == 0）: 全件完了。最終報告へ進む
+- exit 1（missing > 0）: stderr の missing 一覧から未処理 API 名を確認し、そのコンポーネントのみを対象に Phase 1.5/Phase 2 を再実行してから再度 verify を呼ぶ（「完了」を宣言してはならない）
+- 最終報告の「### 生成/更新ファイル」配下に集計行を転記する
+
+---
+
 ## Phase 最終: クリーンアップ
 
 [共通ルール参照](.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
@@ -182,6 +209,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 ### 生成/更新ファイル
 - docs/design/{種別}/: XX件（新規 X件 / 更新 X件）
 - 廃止注記更新: XX件（mark_design_deprecated.py の `updated=` を転記）
+- **件数突合**: expected=N / generated=M / missing=Z（verify_cat4_completeness.py の最終行を転記。missing > 0 の場合は未完了として処理継続）
 
 ### 主な発見・所見
 （重要な設計パターン・ガバナ制限リスク・依存関係の注意点）
