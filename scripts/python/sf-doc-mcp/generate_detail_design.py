@@ -2461,8 +2461,14 @@ def _normalize_business_flow(flows: list[dict]) -> None:
         if not s.get("actor"):
             s["actor"] = "業務担当者"
         actor = str(s.get("actor", "") or "").strip()
-        # アクターが CamelCase クラス名風、__c 付き、（CMP-XXX）を含む等はコンポーネント名扱い → 「システム」に
-        if (_RE_CAMEL_IDENT.search(actor) or _RE_LOWER_CAMEL.search(actor)
+        # 標準オブジェクト API 名 → 表示ラベルに変換（例: Lead → リード）
+        if actor in _STD_OBJ_LABELS:
+            s["actor"] = _STD_OBJ_LABELS[actor]
+        # カスタムオブジェクト API 名（__c 付き）→ メタデータのラベルがあればそれを使う
+        elif "__c" in actor and actor in _SF_OBJ_LABELS:
+            s["actor"] = _SF_OBJ_LABELS[actor]
+        # CamelCase クラス名風・lowerCamelCase・（CMP-XXX）等はコンポーネント名扱い → 「システム」に
+        elif (_RE_CAMEL_IDENT.search(actor) or _RE_LOWER_CAMEL.search(actor)
                 or "__c" in actor or "（CMP" in actor or "(CMP" in actor):
             s["actor"] = "システム"
 
