@@ -404,28 +404,18 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     if None in group_to_lanes:
         sorted_keys.append(None)
 
-    def _render_lane(parent, gi: int, lane_idx: int, lane_name: str, _hdr_ids: list):
+    def _render_lane(parent, gi: int, lane_idx: int, lane_name: str):
         bg = _LANE_COLORS[lane_idx % len(_LANE_COLORS)]
-        hdr_id = f"__lane_hdr_{gi}_{lane_idx}"
-        _hdr_ids.append(hdr_id)
         with parent.subgraph(name=f"cluster_lane_{gi}_{lane_idx}") as sg:
-            # 外枠を invisible にしてレイアウト制御のみ使用（bounding box は描画しない）
-            sg.attr(label="", style="invis")
-            # 列ヘッダーノード: rank=min subgraph で最上段に配置される
-            sg.node(
-                hdr_id,
-                label=_wrap_jp(lane_name, 10),
-                shape="box",
+            sg.attr(
+                label=lane_name,
                 style="filled",
                 fillcolor=bg,
-                fontcolor=C_LANE_HDR,
-                fontname=FONT_JP,
-                fontsize="9",
-                width="1.4",
-                height="0.5",
-                fixedsize="true",
-                penwidth="1.5",
                 color=C_LANE_HDR,
+                penwidth="1",
+                fontname=FONT_JP,
+                fontcolor=C_LANE_HDR,
+                fontsize="12",
             )
             for step in steps_in:
                 step_lane_raw = str(step.get("lane", ""))
@@ -439,7 +429,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                         label=label,
                         shape="box",
                         style="filled,rounded",
-                        fillcolor=bg,
+                        fillcolor=C_STEP_BG,
                         fontcolor=C_STEP_FG,
                         fontname=FONT_JP,
                         fontsize="9",
@@ -453,29 +443,22 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
 
     known_lanes = set(lane_names) | set(lane_id_to_name.keys())
     lane_color_idx = 0
-    _hdr_ids: list[str] = []  # 全レーンのヘッダーノード ID を収集（rank=min で最上段固定）
 
     for gi, key in enumerate(sorted_keys):
         lanes_in_group = group_to_lanes[key]
         if key is None:
             # 未分類: グループクラスタを作らずレーンを直接トップレベル subgraph として描画
             for lane_name in lanes_in_group:
-                _render_lane(g, gi, lane_color_idx, lane_name, _hdr_ids)
+                _render_lane(g, gi, lane_color_idx, lane_name)
                 lane_color_idx += 1
         else:
-            # cluster_group は invisible（外枠なし）: cluster_lane の列配置のみを制御する
+            # cluster_group は invisible: 外枠を描かずレイアウト制御のみ使用
+            # → "Salesforce @Connect 組織"・"社外・お客様" 等の大きな外枠を非表示にする
             with g.subgraph(name=f"cluster_group_{gi}") as gg:
                 gg.attr(label="", style="invis")
                 for lane_name in lanes_in_group:
-                    _render_lane(gg, gi, lane_color_idx, lane_name, _hdr_ids)
+                    _render_lane(gg, gi, lane_color_idx, lane_name)
                     lane_color_idx += 1
-
-    # ヘッダーノードを最上段（rank=min）に固定 → 列ヘッダー行として表示
-    if _hdr_ids:
-        with g.subgraph() as _hrow:
-            _hrow.attr(rank="min")
-            for _hid in _hdr_ids:
-                _hrow.node(_hid)
 
     # col フィールドが無い場合、transitions の DAG から topological depth を自動採番する
     # これにより既存 swimlanes.json（col 未記載）でも 2D レイアウトが機能する
