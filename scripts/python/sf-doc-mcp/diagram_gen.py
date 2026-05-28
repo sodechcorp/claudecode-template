@@ -355,23 +355,24 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     trans_in = flow.get("transitions", [])
     title    = flow.get("title", "業務フロー")
 
-    # TB: 時間軸=縦（steps が上→下）、レーン=横に並ぶ列
-    # cluster_group + cluster_lane の両方を visible にして見本（GF AS-IS）と同じ構造にする
-    _sw_rankdir = "TB"
-
-    # 20ステップ超のフロー（TO-BE など）は anchor レイアウトを使い ranksep を広げて縦方向を確保
+    # anchor フロー（steps >= 20）は TB で 2D 縦積み
+    # uc_specific / exception / data_flow は LR で横スイムレーン（縦並び解消）
+    # asis は TB を維持（ユーザー承認済みレイアウト）
+    _LR_FLOW_TYPES = {"uc_specific", "exception", "data_flow"}
+    _flow_type = flow.get("flow_type", "")
     _use_anchor_pre = len(steps_in) >= 20
-    _ranksep = "1.2" if _use_anchor_pre else "0.4"
+    _sw_rankdir = "TB" if (_use_anchor_pre or _flow_type not in _LR_FLOW_TYPES) else "LR"
+    _ranksep = "0.8" if _use_anchor_pre else "0.4"
 
     _sw_graph_attr = {
         "bgcolor": "white",
         "rankdir": _sw_rankdir,
         "splines": "polyline",
-        "nodesep": "0.3" if _use_anchor_pre else "0.4",  # anchor フロー: 詰めてコンパクトに
-        "ranksep": _ranksep,    # anchor フロー: 1.2インチ（2D 縦積みで高さを確保）/ 小フロー: 0.4
+        "nodesep": "0.3" if _use_anchor_pre else "0.4",
+        "ranksep": _ranksep,    # anchor フロー: 0.8インチ（2D 縦積み）/ small フロー: 0.4
         "size": "16,12",        # 上限 16×12 インチ = 2400×1800px @DPI150（超えたらスケールダウン）
         "fontname": FONT_JP,
-        "pad": "0.3",
+        "pad": "0.1",
         "dpi": str(DPI),
         "label": title,
         "labelloc": "t",
@@ -621,6 +622,7 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     png_bytes = g.pipe(format="png")
     with open(out_path, "wb") as f:
         f.write(png_bytes)
+    _crop_and_pad_png(out_path)
     if _HAS_PIL:
         return _PILImage.open(out_path).size
     return (0, 0)
@@ -1381,6 +1383,41 @@ def render_object_access_matrix(
 # ════════════════════════════════════════════════════════════════
 # PNG 正規化ヘルパー（swimlane / フローチャート 共通）
 # ════════════════════════════════════════════════════════════════
+
+def _crop_and_pad_png(png_path: str, target_wh: float = 16 / 9, margin_px: int = 10) -> None:
+    """白余白をクロップしてからターゲットアスペクト比に白パディングする（上書き）。"""
+    if not _HAS_PIL:
+        return
+    try:
+        from PIL import ImageChops
+        img = _PILImage.open(png_path).convert("RGB")
+        bg = _PILImage.new("RGB", img.size, (255, 255, 255))
+        diff = ImageChops.difference(img, bg)
+        bbox = diff.getbbox()
+        if bbox:
+            left   = max(0, bbox[0] - margin_px)
+            top    = max(0, bbox[1] - margin_px)
+            right  = min(img.width,  bbox[2] + margin_px)
+            bottom = min(img.height, bbox[3] + margin_px)
+            img = img.crop((left, top, right, bottom))
+        w, h = img.size
+        cur = w / h if h else 1.0
+        # 極端なアスペクト比（target の 1.8 倍超）はパディングせずそのまま保存
+        if abs(cur - target_wh) < 0.05 or cur > target_wh * 1.8 or cur < target_wh / 1.8:
+            img.save(png_path, "PNG")
+            return
+        if cur < target_wh:
+            new_w = int(h * target_wh)
+            canvas = _PILImage.new("RGB", (new_w, h), (255, 255, 255))
+            canvas.paste(img, ((new_w - w) // 2, 0))
+        else:
+            new_h = int(w / target_wh)
+            canvas = _PILImage.new("RGB", (w, new_h), (255, 255, 255))
+            canvas.paste(img, (0, (new_h - h) // 2))
+        canvas.save(png_path, "PNG")
+    except Exception:
+        pass
+
 
 def _pad_png_to_aspect(png_path: str, target_w_h: float, align: str = "center") -> str:
     """PNG を target_w_h（幅/高さ）のアスペクトに白背景で padding して返す。
