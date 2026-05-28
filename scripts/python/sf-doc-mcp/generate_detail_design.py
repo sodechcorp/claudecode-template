@@ -1220,6 +1220,20 @@ _TECH_REPL = [
 ]
 
 # 業務フロー・タイトル・概要用: SF標準オブジェクトは翻訳済み前提でAPIを除去
+_JP_CHARS = _re.compile(r'[ぁ-んァ-ヶー一-龯々〆]')
+_TECH_PAREN_MARK = _re.compile(r'[._()<>@#:]|[a-z]')
+
+
+def _strip_tech_paren(m: _re.Match) -> str:
+    """括弧内が技術識別子の場合のみ削除。全大文字略語（PDF/VIP）・日本語注記は保持。"""
+    inner = m.group(1)
+    if _JP_CHARS.search(inner):        # 日本語を含む業務注記 → 保持
+        return m.group(0)
+    if _TECH_PAREN_MARK.search(inner): # 記号 or 小文字を含む技術識別子 → 削除
+        return ''
+    return m.group(0)                  # 全大文字略語（PDF/VIP/API/CSV）→ 保持
+
+
 _TECH_REPL_BIZ = [
     (_re.compile(r'@InvocableMethod[としてで\s]*'), ''),
     (_re.compile(r'@AuraEnabled[としてで\s]*'), ''),
@@ -1232,7 +1246,7 @@ _TECH_REPL_BIZ = [
     (_re.compile(r'[（(](?:is|has)[A-Z]\w*[）)]'), ''),
     (_re.compile(r'(?:is|has)[A-Z]\w*が(?:false|true|null)(?:の場合[はに]?)?'), ''),
     (_re.compile(r'(?<![A-Za-z])(?:is|has)[A-Z][A-Za-z]+(?![A-Za-z])'), ''),
-    (_re.compile(r'(?<![A-Za-z])[a-z][a-zA-Z]{3,}(?=[をがはにでへのもと])'), ''),
+    (_re.compile(r'(?<![A-Za-z])[a-z][a-zA-Z]*[A-Z][a-zA-Z]*(?=[をがはにでへのもと])'), ''),
     (_re.compile(r'[A-Z][A-Za-z0-9]+\.[A-Za-z]\w+\([^)]*\)'), ''),
     (_re.compile(r'[A-Z][A-Za-z0-9]+\.[A-Za-z]\w+'), ''),
     (_re.compile(r'のサーバーサイドロジック'), ''),
@@ -1250,9 +1264,9 @@ _TECH_REPL_BIZ = [
     (_re.compile(r'\b[A-Z][A-Za-z0-9]{2,}(?:Controller|Service|Handler|Manager|Batch|Trigger)\b'), ''),
     # 残ったCamelCase英語（日本語助詞に挟まれていない単独の英単語）
     (_re.compile(r'(?<![ぁ-ん一-龥ァ-ヶーa-z_])([A-Z][a-zA-Z]{3,})(?![ぁ-ん一-龥ァ-ヶーa-z_])'), ''),
-    # 括弧内が英語・記号で始まる（技術情報）は除去
-    (_re.compile(r'（[A-Z@#][^）]{0,60}）'), ''),
-    (_re.compile(r'\([A-Z@#][^)]{0,60}\)'), ''),
+    # 括弧内が技術識別子の場合のみ除去（全大文字略語 PDF/VIP・日本語注記は保持）
+    (_re.compile(r'（([A-Z@#][^）]{0,60})）'), _strip_tech_paren),
+    (_re.compile(r'\(([A-Z@#][^)]{0,60})\)'), _strip_tech_paren),
     # 同一表現の繰り返し（括弧内外重複）: "外部帳票サービス（外部帳票サービス）"
     (_re.compile(r'([^\s（]{4,30})（\1）'), r'\1'),
     # メソッドが重複: "公開メソッドメソッド" → "公開メソッド"

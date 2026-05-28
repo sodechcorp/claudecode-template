@@ -141,6 +141,20 @@ _TECH_REPL = [
     (_re.compile(r'(。){2,}'), '。'),
 ]
 
+_JP_CHARS = _re.compile(r'[ぁ-んァ-ヶー一-龯々〆]')
+_TECH_PAREN_MARK = _re.compile(r'[._()<>@#:]|[a-z]')
+
+
+def _strip_tech_paren(m: _re.Match) -> str:
+    """括弧内が技術識別子の場合のみ削除。全大文字略語（PDF/VIP）・日本語注記は保持。"""
+    inner = m.group(1)
+    if _JP_CHARS.search(inner):        # 日本語を含む業務注記 → 保持
+        return m.group(0)
+    if _TECH_PAREN_MARK.search(inner): # 記号 or 小文字を含む技術識別子 → 削除
+        return ''
+    return m.group(0)                  # 全大文字略語（PDF/VIP/API/CSV）→ 保持
+
+
 _TECH_REPL_BIZ = [
     (_re.compile(r'@InvocableMethod[としてで\s]*'), ''),
     (_re.compile(r'@AuraEnabled[としてで\s]*'), ''),
@@ -152,7 +166,7 @@ _TECH_REPL_BIZ = [
     (_re.compile(r'[（(](?:is|has)[A-Z]\w*[）)]'), ''),
     (_re.compile(r'(?:is|has)[A-Z]\w*が(?:false|true|null)(?:の場合[はに]?)?'), ''),
     (_re.compile(r'(?<![A-Za-z])(?:is|has)[A-Z][A-Za-z]+(?![A-Za-z])'), ''),
-    (_re.compile(r'(?<![A-Za-z])[a-z][a-zA-Z]{3,}(?=[をがはにでへのもと])'), ''),
+    (_re.compile(r'(?<![A-Za-z])[a-z][a-zA-Z]*[A-Z][a-zA-Z]*(?=[をがはにでへのもと])'), ''),
     (_re.compile(r'[A-Z][A-Za-z0-9]+\.[A-Za-z]\w+\([^)]*\)'), ''),
     (_re.compile(r'[A-Z][A-Za-z0-9]+\.[A-Za-z]\w+'), ''),
     (_re.compile(r'のサーバーサイドロジック'), ''),
@@ -164,8 +178,8 @@ _TECH_REPL_BIZ = [
     (_re.compile(r'\(trigger\s+\w+\)'), ''),
     (_re.compile(r'\b[A-Z][A-Za-z0-9]*__[cepr]\b'), ''),
     (_re.compile(r'\b[A-Z][A-Za-z0-9]{2,}(?:Controller|Service|Handler|Manager|Batch|Trigger)\b'), ''),
-    (_re.compile(r'（[A-Z@#][^）]{0,60}）'), ''),
-    (_re.compile(r'\([A-Z@#][^)]{0,60}\)'), ''),
+    (_re.compile(r'（([A-Z@#][^）]{0,60})）'), _strip_tech_paren),
+    (_re.compile(r'\(([A-Z@#][^)]{0,60})\)'), _strip_tech_paren),
     (_re.compile(r'([^\s（]{4,30})（\1）'), r'\1'),
     (_re.compile(r'(メソッド){2,}'), 'メソッド'),
     (_re.compile(r'（\s*）'), ''),
