@@ -61,6 +61,10 @@ def save_ledger(ledger_path: Path, ledger: dict) -> None:
 # 同一 api_name は同一コンポーネントのリクラシフィケーションとみなし、ID を再利用する。
 _APEX_GROUP = {"Apex", "Batch", "Integration"}
 
+# flows/ 配下から生成される型グループ。
+# 画面の有無による Flow ↔ 画面フロー の型変更は同一コンポーネントとみなし ID を再利用する。
+_FLOW_GROUP = {"Flow", "画面フロー"}
+
 
 def _index_by_key(ledger: dict) -> dict[str, dict]:
     return {_make_key(f["type"], f["api_name"]): f for f in ledger["features"]}
@@ -88,6 +92,17 @@ def resolve_id(ledger: dict, ftype: str, api_name: str) -> str:
         for entry in ledger["features"]:
             if (entry["api_name"] == api_name
                     and entry["type"] in _APEX_GROUP
+                    and entry["type"] != ftype
+                    and not entry.get("deprecated")):
+                entry["type"] = ftype
+                return entry["id"]
+
+    # Flow グループ内でのリクラシフィケーション検出
+    # 例: Flow → 画面フロー（画面追加）/ 画面フロー → Flow（画面削除）
+    if ftype in _FLOW_GROUP:
+        for entry in ledger["features"]:
+            if (entry["api_name"] == api_name
+                    and entry["type"] in _FLOW_GROUP
                     and entry["type"] != ftype
                     and not entry.get("deprecated")):
                 entry["type"] = ftype

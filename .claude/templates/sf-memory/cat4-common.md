@@ -93,16 +93,16 @@ cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'
 cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}
 api_name = '{api_name}'
 src_paths = {source_file_paths}
-h = hashlib.md5()
-for p in sorted(src_paths):
-    path = pathlib.Path(p)
-    if path.exists():
-        h.update(path.read_bytes())
-current_hash = h.hexdigest()
-if cache.get(api_name) == current_hash:
-    print('SKIP')
+if not src_paths or not any(pathlib.Path(p).exists() for p in src_paths):
+    print('UPDATE:NEW')
 else:
-    print(f'UPDATE:{current_hash}')
+    h = hashlib.md5()
+    for p in sorted(src_paths):
+        path = pathlib.Path(p)
+        if path.exists():
+            h.update(path.read_bytes())
+    current_hash = h.hexdigest()
+    print('SKIP' if cache.get(api_name) == current_hash else f'UPDATE:{current_hash}')
 "
 ```
 
