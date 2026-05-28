@@ -100,3 +100,5 @@ sf data query -q "SELECT Name, JobType, CronExpression FROM CronTrigger WHERE St
 - Integration: `force-app/main/default/namedCredentials/` / `externalCredentials/`
 
 既存設計書がある場合はそのファイルも Read してアップデートモードで更新する。
+
+> **deprecated 設計書の扱い**: 対象 API 名が `feature_ids.yml` で `deprecated=true` の場合、本フェーズでは設計書を更新せずスキップする。deprecated 注記の付与は `cat4-common.md` Phase 2.0 の `mark_design_deprecated.py` が一括処理する。

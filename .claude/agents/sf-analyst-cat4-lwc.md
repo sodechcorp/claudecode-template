@@ -98,3 +98,5 @@ sf data query -q "SELECT DeveloperName FROM AuraDefinitionBundle WHERE Namespace
 > Salesforce 組織生成時の自動配備クラス（Communities / Site / SelfReg / AnswersHome / IdeasHome 等）は設計書テンプレートの「短縮版 MD ルール」に従い簡略版で生成する。
 
 既存設計書がある場合はそのファイルも Read してアップデートモードで更新する。
+
+> **deprecated 設計書の扱い**: 対象 API 名が `feature_ids.yml` で `deprecated=true` の場合、本フェーズでは設計書を更新せずスキップする。deprecated 注記の付与は `cat4-common.md` Phase 2.0 の `mark_design_deprecated.py` が一括処理する。

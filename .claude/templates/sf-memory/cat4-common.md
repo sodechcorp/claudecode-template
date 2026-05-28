@@ -133,6 +133,23 @@ for tbd in design_dir.rglob('【TBD】{kebab_name}.md'):
 
 ---
 
+## Phase 2.0: deprecated 設計書のクリーンアップ（アップデートモード時のみ）
+
+Phase 0 の `scan_features.py` 実行で `feature_ids.yml` に `deprecated=true` が立った機能（過去分含む）の設計書 MD に対し、deprecated バナー注記と「実装状態」セルの `**[廃止]**` 化を一括適用する。
+
+> 初回生成モード時は対象設計書が存在しないためスキップ。
+
+```bash
+python {project_dir}/scripts/python/sf-doc-mcp/mark_design_deprecated.py \
+  --project-dir "{project_dir}"
+```
+
+- 設計書ファイルは **削除しない**（手動追記・設計判断の根拠を保持）
+- バナーは冪等マーカー付き（再実行しても差分なし）
+- stdout の最終 1 行 `[mark_design_deprecated] deprecated=N updated=M ...` を最終報告に転記する
+
+---
+
 ## Phase 2.5: feature_list.json の再生成（リネーム後の整合）
 
 Phase 2 でファイル名が1件でも変わった場合のみ:
@@ -164,6 +181,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 ### 生成/更新ファイル
 - docs/design/{種別}/: XX件（新規 X件 / 更新 X件）
+- 廃止注記更新: XX件（mark_design_deprecated.py の `updated=` を転記）
 
 ### 主な発見・所見
 （重要な設計パターン・ガバナ制限リスク・依存関係の注意点）
