@@ -346,16 +346,17 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     trans_in = flow.get("transitions", [])
     title    = flow.get("title", "業務フロー")
 
-    # LR: 時間軸=横（steps が左→右）、レーン=縦に並ぶ帯 → cluster_lane がコンパクト
-    # TB だと cluster の bounding box が時間軸全体をカバーして外枠が大きくなるため LR に変更
-    _sw_rankdir = "LR"
+    # TB: 時間軸=縦（steps が上→下）、レーン=横に並ぶ列
+    # cluster_group + cluster_lane の両方を visible にして見本（GF AS-IS）と同じ構造にする
+    _sw_rankdir = "TB"
 
     _sw_graph_attr = {
         "bgcolor": "white",
         "rankdir": _sw_rankdir,
         "splines": "polyline",
-        "nodesep": "0.3",       # LR モード: 同レーン内のノード縦間隔
-        "ranksep": "0.5",       # LR モード: 時間軸方向（横）の間隔
+        "nodesep": "0.4",       # TB モード: 同時間ステップの列間隔（水平）
+        "ranksep": "0.4",       # TB モード: 時間軸方向の間隔（垂直）
+        "ratio": "1.3",         # 高さ/幅 = 1.3 に正規化（縦長フロー→横を引き伸ばす）
         "fontname": FONT_JP,
         "pad": "0.3",
         "dpi": str(DPI),
@@ -451,10 +452,19 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                 _render_lane(g, gi, lane_color_idx, lane_name)
                 lane_color_idx += 1
         else:
-            # cluster_group は invisible: 外枠を描かずレイアウト制御のみ使用
-            # → "Salesforce @Connect 組織"・"社外・お客様" 等の大きな外枠を非表示にする
+            # cluster_group を visible に: _TYPE_GROUP_MAP のラベル・カラーを使用
+            group_label, group_color = _TYPE_GROUP_MAP.get(key, (key, "#E8E8E8"))
             with g.subgraph(name=f"cluster_group_{gi}") as gg:
-                gg.attr(label="", style="invis")
+                gg.attr(
+                    label=group_label,
+                    style="filled",
+                    fillcolor=group_color,
+                    color=C_LANE_HDR,
+                    penwidth="1.5",
+                    fontname=FONT_JP,
+                    fontcolor=C_LANE_HDR,
+                    fontsize="13",
+                )
                 for lane_name in lanes_in_group:
                     _render_lane(gg, gi, lane_color_idx, lane_name)
                     lane_color_idx += 1
