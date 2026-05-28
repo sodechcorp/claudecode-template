@@ -316,6 +316,15 @@ _TYPE_GROUP_MAP: dict[str, tuple[str, str]] = {
 }
 _TYPE_GROUP_ORDER = ["external_actor", "internal_actor", "system", "external_system"]
 
+# cluster_group の垂直配置レベル（0=top, 大きいほど下）
+# 同レベルのグループは横並びになる（external_actor + external_system が level 0 で隣接）
+_GROUP_LEVEL: dict[str, int] = {
+    "external_actor":  0,
+    "external_system": 0,
+    "internal_actor":  1,
+    "system":          2,
+}
+
 
 def _lane_to_group(lane_type: str) -> tuple[str, str] | None:
     """レーンの type からグループ（表示名・塗り色）を決める。
@@ -350,12 +359,16 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     # cluster_group + cluster_lane の両方を visible にして見本（GF AS-IS）と同じ構造にする
     _sw_rankdir = "TB"
 
+    # 20ステップ超のフロー（TO-BE など）は anchor レイアウトを使い ranksep を広げて縦方向を確保
+    _use_anchor_pre = len(steps_in) >= 20
+    _ranksep = "1.2" if _use_anchor_pre else "0.4"
+
     _sw_graph_attr = {
         "bgcolor": "white",
         "rankdir": _sw_rankdir,
         "splines": "polyline",
         "nodesep": "0.4",       # TB モード: 同時間ステップの列間隔（水平）
-        "ranksep": "0.4",       # TB モード: 時間軸方向の間隔（垂直）
+        "ranksep": _ranksep,    # anchor フロー: 1.2インチ（2D 縦積みで高さを確保）/ 小フロー: 0.4
         "size": "16,12",        # 上限 16×12 インチ = 2400×1800px @DPI150（超えたらスケールダウン）
         "fontname": FONT_JP,
         "pad": "0.3",
@@ -403,6 +416,16 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
     if None in group_to_lanes:
         sorted_keys.append(None)
 
+    # ステップ → group key のマップ（cross-GROUP判定に使用）
+    _sid_to_group: dict[str, str | None] = {}
+    for step in steps_in:
+        sid = str(step.get("id", ""))
+        step_lane_raw = str(step.get("lane", ""))
+        step_lane_name = lane_id_to_name.get(step_lane_raw, step_lane_raw)
+        lt = lane_name_to_type.get(step_lane_name, "")
+        grp = lt.strip().lower() if _lane_to_group(lt) else None
+        _sid_to_group[sid] = grp
+
     def _render_lane(parent, gi: int, lane_idx: int, lane_name: str):
         bg = _LANE_COLORS[lane_idx % len(_LANE_COLORS)]
         with parent.subgraph(name=f"cluster_lane_{gi}_{lane_idx}") as sg:
@@ -439,6 +462,12 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
 
     known_lanes = set(lane_names) | set(lane_id_to_name.keys())
     lane_color_idx = 0
+    group_anchor: dict[str, str] = {}  # group key → anchor node id
+
+    # ステップ数が多いフロー（TO-BE など）はクラスタグループが全横並びになりやすい。
+    # 20ステップ超の場合のみ anchor 強制レイアウトを適用する。
+    # 小フロー（AS-IS・UC個別）は DOT の自然レイアウトを使う（変更なし）。
+    use_anchor_layout = len(steps_in) >= 20
 
     for gi, key in enumerate(sorted_keys):
         lanes_in_group = group_to_lanes[key]
@@ -461,9 +490,62 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
                     fontcolor=C_LANE_HDR,
                     fontsize="13",
                 )
+                if use_anchor_layout:
+                    # 不可視アンカーノード: グループ間の垂直順序制御に使用
+                    anchor_id = f"__anchor_{gi}"
+                    gg.node(anchor_id, style="invis", width="0", height="0", label="", fixedsize="true")
+                    group_anchor[key] = anchor_id
                 for lane_name in lanes_in_group:
                     _render_lane(gg, gi, lane_color_idx, lane_name)
                     lane_color_idx += 1
+
+    if use_anchor_layout and group_anchor:
+        # アンカー → 全グループノード（不可視）: グループノードのランクをアンカーランク+1以上に固定
+        for key, anchor_id in group_anchor.items():
+            for step in steps_in:
+                sid = str(step.get("id", ""))
+                if _sid_to_group.get(sid) == key:
+                    g.edge(anchor_id, sid, style="invis", weight="1", constraint="true")
+
+        # 同一グループ内の最長チェーン長を計算（アンカー間 minlen の算出に使用）
+        def _max_group_chain_len(group_key: str) -> int:
+            adj: dict[str, list[str]] = {}
+            for t in trans_in:
+                src, dst = str(t.get("from", "")), str(t.get("to", ""))
+                if _sid_to_group.get(src) == group_key and _sid_to_group.get(dst) == group_key:
+                    adj.setdefault(src, []).append(dst)
+            memo: dict[str, int] = {}
+            def dp(n: str) -> int:
+                if n in memo:
+                    return memo[n]
+                memo[n] = 1 + max((dp(x) for x in adj.get(n, [])), default=0)
+                return memo[n]
+            nodes = [s for s, grp in _sid_to_group.items() if grp == group_key]
+            return max((dp(n) for n in nodes), default=1) if nodes else 1
+
+        # _GROUP_LEVEL に基づきクラスタグループを垂直に積む（不可視エッジで rank 強制）
+        # minlen = 上段グループの最長チェーン + 1 でランク範囲の重複を防ぐ
+        level_to_keys: dict[int, list[str]] = {}
+        for k in group_anchor:
+            lvl = _GROUP_LEVEL.get(k, 99)
+            level_to_keys.setdefault(lvl, []).append(k)
+
+        for lvl in sorted(level_to_keys):
+            next_lvl = lvl + 1
+            if next_lvl not in level_to_keys:
+                continue
+            max_chain = max(_max_group_chain_len(k) for k in level_to_keys[lvl])
+            minlen = str(max_chain + 1)
+            for src_key in level_to_keys[lvl]:
+                for dst_key in level_to_keys[next_lvl]:
+                    g.edge(
+                        group_anchor[src_key],
+                        group_anchor[dst_key],
+                        style="invis",
+                        weight="10",
+                        constraint="true",
+                        minlen=minlen,
+                    )
 
     # 未分類ステップ（lane 指定なし or 未知のレーン）
     for step in steps_in:
@@ -502,6 +584,12 @@ def render_swimlane(flow: dict, out_path: str) -> tuple[int, int]:
         if t.get("cross"):
             edge_kw["style"] = "dashed"
             edge_kw["weight"] = "0.3"
+            if use_anchor_layout:
+                # グループをまたぐエッジはランク計算に含めない（同グループ内の cross-lane はそのまま）
+                src_grp = _sid_to_group.get(src)
+                dst_grp = _sid_to_group.get(dst)
+                if src_grp is not None and dst_grp is not None and src_grp != dst_grp:
+                    edge_kw["constraint"] = "false"
         g.edge(src, dst, **edge_kw)
 
     png_bytes = g.pipe(format="png")
