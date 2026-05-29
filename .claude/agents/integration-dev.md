@@ -33,7 +33,7 @@ focus_hints: ["callout", "named_credential", "platform_event", "api"]
   - `docs/architecture/` の連携先システム情報（プロトコル・認証方式・エンドポイント）を Named Credential / コールアウト設計に反映
   - `docs/catalog/{standard|custom}/{対象}.md` の必須項目・項目型・FLS を REST/SOAP リクエスト・レスポンスマッピングに反映し、未定義項目を推測で扱わない
   - `docs/design/integration/` の既存連携設計と整合性を確認（同一エンドポイントの重複呼び出し・認証情報の競合等）
-- **エラー / タイムアウトが発生した場合**: スキップして対応範囲へ進む（Phase 0 は必須ではないため中断しない）
+- **エラー / タイムアウトが発生した場合**: 呼び出し仕様の「エラー / タイムアウト」節に従い、最低限 `docs/_README.md` + `docs/overview/org-profile.md` を直接 Read してフォールバックする。**コンテキスト未取得のまま未定義の API / Named Credential / Platform Event を推測使用しない**（断定する場合は不確実マーカーを付す）
 
 > **Step 0c: CRITICAL ルール読込** — [`step-0c-template.md`](../templates/common/step-0c-template.md) を Read する（実装裏付け・出典確認・スコープ管理・不確実マーカーの 4 ルール）
 
