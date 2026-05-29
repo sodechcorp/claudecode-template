@@ -30,3 +30,5 @@ Python インラインコード内、および AskUserQuestion の label / descr
 | `{evidence_dir}` | パス | Phase 1.5 連動 |
 | `{issueID}` | 文字列 | `/backlog` Phase 0 |
 | `{件名}` / `{件名_sanitized}` | 文字列 | Phase 1.5 |
+
+> `{issueID}` は Backlog の課題キー（`[A-Z]{2,}-\d+`、例 `GF-341`）。`docs/knowledge/cases/{issueKey}.md` のファイル名で使う `{issueKey}` と**同一値**で、作業フォルダ・中間成果物系では `{issueID}`、cases ナレッジファイル名では `{issueKey}` と表記を使い分ける。
