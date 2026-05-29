@@ -92,23 +92,39 @@ def merge_table(local, remote):
 
 
 # ---- pitfalls.md ----
-def merge_sections(local, remote):
-    def split(text):
-        parts = re.split(r'(?=^#{2,3} )', text or "", flags=re.MULTILINE)
-        pre = parts[0] if parts and not re.match(r'^#{2,3} ', parts[0]) else ""
-        secs = {}
-        for p in parts:
-            m = re.match(r'^#{2,3} (.+)', p)
-            if m:
-                secs[m.group(1).strip()] = p
-        return pre, secs
+# テーブル形式（6列）を前提にした複合キー（issueID::カテゴリ）マージ。
+# cat6 が出力するテーブル行は複合キーで重複排除し、旧セクション形式等の非テーブル行は
+# pre として local を verbatim 保持する（サブ見出しキー衝突による破壊を防ぐ）。
+def merge_pitfalls(local, remote):
+    def parse(text):
+        lines = (text or "").splitlines(keepends=True)
+        pre, rows = [], {}
+        in_table = False
+        for line in lines:
+            if line.startswith("|"):
+                cols = [c.strip() for c in line.split("|")[1:-1]]
+                if len(cols) >= 3:
+                    key = f"{cols[1]}::{cols[2]}"  # issueID::カテゴリ の複合キー
+                    if key and not re.match(r'^[-:]+$', cols[1]) and cols[1] not in ("課題ID",):
+                        rows[key] = line
+                        in_table = True
+                    else:
+                        pre.append(line)
+                else:
+                    pre.append(line)
+            else:
+                if in_table:
+                    in_table = False
+                pre.append(line)
+        return pre, rows
 
-    local_pre, local_s = split(local)
-    remote_pre, remote_s = split(remote)
-    merged = {**remote_s, **local_s}  # local 優先
+    local_pre, local_rows = parse(local)
+    remote_pre, remote_rows = parse(remote)
+    merged = {**remote_rows, **local_rows}  # local 優先
     pre = local_pre or remote_pre
-    print(f"  pitfalls.md: remote {len(remote_s)} 件 + local {len(local_s)} 件 → {len(merged)} 件")
-    return pre + "\n".join(merged.values())
+    new_count = len(set(remote_rows) - set(local_rows))
+    print(f"  pitfalls.md: remote {len(remote_rows)} 行 + local {len(local_rows)} 行 → {len(merged)} 行（新規 {new_count} 件）")
+    return "".join(pre) + "".join(merged.values())
 
 
 # ---- effort-calibration.md ----
@@ -273,7 +289,7 @@ def main():
     elif local is None:
         write(path, remote); print(f"  {path}: 新規作成（remote 版）")
     else:
-        write(path, merge_sections(local, remote))
+        write(path, merge_pitfalls(local, remote))
 
     # ---- cases/*.md ----
     cases_dir = "docs/knowledge/cases"
