@@ -102,3 +102,46 @@ sf data query -q "SELECT DeveloperName FROM AuraDefinitionBundle WHERE Namespace
 既存設計書がある場合はそのファイルも Read してアップデートモードで更新する。
 
 > **deprecated 設計書の扱い**: 対象 API 名が `feature_ids.yml` で `deprecated=true` の場合、本フェーズでは設計書を更新せずスキップする。deprecated 注記の付与は `cat4-common.md` Phase 2.0 の `mark_design_deprecated.py` が一括処理する。
+
+---
+
+## Phase 3.5 追加: apex/ への VF 設計書残存チェック
+
+共通 Phase 3.5（`verify_cat4_completeness.py --kind lwc`）完了後、`design/apex/` に旧VF集約設計書が残っていないことを確認する。
+
+```bash
+python -c "
+import json, pathlib, re, sys
+proj = pathlib.Path(r'{project_dir}')
+cache_path = proj / 'docs' / '.sf' / '_metadata_cache.json'
+if not cache_path.exists():
+    print('SKIP: _metadata_cache.json not found'); sys.exit(0)
+cache = json.loads(cache_path.read_text(encoding='utf-8'))
+apex_pages = {r['Name'] for r in cache.get('apex_pages', [])}
+
+def _norm(s): return re.sub(r'[-_\s]', '', s.lower())
+def _bare(p): return re.sub(r'^【[^】]+】', '', p.stem)
+
+vf_norms = {_norm(n) for n in apex_pages}
+residuals = []
+apex_dir = proj / 'docs' / 'design' / 'apex'
+if apex_dir.exists():
+    for md in apex_dir.rglob('*.md'):
+        txt = md.read_text(encoding='utf-8', errors='ignore')
+        by_name    = _norm(_bare(md)) in vf_norms
+        by_content = bool(re.search(r'\|\\s*種別\\s*\|[^\\n]*Visualforce', txt))
+        if by_name or by_content:
+            residuals.append(md.as_posix())
+
+if residuals:
+    print('FAIL: apex/ に VF 設計書残存 (Phase 2.0b 未除去 = vf/ 未移管 or 手動追記あり):')
+    for r in residuals:
+        print(f'  {r}')
+    sys.exit(1)
+else:
+    print('OK: apex/ に VF 設計書残存なし')
+"
+```
+
+- **exit 0**（`OK`）: 残存なし。Phase 3.5 完了
+- **exit 1**（`FAIL`）: 列挙されたファイルを最終報告「要確認事項」に転記し、**「完了」を宣言しない**（Phase 2.0b の `要確認` 扱いで保留中のため）

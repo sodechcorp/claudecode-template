@@ -168,6 +168,63 @@ python {project_dir}/scripts/python/sf-doc-mcp/mark_design_deprecated.py \
 
 ---
 
+## Phase 2.0b: apex/ 残存 VF 設計書の移行クリーンアップ（アップデートモード時のみ）
+
+> VF ページ（ApexPage）の設計書は `design/vf/` が正規格納先。過去のセッションで `design/apex/` に生成された旧VF集約設計書が残存すると二重管理になるため、本ステップで検出・ガード付き除去する。
+
+```bash
+python -c "
+import json, pathlib, re, sys
+proj = pathlib.Path(r'{project_dir}')
+cache_path = proj / 'docs' / '.sf' / '_metadata_cache.json'
+if not cache_path.exists():
+    print('SKIP: _metadata_cache.json not found'); sys.exit(0)
+cache = json.loads(cache_path.read_text(encoding='utf-8'))
+apex_pages = {r['Name'] for r in cache.get('apex_pages', [])}
+
+def _norm(s):  return re.sub(r'[-_\s]', '', s.lower())
+def _bare(p):  return re.sub(r'^【[^】]+】', '', p.stem)
+
+vf_api_norms = {_norm(n): n for n in apex_pages}
+vf_dir = proj / 'docs' / 'design' / 'vf'
+vf_idx = {}
+if vf_dir.exists():
+    for md in vf_dir.rglob('*.md'):
+        vf_idx[_norm(_bare(md))] = md.as_posix()
+
+apex_dir = proj / 'docs' / 'design' / 'apex'
+found = False
+for md in sorted(apex_dir.rglob('*.md')) if apex_dir.exists() else []:
+    bare = _bare(md)
+    nk   = _norm(bare)
+    txt  = md.read_text(encoding='utf-8', errors='ignore')
+    by_name    = nk in vf_api_norms
+    by_content = bool(re.search(r'\|\\s*種別\\s*\|[^\\n]*Visualforce', txt))
+    if not (by_name or by_content):
+        continue
+    found = True
+    vf_doc      = vf_idx.get(nk)
+    has_comment = '<!--' in txt
+    is_aggregate = by_content and not by_name
+    print(f'CANDIDATE: {md.as_posix()} | vf_exists={vf_doc is not None} | has_comment={has_comment} | is_aggregate={is_aggregate}')
+if not found:
+    print('NO_CANDIDATES')
+"
+```
+
+出力を1件ずつ確認し、以下の判定で処理する:
+
+| 条件 | 対応 |
+|---|---|
+| `vf_exists=True` かつ `has_comment=False` かつ `is_aggregate=False` | apex/ 孤児を削除（Python `pathlib.Path(path).unlink()`）。削除件数を最終報告に記録する |
+| 上記以外（vf/ 未生成 / 手動追記あり / 集約ファイル） | 削除しない。最終報告「要確認事項」に `**[要確認: VF設計書が design/apex/ に残存。vf/ へ移管後に削除要]**` として列挙する |
+
+`NO_CANDIDATES` → このステップをスキップ（候補ゼロ）。
+
+> **Phase 2.0 非削除原則との関係**: Phase 2.0 の「設計書ファイルは削除しない（手動追記を保持）」原則は、`vf/` への移管確認済みかつ手動追記のない旧VF孤児に限り、本 Phase 2.0b の除去で例外的に上書きされる。vf/ 未確認・手動追記あり・集約ファイルは引き続き非削除原則が適用される。
+
+---
+
 ## Phase 2.5: feature_list.json の再生成（リネーム整合・自エージェント内）
 
 > **design_doc の最終確定は sf-memory Phase 3a（cat4 全完了後の確定再スキャン）が担う。**
