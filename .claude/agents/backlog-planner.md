@@ -429,7 +429,7 @@ investigation.md の Step G に記載されたテストシナリオを **元に*
 （この時点では保存せず、B-4 議論モードを先に進める）
 
 > **`option-validator-blind` 使用時**: B-4 でユーザが全判断ポイントを承認し implementation-plan.md を保存した直後に、以下の Task 起動 prompt を使って `backlog-blind-validator` subagent を呼び出すこと。subagent 実行後に `## blind 実装案レビュー` セクションが implementation-plan.md の末尾に追記される。
-> 渡し情報の詳細は `.claude/templates/backlog/options/option-validator-blind.md` L11-17 を参照。
+> 渡し情報の詳細は `.claude/templates/backlog/options/option-validator-blind.md` §実行手順（subagent への引き渡し情報）を参照。
 
 Task prompt は `.claude/templates/backlog/blind-prompts/validator.md` を Read して、その内容を Task の prompt として使用すること。プレースホルダー（`{issueID}` `{課題本文の全文}` `{全コメントのテキスト}` `{investigation.md のテキスト}` `{採用方針テキスト}`）は実行時の値で置換する。
 

@@ -151,7 +151,7 @@ Step 0b のオプション判定は Step 0a 完了後に続けて実施する。
 ```
 task_description: 「{課題タイトル + 本文の最初の 200 字}」
 project_dir: 「{プロジェクトルート}」
-focus_hints: ["{課題から抽出した CMP 番号・機能名・オブジェクト名等のキーワード。knowledge-only は含めない}"]
+focus_hints: ["{課題から抽出した F-番号・機能名・オブジェクト名等のキーワード。knowledge-only は含めない}"]
 ```
 
 - **コンテキスト取得成功**: 返された関連ファイル群（CMP・オブジェクト定義・要件・設計書）を以降の業務文脈として保持する。**取得済みファイルは B-2 の手動 Read 対象から除外**して重複読みを防ぐ
@@ -295,7 +295,7 @@ Q 番号の運用は `_README.md §Q 番号統一フロー` を参照（表記 `
 
 実行手順は [.claude/templates/backlog/options/option-prod-select-reference.md](../templates/backlog/options/option-prod-select-reference.md) を参照。
 
-**investigator フェーズで実行する場合の出力先**: option 内の指示に関わらず、結果は `investigation.md` の「本番データ参照」セクションに追記する（`test-report.md` への書き込みは L21 のルールにより禁止）。
+**investigator フェーズで実行する場合の出力先**: option 内の指示に関わらず、結果は `investigation.md` の「本番データ参照」セクションに追記する（option の §出力 に test-report.md への追記指示があるが investigator フェーズでは適用しない）。
 
 Sandbox で再現できる場合は使わない（最終手段）。
 
