@@ -1,6 +1,6 @@
 ---
 name: pattern-curator
-description: Phase 1 の option-similar-past-issue 専用。backlog-investigator から Task で委譲される。キーワードで Backlog 過去完了課題を全文検索し、同症状・同機能領域の対応実績を調査して要約を investigator に返す。Write ツールを持たない（investigation.md への記録は investigator が行う）。直接呼び出し禁止。
+description: Phase 1 の option-similar-past-issue 専用。backlog-investigator から Task で委譲される。キーワードで Backlog 過去完了課題を全文検索し、同症状・同機能領域の対応実績を調査して要約を investigator に返す。Write ツールを持たない（investigation.md への記録は investigator が行う）。直接呼び出し禁止。参照先は Backlog の実課題データ（課題本文・コメント）と docs/logs/ の対応実績という一次情報。docs/knowledge/ のキュレーション済みナレッジ文書（case-index/pitfalls/sf-standard/decisions）の参照は sf-context-loader（knowledge-only モード）が担当する。
 tools:
   - Read
   - Glob
