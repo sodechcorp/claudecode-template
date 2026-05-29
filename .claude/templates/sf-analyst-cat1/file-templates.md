@@ -15,6 +15,7 @@
 
 | 項目 | 値 |
 |---|---|
+| generated_at | YYYY-MM-DD |
 | プロジェクト名 | （Phase 2.5 で取得した正式プロジェクト名。例: MMPC顧客管理刷新プロジェクト / リンク Salesforce 保守開発） |
 | システム名 | （Phase 2.5 で取得した正式システム名。例: MMPC顧客管理システム / リンク受注管理） |
 | 開始日 | YYYY-MM-DD |
@@ -22,6 +23,8 @@
 | Salesforce Edition | Enterprise / Unlimited / Professional 等 |
 | 対象業務 | （1行サマリ） |
 ```
+
+`generated_at` にはファイル生成日・最終更新日（実行当日）を `YYYY-MM-DD` 書式で記入する（`feature_groups.yml` と同形式）。`generate_basic_doc.py` はこのキーを参照しないため下流処理への影響はない。
 
 ### 含める内容
 
