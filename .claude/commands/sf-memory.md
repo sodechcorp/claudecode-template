@@ -188,7 +188,7 @@ Phase 3: カテゴリ4・6・8 を並列でエージェントへ委譲
   ※ 並列実行は「1つの assistant メッセージ内で Agent ツールを複数同時に呼び出す」ことで実現する
   ※ cat4 は Apex/Flow/LWC の3種別エージェントに分割して並列実行する
   sf-analyst-cat4-apex（カテゴリ4-Apex: Apex・Trigger・Batch 設計書生成）┐
-  sf-analyst-cat4-flow（カテゴリ4-Flow: Flow・承認プロセス 設計書生成）  │ 並列実行
+  sf-analyst-cat4-flow（カテゴリ4-Flow: Flow 設計書生成）                │ 並列実行
   sf-analyst-cat4-lwc（カテゴリ4-LWC: LWC・VF・Aura 設計書生成）       │
   sf-analyst-cat6（カテゴリ6: 保守履歴・工数温度感）                     │ ※ Backlog MCP 設定済みの場合のみ
   sf-analyst-cat8（カテゴリ8: SF 標準仕様記録）                          ┘ ※ Q2 で選択された場合のみ
