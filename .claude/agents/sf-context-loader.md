@@ -145,7 +145,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 | マッチ種別 | 読むファイル |
 |---|---|
-| CMP-xxx マッチ | `feature_list.json` の `design_doc` パスから `docs/design/{種別}/【CMP-xxx】*.md` |
+| CMP-xxx マッチ | `feature_list.json` の `design_doc` パスから `docs/design/{種別}/【CMP-xxx】*.md`（**`design_doc` が null/未設定の場合は設計書未生成（cat4 未完走）とみなしこのエントリをスキップ。エラー停止せず、他のマッチ結果で要約を生成する**） |
 | オブジェクト名マッチ | `docs/catalog/{standard\|custom}/{オブジェクト名}.md` |
 | UC-xx マッチ | `docs/flow/usecases.md`（全体を読み、該当UC番号のセクションを抽出） |
 | スイムレーン/AS-IS/TO-BE マッチ | `docs/flow/swimlanes.json`（該当 `flow_type` のフローと所属レーンの actor 名・type を抽出。全文展開はしない） |
