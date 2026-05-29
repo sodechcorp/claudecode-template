@@ -1,6 +1,6 @@
 ---
 name: sf-context-loader
-description: SFプロジェクトの docs/ からタスク内容に関連するコンテキストのみを選択的に抽出して要約するエージェント。backlog系・reviewer・qa-engineer・integration-dev・data-manager・assistant 等から Phase 0 として呼ばれる。無関係なタスクや docs/ 未整備プロジェクトには「該当コンテキストなし」を返す。
+description: SFプロジェクトの docs/ からタスク内容に関連するコンテキストのみを選択的に抽出して要約するエージェント。通常モード（docs/ 全体を構造化マッチングでスキャン）と knowledge-only モード（backlog-investigator/planner から focus_hints:["knowledge-only"] で呼ばれ case-index/pitfalls/sf-standard/decisions の4ファイル限定 Grep）の2モードをサポート。backlog系・reviewer・qa-engineer・integration-dev・data-manager・assistant 等から Phase 0 として呼ばれる。無関係なタスクや docs/ 未整備プロジェクトには「該当コンテキストなし」を返す。
 tools:
   - Read
   - Glob
