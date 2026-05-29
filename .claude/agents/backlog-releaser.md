@@ -301,36 +301,24 @@ python scripts/python/backlog-xlsx/update_records.py \
    - `docs/logs/{issueID}/implementation-plan.md`
    - `docs/logs/{issueID}/test-report.md`
 2. `docs/knowledge/cases/` フォルダが存在しない場合は作成する
-3. 以下のテンプレートで `docs/knowledge/cases/{issueID}.md` を新規作成する:
+3. 以下の仕様で `docs/knowledge/cases/{issueID}.md` を新規作成する:
 
-```markdown
-# {issueID}: {件名}
+> 出力スキーマ（セクション見出し・順序・各節の意味）:
+> [../templates/common/cases-format.md](../templates/common/cases-format.md)
 
-生成日: {YYYY-MM-DD} / データソース: /backlog フロー成果物
-種別: {issue_type}
-
-## TL;DR
-（investigation.md の「課題サマリー」「TL;DR」セクションから200字以内で要約）
-
-## 症状・要件
-（investigation.md の「要件理解」または「問題の概要」セクションを整形。ない場合は approach-plan.md から補完）
-
-## 調査・検討の経緯
-（approach-plan.md の「案A〜X 比較」「不確実点」等から「検討の流れ・排除案・採用理由」を抽出）
-
-## 採用方針
-（approach-plan.md の「採用方針」セクションから転記）
-
-## 却下案・代替案
-（approach-plan.md の比較表・却下案の理由を整形）
-
-## 教訓・再発防止
-（investigation.md または approach-plan.md の「再発防止」「注意点」セクションから抽出。ない場合は省略）
-
-## 関連リンク
-- Backlog: （{issueID} で Backlog 検索）
-- docs/logs/{issueID}/: 前工程ファイル一式
-```
+   **経路固有の指定**（スキーマに上書き・追加する /backlog フロー専用の値）:
+   - `データソース`: `/backlog フロー成果物`（`Backlog` ではなくこの表記）
+   - `実績工数` 行: 不要（ヘッダ行に追加しない）
+   - 各節の抽出元:
+     - `## TL;DR` — investigation.md の「課題サマリー」「TL;DR」セクションから200字以内で要約
+     - `## 症状・要件` — investigation.md の「要件理解」または「問題の概要」セクションを整形。ない場合は approach-plan.md から補完
+     - `## 調査・検討の経緯` — approach-plan.md の「案A〜X 比較」「不確実点」等から「検討の流れ・排除案・採用理由」を抽出
+     - `## 採用方針` — approach-plan.md の「採用方針」セクションから転記
+     - `## 却下案・代替案` — approach-plan.md の比較表・却下案の理由を整形
+     - `## 教訓・再発防止` — investigation.md または approach-plan.md の「再発防止」「注意点」セクションから抽出。ない場合は省略
+     - `## 関連リンク` — 以下の2行を記載:
+       - `- Backlog: （{issueID} で Backlog 検索）`
+       - `- docs/logs/{issueID}/: 前工程ファイル一式`
 
 前工程ファイルがいずれも存在しない場合は「前工程ファイルが見当たらないため cases ファイルをスキップ」とログに記録してスキップする。
 
