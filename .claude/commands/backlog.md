@@ -156,7 +156,7 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 **分割読込ルール**: investigation.md・approach-plan.md・implementation-plan.md・validation-report.md・test-report.md は、**冒頭 80 行 + 末尾 30 行**を読めば十分（ファイルが 110 行未満の場合は全文）。フルが必要なフェーズ（実装フェーズなど）はエージェント側で個別に全文 Read すること。
 
 横断ファイル（フォルダが空・新規対応の場合も必ず Read する）:
-- `docs/decisions.md` 全件（存在し、かつ雛形のみ・実エントリ 0 件でなければ）
+- `docs/decisions.md` 冒頭 20 件（降順記録のため冒頭が直近。存在し、かつ雛形のみ・実エントリ 0 件でなければ）
 - `docs/logs/changelog.md` 末尾 20 件
 
 **読み込みの目的**: 同じ調査・同じ質問・同じ却下済み方針を繰り返さない。読み込み後、ユーザーへ以下をテキストで簡潔に報告する:
