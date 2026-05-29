@@ -25,7 +25,7 @@ tools:
 ```
 task_description: 「{ユーザー指示 / 連携の概要}」
 project_dir: {プロジェクトルートパス。不明な場合はカレントディレクトリ}
-focus_hints: [callout, named_credential, platform_event, api]
+focus_hints: ["callout", "named_credential", "platform_event", "api"]
 ```
 
 - **「該当コンテキストなし」が返った場合**: スキップして対応範囲へ
