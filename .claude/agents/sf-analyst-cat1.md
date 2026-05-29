@@ -368,6 +368,8 @@ org-profile.md の品質を高めるため、以下の 5 項目を**読み込ん
 
 > **粒度原則（最重要）**: steps の `title` は usecases.md と同じく **業務単位** で書く。Apex クラス単位・バッチジョブ単位・項目更新単位での分割は禁止（粒度が細かすぎる）。バッチ時刻・コンポーネント名・データ更新詳細は `title` に入れず `trigger` / `output` に分離する。
 
+> **業務語規約（必須・全モード）**: `steps[].title` / `steps[].action` / `lanes[].name` には技術識別子（`*__c` API名・Apex/Flow/Batch/Trigger クラス名・`insert`/`update`/`delete` 等の DML 命令・`（Apex: …）` 等の併記接尾辞）を書かず、業務担当者が読んで分かる業務語で記述する。許容語・置換ルールは [.claude/spec/sf-memory-quality.md](.claude/spec/sf-memory-quality.md) の「技術識別子禁止の原則」に従う。**本ルールは初回生成・差分更新の両モードで適用**（Phase 0.5.5 は差分更新時の既存ファイル再スキャン、本ルールは生成時の予防）。
+
 > **transitions[] 生成ルール（必須）**:
 > - steps が 1件以上あるフローは必ず transitions[] を生成する。`"transitions": []`（空配列）は出力禁止
 > - フローが直列の場合: step の出現順に `from → to` を全件列挙する（step 1→2、2→3、3→4…）
@@ -389,6 +391,7 @@ NG が1件でもあれば **その場で修正してから** `docs/flow/swimlane
 | transitions 非空 | 全フローの transitions[] が 1件以上ある | `"transitions": []` が1件でもある |
 | transitions 網羅 | 全 step が何らかの遷移（from または to）に含まれる | 孤立した step（どの遷移にも出てこない id）がある |
 | title 業務単位 | 全 step の title が業務単位（10〜14字目安・複数操作の連結なし） | 複数バッチを1 title に詰めている / Apex クラス名がそのまま title |
+| title/action 業務語 | 全 step の title/action に技術識別子が無い | `DailyReport__c` / `sdch_Batch_*` / `insert 取引先` / `（Apex: …）` が title・action に入っている |
 
 #### 生成後機械検証（必須・書き出し後に実施）
 
@@ -398,7 +401,7 @@ NG が1件でもあれば **その場で修正してから** `docs/flow/swimlane
 python {project_dir}/scripts/python/sf-doc-mcp/check_swimlanes.py {project_dir}
 ```
 
-> 警告が出た場合は内容を確認して修正判断する（完了報告に記録）。
+> 「title/action に英字技術名が含まれる」警告は、上記**業務語規約に従って必ず業務語へ修正し、再度 check_swimlanes.py を実行して当該警告がゼロになることを確認する**。その他の警告は内容を確認して修正判断する（いずれも完了報告に記録）。
 
 ### Phase 4.4: コンテキストキャッシュ生成
 
