@@ -451,20 +451,20 @@ main スレッドが「この課題は Phase 6 に到達しない」と判断し
 
 ### 実行手順（deploy 系は一切行わない）
 
-> 各 Step の詳細手順は `backlog-releaser.md` の対応 Step を参照して実行する（ロジックのコピーではなく参照）。
+> 各 Step の詳細手順は `backlog-releaser.md` の対応節を参照して実行する（ロジックのコピーではなく参照）。追記フォーマットの定義は [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) に集約されている（単一ソース）。
 
-1. **decisions.md** — Phase 5 まで到達済みか確認する。`option-knowledge-extraction`（Phase 5 always-run）が実行済みなら `docs/decisions.md` に既にエントリがあるため**重複追記しない**。Phase 5 未到達の場合のみ `backlog-releaser.md` Step 3 のフォーマットで `docs/logs/{issueID}/approach-plan.md` / `implementation-plan.md` を読んで追記する（前工程ファイルなしフォールバック内蔵）。
+1. **decisions.md** — Phase 5 まで到達済みか確認する。`option-knowledge-extraction`（Phase 5 always-run）が実行済みなら `docs/decisions.md` に既にエントリがあるため**重複追記しない**。Phase 5 未到達の場合のみ `backlog-releaser.md` §ドキュメント更新 の手順で `docs/logs/{issueID}/approach-plan.md` / `implementation-plan.md` を読んで追記する（前工程ファイルなしフォールバック内蔵）。
 
-2. **pitfalls.md** — `backlog-releaser.md` Step 3.6 の手順で実行する:
+2. **pitfalls.md** — `backlog-releaser.md` §知見の自動還流 の手順で実行する:
    - `docs/logs/{issueID}/discussion-log.md` から落とし穴パターンを抽出
    - ユーザー確認後に `docs/knowledge/pitfalls.md` へ先頭挿入（類似度 dedup 適用）
    - discussion-log.md が存在しない場合はフォールバック（approach-plan.md + test-report.md を Grep）
 
-3. **cases/{issueKey}.md** — `backlog-releaser.md` Step 3.8 の手順で実行する:
+3. **cases/{issueKey}.md** — `backlog-releaser.md` §cases/{issueKey}.md 詳細ファイル生成 の手順で実行する:
    - `docs/knowledge/cases/{issueKey}.md` が既存ならスキップ
    - `docs/logs/{issueID}/` 内の現存ファイルから生成（前工程ファイルなしフォールバック内蔵）
 
-4. **case-index.md** — `backlog-releaser.md` Step 4.5 の手順で実行する:
+4. **case-index.md** — `backlog-releaser.md` §case-index.md への自動追記 の手順で実行する:
    - パスは **`docs/knowledge/case-index.md`**（`cases/` 配下ではない）
    - 工数列は `-` 固定で追記する
    - 既存行ありならスキップ（dup 防止）

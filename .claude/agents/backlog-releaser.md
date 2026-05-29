@@ -167,17 +167,7 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/implementation-plan.md` を Read して採用方針・判断ポイント・業務要件回答を把握してから `docs/decisions.md` に判断記録を追記する。前工程ファイルが存在しない場合は「approach-plan.md / implementation-plan.md が見つかりません」とユーザに通知して続行し、decisions.md の対応する空欄（採用方針・実装の主な判断・業務要件への回答）は「不明（前工程ファイルなし）」と記入する。
 
-```markdown
-## {issueID}: {件名}（{YYYY-MM-DD}）
-
-採用方針: [案X]
-実装の主な判断: （判断ポイントと採用選択肢のサマリー）
-業務要件への回答: （approach-plan.md の Q 回答欄から転記。なければ省略）
-排除した案と理由:
-リリース予定日 / 担当:
-再発防止策: （同種課題の再発を防ぐための措置。なければ省略）
-引き継ぎ事項: （次回担当者への注意点・未解決の懸念・関連課題。なければ省略）
-```
+> 追記フォーマット: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリ
 
 ### 3.5. xlsx 対応記録の追記
 
@@ -249,16 +239,7 @@ python scripts/python/backlog-xlsx/update_records.py \
    - 複数件の場合: 番号付きリストで各件を提示し「全件追記 / 個別選択（番号で指定）/ スキップ」の3択で確認
 4. ユーザーが承認した件のみ追記を実行する
 
-**pitfalls.md への追記フォーマット**（最新行を先頭挿入）:
-```
-| {YYYY-MM-DD} | {issueID} | {カテゴリ（例: LWC×Apex / 数式項目）} | {何をするとどうなるか（全角60字以内）} | {対処・回避策（全角40字以内）} | [fallback] |
-```
-> 検出方法列: Phase 3.6 経由の追記は常に `[fallback]`（discussion-log.md から抽出のため）。
-
-**verify-*.md 追加ルール記入欄への追記フォーマット**:
-```
-- [{YYYY-MM-DD}] {ルール内容}（由来: {issueID}）
-```
+> 追記フォーマット: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §pitfalls.md 追記フォーマット
 
 ---
 
@@ -359,15 +340,8 @@ python scripts/python/backlog-xlsx/update_records.py \
    - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
 2. `docs/logs/{issueID}/implementation-plan.md` を Read して「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
 3. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
-   ```
-   | {YYYY-MM-DD} | {issueID} | {種別} | {症状60字} | {根本原因60字} | {採用方針40字} | {教訓40字} | {対象コンポーネント} | {関連用語} | - | [cases/{issueKey}.md](cases/{issueKey}.md) |
-   ```
-5. `docs/knowledge/case-index.md` が存在しない場合は以下のヘッダー付きで新規作成してから追記:
-   ```markdown
-   # 対応事例インデックス
-   | 日付 | 課題ID | 種別 | 症状/要件（60字） | 根本原因（60字） | 採用方針（40字） | 教訓（40字） | 対象コンポーネント | 関連用語 | 工数(h) | 詳細 |
-   |---|---|---|---|---|---|---|---|---|---|---|
-   ```
+   > 追記フォーマット・新規作成ヘッダー: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §case-index.md 追記フォーマット
+5. `docs/knowledge/case-index.md` が存在しない場合は上記パーシャルの新規作成ヘッダーを使用してから追記する。
 
 **スキップ条件**: 当課題の行がすでに存在する場合はスキップ（重複防止）。  
 **失敗時**: 「`docs/knowledge/case-index.md` の追記に失敗しました。以下の1行を手動で先頭に追加してください」とユーザーに案内する。
