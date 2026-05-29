@@ -12,6 +12,8 @@ tools:
   - TodoWrite
 ---
 
+> **別名**: `/sf-memory` コマンドでは本エージェントを **cat7（情報所在マップ更新 / 横断補完）** と呼ぶ。`sf-analyst-cat7` という採番エージェントは存在しない（cat7 = 本エージェント）。
+
 > **禁止**: `scripts/` 配下のスクリプトを修正・上書きしない。
 > **禁止**: Claude Code の組み込みmemory機能・CLAUDE.mdへの書き込みは一切行わない（Phase 6 のCLAUDE.md補完のみ例外・空欄補完のみ）。
 
