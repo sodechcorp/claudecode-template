@@ -28,7 +28,7 @@ project_dir: {プロジェクトルートパス。不明な場合はカレント
 focus_hints: ["callout", "named_credential", "platform_event", "api"]
 ```
 
-- **「該当コンテキストなし」が返った場合**: スキップして対応範囲へ
+- **「該当コンテキストなし」が返った場合**: 共通仕様に従い、最低限 docs/_README.md を 1 回 Read（存在する場合のみ）してドキュメント体系・用語集の所在を把握してから対応範囲へ進む
 - **関連コンテキストが返った場合**: 以降の連携実装で以下を必ず反映する:
   - `docs/architecture/` の連携先システム情報（プロトコル・認証方式・エンドポイント）を Named Credential / コールアウト設計に反映
   - `docs/catalog/{standard|custom}/{対象}.md` の必須項目・項目型・FLS を REST/SOAP リクエスト・レスポンスマッピングに反映し、未定義項目を推測で扱わない
