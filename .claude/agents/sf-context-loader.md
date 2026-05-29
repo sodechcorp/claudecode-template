@@ -92,6 +92,10 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 `{project_dir}/docs/knowledge/sf-standard.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（Salesforce 標準仕様の基盤知識として。ただし該当セクションのみ抽出し全文読込は避ける）。
 
+> **自課題除外ルール（issueID マッチ適用時）**: `task_description` の中心テーマとして扱われている issueID（現在処理中の自課題）は、issueID マッチの「類似過去課題」対象から **除外する**。自課題の `investigation.md` / `approach-plan.md` は呼び出し元エージェントが直接参照する現タスクの作業コンテキストであり、loader 経由で再注入すると循環参照・重複になるため。  
+> - **除外判定**: `task_description` 冒頭や `「{issueID} の対応をする/実装する/調査する」` のように、処理主体として言及されている ID が自課題。  
+> - **除外しない**: `focus_hints` で明示された別 ID、または `task_description` 中で「過去に GF-xxx で同様の問題が…」のように明確に過去事例として言及されている別 ID は従来どおり過去課題として読む。
+
 **マッチが全くない場合**: Phase 2.5 へ進む。
 
 ---
@@ -148,7 +152,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | 連携キーワード | `docs/architecture/system.json` |
 | 要件キーワード | `docs/requirements/requirements.md`（先頭100行程度） |
 | 工数キーワード | `docs/logs/effort-log.md`（末尾50行 Read） + `docs/logs/effort-calibration.md`（全文 Read） |
-| issueID マッチ | `docs/logs/{issueID}/investigation.md`（`^## 課題サマリー` セクションのみ Grep） + `docs/decisions.md`（issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（採用方針セクションのみ Grep） |
+| issueID マッチ | `docs/logs/{issueID}/investigation.md`（`^## 課題サマリー` セクションのみ Grep） + `docs/decisions.md`（issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（採用方針セクションのみ Grep）。**自課題 ID は読込対象から除外**（→ Phase 2 の自課題除外ルール参照） |
 | 過去判断キーワード | `docs/decisions.md`（直近10件: 末尾200行を Read）+ `docs/knowledge/case-index.md`（症状列を Grep） |
 | 変更履歴キーワード | `docs/logs/changelog.md`（末尾30行 Read） |
 | 落とし穴キーワード | `docs/knowledge/pitfalls.md`（全文 Read） |
@@ -187,7 +191,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 ### 過去の判断・採用方針（docs/decisions.md / case-index.md より）
 - {issueID}「{件名}」: {採用方針1行} / {選定理由または注意点}
 
-### 類似過去課題（docs/logs/ より）
+### 類似過去課題（docs/logs/ より・現タスク自身の課題は含めない）
 - {issueID}: 症状={1行} / 原因={1行} / 採用方針={1行}
   → 詳細: docs/logs/{issueID}/investigation.md
 
