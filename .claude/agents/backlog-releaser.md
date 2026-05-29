@@ -16,12 +16,12 @@ tools:
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
-まず `docs/logs/{issueID}/investigation.md` の「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Read し、課題本文の要点（件名 + 要約 200 字程度）と対象 CMP 番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ → 呼び出し元から渡された課題タイトルの順でフォールバックする。
+まず `docs/logs/{issueID}/investigation.md` の「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Read し、件名 + 課題サマリー + 要件理解（investigation.md に記録済みの本文理解。文字数クリップはしない）と対象 CMP 番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ → 呼び出し元から渡された課題タイトルの順でフォールバックする。
 
 Task tool で `sf-context-loader` を起動し、以下のパラメータを渡す:
 
 ```
-task_description: 「{課題タイトル + investigation.md 課題サマリー/要件理解の要点 200 字}」
+task_description: 「{課題タイトル + investigation.md の課題サマリー + 要件理解（文字数で切り詰めない）}」
 project_dir: {プロジェクトルートパス。不明な場合はカレントディレクトリ}
 focus_hints: [{investigation.md 関連コンポーネント一覧から抽出した CMP 番号・オブジェクト名・機能名等のキーワード}]
 ```
