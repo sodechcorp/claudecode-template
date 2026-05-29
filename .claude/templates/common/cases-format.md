@@ -13,7 +13,7 @@
 # <案件キー>: <件名>
 ```
 
-- `<案件キー>` は Backlog の issueID / issueKey（例: GF-123）
+- `<案件キー>` は Backlog の課題キー（issueKey、例: GF-123）
 - `<件名>` は Backlog 上の summary / 件名（短縮不可・原文ママ）
 
 ## ヘッダ行

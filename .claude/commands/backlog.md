@@ -460,8 +460,8 @@ main スレッドが「この課題は Phase 6 に到達しない」と判断し
    - ユーザー確認後に `docs/knowledge/pitfalls.md` へ先頭挿入（類似度 dedup 適用）
    - discussion-log.md が存在しない場合はフォールバック（approach-plan.md + test-report.md を Grep）
 
-3. **cases/{issueID}.md** — `backlog-releaser.md` Step 3.8 の手順で実行する:
-   - `docs/knowledge/cases/{issueID}.md` が既存ならスキップ
+3. **cases/{issueKey}.md** — `backlog-releaser.md` Step 3.8 の手順で実行する:
+   - `docs/knowledge/cases/{issueKey}.md` が既存ならスキップ
    - `docs/logs/{issueID}/` 内の現存ファイルから生成（前工程ファイルなしフォールバック内蔵）
 
 4. **case-index.md** — `backlog-releaser.md` Step 4.5 の手順で実行する:

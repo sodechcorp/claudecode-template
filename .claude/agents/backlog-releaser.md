@@ -287,11 +287,11 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 ---
 
-### 3.8. cases/{issueID}.md 詳細ファイル生成
+### 3.8. cases/{issueKey}.md 詳細ファイル生成
 
-> **スキップ判定**: `docs/knowledge/cases/{issueID}.md` が既に存在する場合はスキップ（cat6 が生成済みの可能性）。`{issueID}` が空 / 未設定 / 変数名リテラルの場合もスキップする。
+> **スキップ判定**: `docs/knowledge/cases/{issueKey}.md` が既に存在する場合はスキップ（cat6 が生成済みの可能性）。`{issueKey}` が空 / 未設定 / 変数名リテラルの場合もスキップする。
 
-`docs/logs/{issueID}/` 配下の前工程ファイルを集約し、`docs/knowledge/cases/{issueID}.md` として知識ベース形式で書き出す。
+`docs/logs/{issueID}/` 配下の前工程ファイルを集約し、`docs/knowledge/cases/{issueKey}.md` として知識ベース形式で書き出す。
 
 **手順**:
 
@@ -301,7 +301,7 @@ python scripts/python/backlog-xlsx/update_records.py \
    - `docs/logs/{issueID}/implementation-plan.md`
    - `docs/logs/{issueID}/test-report.md`
 2. `docs/knowledge/cases/` フォルダが存在しない場合は作成する
-3. 以下の仕様で `docs/knowledge/cases/{issueID}.md` を新規作成する:
+3. 以下の仕様で `docs/knowledge/cases/{issueKey}.md` を新規作成する:
 
 > 出力スキーマ（セクション見出し・順序・各節の意味）:
 > [../templates/common/cases-format.md](../templates/common/cases-format.md)
@@ -360,7 +360,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 2. `docs/logs/{issueID}/implementation-plan.md` を Read して「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
 3. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
    ```
-   | {YYYY-MM-DD} | {issueID} | {種別} | {症状60字} | {根本原因60字} | {採用方針40字} | {教訓40字} | {対象コンポーネント} | {関連用語} | - | [cases/{issueID}.md](cases/{issueID}.md) |
+   | {YYYY-MM-DD} | {issueID} | {種別} | {症状60字} | {根本原因60字} | {採用方針40字} | {教訓40字} | {対象コンポーネント} | {関連用語} | - | [cases/{issueKey}.md](cases/{issueKey}.md) |
    ```
 5. `docs/knowledge/case-index.md` が存在しない場合は以下のヘッダー付きで新規作成してから追記:
    ```markdown

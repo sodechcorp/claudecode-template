@@ -193,7 +193,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 ### 過去の判断・採用方針（docs/decisions.md / case-index.md / cases/ より）
 - {issueID}「{件名}」: {採用方針1行} / {選定理由または注意点}
-  → 詳細: docs/knowledge/cases/{issueID}.md（TL;DR・教訓 — ファイルが存在し Read した場合のみ出力）
+  → 詳細: docs/knowledge/cases/{issueKey}.md（TL;DR・教訓 — ファイルが存在し Read した場合のみ出力）
 
 ### 類似過去課題（docs/logs/ より・現タスク自身の課題は含めない）
 - {issueID}: 症状={1行} / 原因={1行} / 採用方針={1行}
