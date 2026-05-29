@@ -117,6 +117,7 @@ focus_hints: []
   - `docs/catalog/{standard|custom}/{対象オブジェクト}.md` の項目定義（型・必須・桁数・入力規則）を実装にそのまま反映し、定義にない項目名・型を推測で使わない
   - `docs/data/automation-config.md` / `docs/design/flow/` の既存自動化と競合しないか確認（同一トリガで同一項目を更新する等）
   - `docs/data/master-data.md` のピックリスト値・コードはハードコードせず必ず参照（未記載の値を実装に含めない）
+  - **CMP 設計書（`docs/design/{apex|flow|lwc|batch|integration|vf|aura}/`）がヒットした場合**: loader 要約は最大 2000 字制約でパターン比較表・境界値条件・エラーハンドリング詳細が省略され得るため、実装前に該当設計書の**原本を直接 Read** し、設計意図・処理分岐・要件番号を確認する（要約に頼らない。reviewer に倣う）
 
 > **Step 0c: CRITICAL ルール読込** — [`step-0c-template.md`](../templates/common/step-0c-template.md) を Read する（実装裏付け・出典確認・スコープ管理・不確実マーカーの 4 ルール）
 
