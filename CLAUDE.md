@@ -65,7 +65,7 @@
 | システム構成図データ | `docs/architecture/` | `/sf-memory` | プロジェクト開始時・変更時 | system.json |
 | オブジェクト・項目定義書（Markdown） | `docs/catalog/` | `/sf-memory` | プロジェクト開始時・オブジェクト変更時 | オブジェクト・項目構成・権限。Claude記憶形成用 |
 | オブジェクト・項目定義書（Excel/PowerPoint） | `docs/` 任意 | `/sf-doc` | 成果物提出・共有時 | 正式な成果物として提出・共有するための定義書 |
-| 機能設計書 | `docs/design/{種別}/` | `/sf-memory` | 機能実装前 | apex/flow/batch/lwc/integration/config |
+| 機能設計書 | `docs/design/{種別}/` | `/sf-memory` | 機能実装前 | apex/flow/batch/lwc/integration |
 | データ統計・マスタ | `docs/data/` | `/sf-memory` | プロジェクト開始時・変更時 | マスタデータ・テンプレート・統計・品質 |
 | 変更履歴 | `docs/logs/changelog.md` | 自動 | 各コマンド実行時に自動追記 | コマンド実行時に自動追記 |
 | 工数ログ | `docs/logs/effort-log.md` | `/backlog` | `/backlog` 実行時に自動追記 | 見込み工数。`/backlog` 実行時に自動追記 |

@@ -209,7 +209,7 @@ erDiagram
 |---|---|---|
 | `docs/overview/` | 組織概要・会社情報 | `/sf-memory` |
 | `docs/requirements/` | 要件定義書 | `/sf-memory` |
-| `docs/design/{種別}/` | 機能別設計書（apex/flow/batch/lwc/integration/config） | `sf-architect` |
+| `docs/design/{種別}/` | 機能別設計書（apex/flow/batch/lwc/integration） | `sf-architect` |
 | `docs/catalog/` | オブジェクト・項目定義書 | `/sf-memory` |
 | `docs/data/` | データ分析結果 | `/sf-memory` |
 | `docs/test/` | テスト計画・結果 | 手動 |

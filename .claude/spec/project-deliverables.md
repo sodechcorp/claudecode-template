@@ -6,7 +6,7 @@
 | `docs/requirements/` | 要件定義書・ビジネスルール | `/sf-memory` |
 | `docs/flow/` | 業務フロー・ユースケース一覧・スイムレーン定義 | `/sf-memory` |
 | `docs/architecture/` | システム構成図用データ（system.json） | `/sf-memory` |
-| `docs/design/{種別}/` | 機能別設計書（apex/flow/batch/lwc/integration/config） | `/sf-memory` |
+| `docs/design/{種別}/` | 機能別設計書（apex/flow/batch/lwc/integration） | `/sf-memory` |
 | `docs/catalog/` | オブジェクト・項目定義書（Markdown・Claude記憶形成用） | `/sf-memory` |
 | `docs/data/` | マスタデータ・テンプレート・統計・品質 | `/sf-memory` |
 | `docs/logs/changelog.md` | 変更履歴 | 開発コマンド実行時に自動追記 |

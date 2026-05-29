@@ -1,6 +1,6 @@
 ---
 name: sf-analyst-cat4-flow
-description: sf-memory カテゴリ4（Flow/Config）担当。docs/design/flow/ 配下の設計書を生成・更新する。/sf-memoryコマンドから委譲されて実行する。cat1/cat2/cat3 の出力を参照してから設計書を生成する。
+description: sf-memory カテゴリ4（Flow）担当。docs/design/flow/ 配下の設計書を生成・更新する。/sf-memoryコマンドから委譲されて実行する。cat1/cat2/cat3 の出力を参照してから設計書を生成する。
 model: opus
 tools:
   - Read

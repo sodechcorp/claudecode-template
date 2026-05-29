@@ -96,7 +96,7 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 
 > **鉄則との関係**: ドキュメント更新は実装に伴う必然的な副次作業であり、鉄則（「計画に書かれていないことを実装しない」）の対象外。ただし「実装した変更内容を反映するため」に限定する。実装スコープを超えた新規セクション追加・構成リファクタ・推測による補完は禁止。
 
-`.claude/CLAUDE.md`「実装後のドキュメント更新」ルールに従い、変更内容に応じて更新する（`.claude/CLAUDE.md` が存在しない場合は changelog.md のみ更新して次の変更ファイルへ進む。`docs/logs/changelog.md` 自体が存在しない場合は `# Changelog` ヘッダー＋空行を先に作成してから 1 行追記する）:
+`.claude/spec/docs-driven-behavior.md`「実装後のドキュメント更新マッピング」ルールに従い、変更内容に応じて更新する（`.claude/spec/docs-driven-behavior.md` が存在しない場合は changelog.md のみ更新して次の変更ファイルへ進む。`docs/logs/changelog.md` 自体が存在しない場合は `# Changelog` ヘッダー＋空行を先に作成してから 1 行追記する）:
 
 - カスタム項目の追加・変更・削除: `docs/catalog/{standard|custom}/{オブジェクト名}.md`（項目一覧テーブルに反映）
 - Apex / トリガーの追加・変更: `docs/design/apex/{クラス名}.md`
