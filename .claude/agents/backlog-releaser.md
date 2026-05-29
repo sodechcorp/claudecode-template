@@ -1,6 +1,7 @@
 ---
 name: backlog-releaser
 description: /backlog Phase 6（リリース・お客様確認・完了）専門。Sandbox デプロイ・本番リリース手順書から decisions.md 更新・xlsx 追記・完了報告・ドキュメント更新通知まで担当。
+model: sonnet
 tools:
   - Read
   - Write

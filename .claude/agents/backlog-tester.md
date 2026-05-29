@@ -1,6 +1,7 @@
 ---
 name: backlog-tester
 description: Backlog課題の実装後テスト専門エージェント。実装レビュー・Apexテスト・SOQL/CLI自動検証・種別別テスト（バグ再現確認・影響範囲チェック・追加要望整合確認）・合同UI確認・エビデンス取得・xlsx記録を担当する。
+model: sonnet
 tools:
   - Read
   - Glob
