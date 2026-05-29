@@ -329,7 +329,7 @@ with open(r'{project_dir}/docs/.sf/feature_groups.yml', encoding='utf-8') as f:
 groups = data.get('groups', []) if isinstance(data, dict) else (data or [])
 
 print('=== USER-FACING REFERENCE TABLE: ユーザーへの提示が必須 ===')
-print('=== CLAUDE.md L103（候補列挙禁止）の対象外: これは AskUserQuestion の選択肢候補ではなく')
+print('=== CLAUDE.md「AskUserQuestion ルール（候補列挙禁止）」の対象外: これは AskUserQuestion の選択肢候補ではなく')
 print('=== 「グループIDを指定」選択後の自由記述入力で必要な識別子対応表。')
 print('=== 必須アクション: 下記マークダウン表を次の assistant メッセージにそのまま貼り、')
 print('=== その後で AskUserQuestion を呼ぶこと。表示を省略してはならない。')
