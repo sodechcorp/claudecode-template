@@ -168,7 +168,10 @@ python {project_dir}/scripts/python/sf-doc-mcp/mark_design_deprecated.py \
 
 ---
 
-## Phase 2.5: feature_list.json の再生成（リネーム後の整合）
+## Phase 2.5: feature_list.json の再生成（リネーム整合・自エージェント内）
+
+> **design_doc の最終確定は sf-memory Phase 3a（cat4 全完了後の確定再スキャン）が担う。**
+> このステップは Phase 3.5（completeness verify）前の verify 用途に限定する。
 
 Phase 2 でファイル名が1件でも変わった場合のみ:
 
