@@ -1,5 +1,5 @@
 ---
-description: "Salesforce 組織情報を分析して docs/ に保存するコマンド。組織概要・オブジェクト構成・マスタデータ・設計書・機能グループ定義・保守履歴・情報所在マップ・SF標準仕様の8カテゴリを3ページのUIで選択して実行する（cat1〜cat8 専用エージェント + sf-org-analyst に委譲。cat3 は cat2 の後に逐次実行して承認プロセス・キュー情報を cat4/cat5 に提供する。cat4 は Apex/Flow/LWC の3エージェントに分割して並列実行する。cat5 は cat4 と同時選択時は cat4 完了後に自動起動、単独選択時は直接起動。cat6 は Backlog MCP 必須。cat7 は sf-org-analyst を readme-only モードで呼び出す。cat8 は WebFetch 必須）。"
+description: "Salesforce 組織情報を分析し、組織概要・オブジェクト構成・マスタデータ・設計書・機能グループ・保守履歴・情報所在マップ・SF標準仕様の8カテゴリを docs/ 配下に生成する。3ページのUIで実行カテゴリを選択する。"
 ---
 
 **AskUserQuestion のルール（厳守）:** [共通ルール参照](.claude/CLAUDE.md#askuserquestion-ルール厳守)
