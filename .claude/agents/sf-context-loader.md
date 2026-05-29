@@ -68,8 +68,8 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 |---|---|---|
 | `CMP-\d+` | CMP-042, CMP-001 | `docs/.sf/feature_list.json` → `docs/design/{種別}/【CMP-xxx】*.md` |
 | `UC-\d+` | UC-01, UC-03 | `docs/flow/usecases.md` |
-| `\w+__c`（項目API名） | Status__c, ApplicantId__c | `docs/catalog/_index.md` → `docs/catalog/custom/{object}.md` |
-| オブジェクト名（日本語・英語） | VisaApplication, 申請管理 | `docs/catalog/_index.md` → `docs/catalog/custom/{object}.md` |
+| `\w+__c`（項目API名） | Status__c, ApplicantId__c | `docs/catalog/_index.md` → `docs/catalog/{standard\|custom}/{object}.md` |
+| オブジェクト名（日本語・英語） | VisaApplication, 申請管理 | `docs/catalog/_index.md` → `docs/catalog/{standard\|custom}/{object}.md` |
 | キーワード（自動化系） | トリガ, バッチ, フロー, 自動化 | `docs/data/automation-config.md` |
 | キーワード（業務フロー系） | 業務フロー, 申請フロー, 画面フロー, ユースケース | `docs/flow/usecases.md` |
 | キーワード（スイムレーン系） | スイムレーン, レーン, AS-IS, TO-BE, asis, tobe | `docs/flow/swimlanes.json` |
@@ -140,7 +140,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | マッチ種別 | 読むファイル |
 |---|---|
 | CMP-xxx マッチ | `feature_list.json` の `design_doc` パスから `docs/design/{種別}/【CMP-xxx】*.md` |
-| オブジェクト名マッチ | `docs/catalog/custom/{オブジェクト名}.md` |
+| オブジェクト名マッチ | `docs/catalog/{standard\|custom}/{オブジェクト名}.md` |
 | UC-xx マッチ | `docs/flow/usecases.md`（全体を読み、該当UC番号のセクションを抽出） |
 | スイムレーン/AS-IS/TO-BE マッチ | `docs/flow/swimlanes.json`（該当 `flow_type` のフローと所属レーンの actor 名・type を抽出。全文展開はしない） |
 | 自動化キーワード | `docs/data/automation-config.md` |
@@ -170,7 +170,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 ## SFコンテキスト（sf-context-loader）
 
 ### 関連オブジェクト
-- {ObjectName}（docs/catalog/custom/{name}.md）: 主要項目 {API名3〜5個}, 関連: {リレーション先}
+- {ObjectName}（docs/catalog/{standard|custom}/{name}.md）: 主要項目 {API名3〜5個}, 関連: {リレーション先}
 
 ### 関連コンポーネント（設計書）
 - {CMP-xxx} {名称}（docs/design/{種別}/...）: {概要1〜2行。処理のポイント・主なメソッド}

@@ -31,7 +31,7 @@ focus_hints: [callout, named_credential, platform_event, api]
 - **「該当コンテキストなし」が返った場合**: スキップして対応範囲へ
 - **関連コンテキストが返った場合**: 以降の連携実装で以下を必ず反映する:
   - `docs/architecture/` の連携先システム情報（プロトコル・認証方式・エンドポイント）を Named Credential / コールアウト設計に反映
-  - `docs/catalog/{対象}.md` の必須項目・項目型・FLS を REST/SOAP リクエスト・レスポンスマッピングに反映し、未定義項目を推測で扱わない
+  - `docs/catalog/{standard|custom}/{対象}.md` の必須項目・項目型・FLS を REST/SOAP リクエスト・レスポンスマッピングに反映し、未定義項目を推測で扱わない
   - `docs/design/integration/` の既存連携設計と整合性を確認（同一エンドポイントの重複呼び出し・認証情報の競合等）
 - **エラー / タイムアウトが発生した場合**: スキップして対応範囲へ進む（Phase 0 は必須ではないため中断しない）
 

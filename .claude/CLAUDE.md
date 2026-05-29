@@ -19,7 +19,7 @@
 |---|---|
 | 「Apex 仕様は？」「ガバナ制限は？」 | Layer 3（`docs/knowledge/sf-standard.md`） |
 | 「過去に似た不具合あった？」 | Layer 3（`docs/decisions.md` / `docs/knowledge/case-index.md`） |
-| 「Account に項目追加して」 | Layer 3（`docs/catalog/Account.md`）+ Layer 1（命名規則） |
+| 「Account に項目追加して」 | Layer 3（`docs/catalog/standard/Account.md`）+ Layer 1（命名規則） |
 | 「結論先頭で短く」「敬語不要」 | Layer 2（Auto Memory が自動再現） |
 | 「本番組織に DML 禁止」「共有フォルダ保護」 | Layer 1 |
 
@@ -82,7 +82,7 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 | 状況 | 参照先 |
 |---|---|
 | 常に | `docs/overview/org-profile.md`（用語集） |
-| 項目・オブジェクト操作 | `docs/catalog/{対象}.md` |
+| 項目・オブジェクト操作 | `docs/catalog/{standard\|custom}/{対象}.md` |
 | 機能実装 | `docs/design/{種別}/` |
 | 要件確認 | `docs/requirements/requirements.md` |
 | マスタ参照 | `docs/data/master-data.md` |

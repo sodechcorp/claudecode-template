@@ -96,7 +96,7 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 
 `.claude/CLAUDE.md`「実装後のドキュメント更新」ルールに従い、変更内容に応じて更新する（`.claude/CLAUDE.md` が存在しない場合は changelog.md のみ更新して次の変更ファイルへ進む。`docs/logs/changelog.md` 自体が存在しない場合は `# Changelog` ヘッダー＋空行を先に作成してから 1 行追記する）:
 
-- カスタム項目の追加・変更・削除: `docs/catalog/{オブジェクト名}.md`（項目一覧テーブルに反映）
+- カスタム項目の追加・変更・削除: `docs/catalog/{standard|custom}/{オブジェクト名}.md`（項目一覧テーブルに反映）
 - Apex / トリガーの追加・変更: `docs/design/apex/{クラス名}.md`
 - フローの追加・変更: `docs/design/flow/{フロー名}.md`
 - LWCの追加・変更: `docs/design/lwc/{コンポーネント名}.md`
