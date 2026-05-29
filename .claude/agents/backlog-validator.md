@@ -23,6 +23,8 @@ backlog-implementer が安全・確実に実装できるよう、**5オプショ
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
+※ **通常モードの理由**: validator は Step 4 クロスレビューで「類似実装整合・副作用・権限/FLS」を検証するため、設計層（CMP・オブジェクト・設計書・関連 UC）の構造化マッチングが必要。knowledge-only（knowledge/ 4 ファイル限定 Grep）では設計層を取得できないため、investigator/planner と異なり通常モードを使用する。focus_hints は課題本文の構造化マッチングに委ねるため空とする。
+
 ```
 task_description: 「{ユーザー指示 / Backlog課題本文}」
 project_dir: {プロジェクトルートパス。不明な場合はカレントディレクトリ}
