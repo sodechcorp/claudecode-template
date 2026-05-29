@@ -25,18 +25,18 @@ description: "Salesforce 組織情報を分析して docs/ に保存するコマ
 
 Bash ツールで `pwd` を実行してカレントディレクトリを取得し、そのままプロジェクトフォルダパスとして採用する（ユーザーに確認しない）。取得した値は後続のエージェント委譲時にそのまま渡す。
 
-> **前提**: このコマンドは Salesforce プロジェクトルート（`docs/` `force-app/` があるフォルダ）を VSCode で開いた状態で実行されることを想定している。Bash ツールの `pwd` は Claude Code の bash (Unix shell) 経由で実行されるため **forward slash 形式でパスを返す**（PowerShell の直接実行は対象外）。
+> **前提**: このコマンドは Salesforce プロジェクトルート（`sfdx-project.json` があるフォルダ）を VSCode で開いた状態で実行されることを想定している。Bash ツールの `pwd` は Claude Code の bash (Unix shell) 経由で実行されるため **forward slash 形式でパスを返す**（PowerShell の直接実行は対象外）。
 
 **プロジェクト構造の確認（必須）**: `pwd` 取得後、以下を実行して Salesforce プロジェクトであることを確認する。
 
 ```bash
-test -d "$(pwd)/force-app" && echo OK || echo MISSING
+test -f "$(pwd)/sfdx-project.json" && echo OK || echo MISSING
 ```
 
-- `MISSING` の場合: **コマンドを中止する**。「このフォルダは Salesforce プロジェクトとして認識できません（`force-app/` ディレクトリが存在しません）。Salesforce プロジェクトルートで実行してください」とユーザーに伝える。
-- `OK` の場合: 続行する（`docs/` の有無はチェック不要。初回実行で生成するのが /sf-memory の役割）。
+- `MISSING` の場合: **コマンドを中止する**。「このフォルダは Salesforce プロジェクトとして認識できません（`sfdx-project.json` が存在しません）。Salesforce プロジェクトルートで実行してください」とユーザーに伝える。
+- `OK` の場合: 続行する（`docs/`・`force-app/` の有無はチェック不要。docs/ は初回実行で生成するのが /sf-memory の役割。force-app/ は各カテゴリのエージェントが個別確認する）。
 
-**品質 spec の確認（必須）**: force-app チェック通過後、以下を実行して品質原則 spec が存在することを確認する。
+**品質 spec の確認（必須）**: プロジェクトルートチェック通過後、以下を実行して品質原則 spec が存在することを確認する。
 
 ```bash
 test -f "$(pwd)/.claude/spec/sf-memory-quality.md" && echo OK || echo MISSING

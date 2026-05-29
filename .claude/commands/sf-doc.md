@@ -42,18 +42,18 @@ AskUserQuestion で作成する資料を選択（**上流 → 下流** の順）
 
 ## Step 1: 共通情報の取得（資料種別選択後に一度だけ聞く）
 
-> **前提**: このコマンドは Salesforce プロジェクトルート（`force-app/` があるフォルダ）をカレントディレクトリとして実行することを想定している。カレントディレクトリが不明な場合はチャットで確認すること。
+> **前提**: このコマンドは Salesforce プロジェクトルート（`sfdx-project.json` があるフォルダ）をカレントディレクトリとして実行することを想定している。カレントディレクトリが不明な場合はチャットで確認すること。
 
 まずカレントディレクトリを `project_dir` として確定する（以降の全スクリプト呼び出し・エージェント委譲で使用）:
 ```bash
 python -c "import os; print(os.getcwd())"
 ```
-出力されたパスを `{project_dir}` として保持する。続いて `force-app/` の存在を確認する（存在しない場合は Salesforce プロジェクトルートで再実行するよう案内して終了）:
+出力されたパスを `{project_dir}` として保持する。続いて `sfdx-project.json` の存在を確認する（存在しない場合は Salesforce プロジェクトルートで再実行するよう案内して終了）:
 ```bash
 python -c "
 import pathlib, sys
-if not pathlib.Path(r'{project_dir}/force-app').exists():
-    print('ERROR: force-app/ が見つかりません。Salesforce プロジェクトルート（force-app/ があるフォルダ）で実行してください。', file=sys.stderr)
+if not pathlib.Path(r'{project_dir}/sfdx-project.json').exists():
+    print('ERROR: sfdx-project.json が見つかりません。Salesforce プロジェクトルート（sfdx-project.json があるフォルダ）で実行してください。', file=sys.stderr)
     sys.exit(1)
 "
 ```

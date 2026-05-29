@@ -57,14 +57,14 @@ AskUserQuestion で生成する設計書を選択する:
 
 ### プロジェクトディレクトリ
 
-> sf-design は **カレントディレクトリ（force-app/ / docs/ / scripts/ が存在するフォルダ）** をプロジェクトルートとして使用する。
+> sf-design は **カレントディレクトリ（`sfdx-project.json` が存在するフォルダ）** をプロジェクトルートとして使用する。
 
 ```bash
 python -c "
 import pathlib, sys
 p = pathlib.Path('.').resolve()
-if not any((p / d).exists() for d in ['force-app', 'docs', 'scripts']):
-    print('ERROR: カレントディレクトリは Salesforce プロジェクトルートではありません（force-app/ docs/ scripts/ のいずれも見つかりません）。', file=sys.stderr)
+if not (p / 'sfdx-project.json').exists():
+    print('ERROR: カレントディレクトリは Salesforce プロジェクトルートではありません（sfdx-project.json が見つかりません）。', file=sys.stderr)
     sys.exit(1)
 print('project_dir:' + str(p))
 "
