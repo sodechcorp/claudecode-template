@@ -4,7 +4,7 @@ description: "Salesforce組織からメタデータを取得する。package.xml
 
 Salesforce組織からメタデータを取得してください。
 
-> **前提**: sf CLI **2.133.0+** が必要です。`standard` / `all` モードはスクリプトが自動チェックします。
+> **前提**: sf CLI **2.133.0+** が必要です。全モードでスクリプトが自動チェックします（select は冒頭で check-version を実行）。
 > 旧版の場合: `npm install --global @salesforce/cli@latest` で更新してください。
 
 ## ユーザー入力
@@ -64,6 +64,9 @@ bash scripts/sf-retrieve.sh all
 - 指定されたタイプが不明な場合は AskUserQuestion でユーザーに確認する
 
 ```bash
+# sf CLI バージョン確認（standard/all と同じチェックをスクリプトから流用）
+bash scripts/sf-retrieve.sh check-version
+
 # 例: Apex クラス MyClass・フロー MyFlow・オブジェクト Account を指定した場合
 [ -f sfdx-project.json ] || { echo "sfdx-project.json が見つかりません。SFDXプロジェクトのルートで実行してください"; exit 1; }
 API_VER=$(python3 -c "import json; d=json.load(open('sfdx-project.json')); print(d.get('sourceApiVersion', '62.0'))" 2>/dev/null || echo "62.0")
