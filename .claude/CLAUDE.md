@@ -171,6 +171,8 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 
 挙動・仕様を断定するときは必ず実コードを Read で確認し `ファイル名:行番号` で根拠を明示する。詳細: `.claude/templates/common/verify-implementation-spec.md` / `verify-source-attribution-spec.md` 参照
 
+> **sf-context-loader 経由の要約コンテキスト（2層ルール）**: loader は行番号を保持しないため、loader 要約からの引用はファイルパス単位で出典を示せば足りる（例: `docs/catalog/Foo__c.md`）。断定・裏付けが必要な箇所は必ず原本を直接 Read して `ファイル名:行番号` を付す。
+
 ---
 
 ## Output Format
