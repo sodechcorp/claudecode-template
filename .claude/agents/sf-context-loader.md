@@ -51,7 +51,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
    - `docs/knowledge/case-index.md` → 症状・キーワード列を Grep でマッチング。マッチ行から課題ID（列2）を抽出し、`docs/knowledge/cases/{課題ID}.md` が存在すれば最大2件 Read（`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクションのみ抽出。ファイルが存在しない課題はスキップし、case-index 行のみ使用）
    - `docs/knowledge/pitfalls.md` → 本文を Grep でマッチング（存在する場合）
    - `docs/knowledge/sf-standard.md` → 該当セクションを Grep でマッチング（存在する場合）
-   - `docs/decisions.md` → 末尾 200 行 Read、またはキーワード Grep（存在する場合）
+   - `docs/decisions.md` → 先頭 200 行 Read（降順管理のため最新が先頭）、またはキーワード Grep（存在する場合）
 
 4. マッチあり → 該当箇所のみを Phase 4 の「過去の判断・採用方針」「注意事項・落とし穴」「Salesforce 標準仕様」セクションのみで返す（最大 1000 字）
 5. マッチなし → 「該当ナレッジなし（knowledge-only: キーワードマッチなし）」を返す
@@ -155,7 +155,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | 要件キーワード | `docs/requirements/requirements.md`（先頭100行程度） |
 | 工数キーワード | `docs/logs/effort-log.md`（末尾50行 Read） + `docs/logs/effort-calibration.md`（全文 Read） |
 | issueID マッチ | `docs/logs/{issueID}/investigation.md`（`^## 課題サマリー` セクションのみ Grep） + `docs/decisions.md`（issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（採用方針セクションのみ Grep）。**自課題 ID は読込対象から除外**（→ Phase 2 の自課題除外ルール参照） |
-| 過去判断キーワード | `docs/decisions.md`（直近10件: 末尾200行を Read）+ `docs/knowledge/case-index.md`（症状列を Grep）+ マッチ行の課題ID から `docs/knowledge/cases/{課題ID}.md`（存在すれば最大2件 Read・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出） |
+| 過去判断キーワード | `docs/decisions.md`（直近10件: 先頭200行を Read・降順管理のため最新が先頭）+ `docs/knowledge/case-index.md`（症状列を Grep）+ マッチ行の課題ID から `docs/knowledge/cases/{課題ID}.md`（存在すれば最大2件 Read・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出） |
 | 変更履歴キーワード | `docs/logs/changelog.md`（末尾30行 Read） |
 | 落とし穴キーワード | `docs/knowledge/pitfalls.md`（全文 Read） |
 | レポート/ダッシュボードキーワード | `docs/data/reports-dashboards.md` |

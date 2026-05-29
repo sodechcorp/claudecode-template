@@ -47,7 +47,7 @@ tools: Read, Glob, Grep, mcp__backlog__get_issue, mcp__backlog__get_issues
 
 `issueID` が渡されている場合: `件名` / `本文` / `種別` / `actualHours` がパラメータとして渡されていればそれを優先して使用し `mcp__backlog__get_issue` の呼び出しをスキップする。これらのうち1つでも欠けている場合のみ MCP で取得する。
 
-`{project_dir}/docs/decisions.md` の直近 5 件を Read する（存在する場合のみ）。過去対応の採用方針・コンポーネント規模感を把握し、アンカー検索前に文脈を形成する。存在しない場合はスキップ。
+`{project_dir}/docs/decisions.md` の先頭 5 件を Read する（降順管理のため最新が先頭。存在する場合のみ）。過去対応の採用方針・コンポーネント規模感を把握し、アンカー検索前に文脈を形成する。存在しない場合はスキップ。
 
 **両ファイルが存在しない場合**:
 - `mode=quick` または必要データが確認できない場合は信頼度=低のままステップを継続する

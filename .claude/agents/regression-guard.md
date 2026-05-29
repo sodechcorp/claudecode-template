@@ -47,7 +47,7 @@ tools:
 
 `プロジェクトルート:` から以下を Read して過去の経緯・症状を把握する。存在しないファイルはスキップする。
 
-1. `docs/decisions.md` — 直近 30 行（過去対応方針・採用案の根拠を把握）
+1. `docs/decisions.md` — 先頭 30 行（降順管理のため最新が先頭。過去対応方針・採用案の根拠を把握）
 2. `docs/knowledge/case-index.md` — 症状列のみ Grep（同一ファイルに関連する過去事例を事前把握）
 3. `docs/logs/changelog.md` — 末尾 20 行（直近の変更内容を把握して regression リスクを事前評価）
 
