@@ -41,6 +41,8 @@ tools:
 1. `docs/decisions.md` — 直近 30 行（過去対応方針・採用案の根拠を把握）
 2. `docs/knowledge/case-index.md` — 症状列のみ Grep（現課題との類似症状を事前把握）
 
+> **同期注意**: ここで読む `decisions.md` / `case-index.md` は sf-context-loader の knowledge-only モード（sf-context-loader.md Phase 1.5）と重複する。knowledge 層の読込仕様を変更する場合は両方を同期すること。
+
 これにより Backlog 検索前に「対応実績の文脈」を持った状態で調査に入れる。
 
 ---

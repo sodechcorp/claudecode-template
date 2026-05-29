@@ -51,6 +51,8 @@ tools:
 2. `docs/knowledge/case-index.md` — 症状列のみ Grep（同一ファイルに関連する過去事例を事前把握）
 3. `docs/logs/changelog.md` — 末尾 20 行（直近の変更内容を把握して regression リスクを事前評価）
 
+> **同期注意**: ここで読む `decisions.md` / `case-index.md` は sf-context-loader の knowledge-only モード（sf-context-loader.md Phase 1.5）と重複する。knowledge 層の読込仕様を変更する場合は両方を同期すること。
+
 これにより、依存先 grep の前に「過去の対応文脈」を持った状態で regression 確認に入れる。
 
 ---
