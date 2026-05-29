@@ -48,7 +48,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 1. `{project_dir}/docs/knowledge/case-index.md` が存在するか確認
 2. 存在しない場合: 「該当ナレッジなし（knowledge/ 未整備）」を返して終了
 3. 存在する場合: `task_description` からキーワードを抽出し、以下4ファイルに対してマッチングを実行:
-   - `docs/knowledge/case-index.md` → 症状・キーワード列を Grep でマッチング
+   - `docs/knowledge/case-index.md` → 症状・キーワード列を Grep でマッチング。マッチ行から課題ID（列2）を抽出し、`docs/knowledge/cases/{課題ID}.md` が存在すれば最大2件 Read（`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクションのみ抽出。ファイルが存在しない課題はスキップし、case-index 行のみ使用）
    - `docs/knowledge/pitfalls.md` → 本文を Grep でマッチング（存在する場合）
    - `docs/knowledge/sf-standard.md` → 該当セクションを Grep でマッチング（存在する場合）
    - `docs/decisions.md` → 末尾 200 行 Read、またはキーワード Grep（存在する場合）
@@ -81,7 +81,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md` |
 | キーワード（工数系） | 工数, effort, 見積, 何時間, 実績, calibration | `docs/logs/effort-log.md`（末尾50行 Tail Read） + `docs/logs/effort-calibration.md`（全文 Read） |
 | `[A-Z]{2,}-\d+`（issueID） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（課題サマリーセクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（採用方針セクションのみ Grep） |
-| キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件を Grep） + `docs/knowledge/case-index.md`（症状列を Grep） |
+| キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件を Grep） + `docs/knowledge/case-index.md`（症状列を Grep）→ マッチ行の課題ID から `docs/knowledge/cases/{課題ID}.md` |
 | キーワード（変更履歴系） | 変更履歴, changelog, 最近の変更, デプロイ, リリース | `docs/logs/changelog.md`（末尾30行 Tail Read） |
 | キーワード（落とし穴・注意） | 落とし穴, ハマる, ハマった, 気を付ける, 気をつけて, 注意, 地雷, 壊れる, 想定外, 罠 | `docs/knowledge/pitfalls.md` |
 | キーワード（レポート/ダッシュボード系） | レポート, ダッシュボード, report, dashboard | `docs/data/reports-dashboards.md` |
@@ -136,7 +136,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 - effort 関連: 最大2ファイル（effort-calibration.md は補正係数で小さいため全文・effort-log.md は末尾50行のみ）
 - decisions.md: 1ファイル（Grep による部分抽出のみ・全文 Read しない）
 - changelog.md: 1ファイル（末尾30行 Tail Read のみ）
-- case-index.md: 1ファイル（Grep による症状列マッチのみ）
+- case-index.md: 1ファイル（Grep による症状列マッチのみ）+ マッチ行の課題ID から `docs/knowledge/cases/{課題ID}.md` を最大2ファイル Read（存在時のみ・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出。cases ファイルの2件は合計7の内数）
 - sf-standard.md: 1ファイル（Grep による該当セクション抽出のみ）
 - pitfalls.md: 1ファイル（全文 Read・小さいため）
 - `_README.md` フォールバック由来: 最大 2 ファイル（Phase 2.5 経由のみ）
@@ -154,7 +154,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | 要件キーワード | `docs/requirements/requirements.md`（先頭100行程度） |
 | 工数キーワード | `docs/logs/effort-log.md`（末尾50行 Read） + `docs/logs/effort-calibration.md`（全文 Read） |
 | issueID マッチ | `docs/logs/{issueID}/investigation.md`（`^## 課題サマリー` セクションのみ Grep） + `docs/decisions.md`（issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（採用方針セクションのみ Grep）。**自課題 ID は読込対象から除外**（→ Phase 2 の自課題除外ルール参照） |
-| 過去判断キーワード | `docs/decisions.md`（直近10件: 末尾200行を Read）+ `docs/knowledge/case-index.md`（症状列を Grep） |
+| 過去判断キーワード | `docs/decisions.md`（直近10件: 末尾200行を Read）+ `docs/knowledge/case-index.md`（症状列を Grep）+ マッチ行の課題ID から `docs/knowledge/cases/{課題ID}.md`（存在すれば最大2件 Read・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出） |
 | 変更履歴キーワード | `docs/logs/changelog.md`（末尾30行 Read） |
 | 落とし穴キーワード | `docs/knowledge/pitfalls.md`（全文 Read） |
 | レポート/ダッシュボードキーワード | `docs/data/reports-dashboards.md` |
@@ -189,8 +189,9 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 ### 要件・ビジネスルール
 - {requirements.md から該当BR-xxx等を抜粋}
 
-### 過去の判断・採用方針（docs/decisions.md / case-index.md より）
+### 過去の判断・採用方針（docs/decisions.md / case-index.md / cases/ より）
 - {issueID}「{件名}」: {採用方針1行} / {選定理由または注意点}
+  → 詳細: docs/knowledge/cases/{issueID}.md（TL;DR・教訓 — ファイルが存在し Read した場合のみ出力）
 
 ### 類似過去課題（docs/logs/ より・現タスク自身の課題は含めない）
 - {issueID}: 症状={1行} / 原因={1行} / 採用方針={1行}
