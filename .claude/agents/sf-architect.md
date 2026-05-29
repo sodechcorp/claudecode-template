@@ -295,6 +295,6 @@ erDiagram
 
 設計書・要件定義書の生成完了時に以下を報告する:
 
-- ✅ 成果物名・保存先パス（例: `docs/design/apex/CMP-XXX_FunctionName.md`）
+- ✅ 成果物名・保存先パス（例: `docs/design/apex/【F-XXX】function-name.md`）
 - 要確認事項 N件（推測した箇所・要ヒアリング項目を箇条書き。0件の場合は省略）
 - 品質ゲート結果: {実施済み / スキップ（理由: ...）}

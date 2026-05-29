@@ -21,7 +21,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 |---|---|
 | `task_description` | タスクの説明文（Backlog課題本文・ユーザー指示文等） |
 | `project_dir` | SFプロジェクトのルートパス（省略時: カレントディレクトリ） |
-| `focus_hints` | 絞り込みヒント（オブジェクト名・CMP-xxx・UC-xx 等。省略・空可） |
+| `focus_hints` | 絞り込みヒント（オブジェクト名・F-xxx・UC-xx 等。省略・空可） |
 
 ---
 
@@ -66,7 +66,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 | パターン | 例 | マッチ先 |
 |---|---|---|
-| `CMP-\d+` | CMP-042, CMP-001 | `docs/.sf/feature_list.json` → `docs/design/{種別}/【CMP-xxx】*.md` |
+| `(?:F\|CMP)-\d+` | F-042, F-001 | `docs/.sf/feature_list.json` → `docs/design/{種別}/【F-xxx】*.md` |
 | `UC-\d+` | UC-01, UC-03 | `docs/flow/usecases.md` |
 | `\w+__c`（項目API名） | Status__c, ApplicantId__c | `docs/catalog/_index.md` → `docs/catalog/{standard\|custom}/{object}.md` |
 | オブジェクト名（日本語・英語） | VisaApplication, 申請管理 | `docs/catalog/_index.md` → `docs/catalog/{standard\|custom}/{object}.md` |
@@ -123,7 +123,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 以下を Read / Grep して、どのファイルを詳細読込すべきか特定する:
 
 - `docs/catalog/_index.md` — オブジェクト名一覧（存在する場合）
-- `docs/.sf/feature_list.json` — CMP-xxx・api_name のマッチングに Grep を使う（存在する場合）
+- `docs/.sf/feature_list.json` — F-xxx（または旧 CMP-xxx）・api_name のマッチングに Grep を使う（存在する場合）
 
 インデックスの Read または JSON パースが失敗した場合は「該当コンテキストなし（docs/ 不整合）」を返して終了する。
 
@@ -132,7 +132,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 抽出したマッチに基づき詳細ファイルを Read する（**読込上限: 合計7ファイル**）。
 
 **内訳ガード**（合計7ファイルの内訳上限）:
-- CMP・オブジェクト関連: 最大4ファイル（同優先度内は CMP 番号昇順・オブジェクトは `_index.md` 出現順）
+- F-ID・オブジェクト関連: 最大4ファイル（同優先度内は F-ID 番号昇順・オブジェクトは `_index.md` 出現順）
 - logs/{issueID}/ 関連: 最大2ファイル（investigation.md / approach-plan.md）
 - effort 関連: 最大3ファイル（effort-calibration.md は全文・global-calibration.md は全文（存在時のみ）・case-index.md は工数列 Grep のみ）
 - decisions.md: 1ファイル（Grep による部分抽出のみ・全文 Read しない）
@@ -145,7 +145,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 | マッチ種別 | 読むファイル |
 |---|---|
-| CMP-xxx マッチ | `feature_list.json` の `design_doc` パスから `docs/design/{種別}/【CMP-xxx】*.md`（**`design_doc` が null/未設定の場合は設計書未生成（cat4 未完走）とみなしこのエントリをスキップ。エラー停止せず、他のマッチ結果で要約を生成する**） |
+| F-xxx マッチ | `feature_list.json` の `design_doc` パスから `docs/design/{種別}/【F-xxx】*.md`（**`design_doc` が null/未設定の場合は設計書未生成（cat4 未完走）とみなしこのエントリをスキップ。エラー停止せず、他のマッチ結果で要約を生成する**） |
 | オブジェクト名マッチ | `docs/catalog/{standard\|custom}/{オブジェクト名}.md` |
 | UC-xx マッチ | `docs/flow/usecases.md`（全体を読み、該当UC番号のセクションを抽出） |
 | スイムレーン/AS-IS/TO-BE マッチ | `docs/flow/swimlanes.json`（該当 `flow_type` のフローと所属レーンの actor 名・type を抽出。全文展開はしない） |
@@ -180,7 +180,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 - {ObjectName}（docs/catalog/{standard|custom}/{name}.md）: 主要項目 {API名3〜5個}, 関連: {リレーション先}
 
 ### 関連コンポーネント（設計書）
-- {CMP-xxx} {名称}（docs/design/{種別}/...）: {概要1〜2行。処理のポイント・主なメソッド}
+- {F-xxx} {名称}（docs/design/{種別}/...）: {概要1〜2行。処理のポイント・主なメソッド}
 
 ### 関連業務フロー
 - {UC-xx}: {フロー名・主な登場人物・ポイント1〜2行}

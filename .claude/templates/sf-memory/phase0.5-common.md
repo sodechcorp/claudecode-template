@@ -38,7 +38,7 @@
 
 ### cat4-*: design/{type}/*.md
 ```
-必須フロントマター: CMP-ID / FR-XXX / 関連UC / 担当オブジェクト / 改版履歴
+必須フロントマター: 機能ID（F-XXX） / FR-XXX / 関連UC / 担当オブジェクト / 改版履歴
 ```
 
 ### cat5: feature_groups.yml

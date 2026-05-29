@@ -16,9 +16,9 @@ groups:
     description: "受注確定後に請求レコードと納品スケジュールを自動生成する処理群"
     trigger: "Opportunity.StageName が '受注確定' に更新されたとき（トリガー起動）"
     uc_id: "UC-03"                  # 紐付くUCのID（usecases.md の uc_id）
-    feature_ids:                   # docs/.sf/feature_ids.yml の CMP-xxx。存在する場合は必ず参照
-      - "CMP-001"
-      - "CMP-002"
+    feature_ids:                   # docs/.sf/feature_ids.yml の F-xxx（例: F-001）。存在する場合は必ず参照
+      - "F-001"
+      - "F-002"
     components:                    # このFGに属するコンポーネントのAPI名
       - "OpportunityTrigger"
       - "OpportunityHandler"
@@ -53,7 +53,7 @@ groups:
 | `description` | string | 「何をどのタイミングでなぜ行うか」を1〜2文で |
 | `trigger` | string | UC起動条件（いつ・誰が・何をきっかけに） |
 | `uc_id` | string or null | 対応UCのID（`usecases.md` の `uc_id`）。共通基盤は null |
-| `feature_ids` | array | `feature_ids.yml` の CMP-xxx IDリスト |
+| `feature_ids` | array | `feature_ids.yml` の F-xxx IDリスト |
 | `components` | array | このFGに属するコンポーネントのAPI名リスト |
 | `related_objects` | array | 関連するSalesforceオブジェクトのAPI名リスト |
 | `related_fgs` | array | 処理が一部またがる他FGのIDリスト |

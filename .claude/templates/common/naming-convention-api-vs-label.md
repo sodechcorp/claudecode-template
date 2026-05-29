@@ -22,7 +22,7 @@
 - メソッド呼び出し形式（`foo()` / `Controller.bar()` / `Site.login()` 等）
 - ファイル拡張子付き名称（`.page` / `.cls` / `.trigger` / `.flow-meta.xml` / `.cmp` / `.js` / `.html`）
 - コンポーネント API 名の露出（`CustomPasswordResetController` / `ChangePasswordPage` 等の CamelCase 識別子）
-- 「CMP-XXX」等の内部機能ID
+- 「F-XXX」等の内部機能ID
 
 これらはすべて **日本語の業務表現**に置き換える:
 

@@ -47,7 +47,7 @@ sf-analyst-cat1〜cat6、および sf-org-analyst が共通して守る原則。
 - 業務固有名詞: `Pardot` / `GMOサイン` / `OPROARTS` / `Reserve サイト` / `LINE` / `SMS` / `Chatter` 等（業務担当者が日常使う名前）
 - SF 一般用語: `Experience サイト` / `承認プロセス` / `権限セット` / `カスタム通知` 等
 - 業務略号: `URL` / `PDF` / `CSV` / `Web` / `Excel` 等（title 等の **一部として** 含まれる場合は NG — 例: `友達追加URL` は URL が操作名に紛れている）
-- 業務 ID: `UC-XX` / `FR-XXX` / `CMP-XXX`
+- 業務 ID: `UC-XX` / `FR-XXX` / `F-XXX`
 
 ### 適用するフィールド
 

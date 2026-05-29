@@ -365,7 +365,7 @@ AskUserQuestion で選択する（3 択＋Other 自動）:
 
 「コンポーネントを指定」の場合:
 ```
-対象コンポーネント名または機能IDをカンマ区切りで入力してください（例: QuotationRequestController,CMP-012）:
+対象コンポーネント名または機能IDをカンマ区切りで入力してください（例: QuotationRequestController,F-012）:
 ```
 
 入力後、グループ解決スクリプトで FG-XXX に変換して `target_group_ids` に設定:

@@ -38,7 +38,7 @@ tools:
 | `project_name` | プロジェクト名 |
 | `feature_list` | scan_features.py の出力（コンポーネント一覧 JSON。Apex/Batch/Flow/Integration/Trigger 以外も含む全件。Phase 1 でエージェント自身がフィルタする） |
 | `target_ids` | 対象機能IDリスト（全機能の場合は全件） |
-| `feat_id` | 各 feature の ID（`feature_list` 各要素の `id` フィールド値。例: `CMP-001`）。Phase 0.7 のハッシュチェックや既存 Excel 検索で使用する |
+| `feat_id` | 各 feature の ID（`feature_list` 各要素の `id` フィールド値。例: `F-001`）。Phase 0.7 のハッシュチェックや既存 Excel 検索で使用する |
 | `feature_list_dir` | 機能一覧の出力先フォルダ（`{output_dir}/../01_基本設計` 相当のパス。sf-design コマンドが明示的に渡す） |
 | `version_increment` | `"minor"` または `"major"`（初回生成時は `"minor"`・スクリプト側が v1.0 から開始） |
 | `generate_feature_list` | `true`（デフォルト）/ `false`。`false` の場合は Phase 3（機能一覧 Excel 生成）をスキップする。バッチ処理の中間バッチで sf-design-step2 が指定する |
@@ -337,7 +337,7 @@ else:
 ```json
 [
   {
-    "id": "CMP-001",
+    "id": "F-001",
     "type": "Apex",
     "name": "機能名",
     "api_name": "ClassName",
