@@ -53,7 +53,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 - `docs/requirements/requirements.md`（または _context_cache.json の fr_ids フィールド） — FR-XXX  
   > **注意**: `_context_cache.json` の `fr_ids` は FR 番号のみ（タイトルなし）。要件番号を確定する際は必ず `docs/requirements/requirements.md` 本文を Read し FR 見出し（`FR-xxx: タイトル`）で意味照合すること。キャッシュの番号リストだけで確定しない。
 - `docs/catalog/_index.md` — オブジェクト一覧
-- 当該コンポーネントが触るオブジェクトに絞って `docs/catalog/custom/*.md` を Read
+- 当該コンポーネントが触るオブジェクトに絞って `docs/catalog/custom/*.md` を Read（**先頭100行程度**: 基本情報・リレーション・主要項目を抽出。全項目一覧の全行・ピックリスト全値・入力規則数式全文までは読まない）
 
 **cat3 の生成物（E-1: 承認プロセス・キュー連携）:**
 
