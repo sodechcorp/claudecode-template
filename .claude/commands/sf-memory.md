@@ -88,7 +88,7 @@ AskUserQuestion ツールを **1回** 呼び出す。`questions` 配列に以下
 > - カテゴリ3: マスタデータ・承認プロセス・キュー・メールテンプレート等に変更があった場合
 > - カテゴリ4: force-app/ のコンポーネント（Apex・Flow・LWC・ページ等）に変更があった場合
 > - カテゴリ5: docs/design/ を手動修正後に feature_groups.yml だけ更新したい場合
-> - カテゴリ6: Backlog 完了課題に変更（完了案件の追加・実績工数の更新）があった場合
+> - カテゴリ6: Backlog 完了課題に変更（完了案件の追加・実績工数の更新）があった場合 → 横断ナレッジ（global-calibration / global-pitfalls）も自動更新（差分のみ処理するため2回目以降は軽量）
 > - カテゴリ7: docs/ に新しいファイルが追加された場合・_README.md が古くなった場合
 
 > **機能グループ定義だけ再生成したい場合**（docs/design/ 手動修正後に feature_groups.yml だけ更新したい場合）: Q2 の「機能グループ定義（cat5）」のみ選択して実行する。
@@ -243,7 +243,7 @@ Phase 4: 2周目（横断補完）＋ cat7（情報所在マップ）
 > - 実行前に「**前提チェック**」セクションを適用し、前提不足の場合はユーザー確認を先に行う（ユーザーが「このまま続行する」を選択した場合のみ下記フローに進む）。
 > - 全カテゴリ選択時の順序（Phase 1: cat1 → Phase 2: cat2 → Phase 2.5: cat3 → Phase 3: cat4-apex+cat4-flow+cat4-lwc+cat6 並列 → Phase 3a: feature_list.json 確定再スキャン → Phase 3b: cat5 → Phase 4: 横断補完）から、**選択されたカテゴリのみを抽出して同じ順序で実行**する。
 > - cat1・cat2・cat3 は依存先のため、選択されている場合は順次実行する。
-> - cat4-apex/cat4-flow/cat4-lwc・cat6 は互いに独立しているため、複数選択された場合は並列実行する（1メッセージ内で Agent ツールを同時呼び出し）。cat6 は Backlog MCP 未設定の場合はスキップ（MCP 確認後に実行）。「設計書生成（cat4）」1カテゴリを選択した場合は cat4-apex/cat4-flow/cat4-lwc を並列起動する。cat6 実行完了後、チャットで「横断ナレッジ（全プロジェクト横断の汎用工数感・汎用ハマりポイント）も更新しますか？（時間がかかります）」と確認する。「はい」と回答された場合のみ `sf-analyst-cat6-global` を起動する。「いいえ」の場合はスキップしてそのまま Phase 4 に進む。cat6 が選択されていない場合はこの確認をスキップする。
+> - cat4-apex/cat4-flow/cat4-lwc・cat6 は互いに独立しているため、複数選択された場合は並列実行する（1メッセージ内で Agent ツールを同時呼び出し）。cat6 は Backlog MCP 未設定の場合はスキップ（MCP 確認後に実行）。「設計書生成（cat4）」1カテゴリを選択した場合は cat4-apex/cat4-flow/cat4-lwc を並列起動する。cat6 実行完了後、自動的に `sf-analyst-cat6-global` を起動して横断ナレッジ（global-calibration.md / global-pitfalls.md）を更新する（確認なし）。cat6-global は初回のみ全量処理、2回目以降は差分のみ処理するため軽量。cat6 が選択されていない場合はこの自動起動をスキップする。
 > - **cat5（機能グループ定義）**: cat4 と同時選択時は cat4 完了後に自動起動（Phase 3b）。**cat5 のみ単独選択**の場合は sf-analyst-cat5 を単独起動して終了する（Phase 4 はスキップ）。
 > - **cat7（情報所在マップ更新）**: 他の cat1〜cat6 と並行可能。cat1〜cat6 の選択と同時に cat7 が選ばれている場合は、cat1〜cat6 完了後に Phase 4（横断補完）の一部として実行する。**cat7 のみ単独選択**の場合は sf-org-analyst を `mode: readme-only` で呼び出してから終了する（Phase 4 スキップ）。
 > - **cat8（SF 標準仕様記録）**: cat1〜cat6 とは独立して並列実行可（docs/ を参照しない）。cat1〜cat6 のいずれかと同時に選択された場合は Phase 3 に追加して並列実行する。**cat8 のみ単独選択**の場合は sf-analyst-cat8 を単独起動して終了する（Phase 4 スキップ）。
