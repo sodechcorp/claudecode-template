@@ -1,6 +1,6 @@
 ---
 name: backlog-releaser
-description: /backlog Phase 6（リリース・お客様確認・完了）専門。Sandbox デプロイ・本番リリース手順書から decisions.md 更新・effort-log.md 記録・xlsx 追記・完了報告・ドキュメント更新通知まで担当。
+description: /backlog Phase 6（リリース・お客様確認・完了）専門。Sandbox デプロイ・本番リリース手順書から decisions.md 更新・xlsx 追記・完了報告・ドキュメント更新通知まで担当。
 tools:
   - Read
   - Write
@@ -306,7 +306,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 # {issueID}: {件名}
 
 生成日: {YYYY-MM-DD} / データソース: /backlog フロー成果物
-実績工数: {実績工数}h / 種別: {issue_type}
+種別: {issue_type}
 
 ## TL;DR
 （investigation.md の「課題サマリー」「TL;DR」セクションから200字以内で要約）
@@ -337,26 +337,8 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 ### 4. 完了報告
 
-完了報告を提示する**前に**、実績工数を聞き取り、`docs/logs/effort-log.md` の該当行（{issueID}）の `実績` 列を自動で更新する（記録要否は確認しない・必ず追記する）:
-
-「実績工数（実際にかかった作業時間）を教えてください。**単一の数値 + h** で回答してください（例: `3h`）。範囲表記（例: 2〜3h）は不可。値が分からない・測っていない場合は `不明` と回答してください。」
-
-- 数値（例: `3h`）が回答された場合: Edit で当該行の `実績` 列のみ更新する（他の列は変更しない）
-  > effort-log.md が 10 列 v2 スキーマ（`採用アンカー` / `信頼度` 列あり）の場合も `実績` 列のみ更新する。`採用アンカー` / `信頼度` 列は Phase 2 で記録済みのため触らない。
-- `不明` と回答された場合: 既存の `-` のまま（後日測定できたらユーザが直接 effort-log.md を編集）
-
-> **意図**: effort-log の積み上げを途切れさせないため、ヒアリング自体は省略しないが「記録するか否か」の確認質問は撤廃する。値が分かれば即追記、不明な場合のみ空欄保持。
-
 ```
 ## {issueID} 対応完了
-
-### 工数
-| 見込み | 実績 |
-|---|---|
-| {Xh} | {-/Yh} |
-
-※ 見込みは `docs/logs/{issueID}/approach-plan.md` の採用案「見込み工数」欄から取得する（ファイルなしの場合は `不明` と記録する）
-※ 実績は上記ヒアリング回答があった場合のみ埋める
 
 ### 次のアクション（本番接続の場合）
 - [ ] リリース手順書に従い担当者が本番リリースを実施
@@ -370,7 +352,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 ---
 
-### 4.5. case-index.md への自動追記（実績工数確定後）
+### 4.5. case-index.md への自動追記
 
 > **スキップ判定**: `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする。
 
@@ -387,10 +369,9 @@ python scripts/python/backlog-xlsx/update_records.py \
    - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
    - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
 2. `docs/logs/{issueID}/implementation-plan.md` を Read して「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
-3. Step 4 で確定した実績工数を使用する（actualHours 未確定の場合は `-` とする）
-4. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
+3. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
    ```
-   | {YYYY-MM-DD} | {issueID} | {種別} | {症状60字} | {根本原因60字} | {採用方針40字} | {教訓40字} | {対象コンポーネント} | {関連用語} | {実績工数} | [cases/{issueID}.md](cases/{issueID}.md) |
+   | {YYYY-MM-DD} | {issueID} | {種別} | {症状60字} | {根本原因60字} | {採用方針40字} | {教訓40字} | {対象コンポーネント} | {関連用語} | - | [cases/{issueID}.md](cases/{issueID}.md) |
    ```
 5. `docs/knowledge/case-index.md` が存在しない場合は以下のヘッダー付きで新規作成してから追記:
    ```markdown

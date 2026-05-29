@@ -40,7 +40,7 @@ tools:
 - 権限・設定系: 権限 / プロファイル / 権限セット / FLS / FieldSecurity
 - マスタ・データ系: マスタ / ピックリスト / 選択リスト
 - 通知・連携系: 通知 / メールテンプレート / API 連携 / callout
-- **工数・見積もり系**: 工数 / 見積もり / 温度感 / 何時間 / 実績 / effort / calibration（`docs/logs/effort-log.md` + `docs/logs/effort-calibration.md` を参照させる）
+- **工数・見積もり系**: 工数計算 / 工数 / 見積もり / 温度感 / 何時間 / effort / calibration（`docs/knowledge/effort-calibration.md` + `docs/knowledge/case-index.md` を参照させる）
 - **課題 ID 系**: `GF-\d+` / `LINK-\d+` / `ASNO-\d+` / `SNM-\d+` / `INTERNALTASK-\d+`（課題対応・過去経緯の質問）
 - **業務理解系**: 「〜って何？」「〜の流れは？」「〜の経緯は？」「〜さんって誰？」「なぜ〜なの？」（業務理解 0 モード）
 

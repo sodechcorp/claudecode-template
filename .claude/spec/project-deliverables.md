@@ -10,7 +10,7 @@
 | `docs/catalog/` | オブジェクト・項目定義書（Markdown・Claude記憶形成用） | `/sf-memory` |
 | `docs/data/` | マスタデータ・テンプレート・統計・品質 | `/sf-memory` |
 | `docs/logs/changelog.md` | 変更履歴 | 開発コマンド実行時に自動追記 |
-| `docs/logs/effort-log.md` | 工数ログ（見込み） | `/backlog` 実行時に自動追記 |
+| `docs/knowledge/effort-calibration.md` | 工数温度感（Backlog実績から生成） | `/sf-memory` cat6 |
 | `docs/decisions.md` | 対応履歴・判断記録 | `/backlog` 完了時に自動追記 |
 | `docs/knowledge/sf-standard.md` | Salesforce 標準仕様（ガバナ制限・API制限・トリガ順序等） | `/sf-memory` cat8 |
 | `docs/knowledge/case-index.md` | 過去不具合・対応実績のインデックス | `/sf-memory` cat6 |

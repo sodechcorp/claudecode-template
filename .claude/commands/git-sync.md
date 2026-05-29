@@ -27,6 +27,7 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 | `docs/knowledge/case-index.md` | テーブル行の第2列（課題ID）（同キーは local 優先） |
 | `docs/knowledge/pitfalls.md` | `##` / `###` 見出し（同キーは local 優先） |
 | `docs/knowledge/cases/` | ファイル名（issueKey）単位で新規のみ追加（既存は上書きしない） |
+| `docs/knowledge/effort-calibration.md` | アンカー行（`^- [ID]「` 形式）の課題ID単位で和集合。「全体傾向」統計セクションは local 優先で保持 |
 
 ### 同期対象外（担当者ごとに独立蓄積）
 
@@ -211,6 +212,62 @@ if r.returncode == 0:
 else:
     print(f"  cases/: remote 未存在、スキップ")
 
+# ---- effort-calibration.md ----
+def merge_calibration(local, remote):
+    if not local:
+        return remote
+    if not remote:
+        return local
+
+    # アンカー行を課題IDで抽出（例: "- GF-123「...」= 2h"）
+    anchor_re = re.compile(r'^- ([A-Za-z]+-\d+)「')
+
+    def extract_anchors(text):
+        anchors = {}
+        for line in (text or "").splitlines(keepends=True):
+            m = anchor_re.match(line)
+            if m:
+                anchors[m.group(1)] = line
+        return anchors
+
+    local_anchors = extract_anchors(local)
+    remote_anchors = extract_anchors(remote)
+
+    # 和集合（同キーは local 優先）
+    merged_anchors = {**remote_anchors, **local_anchors}
+    new_count = len(set(remote_anchors) - set(local_anchors))
+
+    # local のテキストをベースに処理
+    # 「全体傾向」統計セクション（先頭ブロック）は local をそのまま保持
+    result_lines = []
+    seen_keys = set()
+    for line in local.splitlines(keepends=True):
+        m = anchor_re.match(line)
+        if m:
+            key = m.group(1)
+            seen_keys.add(key)
+            result_lines.append(merged_anchors.get(key, line))
+        else:
+            result_lines.append(line)
+
+    # remote にのみ存在するアンカーを末尾に追加
+    for key, line in merged_anchors.items():
+        if key not in seen_keys:
+            result_lines.append(line)
+
+    print(f"  effort-calibration.md: remote {len(remote_anchors)} 件 + local {len(local_anchors)} 件 → {len(extract_anchors(''.join(result_lines)))} 件（新規 {new_count} 件追加）")
+    return "".join(result_lines)
+
+path = "docs/knowledge/effort-calibration.md"
+remote = git_show(path)
+local  = read_local(path)
+if remote is None:
+    print(f"  {path}: remote 未存在、スキップ")
+elif local is None:
+    write(path, remote); print(f"  {path}: 新規作成（remote 版）")
+else:
+    write(path, merge_calibration(local, remote))
+
 print("\n✅ 積み上げ型マージ完了")
 ```
 
@@ -219,7 +276,7 @@ print("\n✅ 積み上げ型マージ完了")
 更新されたファイル一覧を `git status --short` で確認し報告:
 ```
 ✅ 取得完了 — {更新ファイル数}件のファイルが更新されました
-（docs/logs/ は取得対象外）
+（docs/logs/ は取得対象外。effort-calibration.md は docs/knowledge/ で積み上げマージ）
 ```
 
 変更がなかった場合:

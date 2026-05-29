@@ -79,7 +79,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | キーワード（要件系） | スコープ, 要件, `BR-\d+`, ビジネスルール | `docs/requirements/requirements.md` |
 | キーワード（マスタ系） | マスタ, ピックリスト, 選択リスト, 商品 | `docs/data/master-data.md` |
 | キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md` |
-| キーワード（工数系） | 工数, effort, 見積, 何時間, 実績, calibration | `docs/logs/effort-log.md`（末尾50行 Tail Read） + `docs/logs/effort-calibration.md`（全文 Read） |
+| キーワード（工数系） | 工数, effort, 見積, 何時間, calibration | `docs/knowledge/effort-calibration.md`（全文 Read） + `docs/knowledge/case-index.md`（工数列 Grep） |
 | `[A-Z]{2,}-\d+`（issueID） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（課題サマリーセクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（採用方針セクションのみ Grep） |
 | キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件を Grep） + `docs/knowledge/case-index.md`（症状列を Grep）→ マッチ行の課題ID から `docs/knowledge/cases/{課題ID}.md` |
 | キーワード（変更履歴系） | 変更履歴, changelog, 最近の変更, デプロイ, リリース | `docs/logs/changelog.md`（末尾30行 Tail Read） |
@@ -134,7 +134,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 **内訳ガード**（合計7ファイルの内訳上限）:
 - CMP・オブジェクト関連: 最大4ファイル（同優先度内は CMP 番号昇順・オブジェクトは `_index.md` 出現順）
 - logs/{issueID}/ 関連: 最大2ファイル（investigation.md / approach-plan.md）
-- effort 関連: 最大2ファイル（effort-calibration.md は補正係数で小さいため全文・effort-log.md は末尾50行のみ）
+- effort 関連: 最大2ファイル（effort-calibration.md は全文・case-index.md は工数列 Grep のみ）
 - decisions.md: 1ファイル（Grep による部分抽出のみ・全文 Read しない）
 - changelog.md: 1ファイル（末尾30行 Tail Read のみ）
 - case-index.md: 1ファイル（Grep による症状列マッチのみ）+ マッチ行の課題ID から `docs/knowledge/cases/{課題ID}.md` を最大2ファイル Read（存在時のみ・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出。cases ファイルの2件は合計7の内数）
@@ -153,7 +153,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | 通知キーワード | `docs/data/email-templates.md` |
 | 連携キーワード | `docs/architecture/system.json` |
 | 要件キーワード | `docs/requirements/requirements.md`（先頭100行程度） |
-| 工数キーワード | `docs/logs/effort-log.md`（末尾50行 Read） + `docs/logs/effort-calibration.md`（全文 Read） |
+| 工数キーワード | `docs/knowledge/effort-calibration.md`（全文 Read） + `docs/knowledge/case-index.md`（工数列 Grep） |
 | issueID マッチ | `docs/logs/{issueID}/investigation.md`（`^## 課題サマリー` セクションのみ Grep） + `docs/decisions.md`（issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（採用方針セクションのみ Grep）。**自課題 ID は読込対象から除外**（→ Phase 2 の自課題除外ルール参照） |
 | 過去判断キーワード | `docs/decisions.md`（直近10件: 先頭200行を Read・降順管理のため最新が先頭）+ `docs/knowledge/case-index.md`（症状列を Grep）+ マッチ行の課題ID から `docs/knowledge/cases/{課題ID}.md`（存在すれば最大2件 Read・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出） |
 | 変更履歴キーワード | `docs/logs/changelog.md`（末尾30行 Read） |
