@@ -17,6 +17,8 @@ from pathlib import Path
 
 import yaml
 
+from scan_features import is_trivial_vf_page
+
 
 # kind ごとのメタデータキーと API 名フィールドのマッピング
 _KIND_META = {
@@ -72,8 +74,18 @@ def main():
         records = cache.get(meta_key, [])
         for rec in records:
             api_name = rec.get(name_field)
-            if api_name:
-                expected_api_names.add(api_name)
+            if not api_name:
+                continue
+            # apex_pages のうち空・雛形 VF は doc 必須対象外
+            if meta_key == "apex_pages":
+                page_meta = (
+                    proj
+                    / "force-app" / "main" / "default" / "pages"
+                    / f"{api_name}.page-meta.xml"
+                )
+                if is_trivial_vf_page(page_meta):
+                    continue
+            expected_api_names.add(api_name)
 
     if not expected_api_names:
         print(

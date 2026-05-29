@@ -278,6 +278,53 @@ def extract_vf_overview(page_meta_path: Path, design_doc: str | None = None) -> 
     return ""
 
 
+_VF_CONTROLLER_ATTRS = re.compile(
+    r'\b(?:controller|standardController|extensions)\s*=', re.IGNORECASE
+)
+
+
+def is_trivial_vf_page(page_meta_path: Path) -> bool:
+    """空・自己終了・Salesforce デフォルト雛形の VF ページを判定する。
+
+    True の場合、機能一覧・個別設計書の対象外とする（保守的に content ベースのみ）。
+    判定基準:
+      1. .page 本体が存在しない → False（安全側で除外しない）
+      2. <apex:page .../> 自己終了かつ controller/standardController 属性なし → True
+      3. コメント除去後のボディが空かつ controller/standardController 属性なし → True
+      4. Salesforce デフォルト雛形マーカーを body_no_comments に含む → True
+    ※ controller/extensions 属性がある場合は Apex コントローラが意味のある処理を持つため除外しない
+    """
+    page_path = page_meta_path.with_name(
+        page_meta_path.name.replace(".page-meta.xml", ".page"))
+    if not page_path.exists():
+        return False  # .page 本体なし → 判定不能。安全側で除外しない
+    try:
+        text = page_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return False
+    m = re.search(
+        r'<apex:page\b([^>]*?)(/\s*>|>(.*?)</apex:page>)',
+        text, re.DOTALL | re.IGNORECASE,
+    )
+    if not m:
+        return False
+    opening_attrs = m.group(1)
+    has_controller = bool(_VF_CONTROLLER_ATTRS.search(opening_attrs))
+    if has_controller:
+        return False  # controller あり → Apex コントローラが処理を持つ → 非trivial
+    tail = m.group(2)
+    if tail.lstrip().startswith('/'):
+        return True  # 自己終了 <apex:page .../> (controller なし)
+    body = m.group(3) or ""
+    body_no_comments = re.sub(r'<!--.*?-->', '', body, flags=re.DOTALL).strip()
+    if not body_no_comments:
+        return True  # 空ボディ（コメントのみ、controller なし）
+    # Salesforce デフォルト雛形: コメント除去後の body にマーカーを確認
+    if "Congratulations" in body_no_comments:
+        return True
+    return False
+
+
 def extract_aura_overview(aura_dir: Path, design_doc: str | None = None) -> str:
     """Aura コンポーネントバンドルから概要を抽出する。
 
@@ -605,6 +652,12 @@ def scan(project_dir: Path) -> list[dict]:
     if base.exists():
         for page_file in sorted(base.glob("*.page-meta.xml")):
             api_name = page_file.name.replace(".page-meta.xml", "")
+            if is_trivial_vf_page(page_file):
+                # 空・雛形 VF: 機能一覧から除外。active_keys には残し
+                # 誤った deprecated 化を防ぐ（実在はするため）
+                active_keys.add(_make_key("Visualforce", api_name))
+                print(f"[情報] 空/雛形VFを設計書対象外: {api_name}", file=sys.stderr)
+                continue
             doc = get_design_doc(docs_design, api_name, "Visualforce")
             _add("Visualforce", api_name, {
                 "name":        api_name,
