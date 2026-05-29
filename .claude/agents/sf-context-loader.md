@@ -70,6 +70,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | `UC-\d+` | UC-01, UC-03 | `docs/flow/usecases.md` |
 | `\w+__c`（項目API名） | Status__c, ApplicantId__c | `docs/catalog/_index.md` → `docs/catalog/{standard\|custom}/{object}.md` |
 | オブジェクト名（日本語・英語） | VisaApplication, 申請管理 | `docs/catalog/_index.md` → `docs/catalog/{standard\|custom}/{object}.md` |
+| キーワード（ER図・データモデル系） | ER図, ER, データモデル, データ構造, リレーション, 関係図, オブジェクト間の関係, 全体構造 | `docs/catalog/_data-model.md` |
 | キーワード（自動化系） | トリガ, バッチ, フロー, 自動化 | `docs/data/automation-config.md` |
 | キーワード（業務フロー系） | 業務フロー, 申請フロー, 画面フロー, ユースケース | `docs/flow/usecases.md` |
 | キーワード（スイムレーン系） | スイムレーン, レーン, AS-IS, TO-BE, asis, tobe | `docs/flow/swimlanes.json` |
