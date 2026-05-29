@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"systemMessage\":\"[SAVE-BEFORE-COMPACT] 圧縮前に知見を保存せよ。保存先と対象: (1) C:/workspace/claude-temp/docs/logs/dev-notes.md — diagram_gen.py・Graphviz設定・スクリプト設計の技術知見・発見した制約 (2) C:/workspace/claude-temp/.claude/agents/ — 設計判断・スキーマ変更・エージェントへの制約追加が必要なものを該当agentファイルに追記 (3) C:/Users/sodech/.claude/projects/c--ClaudeCode/memory/ — SFテンプレートプロジェクトに関するfeedback/projectメモリを更新。この会話で初めて確認した内容のみ。既存と重複は不要。Write/Editで今すぐ実行してから圧縮を続行。変更不要なら何もしない。(4) /backlog コマンド実行中の場合は、compact 前に docs/logs/{issueID}/investigation.md のフロントマター（issue_type / xlsx_folder / evidence_dir / light_mode）が最新の状態で保存されているか確認してください。compact 後の再開には /backlog コマンドの再起動が必要です。\"}'",
+            "command": "echo '{\"systemMessage\":\"[SAVE-BEFORE-COMPACT] 圧縮前に知見を保存せよ。保存先と対象: (1) docs/logs/dev-notes.md — 技術知見・発見した制約（スクリプト設計・外部ツール連携等）を追記 (2) docs/knowledge/pitfalls.md — 落とし穴・ハマりポイント・注意事項 (3) docs/decisions.md — 方針判断・設計決定（最上部に降順追記） (4) .claude/agents/ — 設計判断・スキーマ変更・エージェントへの制約追加が必要なものを該当agentファイルに追記。すべてプロジェクト相対パス。Write/Editで今すぐ実行してから圧縮を続行。変更不要なら何もしない。(5) /backlog コマンド実行中の場合は、compact 前に docs/logs/{issueID}/investigation.md のフロントマター（issue_type / xlsx_folder / evidence_dir / light_mode）が最新の状態で保存されているか確認してください。compact 後の再開には /backlog コマンドの再起動が必要です。\"}'",
             "timeout": 10
           }
         ]
