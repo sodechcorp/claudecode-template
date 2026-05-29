@@ -68,7 +68,7 @@ Read tool で `{project_dir}/docs/.sf/sf_config.yml` を読み取る。
 - いずれも存在しない場合: `last_author = ""`、`last_output_dir = ""` として扱う
 - ファイルが存在する場合: `author:` 行の値を `last_author`、`output_dir:` 行の値を `last_output_dir` として控える（値が空文字または未定義の場合は `""`）
 
-> **重要（文字化けリスクと対策）**: Claude LLM 生成段階で rare CJK 文字が近傍の頻出字に自動補正されるバイアスがある（例: 「俣」→「係」）。**作成者名（人名）は description に値を埋め込まず、popup 直前に Bash で個別印字する**（Bash stdout = 100% 正確、LLM 生成を経由しない）。**出力先パスは description に値を埋め込む**（一般字のみ構成でドリフトリスクが極めて低い）。
+> **重要（文字化けリスクと対策）**: Read `.claude/templates/common/sf-config-charmap-note.md` — 以降の作成者名・出力先取得フローで適用する。
 
 **前回値がある場合:** まず以下を実行して前回値を表示する（stdout = IDE terminal 直接描画なので LLM 生成を経由せず文字化けしない）:
 ```bash
@@ -167,8 +167,7 @@ try:
     existing.update({'author': author, 'output_dir': output_dir})
     cfg.write_text(yaml.dump(existing, allow_unicode=True, default_flow_style=False), encoding='utf-8')
 except Exception as e:
-    print('設定の保存に失敗:', e, file=sys.stderr)
-    sys.exit(1)
+    print('warning: 設定保存に失敗（次回デフォルト値の復元なし）:', e, file=sys.stderr)
 finally:
     # 成功・失敗にかかわらず一時ファイルは必ず削除する
     for f in [author_f, outdir_f]:
@@ -176,7 +175,7 @@ finally:
 "
 ```
 
-> **設定保存失敗時**: スクリプトが `sys.exit(1)` で終了した場合はコマンドを中断する。以降の Step 2 には進まない。
+**警告通知**: 上記スクリプトの出力（stdout / stderr）に `warning:` を含む場合は、assistant message に「⚠️ 設定保存に失敗しました（次回起動時の前回値復元なし）」を 1 行通知する。
 
 ---
 

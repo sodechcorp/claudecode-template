@@ -80,7 +80,7 @@ Read tool で `{project_dir}/docs/.sf/sf_config.yml` を読み取る。
 - いずれも存在しない場合: `last_author = ""`、`last_output_dir = ""`、`last_project_name = ""` として扱う
 - ファイルが存在する場合: `author:` 行の値を `last_author`、`output_dir:` 行の値を `last_output_dir`、`project_name:` 行の値を `last_project_name` として控える（値が空文字、未定義、またはキー自体が存在しない場合は `""` として扱う）
 
-> **重要（文字化けリスクと対策）**: Claude LLM 生成段階で rare CJK 文字が近傍の頻出字に自動補正されるバイアスがある（例: 「俣」→「係」）。**作成者名（人名）は description に値を埋め込まず、popup 直前に Bash で個別印字する**（Bash stdout = 100% 正確、LLM 生成を経由しない）。**出力先パス・プロジェクト名は description に値を埋め込む**（一般字のみ構成でドリフトリスクが極めて低い）。
+> **重要（文字化けリスクと対策）**: Read `.claude/templates/common/sf-config-charmap-note.md` — 以降の作成者名・出力先・プロジェクト名取得フローで適用する。
 
 **前回値がある場合:** まず以下を実行して前回値を表示する（stdout = IDE terminal 直接描画なので LLM 生成を経由せず文字化けしない）:
 ```bash

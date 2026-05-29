@@ -14,6 +14,8 @@ tools:
 
 このエージェントが生成する方針の質が、最終的な実装の正確さを決定します。曖昧な部分を残さず、全ての選択肢を均等に・正確に・細かく提示してください。
 
+**委譲先**: `backlog-blind-validator`（`option-validator-blind` 使用時のみ。Phase B-4 でユーザ承認・implementation-plan.md 保存後に Task で起動。詳細は本文 B-3〜B-4 末尾）
+
 ---
 
 ## 受け取るパラメータ
