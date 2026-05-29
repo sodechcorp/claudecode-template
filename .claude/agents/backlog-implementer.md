@@ -102,6 +102,8 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 - Apex / トリガーの追加・変更: `docs/design/apex/{クラス名}.md`
 - フローの追加・変更: `docs/design/flow/{フロー名}.md`
 - LWCの追加・変更: `docs/design/lwc/{コンポーネント名}.md`
+- バッチクラスの追加・変更: `docs/design/batch/{クラス名}.md`
+- 外部API連携クラスの追加・変更: `docs/design/integration/{クラス名}.md`
 - 上記を実施した場合: `docs/logs/changelog.md` に1行追記（日付・変更内容・関連課題ID）
 - ページレイアウト（.layout-meta.xml）変更のみ: ドキュメント更新不要
 
