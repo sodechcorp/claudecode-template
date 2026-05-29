@@ -31,6 +31,8 @@ tools:
 | Visualforce ページ・コントローラー | `vf/` | ApexPage クエリで検出 / `*Controller` クラスで VF 向けと判定 |
 | Aura コンポーネント | `aura/` | AuraDefinitionBundle で検出 |
 
+> **VF 設計書の必須生成**: ApexPage クエリで取得した全 VF ページについて、`.page` 単位で **`docs/design/vf/` に設計書を必ず生成する**。対応する `*Controller.cls` は VF ページ設計書に統合して記載し、`design/apex/` には VF ページ単体の設計書を作らない（cat4-apex の担当外）。Phase 完了時に `design/vf/` ディレクトリが存在し、deprecated 除く ApexPage 件数と生成件数が一致することを `verify_cat4_completeness.py --kind lwc`（exit 0）で確認する。
+
 ---
 
 ## Phase 0 追加: LWC スケルトン生成（全件）

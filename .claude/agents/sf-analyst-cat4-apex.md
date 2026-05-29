@@ -32,6 +32,8 @@ tools:
 | バッチ・スケジュールジョブ | `batch/` | `Database.Batchable` or `Schedulable` 実装 |
 | 外部 API・Named Credential 連携 | `integration/` | NamedCredential 使用 or callout 含む Apex |
 
+> **VF ページ設計書は対象外**: Visualforce ページ（ApexPage）の設計書生成はこのエージェントの担当外。VF コントローラー（`*Controller.cls`）を含む Apex クラス自体は通常の Apex クラスとして `apex/` に設計書化してよいが、`.page` 単位の VF ページ設計書は生成しない（cat4-lwc が `design/vf/` に生成する）。
+
 > **ハンドラクラスの扱い**: 単一 Trigger/Batch から排他的に呼ばれる Handler は呼び出し元に統合。複数から共通に呼ばれる場合は独立ファイル。統合時のファイル名は `【CMP-002〜CMP-003】name.md` のように全 CMP を列挙する。統合した CMP は個別ファイルを別途作らない（cat4-common.md Phase 2「ファイル粒度の原則」に従う）。
 
 ---
@@ -80,6 +82,8 @@ Phase 2 の設計書生成では `_apex_skeletons.json` の当該クラスエン
 ## Phase 1: 対象コンポーネントの収集（Apex 種別固有）
 
 _metadata_cache.json が 5 分以内に存在する場合は `apex_classes` / `apex_triggers` / `named_credentials` / `cron_triggers` キーを読んで再クエリをスキップ。存在しない or 期限切れの場合のみ以下を実行し `build_metadata_cache.py` でキャッシュする。
+
+> **収集しないメタデータ**: `ApexPage`（Visualforce ページ）は **このエージェントの収集対象外**。VF ページの設計書生成は cat4-lwc が担当する。
 
 ```bash
 # Apex クラス（テストクラス除外）
