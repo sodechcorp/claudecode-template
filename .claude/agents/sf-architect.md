@@ -19,6 +19,8 @@ tools:
 
 ## Phase 0: SFコンテキスト読込（sf-context-loader 経由）
 
+> **実行条件（スキップ判定）**: 依頼の動詞が「見せて」「確認したい」「教えて」「引用して」「要約して」等の**閲覧・確認**（後述「対応範囲 > 動詞分岐」）の場合は Phase 0 を実行せず `docs/` を直接 Read する。新規生成・更新・影響調査・設計など**分析を伴う依頼でのみ** Phase 0 を実行する。
+
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
 ```
