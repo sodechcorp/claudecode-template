@@ -28,6 +28,8 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 | `docs/knowledge/pitfalls.md` | `##` / `###` 見出し（同キーは local 優先） |
 | `docs/knowledge/cases/` | ファイル名（issueKey）単位で新規のみ追加（既存は上書きしない） |
 | `docs/knowledge/effort-calibration.md` | アンカー行（`^- [ID]「` 形式）の課題ID単位で和集合。「全体傾向」統計セクションは local 優先で保持 |
+| `docs/knowledge/global-calibration.md` | `^### ` 見出し（コンポーネント種別帯）単位でマージ。「全体傾向」セクションは local 優先で保持 |
+| `docs/knowledge/global-pitfalls.md` | テーブル行の issueID+カテゴリ単位で和集合（第2列・第3列の複合キー）。同キーは local 優先 |
 
 ### 同期対象外（担当者ごとに独立蓄積）
 
@@ -267,6 +269,93 @@ elif local is None:
     write(path, remote); print(f"  {path}: 新規作成（remote 版）")
 else:
     write(path, merge_calibration(local, remote))
+
+# ---- global-calibration.md ----
+def merge_global_calibration(local, remote):
+    if not local:
+        return remote
+    if not remote:
+        return local
+
+    # 「全体傾向」セクション（先頭から最初の `## コンポーネント種別別` まで）は local 優先
+    # 各 `### ` 見出しセクションは内容を remote で補完（local 優先）
+    local_sections = re.split(r'(?=^### )', local, flags=re.MULTILINE)
+    remote_sections = re.split(r'(?=^### )', remote, flags=re.MULTILINE)
+
+    local_map = {}
+    local_pre = ""
+    for i, s in enumerate(local_sections):
+        m = re.match(r'^### (.+)', s)
+        if m:
+            local_map[m.group(1).strip()] = s
+        else:
+            local_pre += s
+
+    remote_map = {}
+    for s in remote_sections:
+        m = re.match(r'^### (.+)', s)
+        if m:
+            remote_map[m.group(1).strip()] = s
+
+    # remote にある新規セクションを追加（local 優先で既存は上書きしない）
+    merged = {**remote_map, **local_map}
+    new_count = len(set(remote_map) - set(local_map))
+    print(f"  global-calibration.md: {len(local_map)} 既存帯 + {new_count} 新規帯 → {len(merged)} 帯")
+    return local_pre + "".join(merged.values())
+
+path = "docs/knowledge/global-calibration.md"
+remote = git_show(path)
+local  = read_local(path)
+if remote is None:
+    print(f"  {path}: remote 未存在、スキップ")
+elif local is None:
+    write(path, remote); print(f"  {path}: 新規作成（remote 版）")
+else:
+    write(path, merge_global_calibration(local, remote))
+
+# ---- global-pitfalls.md ----
+# merge_table ロジック（case-index.md と同方式）を流用
+# ただしキーは 第2列（issueID）+ 第3列（カテゴリ）の複合キー
+def merge_global_pitfalls(local, remote):
+    def parse(text):
+        lines = (text or "").splitlines(keepends=True)
+        pre, rows = [], {}
+        in_table = False
+        for line in lines:
+            if line.startswith("|"):
+                cols = [c.strip() for c in line.split("|")[1:-1]]
+                if len(cols) >= 3:
+                    key = f"{cols[1]}::{cols[2]}"  # issueID::カテゴリ の複合キー
+                    if key and not re.match(r'^[-:]+$', cols[1]) and cols[1] not in ("由来 issueID",):
+                        rows[key] = line
+                        in_table = True
+                    else:
+                        pre.append(line)
+                else:
+                    pre.append(line)
+            else:
+                if in_table:
+                    in_table = False
+                pre.append(line)
+        return pre, rows
+
+    local_pre, local_rows = parse(local)
+    remote_pre, remote_rows = parse(remote)
+    merged = {**remote_rows, **local_rows}  # local 優先
+    pre = local_pre or remote_pre
+    new_count = len(set(remote_rows) - set(local_rows))
+    print(f"  global-pitfalls.md: remote {len(remote_rows)} 行 + local {len(local_rows)} 行 → {len(merged)} 行（新規 {new_count} 件）")
+    return "".join(pre) + "".join(merged.values())
+
+path = "docs/knowledge/global-pitfalls.md"
+remote = git_show(path)
+local  = read_local(path)
+if remote is None:
+    print(f"  {path}: remote 未存在、スキップ")
+elif local is None:
+    write(path, remote); print(f"  {path}: 新規作成（remote 版）")
+else:
+    write(path, merge_global_pitfalls(local, remote))
 
 print("\n✅ 積み上げ型マージ完了")
 ```
