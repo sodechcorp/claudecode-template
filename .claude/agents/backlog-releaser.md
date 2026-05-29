@@ -158,6 +158,8 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 ---
 
+> **再利用**: 以下の知見還流 Step（Step 3 decisions / Step 3.6 pitfalls / Step 3.8 cases / Step 4.5 case-index）は、フローが Phase 6 に到達せず中断する場合にも main スレッドが deploy 系 Step と独立して単独実行する。詳細は [backlog.md §中断時の知見還流](../commands/backlog.md) を参照。
+
 ### 3. ドキュメント更新
 
 > **changelog.md フォールバック**: `docs/logs/changelog.md` に当該 issueID のエントリが既に存在するか Grep で確認する。存在しなければ「日付 / 変更内容 / 関連課題ID」の1行を追記する（管理画面操作のみで対応した場合・implementer を通らなかった場合の取りこぼし防止）。changelog.md 自体が存在しない場合は `# Changelog` ヘッダー＋空行を作成してから追記する。
