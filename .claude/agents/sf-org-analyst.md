@@ -136,6 +136,7 @@ Phase 1 で読み込んだ `org-profile.md` の用語集（業務での呼び方
 
 - [ ] **org-profile.md の用語集 ↔ catalog/ の項目名**: 同じオブジェクト・項目が異なる名前で書かれていないか（同一表示名が複数オブジェクトに割り当たっていないかも確認 — Phase 2「オブジェクト名称の三つ組整合・衝突検出」の結果を参照）
 - [ ] **usecases.md の related_objects ↔ catalog/_index.md のオブジェクト一覧**: UCが参照するオブジェクトがカタログに存在するか
+- [ ] **catalog の関連UC ↔ usecases.md の主要オブジェクト（マッピング正誤）**: `catalog/_index.md` および各 `catalog/custom/{API名}.md`・`catalog/standard/{API名}.md` 基本情報の「関連UC」行に記載された各オブジェクトの関連UCが、`usecases.md` の当該 UC 個別節の**「主要オブジェクト」欄に明示されているか**を照合する（用語集でラベル↔業務語↔API名を解決して突き合わせる）。主要オブジェクト欄に明示のない UC が紐付いている場合は誤マッピングとして除去し、正しい UC（主要オブジェクトに当該オブジェクトを挙げる UC）があれば差し替える。確証が持てない場合は `**[要確認: UCマッピング根拠不明]**` を付与する。
 - [ ] **requirements.md の FR-XXX ↔ design/ の要件番号**: 設計書に書かれた要件番号が requirements.md に実在するか。**実在する場合はその FR タイトルと設計書の機能が意味的に一致するかも照合する**（別機能を指す誤引用の検出）。不一致・`[推定] FR-xxx` の値は requirements.md の FR 見出しと意味照合して訂正し、確証がなければ `**[要確認: 要件番号未特定]**` に変更する。**訂正後の値セルには確定 FR 値のみ記載する。訂正経緯（「FR-031 は requirements.md に存在しない」等）を `（...）` で値セルに追記しない**（残す場合は値の直後に `<!-- 訂正: FR-031 → FR-085（requirements.md に FR-031 が存在しないため） -->` 形式の HTML コメントを置く）。[値セル記載原則](.claude/spec/sf-memory-quality.md#値セル記載原則差分更新横断補完共通) 参照。
 - [ ] **data/automation-config.md のキュー情報 ↔ catalog/ のオブジェクト**: キューに割り当てられているオブジェクトがカタログに存在するか
 - [ ] **feature_groups.yml の related_objects ↔ catalog/_index.md**: FGが参照するオブジェクトがカタログに存在するか（cat5 完了済みの場合のみ）
