@@ -87,6 +87,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | キーワード（レポート/ダッシュボード系） | レポート, ダッシュボード, report, dashboard | `docs/data/reports-dashboards.md` |
 | キーワード（キュー/承認/割り当て系） | キュー, 承認, 承認プロセス, 割り当て, アサインメントルール | `docs/data/automation-config.md` |
 | キーワード（データ品質系） | データ品質, 空欄, 空欄率, 重複, 重複率, クレンジング | `docs/data/data-quality.md` |
+| キーワード（データ統計系） | データ統計, レコード件数, レコード数, 件数, 活用率, 利用率, 入力率, 分布, 月次作成数, データ量, ボリューム, 統計 | `docs/data/data-statistics.md` |
 | キーワード（Salesforce標準仕様） | ガバナ制限, API制限, API上限, SOQL上限, SOQL制限, リストビュー上限, レポート上限, トリガ順序, トリガ実行順序, sharing, FLS評価, PermissionSet優先, 標準仕様, governor, 制限値, 何件まで, 何行まで | `docs/knowledge/sf-standard.md`（該当セクションのみ Grep） |
 
 `{project_dir}/docs/overview/org-profile.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（用語集・命名規則の共通参照として）。
@@ -160,6 +161,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | レポート/ダッシュボードキーワード | `docs/data/reports-dashboards.md` |
 | キュー/承認/割り当てキーワード | `docs/data/automation-config.md` |
 | データ品質キーワード | `docs/data/data-quality.md` |
+| データ統計キーワード | `docs/data/data-statistics.md` |
 | SF標準仕様キーワード | `docs/knowledge/sf-standard.md`（該当セクションを Grep: `^## ` パターンで章を特定してセクション抽出） |
 
 各ファイルの Read / Grep が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。
