@@ -172,8 +172,46 @@ const result = await getRelatedData({ recordId: this.recordId });
 | 8 | Record-Triggered Flow と Apex トリガの二重実行 | 同一処理が2回走りデータ整合性が崩れる | 設計書に実行順序を明記し、どちらか一方に集約 |
 | 9 | `SOQL WHERE Id IN :idSet`（`idSet` が空） | `SOQL WHERE Id IN :()` → 構文エラー | `if (!idSet.isEmpty())` のガードを忘れない |
 | 10 | Contact 名変更時に User.Name と非同期で乖離 | 関連表示名が一致しない（ユーザー報告の誤認につながる） | Contact→User の同期は `Trigger.afterUpdate` で User 更新または運用周知 |
-| 11 | `with sharing` Apex でも FLS は自動評価されない | 非表示フィールドが返る | FLS は必ず明示確認（§FLS 評価のタイミング 参照） |
-| 12 | `Database.insert(records)` で null レコードが混入 | NullPointerException | リスト生成前に `addAll` や `add(null)` が混入していないか確認 |
+| 11 | Contact Trigger で User を更新する際に Mixed DML エラーを警戒して不要な @future を追加 | 過剰実装・工数増大 | 下記 §User の Mixed DML 例外ルール を参照 |
+| 12 | `with sharing` Apex でも FLS は自動評価されない | 非表示フィールドが返る | FLS は必ず明示確認（§FLS 評価のタイミング 参照） |
+| 13 | `Database.insert(records)` で null レコードが混入 | NullPointerException | リスト生成前に `addAll` や `add(null)` が混入していないか確認 |
+
+---
+
+## §User の Mixed DML 例外ルール
+
+**出典**: [Apex 開発者ガイド — 非 sObject との DML 操作の混在（日本語版）](https://developer.salesforce.com/docs/atlas.ja-jp.apexcode.meta/apexcode/apex_dml_non_mix_sobjects.htm)
+
+### 原則
+
+Salesforce では「セットアップオブジェクト（User / UserRole 等）」と「非セットアップオブジェクト（Account / Contact 等）」を同一 Apex トランザクションで DML すると `MIXED_DML_OPERATION` エラーになる。
+
+### 例外（User のみ適用）
+
+API バージョン **15.0 以降**で保存された Apex の場合、以下の**両方を満たす場合は** Contact 等と同一トランザクションで `update user` が可能:
+
+1. そのユーザーが Lightning Sync 設定（有効・無効問わず）に**含まれていない**
+2. 以下のフィールドを**更新しない**:
+   - `UserRoleId`
+   - `IsActive`
+   - `ForecastEnabled`
+   - `IsPortalEnabled`
+   - `Username`
+   - `ProfileId`
+
+→ **`FirstName` / `LastName` の更新は上記フィールドに該当しないため、Apex Trigger の after update から直接 `update user` できる（@future 不要）**
+
+### Flow での挙動
+
+宣言的 Record-Triggered Flow からの User 更新は Apex の Mixed DML 制約を受けない。Contact トリガーフローで User.FirstName / LastName を直接更新しても `MIXED_DML_OPERATION` は発生しない（実証済み）。
+
+### 設計上の判断指針
+
+| ケース | 推奨実装 |
+|---|---|
+| Contact → User の名前同期（FirstName/LastName のみ） | **Flow（最もシンプル）** または Apex Trigger 直接 update（@future 不要） |
+| UserRoleId / IsActive / ProfileId 等の変更を伴う場合 | Apex @future または Queueable 必須 |
+| Apex Trigger 内で上記例外に該当するか不明な場合 | `[要確認: Lightning Sync 設定 + 更新フィールド確認]` とマークして実装者に判断させる |
 
 ---
 
