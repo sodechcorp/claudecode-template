@@ -77,7 +77,7 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 
 **直読時のサイズガード**: 上記の直読パス（8 割確証時の 1 ファイル Read / 5 割以下時の該当ファイル参照 / 業務理解 0 モードの該当ファイル Read）でメインスレッドが `docs/` を直接読む際は、`catalog/{object}.md` や `overview/org-profile.md` が 50KB を超えることがあるため**全文 Read しない**。まず Grep で該当セクション・用語を特定し、`offset`/`limit` で該当箇所のみを Read する。対象が絞れない・複数ファイルにまたがる場合は `sf-context-loader` に委譲する（最大 7 ファイル / 2000 字上限が適用される）。
 
-**絶対禁止**: 記憶でプロジェクト固有事項に答える / 「たぶん〜」と推測する / プロジェクト固有事項の質問に「一般的には〜」と SF 一般論にすり替える / **SF 用語を含まない・カジュアルな言い回しであることを記憶で答える根拠にする**。
+**絶対禁止**: 記憶でプロジェクト固有事項に答える / 「たぶん〜」と推測する / プロジェクト固有事項の質問に「一般的には〜」と SF 一般論にすり替える / **SF 用語を含まない・カジュアルな言い回しであることを記憶で答える根拠にする** / **質問が繰り返される＝前回答が疑われているサイン。記憶で押し返さず、実装・docs を読み直してから答える**。
 
 ---
 
@@ -167,11 +167,22 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 
 **Salesforce 標準仕様は `docs/knowledge/sf-standard.md` を先に Read する**: 記載があれば Web 検索を省略してよい（「出典: sf-standard.md §{セクション名}」と明示）。
 
-### 実装裏付け・出典確認
+### 実装裏付け・出典確認（全エージェント共通・常に適用）
 
-挙動・仕様を断定するときは必ず実コードを Read で確認し `ファイル名:行番号` で根拠を明示する。詳細: `.claude/templates/common/verify-implementation-spec.md` / `verify-source-attribution-spec.md` 参照
+挙動・仕様・原因・**課題間の関係性**を答える / 対応方針を出す / 調査結果を報告するときは、記憶や推測で書かず、**必ず該当する実装コード・docs を Read で調べてから**、根拠を `ファイル名:行番号`（または docs パス）で示して回答する。確認できない範囲は `**[推定]**`／`**[要確認]**` を付け、根拠なしに断定しない。
 
-> **sf-context-loader 経由の要約コンテキスト（2層ルール）**: loader は行番号を保持しないため、loader 要約からの引用はファイルパス単位で出典を示せば足りる（例: `docs/catalog/Foo__c.md`）。断定・裏付けが必要な箇所は必ず原本を直接 Read して `ファイル名:行番号` を付す。
+| 確認項目 | 確認方法 |
+|---|---|
+| DML 挙動 | 対象 Apex の `insert / update / upsert / delete` を Read |
+| 自動処理 | Trigger/Flow/Process Builder の対象・条件・操作を Read |
+| 項目挙動 | field-meta.xml で型・required・default・formula を Read |
+| 権限挙動 | 該当 permissionset/profile を Read |
+| **課題間の関係性（同一原因か・別か）** | **両課題の該当/修正コードを Read し、対象フィールドの型・原因レイヤー（LWC 送信値／Apex SOQL／Flow 等）・修正箇所が一致するか比較。記憶や issue タイトル・現象の類似で同一視しない** |
+| プラットフォーム標準仕様 | `docs/knowledge/sf-standard.md` を先に Read → 無ければ Web で裏取り（詳細: `.claude/templates/common/verify-implementation-spec.md`） |
+
+**追問・反転ガード**: 「本当に？」「どっち？」「○○じゃない？」等の追問が来ても記憶で同調・反転しない。**該当ソースを再 Read してから**答える。前回答を撤回・反転する場合は、新たに読んだ根拠（`ファイル名:行番号`）を提示してから変える。**同じ論点が2回以上問われた時点で、記憶ではなく必ず再 Read する**（1回目を記憶で答えていた可能性が高い）。
+
+出典確認・sf-context-loader 2層ルール・追加ルール記入欄: `.claude/templates/common/verify-implementation-spec.md` / `verify-source-attribution-spec.md` 参照
 
 ---
 
