@@ -7,7 +7,7 @@
 以下の表現を含む回答はすべて対象:
 - 「重複する／上書きされる／新規作成される／既存が更新される」
 - 「○○の場合は××になる」「○○すると××が起きる」
-- 「△△は◇◇という仕様」
+- 「△△は◇◇という仕様」（プラットフォーム標準仕様の断定を含む：Mixed DML 制限・ガバナ制限・トリガ順序・標準オブジェクト挙動 等）
 - 対応方針の妥当性判断（「この方針だと〜になる」等）
 
 ## 必須確認手順
@@ -18,6 +18,7 @@
 | 自動処理 | Trigger / Flow / Process Builder の対象オブジェクト・実行条件・操作内容を Read で確認 |
 | 項目挙動 | field-meta.xml で型・required・default・formula を Read で確認 |
 | 権限挙動 | 該当 permissionset / profile を Read で確認 |
+| プラットフォーム標準仕様（ガバナ制限・Mixed DML/トランザクション境界・トリガ順序・標準オブジェクト/標準機能の挙動） | プロジェクト内コードでは確認不可。`docs/knowledge/sf-standard.md` を先に Read し、記載があれば出典を明示してそこで確認完了。なければ help.salesforce.com / developer.salesforce.com を WebFetch/WebSearch で裏取りする（tools に WebSearch/WebFetch がある場合のみ。なければ `**[要確認: 公式仕様確認が必要]**` と明示） |
 
 ## 行動原則
 
