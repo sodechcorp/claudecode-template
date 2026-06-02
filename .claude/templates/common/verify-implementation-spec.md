@@ -18,7 +18,7 @@
 | 自動処理 | Trigger / Flow / Process Builder の対象オブジェクト・実行条件・操作内容を Read で確認 |
 | 項目挙動 | field-meta.xml で型・required・default・formula を Read で確認 |
 | 権限挙動 | 該当 permissionset / profile を Read で確認 |
-| プラットフォーム標準仕様（ガバナ制限・Mixed DML/トランザクション境界・トリガ順序・標準オブジェクト/標準機能の挙動） | プロジェクト内コードでは確認不可。`docs/knowledge/sf-standard.md` を先に Read し、記載があれば出典を明示してそこで確認完了。なければ help.salesforce.com / developer.salesforce.com を WebFetch/WebSearch で裏取りする（tools に WebSearch/WebFetch がある場合のみ。なければ `**[要確認: 公式仕様確認が必要]**` と明示） |
+| プラットフォーム標準仕様（ガバナ制限・Mixed DML 制限の適用範囲・トリガ順序・標準オブジェクト/標準機能の挙動） | プロジェクト内コードでは確認不可。`docs/knowledge/sf-standard.md` を先に Read し、記載があれば出典を明示。なければ help.salesforce.com / developer.salesforce.com を WebFetch/WebSearch で裏取りする（tools に WebSearch/WebFetch がある場合のみ。なければ `**[要確認: 公式仕様確認が必要]**` と明示）。**注: 「Apex の制限 = Flow の制限」と安易に同一視しない。Apex 固有の制限が宣言的 Flow には適用されないケースがある** |
 
 ## 行動原則
 
