@@ -20,6 +20,7 @@
 
 - `G:\共有ドライブ` 削除: hook ハードブロック（bypass 不可）
 - `G:\共有ドライブ` 書き込み: 実行前に日本語警告を地の文で出し、ユーザー明示承認後のみ実行（AskUserQuestion 禁止・回避経由禁止）
+- Backlog 書き込み（コメント投稿・課題更新・PR操作等）: hook ハードブロック（bypass 不可）。文面案はチャットで提示のみ。投稿・更新は人間が Backlog UI から手動で実施。`mcp__backlog__add_*` / `update_*` / `delete_*` / `mark_*` / `reset_*` が対象。読み取り（`get_*` / `count_*` / `list_*`）は許可。
 - 警告文体・例外パターン詳細: `.claude/templates/common/shared-folder-protection.md` 参照
 
 ## ファイル変更ルール

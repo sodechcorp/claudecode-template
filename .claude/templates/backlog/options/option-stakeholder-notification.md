@@ -6,7 +6,7 @@
 
 ## Claude の責務範囲
 
-**Claude は Backlog コメント・お客様向けメッセージを投稿しない**。文面案を **テキストで提示するのみ**。投稿・送信は人間が判断して手動で実施する。`mcp__backlog__add_issue_comment` 等の Backlog 書き込み系 MCP は使わない（社内向け・社外向けを問わず）。
+**Claude は Backlog コメント・お客様向けメッセージを投稿しない**。文面案を **テキストで提示するのみ**。投稿・送信は人間が判断して手動で実施する。`mcp__backlog__add_issue_comment` 等の Backlog 書き込み系 MCP は使わない（社内向け・社外向けを問わず）。※ PreToolUse hook で技術的にハードブロック済み。
 
 ## 実行手順
 

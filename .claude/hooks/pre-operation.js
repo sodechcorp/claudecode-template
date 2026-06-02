@@ -1,7 +1,7 @@
 // =============================================================================
 // pre-operation.js — Claude Code PreToolUse hook
 //
-// 2つの保護レイヤを提供する:
+// 3つの保護レイヤを提供する:
 //
 // (1) 本番組織へのコマンド: ハードブロック（permissionDecision: deny）
 //     sf project deploy / data ops / apex run / package / org delete を
@@ -10,6 +10,11 @@
 // (2) G:\共有ドライブ（Google Drive マウント）への削除操作: ハードブロック
 //     Bash: rm / rmdir / del / mv（移動も実質削除）/ Python rmtree・unlink を検出
 //     Write / Edit / MultiEdit は通過（書き込みはエージェントが日本語警告を出してから実行）
+//
+// (3) Backlog 書き込み系 MCP: ハードブロック（permissionDecision: deny）
+//     add / update / delete / mark / reset で始まるツール名をブロック。
+//     コメント投稿・課題更新・PR操作等は人間が Backlog UI から手動で実施。
+//     get / count / list 等の読み取り系は対象外。
 // =============================================================================
 
 let buf = '';
@@ -25,6 +30,21 @@ process.stdin.on('end', () => {
 
   const toolName = d.tool_name || '';
   const input = d.tool_input || {};
+
+  // ---- Check 3: Backlog 書き込み系 MCP のハードブロック ----
+  // add/update/delete/mark/reset 系（コメント投稿・課題更新・PR操作等）をブロック。
+  // get/count/list 系（読み取り）は対象外。文面案はチャットで提示し、
+  // 投稿・更新は人間が Backlog UI から手動で実施する。
+  if (/^mcp__backlog__(add|update|delete|mark|reset)/i.test(toolName)) {
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: '[HARD-BLOCK] Backlog への書き込み（コメント投稿・課題更新等）はブロックされています。文面案はチャットで提示し、投稿・更新は人間が Backlog UI から手動で実施してください。\n対象ツール: ' + toolName
+      }
+    }));
+    return;
+  }
 
   // ---- Check 1: 本番組織コマンドのハードブロック（Bash のみ） ----
   if (toolName === 'Bash') {
