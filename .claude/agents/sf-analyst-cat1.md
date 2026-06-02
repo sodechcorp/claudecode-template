@@ -155,10 +155,11 @@ sf data query -q "SELECT SobjectType, Name, DeveloperName, IsActive, Description
 sf data query -q "SELECT EntityDefinition.QualifiedApiName, ValidationName, Active, Description, ErrorMessage FROM ValidationRule WHERE Active = true" --use-tooling-api --json
 ```
 
-#### 1-4. 外部連携・接続情報（エラーが出ても続行）
+#### 1-4. 外部連携・接続情報・導入パッケージ（エラーが出ても続行）
 ```bash
 sf data query -q "SELECT DeveloperName, Endpoint, PrincipalType FROM NamedCredential" --json
 sf data query -q "SELECT Name, Description, StartUrl FROM ConnectedApplication" --json
+sf data query --use-tooling-api -q "SELECT SubscriberPackage.Name, SubscriberPackage.NamespacePrefix, SubscriberPackageVersion.MajorVersion, SubscriberPackageVersion.MinorVersion FROM InstalledSubscriberPackage" --json
 ```
 
 #### 1-5. Platform Event・カスタム設定（エラーが出ても続行）

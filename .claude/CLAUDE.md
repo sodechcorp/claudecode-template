@@ -175,6 +175,8 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 
 **環境スコープの確認**: 「実装済み／有効／存在する／直っている」と述べるときは、その根拠がどの環境のものかを確認する。**手元リポジトリ／retrieve した UAT・sandbox スナップショット ≠ 本番**。対象環境での反映を確認できないなら `**[要確認: 本番反映状況]**` と明示し、deployed/active と断定しない。
 
+**正本の判断を先にする**: 確認対象によって正本(source of truth)は変わる。コードに書いてある＝正本とは限らない。コードを読む前に「この事実の正本はどこか」を判断する。**組織のランタイム状態（インストール済みパッケージ・バージョン・組織設定・機能の有効化フラグ・ライセンス）は、コードやコメントから推論せず、組織に直接問い合わせる**（Setup → インストール済みパッケージ、または `sf data query --use-tooling-api`）。コードの挙動・仕様は実コードが正本、組織状態は組織が正本。
+
 | 確認項目 | 確認方法 |
 |---|---|
 | DML 挙動 | 対象 Apex の `insert / update / upsert / delete` を Read |
@@ -183,6 +185,7 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 | 権限挙動 | 該当 permissionset/profile を Read |
 | **課題間の関係性（同一原因か・別か）** | **両課題の該当/修正コードを Read し、対象フィールドの型・原因レイヤー（LWC 送信値／Apex SOQL／Flow 等）・修正箇所が一致するか比較。記憶や issue タイトル・現象の類似で同一視しない** |
 | プラットフォーム標準仕様 | `docs/knowledge/sf-standard.md` を先に Read → 無ければ Web で裏取り（詳細: `.claude/templates/common/verify-implementation-spec.md`） |
+| **組織のランタイム状態（導入パッケージ・バージョン／組織設定／機能有効化／ライセンス）** | **組織に直接問い合わせる**: Setup → インストール済みパッケージ、または `sf data query --use-tooling-api -q "SELECT SubscriberPackage.Name, SubscriberPackage.NamespacePrefix, SubscriberPackageVersion.MajorVersion, SubscriberPackageVersion.MinorVersion FROM InstalledSubscriberPackage"`（全件取得後に絞る。`WHERE NamespacePrefix = ...` はフィルタ不可）。**コード・コメント・VF タグから推論しない** |
 
 **追問・反転ガード**: 「本当に？」「どっち？」「○○じゃない？」等の追問が来ても記憶で同調・反転しない。**該当ソースを再 Read してから**答える。前回答を撤回・反転する場合は、新たに読んだ根拠（`ファイル名:行番号`）を提示してから変える。**同じ論点が2回以上問われた時点で、記憶ではなく必ず再 Read する**（1回目を記憶で答えていた可能性が高い）。
 
