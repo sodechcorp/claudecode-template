@@ -228,7 +228,7 @@ sf data query -q "SELECT DeveloperName, Endpoint FROM NamedCredential" --json 2>
 以下のソースから「プロジェクト名」「システム名」の候補を収集する（優先順位順）:
 1. 既存 `docs/overview/org-profile.md` の `プロジェクト名` / `システム名` 行（差分更新モードの前回値・最優先）
 2. 読み込んだ外部資料の表紙・ヘッダに記載されたプロジェクト名称（企画書・提案書・画面仕様書等）
-3. 既存 `CLAUDE.md` の接続組織名・プロジェクト名記載
+3. 既存 `CLAUDE.md` の Salesforce組織情報テーブル（環境名・プロジェクト名記載）
 
 > フォルダ名は候補として使わない（略称・コード名であることが多く正式名とは限らない）。
 

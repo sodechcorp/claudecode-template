@@ -142,13 +142,14 @@ AskUserQuestion で突合モードを選択させる:
 
 **「スキップ」が選ばれた場合**: `_prod_alias` を空として Phase 2 へ進む。
 
-**「本番 alias で突合する」が選ばれた場合**: CLAUDE.md から本番 alias の候補を取得する:
+**「本番 alias で突合する」が選ばれた場合**: CLAUDE.md の Salesforce組織情報テーブルから本番 alias の候補を取得する:
 
 ```bash
 python -c "
 import re, pathlib
 text = pathlib.Path(r'{project_dir}/CLAUDE.md').read_text(encoding='utf-8', errors='ignore')
-m = re.search(r'接続組織[^(\n]*\(alias:\s*([^)\s]+)\)', text)
+# 環境表の「本番」行から alias を取得（| 本番 | \`alias\` | ... 形式）
+m = re.search(r'\|\s*本番\s*\|\s*\x60([^\x60]+)\x60', text)
 print('prod_alias_candidate:', m.group(1).strip() if m else '')
 "
 ```

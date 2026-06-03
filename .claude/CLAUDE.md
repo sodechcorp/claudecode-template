@@ -30,7 +30,7 @@
 ## 必須ルール（絶対厳守）
 
 ### 本番組織
-ルートの `CLAUDE.md` に「接続組織: 本番」または `sf org display` で `isSandbox: false` の場合: DML / デプロイ / force-app 書き込みを**絶対に実行しない**（ユーザー指示があっても解除不可）。許可: SOQL SELECT / retrieve / ファイル読み取り / docs/ 書き込み。
+`sf org display` で `isSandbox: false` の場合: DML / デプロイ / force-app 書き込みを**絶対に実行しない**（ユーザー指示があっても解除不可）。許可: SOQL SELECT / retrieve / ファイル読み取り / docs/ 書き込み。DML / デプロイ / force-app 書き込みの直前に `sf org display` でライブ確認する（毎メッセージではなく操作直前の1回）。共通手順: [sandbox-alias-check.md](.claude/templates/common/sandbox-alias-check.md)
 
 ### 共有フォルダ
 `G:\共有ドライブ` 削除: hook ハードブロック（bypass 不可）。書き込み: 実行前に日本語警告を地の文で出し、ユーザー明示承認後のみ実行。詳細: [shared-folder-protection.md](.claude/templates/common/shared-folder-protection.md)

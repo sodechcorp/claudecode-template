@@ -8,7 +8,7 @@
 
 ## 本番組織接続時の絶対ルール
 
-ルートの `CLAUDE.md` に「接続組織: 本番」と記録、または `sf org display` で `isSandbox: false` の場合は以下を **絶対に実行しない**（ユーザー指示があっても解除不可）:
+`sf org display` で `isSandbox: false` の場合は以下を **絶対に実行しない**（ユーザー指示があっても解除不可）。DML / デプロイ / force-app 書き込みの直前に `sf org display` でライブ確認する（毎メッセージではなく操作直前の1回）:
 
 - DML 操作（`sf data create/update/delete/upsert`・Apex 匿名 DML）
 - デプロイ（`sf project deploy start`）
