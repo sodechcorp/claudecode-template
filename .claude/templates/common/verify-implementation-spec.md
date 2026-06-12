@@ -42,3 +42,4 @@ Read `.claude/templates/common/verify-implementation-spec.md`（backlog 固有 e
 - [2026-06-02] 上記 core ルールを CLAUDE.md §実装裏付け・出典確認 に正本移動。本ファイルは backlog 固有 extras 専用に整理
 - [2026-06-02] CLAUDE.md §実装裏付け に穴A（承認・整形バイパス）・穴B（環境スコープ未確認）を追記。「確認して」「整えて」も検証タスク。repo/UAT ≠ 本番で断定不可（GF課題報告書の承認ミス・Flow 本番反映未確認断定を受けて）
 - [2026-06-02] 組織のランタイム状態（インストール済みパッケージ・バージョン／組織設定／機能有効化／ライセンス）はコード・コメント・VF タグから推論せず、Setup / Tooling API（InstalledSubscriberPackage 等）で組織に直接問い合わせて確認する。確認対象ごとに正本が変わる＝コードに書いてある≠正本（OPROARTS Connector のバージョンをコードから推論して迷走したミスを受けて）
+- [2026-06-12] 「〜すればわかる/断言できない」と書きそうになったら推論で締めず、該当手段（SOQL・WebSearch・Grep・retrieve）を実行してから答える。マーカー（`[推定]`/`[要確認]`）・「断言できません」は全調査手段を尽くした後のみ許可（Magarigawa ユビレジ税率の連携根拠を `sf data query`・WebSearch 未実行のまま推論で締めたミスを受けて）
