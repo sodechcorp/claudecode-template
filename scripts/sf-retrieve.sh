@@ -182,13 +182,14 @@ PYEOF
 #
 # Entity expansion limit (1000) 対策:
 #   manifest/package.xml               ... 軽い type まとめ（wildcard）
-#   manifest/package-{TYPE}.xml        ... 重い type 独立（ApexClass/Layout/Profile/FlexiPage）
+#   manifest/package-{TYPE}.xml        ... 重い type 独立（ApexClass/Layout/Profile/Flow/FlexiPage）
 #   manifest/package-CustomObject-N.xml ... CustomObject を 100 件ずつ分割（動的生成）
 #   manifest/package-Dashboard.xml     ... フォルダ列挙（DashboardFolder 経由）
 #   manifest/package-Report.xml        ... フォルダ列挙（ReportFolder 経由）
 #
 # 注: EmailTemplate / Document はフォルダ型のため standard から除外。
 #     必要な場合は /sf-retrieve select で個別取得してください。
+# 注: Flow は他の不安定な型と同バッチになると巻き添えで取得失敗するため専用バッチに隔離。
 generate_standard() {
     local api_version="$1"
     local target_org="$2"
@@ -196,12 +197,12 @@ generate_standard() {
 
     # 軽い type まとめ（wildcard）
     # ※ EmailTemplate はフォルダ型のため除外済み
+    # ※ Flow は巻き添え防止のため専用バッチ（package-Flow.xml）に分離
     cat > manifest/package.xml << XMLEOF
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types><members>*</members><name>ApexTrigger</name></types>
     <types><members>*</members><name>ApexPage</name></types>
-    <types><members>*</members><name>Flow</name></types>
     <types><members>*</members><name>CustomTab</name></types>
     <types><members>*</members><name>CustomLabel</name></types>
     <types><members>*</members><name>CustomMetadata</name></types>
@@ -218,7 +219,8 @@ generate_standard() {
 XMLEOF
 
     # 重い type は独立バッチ（wildcard）
-    for TYPE in ApexClass Layout Profile; do
+    # Flow は他の不安定な型による巻き添えを防ぐため独立バッチに含める
+    for TYPE in ApexClass Layout Profile Flow; do
         cat > "manifest/package-${TYPE}.xml" << XMLEOF
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
@@ -333,7 +335,7 @@ PYEOF
 
     ok "標準セット package.xml を生成 (API ${api_version})"
     ok "  軽い type: manifest/package.xml"
-    ok "  重い type: manifest/package-{ApexClass,Layout,Profile}.xml"
+    ok "  重い type: manifest/package-{ApexClass,Layout,Profile,Flow}.xml"
     ok "  CustomObject: manifest/package-CustomObject-1.xml 〜 ${n_batches}.xml (${n_batches} バッチ)"
     ok "  FlexiPage: manifest/package-FlexiPage-1.xml 〜 ${n_flexipage_batches}.xml (${n_flexipage_batches} バッチ)"
     for m in "${folder_manifests_ok[@]}"; do
@@ -395,10 +397,11 @@ all_types = sorted([
 ])
 
 # 重い型は個別 manifest（標準セットと同様）
+# Flow は他の不安定な型との同バッチによる巻き添えを防ぐため HEAVY_TYPES に追加
 HEAVY_TYPES = {
     'ApexClass', 'Layout', 'Profile', 'CustomObject',
     'Bot', 'BotVersion', 'Community', 'ContentAsset',
-    'ConnectedApp', 'CustomApplication',
+    'ConnectedApp', 'CustomApplication', 'Flow',
 }
 light_types = [t for t in all_types if t not in HEAVY_TYPES]
 heavy_types  = [t for t in all_types if t in HEAVY_TYPES]
@@ -525,6 +528,17 @@ PYEOF
     done
 }
 
+# --- 取得後の重要型検証 ---
+# Flow は保守業務の中核。取得後に1件も存在しない場合は ERROR で止める。
+verify_critical_types() {
+    local flow_count
+    flow_count=$(find force-app/ -name "*.flow-meta.xml" 2>/dev/null | wc -l)
+    if [ "$flow_count" -eq 0 ]; then
+        error "Flow が1件も取得されていません（force-app/main/default/flows/ が空）。\n  スキップログを確認: manifest/.retrieve-skipped.log\n  対処: bash scripts/sf-retrieve.sh retrieve-manifest manifest/package-Flow.xml"
+    fi
+    ok "取得後検証: Flow ${flow_count} 件確認"
+}
+
 # --- 未コミット変更の確認 ---
 check_uncommitted() {
     if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -546,6 +560,9 @@ retrieve_manifest() {
     local target_org="$2"
     local label="$3"
 
+    # CLI 出力を画面に表示しながらログファイルにも保存する（失敗時の原因追跡用）
+    local log_file="manifest/.retrieve-${label}.log"
+
     # heartbeat: 60 秒ごとに経過時間を STDOUT へ出力。バックグラウンド実行でも進捗確認可
     # 確認方法: grep "[heartbeat]" <task-output-file>
     local hb_start
@@ -558,11 +575,13 @@ retrieve_manifest() {
     done) &
     local hb_pid=$!
 
-    if sf project retrieve start --manifest "$manifest" --target-org "$target_org" --wait "$SF_WAIT" 2>&1; then
+    if sf project retrieve start --manifest "$manifest" --target-org "$target_org" --wait "$SF_WAIT" 2>&1 | tee "$log_file"; then
         kill "$hb_pid" 2>/dev/null
         return 0
     fi
     kill "$hb_pid" 2>/dev/null
+
+    warn "[${label}] 取得失敗。エラーログ: ${log_file}"
 
     # all-N バッチ（軽い型まとめ）が失敗した場合: 型を 1 つずつリトライ
     if [[ "$manifest" == *"package-all-"* ]]; then
@@ -576,8 +595,9 @@ retrieve_manifest() {
     <version>$(get_api_version)</version>
 </Package>
 XMLEOF
-            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single-type.xml --target-org "$target_org" --wait "$SF_WAIT" 2>&1; then
-                warn "  スキップ: ${type_name}（取得失敗）"
+            local single_log="manifest/.retrieve-${type_name}.log"
+            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single-type.xml --target-org "$target_org" --wait "$SF_WAIT" 2>&1 | tee "$single_log"; then
+                warn "  スキップ: ${type_name}（取得失敗。ログ: ${single_log}）"
                 skipped_types+=("$type_name")
                 echo "${type_name}" >> "manifest/.retrieve-skipped.log"
             fi
@@ -588,6 +608,8 @@ XMLEOF
             for t in "${skipped_types[@]}"; do warn "  - ${t}"; done
             warn "  スキップ記録: manifest/.retrieve-skipped.log"
             warn "  対処: npm install --global @salesforce/cli@latest"
+            # スキップがあった場合は失敗として上位に伝播する（隠さない）
+            return 1
         fi
         return 0
     fi
@@ -604,8 +626,9 @@ XMLEOF
     <version>$(get_api_version)</version>
 </Package>
 XMLEOF
-            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single.xml --target-org "$target_org" --wait "$SF_WAIT" 2>&1; then
-                warn "  スキップ: ${obj}（取得失敗 — フィールド数超過の可能性）"
+            local obj_log="manifest/.retrieve-CustomObject-${obj}.log"
+            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single.xml --target-org "$target_org" --wait "$SF_WAIT" 2>&1 | tee "$obj_log"; then
+                warn "  スキップ: ${obj}（取得失敗 — フィールド数超過の可能性。ログ: ${obj_log}）"
                 skipped+=("$obj")
             fi
         done < <(grep -oP '(?<=<members>)[^<]+' "$manifest")
@@ -613,6 +636,8 @@ XMLEOF
         if [ ${#skipped[@]} -gt 0 ]; then
             warn "[${label}] 以下のオブジェクトはスキップしました（手動取得が必要です）:"
             for s in "${skipped[@]}"; do warn "  - ${s}"; done
+            # スキップがあった場合は失敗として上位に伝播する（隠さない）
+            return 1
         fi
         return 0
     fi
@@ -633,8 +658,8 @@ retrieve_standard() {
 
     # 軽い type まとめ
     manifests+=("manifest/package.xml")
-    # 重い type 独立
-    for TYPE in ApexClass Layout Profile; do
+    # 重い type 独立（Flow は巻き添え防止のため独立バッチ）
+    for TYPE in ApexClass Layout Profile Flow; do
         manifests+=("manifest/package-${TYPE}.xml")
     done
     # CustomObject 分割バッチ
@@ -669,9 +694,15 @@ retrieve_standard() {
     if [ ${#skipped_manifests[@]} -gt 0 ]; then
         warn "以下のバッチが失敗しました。手動で再試行してください:"
         for m in "${skipped_manifests[@]}"; do warn "  bash scripts/sf-retrieve.sh retrieve-manifest ${m}"; done
+        warn ""
+        warn "取得できなかったバッチがあります。force-app/ は不完全な状態です。"
+        warn "スキップログ: manifest/.retrieve-skipped.log"
+        check_sf_version
+        error "メタデータ取得が一部失敗しました（${#skipped_manifests[@]}/${total} バッチ未取得）"
     fi
 
-    ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ）"
+    verify_critical_types
+    ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ、スキップなし）"
 }
 
 # --- 全量取得（複数バッチ）---
@@ -688,8 +719,8 @@ retrieve_all() {
     for f in manifest/package-all-*.xml; do
         [ -f "$f" ] && manifests+=("$f")
     done
-    # 重い type 独立
-    for TYPE in ApexClass Layout Profile Bot BotVersion Community ContentAsset ConnectedApp CustomApplication; do
+    # 重い type 独立（Flow は巻き添え防止のため独立バッチ）
+    for TYPE in ApexClass Layout Profile Flow Bot BotVersion Community ContentAsset ConnectedApp CustomApplication; do
         local f="manifest/package-${TYPE}.xml"
         [ -f "$f" ] && manifests+=("$f")
     done
@@ -726,9 +757,15 @@ retrieve_all() {
     if [ ${#skipped_manifests[@]} -gt 0 ]; then
         warn "以下のバッチが失敗しました。手動で再試行してください:"
         for m in "${skipped_manifests[@]}"; do warn "  bash scripts/sf-retrieve.sh retrieve-manifest ${m}"; done
+        warn ""
+        warn "取得できなかったバッチがあります。force-app/ は不完全な状態です。"
+        warn "スキップログ: manifest/.retrieve-skipped.log"
+        check_sf_version
+        error "メタデータ取得が一部失敗しました（${#skipped_manifests[@]}/${total} バッチ未取得）"
     fi
 
-    ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ）"
+    verify_critical_types
+    ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ、スキップなし）"
 }
 
 # --- 単一 package.xml 取得（後方互換）---
