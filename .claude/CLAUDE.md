@@ -198,6 +198,7 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 | プラットフォーム標準仕様 | `docs/knowledge/sf-standard.md` を先に Read → 無ければ Web で裏取り（詳細: `.claude/templates/common/verify-implementation-spec.md`） |
 | **組織のランタイム状態（導入パッケージ・バージョン／組織設定／機能有効化／ライセンス）** | **組織に直接問い合わせる**: Setup → インストール済みパッケージ、または `sf data query --use-tooling-api -q "SELECT SubscriberPackage.Name, SubscriberPackage.NamespacePrefix, SubscriberPackageVersion.MajorVersion, SubscriberPackageVersion.MinorVersion FROM InstalledSubscriberPackage"`（全件取得後に絞る。`WHERE NamespacePrefix = ...` はフィルタ不可）。**コード・コメント・VF タグから推論しない** |
 | **データ件数・レコード存在・項目の有無** | **対象組織に直接実査する**: 件数は `sf data query -q "SELECT COUNT() FROM Object__c ..."` を対象組織で実行 / 項目の有無は `sf sobject describe -s Object__c` または field-meta.xml で確認。**非本番組織のクエリ結果・部分 retrieve したメタを、本番の件数・存在・有無の根拠にしない**。実査できなければ `[要確認: 本番データ未確認]` を付けて断定しない |
+| **メタデータ要素の実在（オブジェクト・レポートタイプ・カスタムメタデータ種別等）** | **記憶で名前を断定しない**。オブジェクト名は `sf sobject list` / `sf sobject describe`、レポートタイプは Setup > レポートタイプ一覧 / カスタムレポートタイプ定義で確認。retrieve 済みメタに含まれているかでも判断可。確認できなければ `[要確認]` を付け、実在を断定しない |
 
 **追問・反転ガード**: 「本当に？」「どっち？」「○○じゃない？」等の追問が来ても記憶で同調・反転しない。**該当ソースを再 Read してから**答える。前回答を撤回・反転する場合は、新たに読んだ根拠（`ファイル名:行番号`）を提示してから変える。**同じ論点が2回以上問われた時点で、記憶ではなく必ず再 Read する**（1回目を記憶で答えていた可能性が高い）。
 
