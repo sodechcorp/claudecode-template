@@ -161,6 +161,7 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 | パターン | 検索先 |
 |---|---|
 | Salesforce 標準仕様（API・UI・ガバナ制限・トリガ順序等） | help.salesforce.com / developer.salesforce.com |
+| **組織状態（標準オブジェクト/項目/ラベルの有無・設定の有無・タブ/UI表示）** | **対象組織を `sf sobject describe` / `sf data query` で確認。Web一般論・記憶で断定しない** |
 | 第三者ライブラリ・MCP・ツールの仕様 | 公式ドキュメント・GitHub README |
 | バージョン依存の挙動・最新リリース情報 | release notes / changelog |
 | 「最新の〜は？」「今〜できる？」型の質問 | 公式サイト・公式ブログ |
