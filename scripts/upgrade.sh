@@ -84,7 +84,7 @@ detect_dir() {
     [ -d "$TMP_DIR/$dir" ] || return 0
     while IFS= read -r f; do
         [ -z "$f" ] && continue
-        _is_junk "$f" && continue
+        if _is_junk "$f"; then continue; fi
         rel="${f#$TMP_DIR/}"
         if [ ! -f "$rel" ]; then
             ADDITIONS+=("$rel（新規$label）")
@@ -98,8 +98,10 @@ detect_deletions() {
     [ -d "$dir" ] && [ -d "$TMP_DIR/$dir" ] || return 0
     while IFS= read -r f; do
         [ -z "$f" ] && continue
-        _is_junk "$f" && continue
-        [ ! -f "$TMP_DIR/$f" ] && DELETIONS+=("$f（テンプレートから削除済み）")
+        if _is_junk "$f"; then continue; fi
+        if [ ! -f "$TMP_DIR/$f" ]; then
+            DELETIONS+=("$f（テンプレートから削除済み）")
+        fi
     done < <(find "$dir" -type f)
 }
 apply_dir() {
@@ -107,8 +109,8 @@ apply_dir() {
     [ -d "$TMP_DIR/$dir" ] || return 0
     while IFS= read -r f; do
         [ -z "$f" ] && continue
-        _is_junk "$f" && continue
-        [ -n "$skip" ] && [ "$(basename "$f")" = "$skip" ] && continue
+        if _is_junk "$f"; then continue; fi
+        if [ -n "$skip" ] && [ "$(basename "$f")" = "$skip" ]; then continue; fi
         rel="${f#$TMP_DIR/}"
         mkdir -p "$(dirname "$rel")"
         cp "$f" "$rel"
