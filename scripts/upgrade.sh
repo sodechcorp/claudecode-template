@@ -170,6 +170,14 @@ if [ -d "$TMP_DIR/.claude/templates/docs-scaffold" ]; then
     done < <(find "$TMP_DIR/.claude/templates/docs-scaffold" -type f)
 fi
 
+# exec 再実行後: upgrade.sh 自体の変更を CHANGES に追加（コミット対象にするため）
+if [ "${UPGRADE_SELF_UPDATED:-}" = "1" ]; then
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1 && \
+       ! git diff --quiet HEAD -- scripts/upgrade.sh 2>/dev/null; then
+        CHANGES+=("scripts/upgrade.sh（upgrade.sh 自体の更新）")
+    fi
+fi
+
 # --- 結果判定 ---
 TOTAL=$(( ${#CHANGES[@]} + ${#ADDITIONS[@]} + ${#DELETIONS[@]} + ${#SCAFFOLD_ADDITIONS[@]} ))
 
