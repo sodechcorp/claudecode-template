@@ -61,9 +61,14 @@ check_sf_version() {
 
 check_sf_version
 
-# --- retrieve の待機時間（分）---
-# 環境変数 SF_RETRIEVE_WAIT で上書き可（例: SF_RETRIEVE_WAIT=120 bash scripts/sf-retrieve.sh all）
+# --- retrieve の待機時間・並行度 ---
+# 環境変数で上書き可:
+#   SF_RETRIEVE_WAIT=N           CLI 待機時間（分、デフォルト 60）
+#   SF_RETRIEVE_PARALLEL=N       バッチ並行度（デフォルト 4）
+#   SF_RETRIEVE_RETRY_PARALLEL=N 個別リトライ並行度（デフォルト 2）
 SF_WAIT="${SF_RETRIEVE_WAIT:-60}"
+SF_RETRIEVE_PARALLEL="${SF_RETRIEVE_PARALLEL:-4}"
+SF_RETRIEVE_RETRY_PARALLEL="${SF_RETRIEVE_RETRY_PARALLEL:-2}"
 
 # --- `<members>*</members>` で内部コンポを返してエラーになる型（all/standard 共通）---
 EXCLUDED_FROM_WILDCARD=(
@@ -539,122 +544,250 @@ verify_critical_types() {
     ok "取得後検証: Flow ${flow_count} 件確認"
 }
 
-# --- 未コミット変更の確認 ---
+# --- 未コミット変更の確認（情報提供のみ・中断しない）---
+# コマンド側（sf-retrieve.md）が AskUserQuestion で続行可否を確認済みのため、
+# スクリプトは警告のみ出力して自動継続する。
 check_uncommitted() {
     if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         local changes
         changes=$(git status --porcelain force-app/ 2>/dev/null | head -5)
         if [ -n "$changes" ]; then
-            warn "force-app/ に未コミットの変更があります:"
+            warn "force-app/ に未コミットの変更があります（取得で上書きされます）:"
             echo "$changes"
             echo ""
-            read -p "上書きして続行しますか？ (y/N): " confirm
-            [[ "$confirm" =~ ^[yY] ]] || { info "キャンセルしました"; exit 0; }
         fi
     fi
 }
 
-# --- 単一バッチ取得（heartbeat 付き。失敗時に per-type / per-object リトライ）---
+# --- 並行バッチ取得 ---
+# SF_RETRIEVE_PARALLEL 並行でバッチを取得する（bash 5.2 以上、wait -n 使用）。
+# 各バッチは retrieve_manifest をバックグラウンドで実行し、
+# 成否は manifest/.retrieve-status/<label>.status（OK/FAIL）に記録する。
+run_parallel() {
+    local target_org="$1"
+    shift
+    local manifests=("$@")
+    local total=${#manifests[@]}
+    local batch=0
+    local running=0
+
+    for manifest in "${manifests[@]}"; do
+        batch=$((batch + 1))
+        local label
+        label=$(basename "$manifest" .xml | sed 's/package-//')
+
+        # 上限に達したら 1 つ完了するまで待つ
+        while [ "$running" -ge "$SF_RETRIEVE_PARALLEL" ]; do
+            wait -n 2>/dev/null || true
+            running=$((running - 1))
+        done
+
+        info "[バッチ${batch}/${total}] ${label} 取得開始..."
+        retrieve_manifest "$manifest" "$target_org" "$label" &
+        running=$((running + 1))
+    done
+
+    # 残り全待機
+    wait 2>/dev/null || true
+}
+
+# --- 単一バッチ取得（heartbeat 付き。失敗時に構造ベース並行リトライ）---
+#
+# 並行実行時の画面混線を避けるため、CLI 出力はログファイルへのみ書き込む。
+# バッチ成否は manifest/.retrieve-status/<label>.status（OK/FAIL）に記録する。
+# heartbeat もログへ書くので進捗監視は以下で確認:
+#   grep "\[heartbeat\]" manifest/.retrieve-*.log
+#
+# リトライ戦略（manifest の XML 構造から自動判定）:
+#   複数型バッチ（package.xml / package-all-N）
+#     → 型単位リトライ（SF_RETRIEVE_RETRY_PARALLEL 並行）
+#   単一型 + 具体 member（CustomObject-N / FlexiPage-N / Dashboard / Report）
+#     → member 単位リトライ（同並行）
+#   単一型 + wildcard（ApexClass / Flow / Layout / Profile 等）
+#     → 分割不能。失敗として上位に伝播し手動リトライを案内する。
 retrieve_manifest() {
     local manifest="$1"
     local target_org="$2"
     local label="$3"
+    local status_dir="manifest/.retrieve-status"
+    mkdir -p "$status_dir"  # retrieve-manifest サブコマンドから直接呼ばれる場合も対応
 
-    # CLI 出力を画面に表示しながらログファイルにも保存する（失敗時の原因追跡用）
     local log_file="manifest/.retrieve-${label}.log"
+    local status_file="${status_dir}/${label}.status"
+    local skipped_file="${status_dir}/${label}.skipped"
 
-    # heartbeat: 60 秒ごとに経過時間を STDOUT へ出力。バックグラウンド実行でも進捗確認可
-    # 確認方法: grep "[heartbeat]" <task-output-file>
+    # heartbeat: 60 秒ごとに経過時間をログファイルへ出力
     local hb_start
     hb_start=$(date +%s)
     (while sleep 60; do
         local hb_now hb_elapsed
         hb_now=$(date +%s)
         hb_elapsed=$((hb_now - hb_start))
-        echo "[$(date +%H:%M:%S)] [heartbeat] ${label}: elapsed ${hb_elapsed}s"
+        echo "[$(date +%H:%M:%S)] [heartbeat] ${label}: elapsed ${hb_elapsed}s" >> "$log_file"
     done) &
     local hb_pid=$!
 
-    if sf project retrieve start --manifest "$manifest" --target-org "$target_org" --wait "$SF_WAIT" 2>&1 | tee "$log_file"; then
+    if sf project retrieve start --manifest "$manifest" --target-org "$target_org" \
+        --wait "$SF_WAIT" --ignore-conflicts > "$log_file" 2>&1; then
         kill "$hb_pid" 2>/dev/null
+        echo "OK" > "$status_file"
         return 0
     fi
     kill "$hb_pid" 2>/dev/null
 
     warn "[${label}] 取得失敗。エラーログ: ${log_file}"
 
-    # all-N バッチ（軽い型まとめ）が失敗した場合: 型を 1 つずつリトライ
-    if [[ "$manifest" == *"package-all-"* ]]; then
-        warn "[${label}] バッチ取得失敗。型を 1 つずつ取得します..."
-        local skipped_types=()
+    # manifest の構造判定: リトライ戦略を決定する
+    local name_count wildcard_count
+    name_count=$(grep -c '<name>' "$manifest" 2>/dev/null || echo 0)
+    wildcard_count=$(grep -c '<members>\*</members>' "$manifest" 2>/dev/null || echo 0)
+
+    local api_ver label_safe
+    api_ver=$(get_api_version)
+    label_safe=$(echo "$label" | sed 's/[^a-zA-Z0-9_-]/_/g')
+
+    if [ "$name_count" -gt 1 ]; then
+        # ── 複数型バッチ: 型を 1 つずつ並行リトライ ─────────────────────────
+        warn "[${label}] バッチ取得失敗。型を 1 つずつ取得します（${SF_RETRIEVE_RETRY_PARALLEL} 並行）..."
+        local types=()
         while IFS= read -r type_name; do
-            cat > /tmp/sf-retrieve-single-type.xml << XMLEOF
+            types+=("$type_name")
+        done < <(grep -oP '(?<=<name>)[^<]+' "$manifest")
+
+        local running_r=0
+        for type_name in "${types[@]}"; do
+            while [ "$running_r" -ge "$SF_RETRIEVE_RETRY_PARALLEL" ]; do
+                wait -n 2>/dev/null || true
+                running_r=$((running_r - 1))
+            done
+            local type_safe retry_xml retry_log retry_status
+            type_safe=$(echo "$type_name" | sed 's/[^a-zA-Z0-9_-]/_/g')
+            retry_xml="${status_dir}/retry-${label_safe}-type-${type_safe}.xml"
+            retry_log="${status_dir}/retry-${label_safe}-type-${type_safe}.log"
+            retry_status="${status_dir}/retry-${label_safe}-type-${type_safe}.status"
+            cat > "$retry_xml" << XMLEOF
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types><members>*</members><name>${type_name}</name></types>
-    <version>$(get_api_version)</version>
+    <version>${api_ver}</version>
 </Package>
 XMLEOF
-            local single_log="manifest/.retrieve-${type_name}.log"
-            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single-type.xml --target-org "$target_org" --wait "$SF_WAIT" 2>&1 | tee "$single_log"; then
-                warn "  スキップ: ${type_name}（取得失敗。ログ: ${single_log}）"
+            (
+                if sf project retrieve start --manifest "$retry_xml" --target-org "$target_org" \
+                    --wait "$SF_WAIT" --ignore-conflicts > "$retry_log" 2>&1; then
+                    echo "OK" > "$retry_status"
+                else
+                    echo "FAIL" > "$retry_status"
+                fi
+            ) &
+            running_r=$((running_r + 1))
+        done
+        wait 2>/dev/null || true
+
+        # 結果集約
+        local skipped_types=()
+        for type_name in "${types[@]}"; do
+            local type_safe retry_status retry_log
+            type_safe=$(echo "$type_name" | sed 's/[^a-zA-Z0-9_-]/_/g')
+            retry_status="${status_dir}/retry-${label_safe}-type-${type_safe}.status"
+            retry_log="${status_dir}/retry-${label_safe}-type-${type_safe}.log"
+            if [ "$(cat "$retry_status" 2>/dev/null)" = "FAIL" ]; then
+                warn "  スキップ: ${type_name}（取得失敗。ログ: ${retry_log}）"
                 skipped_types+=("$type_name")
-                echo "${type_name}" >> "manifest/.retrieve-skipped.log"
+                echo "${type_name}" >> "$skipped_file"
             fi
-        done < <(grep -oP '(?<=<name>)[^<]+' "$manifest")
+        done
 
         if [ ${#skipped_types[@]} -gt 0 ]; then
             warn "[${label}] 以下の型はスキップしました（CLI 更新で解消する可能性あり）:"
             for t in "${skipped_types[@]}"; do warn "  - ${t}"; done
-            warn "  スキップ記録: manifest/.retrieve-skipped.log"
             warn "  対処: npm install --global @salesforce/cli@latest"
-            # スキップがあった場合は失敗として上位に伝播する（隠さない）
+            echo "FAIL" > "$status_file"
             return 1
         fi
+        echo "OK" > "$status_file"
         return 0
-    fi
 
-    # CustomObject バッチが失敗した場合: 1 件ずつリトライ
-    if [[ "$manifest" == *"CustomObject"* ]]; then
-        warn "[${label}] バッチ取得失敗。オブジェクトを 1 件ずつ取得します..."
-        local skipped=()
-        while IFS= read -r obj; do
-            cat > /tmp/sf-retrieve-single.xml << XMLEOF
-<?xml version="1.0" encoding="UTF-8"?>
-<Package xmlns="http://soap.sforce.com/2006/04/metadata">
-    <types><members>${obj}</members><name>CustomObject</name></types>
-    <version>$(get_api_version)</version>
-</Package>
-XMLEOF
-            local obj_log="manifest/.retrieve-CustomObject-${obj}.log"
-            if ! sf project retrieve start --manifest /tmp/sf-retrieve-single.xml --target-org "$target_org" --wait "$SF_WAIT" 2>&1 | tee "$obj_log"; then
-                warn "  スキップ: ${obj}（取得失敗 — フィールド数超過の可能性。ログ: ${obj_log}）"
-                skipped+=("$obj")
-            fi
+    elif [ "$wildcard_count" -eq 0 ]; then
+        # ── 単一型 + 具体 member: member を 1 件ずつ並行リトライ ─────────────
+        local type_name
+        type_name=$(grep -oP '(?<=<name>)[^<]+' "$manifest" | head -1)
+        warn "[${label}] バッチ取得失敗。${type_name} を 1 件ずつ取得します（${SF_RETRIEVE_RETRY_PARALLEL} 並行）..."
+        local members=()
+        while IFS= read -r mem; do
+            members+=("$mem")
         done < <(grep -oP '(?<=<members>)[^<]+' "$manifest")
 
+        local running_r=0
+        for mem in "${members[@]}"; do
+            while [ "$running_r" -ge "$SF_RETRIEVE_RETRY_PARALLEL" ]; do
+                wait -n 2>/dev/null || true
+                running_r=$((running_r - 1))
+            done
+            local mem_safe retry_xml retry_log retry_status
+            mem_safe=$(echo "$mem" | sed 's/[^a-zA-Z0-9_-]/_/g')
+            retry_xml="${status_dir}/retry-${label_safe}-mem-${mem_safe}.xml"
+            retry_log="${status_dir}/retry-${label_safe}-mem-${mem_safe}.log"
+            retry_status="${status_dir}/retry-${label_safe}-mem-${mem_safe}.status"
+            cat > "$retry_xml" << XMLEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types><members>${mem}</members><name>${type_name}</name></types>
+    <version>${api_ver}</version>
+</Package>
+XMLEOF
+            (
+                if sf project retrieve start --manifest "$retry_xml" --target-org "$target_org" \
+                    --wait "$SF_WAIT" --ignore-conflicts > "$retry_log" 2>&1; then
+                    echo "OK" > "$retry_status"
+                else
+                    echo "FAIL" > "$retry_status"
+                fi
+            ) &
+            running_r=$((running_r + 1))
+        done
+        wait 2>/dev/null || true
+
+        # 結果集約
+        local skipped=()
+        for mem in "${members[@]}"; do
+            local mem_safe retry_status retry_log
+            mem_safe=$(echo "$mem" | sed 's/[^a-zA-Z0-9_-]/_/g')
+            retry_status="${status_dir}/retry-${label_safe}-mem-${mem_safe}.status"
+            retry_log="${status_dir}/retry-${label_safe}-mem-${mem_safe}.log"
+            if [ "$(cat "$retry_status" 2>/dev/null)" = "FAIL" ]; then
+                warn "  スキップ: ${mem}（取得失敗。ログ: ${retry_log}）"
+                skipped+=("$mem")
+                echo "${mem}" >> "$skipped_file"
+            fi
+        done
+
         if [ ${#skipped[@]} -gt 0 ]; then
-            warn "[${label}] 以下のオブジェクトはスキップしました（手動取得が必要です）:"
+            warn "[${label}] 以下のコンポーネントはスキップしました（手動取得が必要です）:"
             for s in "${skipped[@]}"; do warn "  - ${s}"; done
-            # スキップがあった場合は失敗として上位に伝播する（隠さない）
+            echo "FAIL" > "$status_file"
             return 1
         fi
+        echo "OK" > "$status_file"
         return 0
-    fi
 
-    # その他の型は失敗を上位に伝播
-    return 1
+    else
+        # ── 単一型 + wildcard: 分割不能 ──────────────────────────────────────
+        # （ApexClass, Flow, Layout, Profile 等の wildcard バッチが失敗した場合）
+        warn "[${label}] 取得失敗（分割不能な型）。スキップします。"
+        warn "  手動リトライ: bash scripts/sf-retrieve.sh retrieve-manifest ${manifest}"
+        echo "FAIL" > "$status_file"
+        return 1
+    fi
 }
 
-# --- 標準取得（複数バッチ）---
+# --- 標準取得（複数バッチ並行）---
 retrieve_standard() {
     local target_org="$1"
     info "接続中の組織: ${target_org}"
     check_uncommitted
 
-    local batch=0
     local manifests=()
-    local skipped_manifests=()
 
     # 軽い type まとめ
     manifests+=("manifest/package.xml")
@@ -678,17 +811,31 @@ retrieve_standard() {
 
     local total=${#manifests[@]}
 
+    # ステータスディレクトリを初期化してから並行取得
+    rm -rf manifest/.retrieve-status
+    mkdir -p manifest/.retrieve-status
+    run_parallel "$target_org" "${manifests[@]}"
+
+    # 結果集約
+    local skipped_manifests=()
+    local batch=0
     for manifest in "${manifests[@]}"; do
         batch=$((batch + 1))
         local label
         label=$(basename "$manifest" .xml | sed 's/package-//')
-        info "[バッチ${batch}/${total}] ${label} を取得中..."
-        if retrieve_manifest "$manifest" "$target_org" "$label"; then
-            ok "[バッチ${batch}/${total}] 完了"
-        else
-            warn "[バッチ${batch}/${total}] ${label} の取得に失敗しました（スキップして続行）"
+        local status_file="manifest/.retrieve-status/${label}.status"
+        if [ "$(cat "$status_file" 2>/dev/null)" != "OK" ]; then
+            warn "[バッチ${batch}/${total}] ${label} 失敗"
             skipped_manifests+=("$manifest")
+        else
+            ok "[バッチ${batch}/${total}] ${label} 完了"
         fi
+    done
+
+    # スキップ記録を統合
+    rm -f manifest/.retrieve-skipped.log
+    for f in manifest/.retrieve-status/*.skipped; do
+        [ -f "$f" ] && cat "$f" >> manifest/.retrieve-skipped.log
     done
 
     if [ ${#skipped_manifests[@]} -gt 0 ]; then
@@ -705,15 +852,13 @@ retrieve_standard() {
     ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ、スキップなし）"
 }
 
-# --- 全量取得（複数バッチ）---
+# --- 全量取得（複数バッチ並行）---
 retrieve_all() {
     local target_org="$1"
     info "接続中の組織: ${target_org}"
     check_uncommitted
 
-    local batch=0
     local manifests=()
-    local skipped_manifests=()
 
     # 軽い type 分割バッチ
     for f in manifest/package-all-*.xml; do
@@ -741,17 +886,31 @@ retrieve_all() {
 
     local total=${#manifests[@]}
 
+    # ステータスディレクトリを初期化してから並行取得
+    rm -rf manifest/.retrieve-status
+    mkdir -p manifest/.retrieve-status
+    run_parallel "$target_org" "${manifests[@]}"
+
+    # 結果集約
+    local skipped_manifests=()
+    local batch=0
     for manifest in "${manifests[@]}"; do
         batch=$((batch + 1))
         local label
         label=$(basename "$manifest" .xml | sed 's/package-//')
-        info "[バッチ${batch}/${total}] ${label} を取得中..."
-        if retrieve_manifest "$manifest" "$target_org" "$label"; then
-            ok "[バッチ${batch}/${total}] 完了"
-        else
-            warn "[バッチ${batch}/${total}] ${label} の取得に失敗しました（スキップして続行）"
+        local status_file="manifest/.retrieve-status/${label}.status"
+        if [ "$(cat "$status_file" 2>/dev/null)" != "OK" ]; then
+            warn "[バッチ${batch}/${total}] ${label} 失敗"
             skipped_manifests+=("$manifest")
+        else
+            ok "[バッチ${batch}/${total}] ${label} 完了"
         fi
+    done
+
+    # スキップ記録を統合
+    rm -f manifest/.retrieve-skipped.log
+    for f in manifest/.retrieve-status/*.skipped; do
+        [ -f "$f" ] && cat "$f" >> manifest/.retrieve-skipped.log
     done
 
     if [ ${#skipped_manifests[@]} -gt 0 ]; then
@@ -778,7 +937,7 @@ retrieve() {
     check_uncommitted
 
     info "メタデータを取得中..."
-    sf project retrieve start --manifest manifest/package.xml --target-org "$target_org" --wait "$SF_WAIT"
+    sf project retrieve start --manifest manifest/package.xml --target-org "$target_org" --wait "$SF_WAIT" --ignore-conflicts
     ok "メタデータ取得完了 → force-app/"
 }
 
