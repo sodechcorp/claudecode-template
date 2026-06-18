@@ -27,6 +27,13 @@ bash scripts/upgrade.sh -y $ARGUMENTS
 `-y` フラグで「適用しますか？」の確認を自動承認する。
 テンプレートから削除されたファイルは **自動削除される**（対象: `.claude/agents/` / `.claude/commands/` / `.claude/templates/` / `.claude/spec/` / `scripts/` 配下のファイル。`.claude/CLAUDE.md` / `.claude/settings.json` / `.gitignore` は上書きコピーのみで削除検出対象外）。
 
+> **プロジェクト固有ファイルの保護**: プロジェクト直下に `.upgrade-keep` を置くと、行ごとのパターンに一致するファイルが削除・上書きから保護される。
+> ```
+> # 例: scripts/python/planner-sync/ 以下を保護
+> scripts/python/planner-sync/
+> ```
+> パターンは末尾スラッシュ付き（ディレクトリ前方一致）またはファイル名 glob（例: `*.custom.json`）をサポート。リスト未配置のプロジェクトは従来と完全に同一挙動。
+
 > **なぜ `.claude/` に書き込めるか**:
 > `settings.json` の deny ルールは `Bash` ツールに対する特定コマンドパターン（sf 系の本番組織保護）のみで、`.claude/` 配下の書き換え自体に deny 制限はない（PreToolUse hook による追加制御が設定されている場合はその限りでない）。
 > `bash scripts/upgrade.sh` 内の `cp` も `Bash(*)` の allow に含まれ、スクリプトが `.claude/` 配下を自由に上書きできる。

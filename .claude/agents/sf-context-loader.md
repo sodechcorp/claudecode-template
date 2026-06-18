@@ -47,11 +47,12 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 
 1. `{project_dir}/docs/knowledge/case-index.md` が存在するか確認
 2. 存在しない場合: 「該当ナレッジなし（knowledge/ 未整備）」を返して終了
-3. 存在する場合: `task_description` からキーワードを抽出し、以下4ファイルに対してマッチングを実行:
+3. 存在する場合: `task_description` からキーワードを抽出し、以下のファイルに対してマッチングを実行:
    - `docs/knowledge/case-index.md` → 症状・キーワード列を Grep でマッチング。マッチ行から課題ID（列2）を抽出し、`docs/knowledge/cases/{issueKey}.md` が存在すれば最大2件 Read（`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクションのみ抽出。ファイルが存在しない課題はスキップし、case-index 行のみ使用）
    - `docs/knowledge/pitfalls.md` → 本文を Grep でマッチング（存在する場合）
    - `docs/knowledge/sf-standard.md` → 該当セクションを Grep でマッチング（存在する場合）
    - `docs/decisions.md` → 先頭 200 行 Read（降順管理のため最新が先頭）、またはキーワード Grep（存在する場合）
+   - `docs/knowledge/domain/*.md` → 存在するファイル全てに対してキーワード Grep（存在する場合のみ）。Revenue Cloud・Account Engagement 等のドメイン固有仕様・SF サポート回答・ハマりポイントを記録したファイル群。マッチした内容は最大2ファイル Read（「## 判明した仕様」「## ハマりポイント」「## 注意事項」セクションのみ抽出）
 
 4. マッチあり → 該当箇所のみを Phase 4 の「過去の判断・採用方針」「注意事項・落とし穴」「Salesforce 標準仕様」セクションのみで返す（最大 1000 字）
 5. マッチなし → 「該当ナレッジなし（knowledge-only: キーワードマッチなし）」を返す
@@ -89,6 +90,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | キーワード（データ品質系） | データ品質, 空欄, 空欄率, 重複, 重複率, クレンジング | `docs/data/data-quality.md` |
 | キーワード（データ統計系） | データ統計, レコード件数, レコード数, 件数, 活用率, 利用率, 入力率, 分布, 月次作成数, データ量, ボリューム, 統計 | `docs/data/data-statistics.md` |
 | キーワード（Salesforce標準仕様） | ガバナ制限, API制限, API上限, SOQL上限, SOQL制限, リストビュー上限, レポート上限, トリガ順序, トリガ実行順序, sharing, FLS評価, PermissionSet優先, 標準仕様, governor, 制限値, 何件まで, 何行まで | `docs/knowledge/sf-standard.md`（該当セクションのみ Grep） |
+| キーワード（ドメイン固有知識） | RevenueCloud, Revenue Cloud, SBQQ, blng, CPQ, Billing, AccountEngagement, Account Engagement, Pardot, `pi__`, ドメイン, 固有仕様, 初導入, サブスクリプション, 請求, インボイス | `docs/knowledge/domain/*.md`（存在するファイルに Grep、最大2件を詳細 Read） |
 
 `{project_dir}/docs/overview/org-profile.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（用語集・命名規則の共通参照として）。
 
@@ -163,6 +165,7 @@ backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer
 | データ品質キーワード | `docs/data/data-quality.md` |
 | データ統計キーワード | `docs/data/data-statistics.md` |
 | SF標準仕様キーワード | `docs/knowledge/sf-standard.md`（該当セクションを Grep: `^## ` パターンで章を特定してセクション抽出） |
+| ドメイン固有知識キーワード | `docs/knowledge/domain/` 配下の存在するファイルに対してキーワード Grep → マッチしたファイルを最大2件 Read（「## 判明した仕様」「## ハマりポイント」「## 注意事項」セクション抽出。ファイル不存在はスキップ） |
 
 各ファイルの Read / Grep が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。
 

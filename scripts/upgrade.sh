@@ -79,6 +79,45 @@ _is_junk() {
         *) return 1 ;;
     esac
 }
+
+# --- .upgrade-keep: プロジェクト固有ファイルの保護 ---
+# プロジェクト直下 .upgrade-keep（1行1パターン、# コメント可）が存在する場合に読み込む。
+# パターンは glob 風:
+#   末尾スラッシュ付き  → ディレクトリ配下を全て保護 (例: scripts/python/planner-sync/)
+#   末尾スラッシュなし  → glob マッチ (fnmatch 相当、例: .mcp.json, docs/*.md)
+# .upgrade-keep 自体はプロジェクト直下に置くため upgrade による削除・上書きの対象外。
+KEEP_PATTERNS=()
+_load_keep_patterns() {
+    local file=".upgrade-keep"
+    [ -f "$file" ] || return 0
+    while IFS= read -r line; do
+        # コメント行・空行をスキップ
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// }" ]] && continue
+        KEEP_PATTERNS+=("$line")
+    done < "$file"
+    if [ ${#KEEP_PATTERNS[@]} -gt 0 ]; then
+        info ".upgrade-keep: ${#KEEP_PATTERNS[@]} パターンを保護対象に設定"
+        for _p in "${KEEP_PATTERNS[@]}"; do
+            info "  保護: $_p"
+        done
+    fi
+}
+_is_kept() {
+    local path="$1" pattern
+    for pattern in "${KEEP_PATTERNS[@]+"${KEEP_PATTERNS[@]}"}"; do
+        if [[ "$pattern" == */ ]]; then
+            # 末尾スラッシュ付き → ディレクトリプレフィックスとして前方一致
+            [[ "$path" == "$pattern"* ]] && return 0
+        else
+            # 末尾スラッシュなし → glob マッチ（fnmatch 相当）
+            # shellcheck disable=SC2254
+            [[ "$path" == $pattern ]] && return 0
+        fi
+    done
+    return 1
+}
+
 detect_dir() {
     local dir="$1" label="$2" f rel
     [ -d "$TMP_DIR/$dir" ] || return 0
@@ -86,6 +125,7 @@ detect_dir() {
         [ -z "$f" ] && continue
         if _is_junk "$f"; then continue; fi
         rel="${f#$TMP_DIR/}"
+        if _is_kept "$rel"; then continue; fi
         if [ ! -f "$rel" ]; then
             ADDITIONS+=("$rel（新規$label）")
         elif ! diff -q "$rel" "$f" >/dev/null 2>&1; then
@@ -99,6 +139,7 @@ detect_deletions() {
     while IFS= read -r f; do
         [ -z "$f" ] && continue
         if _is_junk "$f"; then continue; fi
+        if _is_kept "$f"; then continue; fi
         if [ ! -f "$TMP_DIR/$f" ]; then
             DELETIONS+=("$f（テンプレートから削除済み）")
         fi
@@ -112,10 +153,14 @@ apply_dir() {
         if _is_junk "$f"; then continue; fi
         if [ -n "$skip" ] && [ "$(basename "$f")" = "$skip" ]; then continue; fi
         rel="${f#$TMP_DIR/}"
+        if _is_kept "$rel"; then continue; fi
         mkdir -p "$(dirname "$rel")"
         cp "$f" "$rel"
     done < <(find "$TMP_DIR/$dir" -type f)
 }
+
+# --- .upgrade-keep 読み込み（保護パターンの初期化） ---
+_load_keep_patterns
 
 # --- 差分チェック ---
 CHANGES=()
@@ -214,6 +259,12 @@ echo "    - CLAUDE.md（プロジェクト固有ルール）"
 echo "    - docs/（プロジェクト資材・既存ファイルは上書きしない）"
 echo "    - .mcp.json（個人設定）"
 echo "    - force-app/（Salesforceメタデータ）"
+if [ ${#KEEP_PATTERNS[@]} -gt 0 ]; then
+    echo "    - .upgrade-keep に列挙されたパス（プロジェクト固有保護）:"
+    for _kp in "${KEEP_PATTERNS[@]}"; do
+        echo "        * $_kp"
+    done
+fi
 echo ""
 
 # --- 確認 ---
