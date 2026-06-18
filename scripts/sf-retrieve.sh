@@ -591,6 +591,15 @@ run_parallel() {
     wait 2>/dev/null || true
 }
 
+# ヘルパ: ログファイルに「この組織で利用不可」エラーが含まれているか判定
+# 未ライセンス機能・未使用機能のメタデータ型取得時に SF CLI が返すエラーパターンを検出する。
+# 一致 → return 0（組織で利用不可）、不一致 → return 1（他の原因）
+_is_org_unavailable_error() {
+    local logfile="$1"
+    [ -f "$logfile" ] || return 1
+    grep -qiE 'INVALID_TYPE|Entity of type .* cannot be found|is not available in this org|No component named.*not found' "$logfile" 2>/dev/null
+}
+
 # --- 単一バッチ取得（heartbeat 付き。失敗時に構造ベース並行リトライ）---
 #
 # 並行実行時の画面混線を避けるため、CLI 出力はログファイルへのみ書き込む。
@@ -684,17 +693,23 @@ XMLEOF
         done
         wait 2>/dev/null || true
 
-        # 結果集約
+        # 結果集約: 組織未使用エラーと本当の取得失敗を区別する
         local skipped_types=()
+        local unavail_types=()
         for type_name in "${types[@]}"; do
             local type_safe retry_status retry_log
             type_safe=$(echo "$type_name" | sed 's/[^a-zA-Z0-9_-]/_/g')
             retry_status="${status_dir}/retry-${label_safe}-type-${type_safe}.status"
             retry_log="${status_dir}/retry-${label_safe}-type-${type_safe}.log"
             if [ "$(cat "$retry_status" 2>/dev/null)" = "FAIL" ]; then
-                warn "  スキップ: ${type_name}（取得失敗。ログ: ${retry_log}）"
-                skipped_types+=("$type_name")
-                echo "${type_name}" >> "$skipped_file"
+                if _is_org_unavailable_error "$retry_log"; then
+                    unavail_types+=("$type_name")
+                    echo "${type_name} [組織未使用]" >> "$skipped_file"
+                else
+                    warn "  スキップ: ${type_name}（取得失敗。ログ: ${retry_log}）"
+                    skipped_types+=("$type_name")
+                    echo "${type_name}" >> "$skipped_file"
+                fi
             fi
         done
 
@@ -704,6 +719,10 @@ XMLEOF
             warn "  対処: npm install --global @salesforce/cli@latest"
             echo "FAIL" > "$status_file"
             return 1
+        elif [ ${#unavail_types[@]} -gt 0 ]; then
+            info "[${label}] スキップ（この組織で未使用/未ライセンスの型: ${unavail_types[*]}）"
+            echo "SKIP" > "$status_file"
+            return 0
         fi
         echo "OK" > "$status_file"
         return 0
@@ -774,6 +793,11 @@ XMLEOF
     else
         # ── 単一型 + wildcard: 分割不能 ──────────────────────────────────────
         # （ApexClass, Flow, Layout, Profile 等の wildcard バッチが失敗した場合）
+        if _is_org_unavailable_error "$log_file"; then
+            info "[${label}] スキップ（この組織で未使用/未ライセンスの型）"
+            echo "SKIP" > "$status_file"
+            return 0
+        fi
         warn "[${label}] 取得失敗（分割不能な型）。スキップします。"
         warn "  手動リトライ: bash scripts/sf-retrieve.sh retrieve-manifest ${manifest}"
         echo "FAIL" > "$status_file"
@@ -816,15 +840,21 @@ retrieve_standard() {
     mkdir -p manifest/.retrieve-status
     run_parallel "$target_org" "${manifests[@]}"
 
-    # 結果集約
+    # 結果集約: SKIP（組織未使用）と FAIL（本当の取得失敗）を区別する
     local skipped_manifests=()
+    local unavail_batches=0
     local batch=0
     for manifest in "${manifests[@]}"; do
         batch=$((batch + 1))
         local label
         label=$(basename "$manifest" .xml | sed 's/package-//')
         local status_file="manifest/.retrieve-status/${label}.status"
-        if [ "$(cat "$status_file" 2>/dev/null)" != "OK" ]; then
+        local status
+        status=$(cat "$status_file" 2>/dev/null)
+        if [ "$status" = "SKIP" ]; then
+            info "[バッチ${batch}/${total}] ${label} スキップ（この組織で未使用の型）"
+            unavail_batches=$((unavail_batches + 1))
+        elif [ "$status" != "OK" ]; then
             warn "[バッチ${batch}/${total}] ${label} 失敗"
             skipped_manifests+=("$manifest")
         else
@@ -848,8 +878,13 @@ retrieve_standard() {
         error "メタデータ取得が一部失敗しました（${#skipped_manifests[@]}/${total} バッチ未取得）"
     fi
 
+    local skip_msg=""
+    if [ "$unavail_batches" -gt 0 ]; then
+        skip_msg="（${unavail_batches} バッチはこの組織で未使用の型のためスキップ）"
+    fi
+
     verify_critical_types
-    ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ、スキップなし）"
+    ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ${skip_msg}）"
 }
 
 # --- 全量取得（複数バッチ並行）---
@@ -891,15 +926,21 @@ retrieve_all() {
     mkdir -p manifest/.retrieve-status
     run_parallel "$target_org" "${manifests[@]}"
 
-    # 結果集約
+    # 結果集約: SKIP（組織未使用）と FAIL（本当の取得失敗）を区別する
     local skipped_manifests=()
+    local unavail_batches=0
     local batch=0
     for manifest in "${manifests[@]}"; do
         batch=$((batch + 1))
         local label
         label=$(basename "$manifest" .xml | sed 's/package-//')
         local status_file="manifest/.retrieve-status/${label}.status"
-        if [ "$(cat "$status_file" 2>/dev/null)" != "OK" ]; then
+        local status
+        status=$(cat "$status_file" 2>/dev/null)
+        if [ "$status" = "SKIP" ]; then
+            info "[バッチ${batch}/${total}] ${label} スキップ（この組織で未使用の型）"
+            unavail_batches=$((unavail_batches + 1))
+        elif [ "$status" != "OK" ]; then
             warn "[バッチ${batch}/${total}] ${label} 失敗"
             skipped_manifests+=("$manifest")
         else
@@ -923,8 +964,13 @@ retrieve_all() {
         error "メタデータ取得が一部失敗しました（${#skipped_manifests[@]}/${total} バッチ未取得）"
     fi
 
+    local skip_msg=""
+    if [ "$unavail_batches" -gt 0 ]; then
+        skip_msg="（${unavail_batches} バッチはこの組織で未使用の型のためスキップ）"
+    fi
+
     verify_critical_types
-    ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ、スキップなし）"
+    ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ${skip_msg}）"
 }
 
 # --- 単一 package.xml 取得（後方互換）---
