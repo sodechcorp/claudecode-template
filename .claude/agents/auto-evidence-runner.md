@@ -24,7 +24,7 @@ tools:
 - `{alias}` — Sandbox org alias
 - `{project_dir}` — プロジェクトルートパス
 - `{log_dir}` — `{project_dir}/docs/logs/{issueID}/`
-- `{evidence_dir}` — 証跡保存先（`{xlsx_folder}/evidence/after/` または `{log_dir}/evidence/after/`）
+- `{evidence_dir}` — 証跡保存先ルート（`{xlsx_folder}/evidence` または `{log_dir}/evidence`）。before/after はサブディレクトリで分ける（after 証跡は `{evidence_dir}/after/{soql,apex,screen,meta}/` に保存）
 - `{xlsx_folder}` — xlsx 出力フォルダ（未設定の場合は `{log_dir}` を使う）
 - `{spec_path}` — `{log_dir}/test-spec.md` のパス
 
@@ -40,12 +40,15 @@ tools:
 - `自動` → Step 2〜4 で自動実行
 - `要手動（理由）` → Step 5 でユーザーに依頼する旨を記録
 
+> 課題種別ごとの推奨テストパターン（当てるべき観点・skip 可の判断基準）: [`.claude/templates/backlog/test-pattern-map.md`](../templates/backlog/test-pattern-map.md) を Read して参照する。
+> **テストの主眼**: AnonApex / UI を最優先実行し「データ準備→処理起動→結果確認（SOQL＋UI）」で実処理の挙動を確認すること。カバレッジはおまけ（補助指標）。
+
 証跡ディレクトリを作成:
 ```bash
-mkdir -p "{evidence_dir}/soql"
-mkdir -p "{evidence_dir}/apex"
-mkdir -p "{evidence_dir}/screen"
-mkdir -p "{evidence_dir}/meta"
+mkdir -p "{evidence_dir}/after/soql"
+mkdir -p "{evidence_dir}/after/apex"
+mkdir -p "{evidence_dir}/after/screen"
+mkdir -p "{evidence_dir}/after/meta"
 ```
 
 ---
@@ -58,7 +61,7 @@ mkdir -p "{evidence_dir}/meta"
 python scripts/python/backlog-xlsx/soql_evidence.py \
   --alias "{alias}" \
   --query "{実行アクション列のSOQL文}" \
-  --out "{evidence_dir}/soql/{No}_{観点サニタイズ}.txt" \
+  --out "{evidence_dir}/after/soql/{No}_{観点サニタイズ}.txt" \
   --no "{No}" --label "{観点}"
 ```
 
@@ -67,7 +70,7 @@ python scripts/python/backlog-xlsx/soql_evidence.py \
 python scripts/python/backlog-xlsx/soql_evidence.py \
   --alias "{alias}" \
   --queries-file "{spec_path}" \
-  --out-dir "{evidence_dir}/soql/"
+  --out-dir "{evidence_dir}/after/soql/"
 ```
 
 ---
@@ -82,12 +85,17 @@ sf apex run test \
   --class-names {テストクラス名} \
   --result-format human \
   --code-coverage \
-  > "{evidence_dir}/apex/{No}_apextest.txt" 2>&1
+  > "{evidence_dir}/after/apex/{No}_apextest.txt" 2>&1
 ```
 
-カバレッジ確認:
-- 変更コードを含むクラスのカバレッジ
-- 組織全体カバレッジ 75% 以上・全テスト PASS
+確認の主眼: **全テスト PASS**（実処理が正しく動いたことの確認）。カバレッジは補助指標。
+- 変更コードを含むクラスの全テスト PASS を確認
+- 組織全体カバレッジ 75% 以上は Salesforce デプロイ要件として参考確認（主眼ではない）
+
+**権限差分テスト（FLS / CRUD / 共有ロジック）を ApexTest に含める場合**:
+- `System.runAs(user)` で対象プロファイルのユーザを指定して実行
+- 追加認証不要（管理者 alias 1つで動く）
+- 参考: `.claude/templates/backlog/test-pattern-map.md` §権限・ユーザ切り替えテストのアーキテクチャ
 
 ---
 
@@ -115,8 +123,8 @@ mkdir -p "{log_dir}/tmp"
 python scripts/python/backlog-xlsx/anon_apex_runner.py run \
   --alias "{alias}" \
   --apex-file "{log_dir}/tmp/TC_{No}_anon.apex" \
-  --out "{evidence_dir}/apex/TC_{No}_{観点サニタイズ}.txt" \
-  --no "TC-{No}" --label "{観点}"
+  --out "{evidence_dir}/after/apex/{No}_{観点サニタイズ}.txt" \
+  --no "{No}" --label "{観点}"
 ```
 
 #### 4-3: 後始末（Savepoint/rollback 以外の場合）
@@ -141,22 +149,53 @@ sf org open --target-org "{alias}" --url-only --json
 
 JSON の `result.url` を `FRONTDOOR_URL` として取得する。**accessToken をログや証跡ファイルに出力しない**。
 
-#### 5-2: ヘッドレス操作とスクショ
+#### 5-2: 単一ユーザの UI 証跡（ユーザ切替なし）
 
-テストケースの「実行アクション」の操作手順に従い:
+テストケースの「前提・データ準備」に対象ユーザ指定がない場合:
 
 1. `browser_navigate` に `FRONTDOOR_URL` を渡してログイン
 2. 「実行アクション」の手順を `browser_click` / `browser_type` / `browser_fill_form` / `browser_wait_for` で実行
-3. 確認観点の画面状態で `browser_take_screenshot` を呼び、`{evidence_dir}/screen/{No}_{観点サニタイズ}.png` に保存
+3. 確認観点の画面状態で `browser_take_screenshot` を呼び、`{evidence_dir}/after/screen/{No}_{観点サニタイズ}.png` に保存
 4. 処理完了後は `browser_close` でセッションを閉じる
 
 **ツール呼び出し方法**（auto-evidence-runner は Bash ではなくツール直接呼び出しを使う）:
 - `mcp__playwright__browser_navigate`、`mcp__playwright__browser_click` 等（Agent ツールで取得・直接呼び出し）
 
-#### 5-3: スクショの存在確認
+#### 5-3: 複数ユーザ（権限別）UI 証跡 — Login As
+
+テストケースの「前提・データ準備」に「対象プロファイル: {プロファイル名}」または「確認ユーザ: {ユーザ名}」が記載されている場合は Login As で切り替えて証跡を取る。
+
+**前提チェック**（Login As 開始前に1回だけ実施）:
+```
+ユーザに代わってログインが組織設定で有効か確認
+設定 > セキュリティ > ユーザセッションの設定 > 管理者がユーザとしてログインできる
+```
+`browser_navigate` でセットアップ画面にアクセスして確認。無効の場合はケースを `要手動（Login As 不可）` に降格して記録し Step 5 を終了する。
+
+**実ユーザ名の解決**:
+1. `test-spec.md` 「前提・データ準備」列に記載のプロファイル名/ユーザ名を読む
+2. `org-profile.md` の実ユーザ一覧（セクション4）から該当ユーザの実際のユーザ名を取得する
+3. org-profile.md に見当たらない場合のみ「{プロファイル名} のユーザ名を教えてください」と1回質問する（パスワードは不要）
+
+**Login As 操作手順**（各ユーザで繰り返す）:
+1. `FRONTDOOR_URL` でログイン済みの管理者セッション（既存セッションを維持）
+2. `browser_navigate` で `/lightning/setup/ManageUsers/home` に遷移
+3. 対象ユーザ名で検索 → ユーザ名リンクをクリック → ユーザ詳細ページを開く
+4. 「ユーザに代わってログイン（Login As）」ボタンをクリック
+5. 対象画面に遷移（「実行アクション」の URL またはナビゲーション手順に従う）
+6. `browser_take_screenshot` で `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.png` に保存
+7. `browser_navigate` で `/secur/logout.jsp?retUrl=/secur/logout.jsp` に遷移し「{ユーザに代わってログアウト}」相当でプロキシを解除（管理者セッションに戻る）
+8. 次のユーザへ（ステップ 2 から繰り返す）
+
+**注意**:
+- accessToken はいかなる形でもファイル・ログ・証跡に出力しない
+- Login As が完了したら必ずプロキシを解除してから次ユーザに進む
+- 全ユーザ確認後に `browser_close` でセッションを閉じる
+
+#### 5-4: スクショの存在確認
 
 ```bash
-ls -lh "{evidence_dir}/screen/"
+ls -lh "{evidence_dir}/after/screen/"
 ```
 
 PNG が 1KB 以上あることを確認する。0 バイト・不存在の場合は NG として記録。
@@ -166,7 +205,7 @@ PNG が 1KB 以上あることを確認する。0 バイト・不存在の場合
 ## Step 6: メタデータ確認・ファイル確認（種別 = メタ確認 / ファイル確認）
 
 「実行アクション」に指定されたファイルを Read / Grep して期待値と照合し、
-`{evidence_dir}/meta/{No}_{観点サニタイズ}.txt` に結果を保存する:
+`{evidence_dir}/after/meta/{No}_{観点サニタイズ}.txt` に結果を保存する:
 
 ```
 === メタデータ確認証跡 ===
@@ -199,6 +238,7 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 - Sandbox alias: {alias}
 - テストケース合計: {total} 件
 - OK: {ok} 件 / NG: {ng} 件 / 要手動: {skip} 件
+- テスト実行回数: {N} 回目（NG 修正後の再実行回数・test-fail-routing.md のループ上限と照合）
 
 ### 自動実行結果
 
@@ -252,7 +292,7 @@ NG が 1 件以上ある場合:
 
 すべての自動ケースで証跡ファイルが存在するか:
 ```bash
-ls "{evidence_dir}/soql/" "{evidence_dir}/apex/" "{evidence_dir}/screen/" "{evidence_dir}/meta/" 2>/dev/null
+ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/after/screen/" "{evidence_dir}/after/meta/" 2>/dev/null
 ```
 
 - [ ] SOQL ケース: 全件 txt 出力あり

@@ -215,7 +215,7 @@ AskUserQuestion で作成有無を選択する:
 
 > **[共通ルール①]** 各フェーズの `timeline` 呼び出しで判断・選択の根拠がある場合は `--reason "{根拠}"` を追加する（記録の追跡性を高めるため積極的に使用すること）。
 >
-> **[共通ルール②]** xlsx への書き込みは Phase 3 末尾の一括生成（create_records.py / create_evidence.py）以降に `update_records.py cell` を使用する。Phase 4-6 の各エージェントが timeline と cell 両方の xlsx 追記を担う。
+> **[共通ルール②]** xlsx への書き込みは Phase 3 末尾の一括生成（create_records.py）以降に `update_records.py cell` を使用する。Phase 4-6 の各エージェントが timeline と cell 両方の xlsx 追記を担う。
 
 **「作成する」の場合**: 保存先フォルダパスを確定して `{xlsx_folder}` を設定する（xlsx ファイルの生成は Phase 3 末尾で実施。この時点では生成しない）。
 
@@ -292,7 +292,7 @@ python scripts/python/backlog-xlsx/create_records.py \
   --implementation-plan docs/logs/{issueID}/implementation-plan.md
 ```
 
-> **並列化推奨**: 上記 create_records.py は対応記録.xlsx のみ生成する。エビデンス.xlsx は `/auto-test {issueID}` が生成するため、このタイミングでは実行しない。
+> **エビデンス.xlsx の扱い**: 上記 create_records.py は対応記録.xlsx のみ生成する。エビデンス.xlsx は Phase 4 完了後に `/auto-test {issueID}` が generate_evidence_xlsx.py で生成するため、このタイミングでは実行しない。
 
 **スクリプト失敗時の対処**（エラー出力あり / 終了コード 非0）:
 1. エラー内容をユーザに提示する
@@ -300,7 +300,7 @@ python scripts/python/backlog-xlsx/create_records.py \
    - label: `xlsx なしで続行`、description: "xlsx 生成を断念して Phase 3.5 へ進む"
    - label: `修正して再試行`、description: "エラー原因を修正してスクリプトを再実行する"
    - label: `中止`、description: "コマンドを終了する"
-3. 「xlsx なしで続行」が選ばれた場合: `{xlsx_folder}` = null として Phase 3.5 へ進む。create_records.py が途中成功してファイルが残っている可能性があるため、`{xlsx_folder}` 配下に生成済み xlsx（`{issueID}_対応記録.xlsx` / `{issueID}_エビデンス.xlsx`）が存在する場合は削除する（破損ファイルが後続 Phase で誤参照されるのを防ぐため）
+3. 「xlsx なしで続行」が選ばれた場合: `{xlsx_folder}` = null として Phase 3.5 へ進む。create_records.py が途中成功してファイルが残っている可能性があるため、`{xlsx_folder}` 配下に生成済み xlsx（`{issueID}_対応記録.xlsx`）が存在する場合は削除する（破損ファイルが後続 Phase で誤参照されるのを防ぐため。エビデンス.xlsx はこの Phase では生成しないため削除対象外）
 
 生成完了後にファイルパスをユーザに提示する（`{xlsx_folder}` = null の場合はスキップ）:
 - `{xlsx_folder}/{issueID}_対応記録.xlsx`
@@ -309,11 +309,11 @@ python scripts/python/backlog-xlsx/create_records.py \
 
 **実装前エビデンスの取得依頼**（Phase 4 の実装着手前に必ず案内する）:
 
-- **バグの場合**: 再現手順を実機で実施し、画面スクリーンショット・コンソールログ・対象レコード値を取得し `{evidence_dir}/before/` 配下に保存（ファイル名は連番付き）
-  - `{xlsx_folder}` が設定されている場合は `{xlsx_folder}/{issueID}_エビデンス.xlsx` の「実装前エビデンス」シートの貼付枠にも保存
-- **追加要望の場合**: 変更前の現状画面・データの状態をスクリーンショット保存（変更後との比較用）。`{evidence_dir}/before/` 配下に保存（+ xlsx 貼付枠）
+- **バグの場合**: 再現手順を実機で実施し、画面スクリーンショット・コンソールログ・対象レコード値を取得し `{evidence_dir}/before/` 配下に保存
+- **追加要望の場合**: 変更前の現状画面・データの状態をスクリーンショット保存（変更後との比較用）。`{evidence_dir}/before/` 配下に保存
 - **その他の場合**: 変更前の現状を記録しておくことを推奨する。`{evidence_dir}/before/` 配下に保存
-- **Playwright が利用可能な場合**: 対象画面のスクリーンショットを自動取得し `{evidence_dir}/before/auto_{連番}_{説明}.png` に保存
+- **Playwright が利用可能な場合**: 対象画面のスクリーンショットを自動取得し `{evidence_dir}/before/{TC番号}_{観点}_before.png` の形式で保存
+  - `{evidence_dir}` = `{xlsx_folder}/evidence` または `{log_dir}/evidence`（before/after はこの直下にサブディレクトリで分ける）
 
 エビデンスは Phase 3.5（実装前検証）と Phase 5（クロステスト）で参照される。
 
@@ -401,9 +401,13 @@ xlsx_folder: {xlsx_folder}
 > NG 戻り先テーブル: [.claude/templates/backlog/test-fail-routing.md](../templates/backlog/test-fail-routing.md)
 > ファイルが存在しない場合は NG の原因を 1 行で提示し「Phase 3（実装方針修正）と Phase 4（実装修正）のどちらに戻りますか？」とテキストで確認する。
 
-> xlsx 更新（timeline + テスト・検証記録シート 実際の結果・判定）は `backlog-tester` が担当する（エージェント内 Step 8）。全テスト行の F列（実際の結果）・G列（判定）が埋まっていることが Phase 6 への進行条件。
+> xlsx 更新（timeline + テスト・検証シート H列「実際の結果」）は担当エージェントが行う:
+> - 通常経路（backlog-tester）: エージェント内 Step 8 が `cell --col 8` で実装後行を記入
+> - 全自動経路（/auto-test）: judge_results.py が実装後・自動行の H列を自動更新。UI手動行は人がエビデンス.xlsx で確認
+>
+> **Phase 6 への進行条件**: 全テスト行の H列（実際の結果）が `OK: …` または `NG: …` の形式で埋まっていること。UI手動行は人が確認済みであること。
 
-> **次に進む条件**: 全テスト PASS かつユーザ確認サインがあった後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 6 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
+> **次に進む条件（通常経路）**: 全テスト PASS かつユーザ確認サインがあった後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 6 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む。全自動経路（/auto-test）では test-report.md の総合判定が PASS であることを確認する
 >
 > **Phase 5 典型例**: 「ユーザ合同確認が取れていないシナリオの扱い」「Before/After エビデンスが対になっているか」
 

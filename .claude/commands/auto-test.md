@@ -13,7 +13,7 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 | `/backlog` Phase 4（実装）が完了済みであること | `docs/logs/{issueID}/implementation-plan.md` が存在する |
 | Sandbox org に認証済みであること | `sf auth list` でログイン状態を確認 |
 | `docs/logs/{issueID}/test-spec.md` が存在すること | Phase B で生成。なければ Phase B を先に実行 |
-| `pip install Pillow` 済みであること | PNG 自動貼付に必要。未インストールでも続行可（手動貼付にフォールバック） |
+| Pillow インストール | Phase A で自動インストール実行。失敗時は手動貼付にフォールバック |
 
 ---
 
@@ -70,13 +70,29 @@ if [ -z "$XLSX_FOLDER" ]; then
   echo "[INFO] xlsx_folder 未設定。証跡を ${LOG_DIR} に保存します。"
 fi
 
-EVIDENCE_DIR="${XLSX_FOLDER}/evidence/after"
+EVIDENCE_DIR="${XLSX_FOLDER}/evidence"
 SPEC_PATH="${LOG_DIR}/test-spec.md"
 JUDGMENT_PATH="${LOG_DIR}/judgment-result.json"
 
 # 6. test-spec.md の存在確認（なければ Phase B へ）
 if [ ! -f "$SPEC_PATH" ]; then
   echo "[INFO] test-spec.md が見つかりません。Phase B でテスト仕様を展開します。"
+fi
+
+# 7. Pillow の存在確認・自動インストール（PNG 自動貼付に必要）
+python -c "import PIL" 2>/dev/null || {
+  echo "[INFO] Pillow が未インストールです。自動インストールを実行します..."
+  pip install Pillow
+  if python -c "import PIL" 2>/dev/null; then
+    echo "OK: Pillow インストール完了"
+  else
+    echo "[WARN] Pillow のインストールに失敗しました。PNG 自動貼付を手動貼付にフォールバックします。"
+  fi
+}
+
+# 8. 再開確認
+if [ -d "${EVIDENCE_DIR}/after" ]; then
+  echo "[INFO] ${EVIDENCE_DIR}/after が既に存在します。再実行の場合は既存の証跡を上書きします（TC番号固定名のため）。"
 fi
 ```
 
@@ -105,6 +121,8 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 
 > **[auto-evidence-runner へ委譲]**
 
+> **テストの主眼**: Apex / Flow / LWC を実際に動かし「データ準備 → 処理起動 → 結果確認（SOQL ＋ UI）」で実処理の挙動を確認すること。カバレッジはおまけ。AnonApex / UI を最優先実行、ApexTest は回帰・カバレッジ補助。
+
 `implementation-plan.md` の「テスト観点（軽量列挙）」と `investigation.md` のテストシナリオを読み込み、機械実行可能な 9 列スキーマの `test-spec.md` を生成する。
 
 `docs/logs/{issueID}/test-spec.md` に保存する。既に存在する場合はスキップ（`--force` 指定時は再生成）。
@@ -115,20 +133,22 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 
 種別の選択肢:
 - `SOQL` — sf data query で確認
-- `ApexTest` — sf apex run test でテストクラス実行
-- `AnonApex` — 匿名 Apex でデータ作成・ロジック起動・Flow 起動
-- `UI` — Playwright ヘッドレスで画面操作・スクショ
+- `ApexTest` — sf apex run test でテストクラス実行（権限差分テストは System.runAs で）
+- `AnonApex` — 匿名 Apex でデータ作成・ロジック起動・Flow 起動（AnonApex を最優先）
+- `UI` — Playwright ヘッドレスで画面操作・スクショ（ユーザ別表示差分は Login As で切替）
 - `メタ確認` — XML/JSON ファイルを Read/Grep で照合
 - `ファイル確認` — force-app/ 配下のファイル内容確認
 
 自動化可否: 技術的に自動実行できない場合のみ `要手動（理由）`。それ以外は `自動`。
 
 **展開の注意**:
+- No は `implementation-plan.md` の TC番号を引き継ぐ（再採番しない。新規観点のみ続き番号で追加）
+- 証跡ファイル名は `{No}_{観点サニタイズ}.{txt|png}` 形式とする（before=`before/{No}_{観点}_before.png`、after=`after/{種別}/{No}_{観点}.{txt|png}`）
 - 期待結果は「3 件」「true」「エラーなし」等、機械比較可能な値にする
 - 判定方法は「件数一致」「含む」「存在確認」「完全一致」等を明示する
 - 証跡取得は「SOQL結果txt」「スクショPNG」「Apexデバッグログ」等を明示する
-- 1 観点 = 1 テストケース（No: TC-001, TC-002...）
 - AnonApex は「前提・データ準備」列に作成するデータとその値（Name プレフィックス等）を具体的に記載する
+- 課題種別ごとの必須観点は `.claude/templates/backlog/test-pattern-map.md` に従う。機械不可は `自動化可否=要手動（理由）` で skip 可（無理強いしない）
 
 ---
 
@@ -143,7 +163,7 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 実行後に証跡ファイルの存在確認:
 ```bash
 echo "=== 証跡ファイル一覧 ==="
-ls -lhR "{evidence_dir}/" 2>/dev/null | grep -E "\.(txt|png)$"
+ls -lhR "{evidence_dir}/after/" 2>/dev/null | grep -E "\.(txt|png)$"
 ```
 
 ---
@@ -157,7 +177,7 @@ python scripts/python/backlog-xlsx/generate_evidence_xlsx.py \
   --folder "{xlsx_folder}" \
   --issue-id "{issueID}" \
   --spec "{spec_path}" \
-  --evidence-dir "{evidence_dir}" \
+  --evidence-dir "{evidence_dir}/after" \
   --judgment "{judgment_path}"
 ```
 
@@ -177,7 +197,7 @@ python scripts/python/backlog-xlsx/judge_results.py \
   --folder "{xlsx_folder}" \
   --issue-id "{issueID}" \
   --spec "{spec_path}" \
-  --evidence-dir "{evidence_dir}" \
+  --evidence-dir "{evidence_dir}/after" \
   --out "{judgment_path}"
 ```
 
@@ -220,7 +240,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 |---|---|
 | エビデンス.xlsx の存在 | `ls -lh "{xlsx_folder}/{issueID}_エビデンス.xlsx"` |
 | test-report.md の存在 | `ls -lh "{log_dir}/test-report.md"` |
-| 証跡ファイルの件数 | `find "{evidence_dir}" -type f \| wc -l` |
+| 証跡ファイルの件数 | `find "{evidence_dir}/after" -type f \| wc -l` |
 | テストデータ後始末 | anon_apex_runner.py cleanup の結果を確認 |
 | tmp/ 削除済み | `ls "{log_dir}/tmp/" 2>/dev/null \| wc -l` が 0 |
 

@@ -373,9 +373,9 @@ light_mode: false
 | 対応内容 | バックアップ情報 | Phase 4 開始時（実装着手前）/ implementer | `backup-info` |
 | 対応内容 | 変更ファイル一覧 | Phase 3 / create_records.py | 一括生成 |
 | 対応内容 | Before / After | Phase 4 / implementer | `before-after` |
-| テスト・検証 | テスト項目（タイミング=実装前・実行種別 != UI手動 行の実際の結果 G列・判定 H列） | Phase 3.5 / validator | Step 6（cell --col 7/8 連発） |
-| テスト・検証 | テスト項目（タイミング=実装後・実行種別 != UI手動 行の実際の結果 G列・判定 H列） | Phase 5 / tester | `cell --col 7/8`（実装後・自動行のみ） |
-| エビデンス.xlsx | UI手動シナリオのスクショ貼付（実装前/実装後エビデンスシート） | 人が実施（ClaudeCode は触らない） | — |
+| テスト・検証 | テスト項目（タイミング=実装前・実行種別 != UI手動 行の実際の結果 H列） | Phase 3.5 / validator | Step 6（cell --col 8）|
+| テスト・検証 | テスト項目（タイミング=実装後・実行種別 != UI手動 行の実際の結果 H列） | Phase 5 / tester または /auto-test 経路 judge_results.py | `cell --col 8`（実装後・自動行のみ） |
+| エビデンス.xlsx | 証跡（SOQL/スクショ）正本・期待/実際/判定の詳細 | /auto-test が generate_evidence_xlsx.py で自動生成 | — |
 | 残対応・懸念・保留 | 懸念・許容影響・保留 Q の初期行 | Phase 3 / create_records.py | 一括生成 |
 | 残対応・懸念・保留 | 実装中に発生した残対応 | Phase 4 / implementer | `pending --kind 後回しの残対応` |
 | 残対応・懸念・保留 | テスト中に発見したスコープ外 | Phase 5 / tester | `pending --kind 懸念` |

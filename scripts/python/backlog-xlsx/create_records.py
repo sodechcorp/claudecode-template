@@ -1300,7 +1300,7 @@ def fill_test(ws, impl_md):
         _shrink_table(ws, TEST_START, len(rows), TEST_LIMIT)
     for i, row in enumerate(rows):
         fill = _stripe_fill(i)
-        # A=No, B=タイミング, C=実行種別, D=テスト項目, E-F=確認方法(結合), G=期待結果, H=実際の結果  [Q0]
+        # A=No, B=区分(タイミング), C=実行種別(種別), D=テスト項目(確認観点), E-F=確認方法, G=期待結果(正本はtest-spec/エビデンス.xlsx), H=実際の結果  [Q0]
         vals = [
             row.get("No", str(i + 1)),
             row.get("タイミング", row.get("区分", "")),
