@@ -292,13 +292,7 @@ python scripts/python/backlog-xlsx/create_records.py \
   --implementation-plan docs/logs/{issueID}/implementation-plan.md
 ```
 
-```bash
-python scripts/python/backlog-xlsx/create_evidence.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  --implementation-plan docs/logs/{issueID}/implementation-plan.md
-```
-
-> **並列化推奨**: create_records.py と create_evidence.py は書き込み先 xlsx が異なり独立しているため、Claude Code では 2 つの Bash ツール呼び出しを同一メッセージ内で並列実行することを推奨する。
+> **並列化推奨**: 上記 create_records.py は対応記録.xlsx のみ生成する。エビデンス.xlsx は `/auto-test {issueID}` が生成するため、このタイミングでは実行しない。
 
 **スクリプト失敗時の対処**（エラー出力あり / 終了コード 非0）:
 1. エラー内容をユーザに提示する
@@ -310,7 +304,8 @@ python scripts/python/backlog-xlsx/create_evidence.py \
 
 生成完了後にファイルパスをユーザに提示する（`{xlsx_folder}` = null の場合はスキップ）:
 - `{xlsx_folder}/{issueID}_対応記録.xlsx`
-- `{xlsx_folder}/{issueID}_エビデンス.xlsx`
+
+（エビデンス.xlsx は Phase 4 完了後に `/auto-test {issueID}` が生成する）
 
 **実装前エビデンスの取得依頼**（Phase 4 の実装着手前に必ず案内する）:
 
@@ -386,9 +381,11 @@ xlsx_folder: {xlsx_folder}
 
 ---
 
-### Phase 5: テスト・検証（backlog-tester）
+### Phase 5: テスト・検証（backlog-tester または /auto-test）
 
-`backlog-tester` エージェントを起動する:
+> **全自動テスト（推奨）**: テスト実行・証跡採取・エビデンス.xlsx 生成をすべて自動化したい場合は、`backlog-tester` の代わりに `/auto-test {issueID}` を実行する。SOQL / Apex テスト / 匿名 Apex（データ作成・Flow 起動）/ Playwright ヘッドレス画面操作を無人で実行し、証跡付き Excel を自動生成する。
+
+**通常モード（合同 UI 確認を含む）**: `backlog-tester` エージェントを起動する:
 
 ```
 調査レポート: docs/logs/{issueID}/investigation.md

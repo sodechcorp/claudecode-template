@@ -1276,12 +1276,12 @@ def fill_test(ws, impl_md):
     wset(ws, 3, 1, policy)
 
     # テストテーブル（注記行挿入後は r8〜、テンプレ標準 8 件枠）[G0: 実行種別列追加で8列構成]
+    # 新スキーマ（4列: No/確認観点/種別/タイミング）と旧スキーマ（6列: No/確認観点/タイミング/実行種別/確認手順/期待結果）の両対応
     all_rows = parse_md_table(extract_section(
         impl_md,
-        "テスト仕様", "テストケース", "テスト仕様テーブル",
+        "テスト観点", "テスト仕様", "テストケース", "テスト仕様テーブル",
         "テストシナリオ",
     ))
-    # UI手動も対応記録テスト・検証シートに掲載する（確認方法の記録・エビデンスは別途）[P1]
     rows = all_rows
     test_table_hdr = find_header_row(ws, ("■ テストテーブル",))
     # 列ヘッダ行(No/区分...) + 注記行（patch_v9 で挿入）の分を加算
@@ -1304,11 +1304,11 @@ def fill_test(ws, impl_md):
         vals = [
             row.get("No", str(i + 1)),
             row.get("タイミング", row.get("区分", "")),
-            row.get("実行種別", ""),
+            row.get("種別", row.get("実行種別", "")),  # 新4列スキーマは「種別」、旧は「実行種別」
             row.get("確認観点", row.get("テスト項目", "")),
-            row.get("確認手順", row.get("確認方法", row.get("確認観点", ""))),  # E (E-F 結合の左端)
-            row.get("期待結果", ""),    # G
-            row.get("実際の結果", ""),  # H (テスト実行後に記入)
+            row.get("確認手順", row.get("確認方法", "")),  # E (E-F 結合の左端) 新スキーマでは空
+            row.get("期待結果", ""),    # G 新スキーマでは空（/auto-test が展開）
+            row.get("実際の結果", ""),  # H (テスト実行後に /auto-test が記入)
         ]
         # E-F 結合のため F(col=6) はスキップ。G=col7, H=col8 に書く
         col_map = [1, 2, 3, 4, 5, 7, 8]
