@@ -544,6 +544,58 @@ verify_critical_types() {
     ok "取得後検証: Flow ${flow_count} 件確認"
 }
 
+# --- Flow バージョン監査（Tooling API）---
+# Metadata API v44+ は常に Latest バージョンを取得する（Active 版指定不可）。
+# Active 版と Latest 版が乖離している Flow を検知して warn する。取得自体は成功しているため error では止めない。
+audit_flow_versions() {
+    local target_org="$1"
+    local flow_query_json
+    flow_query_json=$(sf data query --use-tooling-api \
+        -q "SELECT DeveloperName, ActiveVersionId, ActiveVersion.VersionNumber, LatestVersion.VersionNumber FROM FlowDefinition" \
+        --target-org "$target_org" --json 2>/dev/null) || {
+        warn "Flow バージョン監査スキップ（Tooling API クエリ失敗）"
+        return
+    }
+
+    python3 - << PYEOF
+import json, sys
+
+data = json.loads("""${flow_query_json}""")
+records = data.get("result", {}).get("records", [])
+
+drifted = []
+no_active = []
+
+for r in records:
+    name = r.get("DeveloperName", "")
+    active_id = r.get("ActiveVersionId")
+    active_ver = (r.get("ActiveVersion") or {}).get("VersionNumber")
+    latest_ver = (r.get("LatestVersion") or {}).get("VersionNumber")
+
+    if not active_id:
+        no_active.append(f"  {name}（Active なし／Draft のみ）")
+    elif active_ver is not None and latest_ver is not None and active_ver != latest_ver:
+        drifted.append(f"  {name}（Active=v{active_ver}、取得済み=v{latest_ver} Draft）")
+
+total = len(records)
+ok_count = total - len(drifted) - len(no_active)
+
+print(f"\033[36m[INFO]\033[0m Flow バージョン監査: {total} 件（正常={ok_count}、乖離={len(drifted)}、未有効化={len(no_active)}）")
+
+if no_active:
+    print("\033[33m[WARN]\033[0m 未有効化 Flow（組織で一度も Active になっていない）:")
+    for m in no_active:
+        print(m)
+
+if drifted:
+    print("\033[33m[WARN]\033[0m Active 版と乖離あり（取得済みは Active より新しい Draft）:")
+    for m in drifted:
+        print(m)
+    print("\033[33m[WARN]\033[0m 対処が必要な場合: 組織で Draft を破棄または有効化してから再 retrieve")
+    print("       → bash scripts/sf-retrieve.sh retrieve-manifest manifest/package-Flow.xml")
+PYEOF
+}
+
 # --- 未コミット変更の確認（情報提供のみ・中断しない）---
 # コマンド側（sf-retrieve.md）が AskUserQuestion で続行可否を確認済みのため、
 # スクリプトは警告のみ出力して自動継続する。
@@ -884,6 +936,7 @@ retrieve_standard() {
     fi
 
     verify_critical_types
+    audit_flow_versions "$target_org"
     ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ${skip_msg}）"
 }
 
@@ -970,6 +1023,7 @@ retrieve_all() {
     fi
 
     verify_critical_types
+    audit_flow_versions "$target_org"
     ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ${skip_msg}）"
 }
 

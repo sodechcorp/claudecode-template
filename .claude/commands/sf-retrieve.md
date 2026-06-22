@@ -216,3 +216,26 @@ git diff --name-only force-app/
 ```
 
 変更がない場合は「メタデータ取得完了。差分はありません。」とだけ伝える。
+
+---
+
+## Flow バージョン監査結果の解説（スクリプト出力に含まれる場合）
+
+`sf project retrieve start`（Metadata API v44+）は**常に Flow の Latest バージョンを取得する**仕様であり、Active バージョンを選んで取得する手段はない。
+
+スクリプトが `audit_flow_versions` で Tooling API を使って Active/Latest を照合し、乖離があれば WARN を出す。
+
+| 表示 | 意味 |
+|---|---|
+| `正常=N` | Active 版 = Latest 版（一致。問題なし） |
+| `乖離あり（Active=vX、取得済み=vY Draft）` | 組織で Active の上に新しい Draft 版がある。取得したファイルは本番で動いている Active 版と異なる |
+| `未有効化（Active なし）` | 組織でまだ一度も有効化されていない Flow。Draft のみ存在 |
+
+**乖離が問題になる場合の対処**（ドキュメント生成・デプロイ前に Active 版に揃えたい場合）:
+1. 組織フロービルダーで Draft を破棄（「以前のバージョンに戻す」）してから再 retrieve
+2. または Draft を有効化（Active 昇格）してから再 retrieve
+3. どちらも不可な場合: 乖離がある Flow を個別指定で取得
+   ```bash
+   bash scripts/sf-retrieve.sh retrieve-manifest manifest/package-Flow.xml
+   ```
+   ※ Metadata API 仕様上、版番号指定で特定の旧 Active 版のみを取得する方法は v44+ では存在しない
