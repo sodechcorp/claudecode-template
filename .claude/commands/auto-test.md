@@ -46,7 +46,11 @@ fi
 
 # 4. sandbox-alias-check（本番保護）
 SF_ALIAS=$(sf config get target-org --json | python -c "import sys,json; print(json.load(sys.stdin)['result'][0]['value'])" 2>/dev/null || echo "")
-IS_SANDBOX=$(sf org display --target-org "$SF_ALIAS" --json | python -c "import sys,json; print(json.load(sys.stdin)['result'].get('isSandbox', False))" 2>/dev/null || echo "false")
+IS_SANDBOX=$(sf org display --target-org "$SF_ALIAS" --json | python -c "
+import sys,json
+d=json.load(sys.stdin)['result']
+print(d.get('isSandbox')==True or 'sandbox.my.salesforce.com' in d.get('instanceUrl',''))
+" 2>/dev/null || echo "false")
 if [ "$IS_SANDBOX" != "True" ]; then
   echo "[FATAL] 接続先が Sandbox ではありません ($SF_ALIAS). 本番への操作は禁止されています。"
   exit 1
