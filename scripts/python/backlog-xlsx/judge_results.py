@@ -105,7 +105,26 @@ def judge_case(tc: dict, evidence_path: str) -> dict:
         return {"ok": True, "actual": f"スクショ取得済 ({size // 1024}KB)", "reason": ""}
 
     # テキスト証跡（SOQL/Apex ログ）
-    content = Path(evidence_path).read_text(encoding="utf-8", errors="replace")
+    # UTF-16 LE（Write ツール Windows 出力）も自動検出して読む
+    try:
+        raw = Path(evidence_path).read_bytes()
+        if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
+            content = raw.decode("utf-16", errors="replace")
+        elif len(raw) > 1 and raw[1] == 0x00:
+            content = raw.decode("utf-16-le", errors="replace")
+        else:
+            content = raw.decode("utf-8", errors="replace")
+    except Exception:
+        content = ""
+
+    # 構造化証跡（auto-evidence-runner 生成）: 「判定: OK/NG —」行を最優先参照
+    m_verdict = re.search(r"^判定\s*:\s*(OK|NG)", content, re.MULTILINE)
+    if m_verdict:
+        ok = m_verdict.group(1) == "OK"
+        m_reason = re.search(r"^判定\s*:.+?—\s*(.+)$", content, re.MULTILINE)
+        reason = m_reason.group(1).strip() if m_reason else ""
+        actual_str = "OK — " + reason if ok else "NG — " + reason
+        return {"ok": ok, "actual": actual_str, "reason": "" if ok else reason}
 
     # 件数一致判定 (期待結果が "N 件" 形式)
     m_expected_count = re.search(r"(\d+)\s*件", kiki)
@@ -118,16 +137,26 @@ def judge_case(tc: dict, evidence_path: str) -> dict:
         reason = "" if ok else f"期待 {exp} 件 / 実際 {act} 件"
         return {"ok": ok, "actual": actual_str, "reason": reason}
 
-    # 含む判定 (期待結果に含まれるべき文字列)
+    # 含む判定 (期待結果に含まれるべき文字列): 「実際の値:」行以降のみを検索し期待値行の誤ヒットを防ぐ
     if "含む" in judge_method or "存在" in judge_method:
-        ok = kiki.lower() in content.lower() if kiki else True
+        # 「実際の値:」セクション以降のみを対象にする（なければ全体）
+        m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
+        search_scope = m_actual_section.group(1) if m_actual_section else content
+        ok = kiki.lower() in search_scope.lower() if kiki else True
         actual_str = f"「{kiki[:30]}」{'あり' if ok else 'なし'}"
         return {"ok": ok, "actual": actual_str, "reason": "" if ok else f"「{kiki[:30]}」が証跡に含まれない"}
 
-    # Apex Test 成功確認
-    if "success" in content.lower() and ("True" in content or "PASS" in content.upper()):
+    # ApexTest 成功確認: "Pass Rate" / "Outcome: Passed" を正として "FAIL" の誤ヒットを避ける
+    if re.search(r"Pass\s+Rate\s*[:\|]\s*100%", content) or re.search(r"Outcome\s*:\s*Passed", content):
         return {"ok": True, "actual": "Apex テスト PASS", "reason": ""}
-    if "failure" in content.lower() or "FAIL" in content.upper():
+    if re.search(r"Pass\s+Rate\s*[:\|]\s*0%", content) or re.search(r"Outcome\s*:\s*Failed", content):
+        m_fail = re.search(r"(Failures:.+)", content)
+        reason = m_fail.group(1) if m_fail else "Apex テスト FAIL"
+        return {"ok": False, "actual": "Apex テスト FAIL", "reason": reason}
+    # Fallback: 旧パターン（sf CLI raw 出力等）
+    if "success" in content.lower() and re.search(r"\bPASS\b|\bPassed\b", content):
+        return {"ok": True, "actual": "Apex テスト PASS", "reason": ""}
+    if re.search(r"\bFailed\b", content) or re.search(r"Fail\s+Rate\s*[:\|]\s*(?!0%)\d", content):
         m_fail = re.search(r"(Failures:.+)", content)
         reason = m_fail.group(1) if m_fail else "Apex テスト FAIL"
         return {"ok": False, "actual": "Apex テスト FAIL", "reason": reason}

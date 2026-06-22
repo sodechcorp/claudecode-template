@@ -271,7 +271,21 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
 
         elif evidence_path and os.path.exists(evidence_path):
             # テキスト証跡: セルに展開（先頭 50 行）
-            lines = Path(evidence_path).read_text(encoding="utf-8", errors="replace").splitlines()[:50]
+            # UTF-16 LE（Write ツール Windows 出力）も自動検出して読む
+            try:
+                raw = Path(evidence_path).read_bytes()
+                if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
+                    text = raw.decode("utf-16", errors="replace")
+                elif raw[:2] == b'\x00\x00' or (len(raw) > 1 and raw[1] == 0x00):
+                    text = raw.decode("utf-16-le", errors="replace")
+                else:
+                    text = raw.decode("utf-8", errors="replace")
+            except Exception:
+                text = ""
+            # openpyxl が拒否する制御文字（0x00-0x08, 0x0B-0x0C, 0x0E-0x1F）を除去
+            import re as _re
+            text = _re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)
+            lines = text.splitlines()[:50]
             for line in lines:
                 c = ws.cell(row=row_ptr, column=2, value=line)
                 c.font = Font(name="Courier New", size=9)
