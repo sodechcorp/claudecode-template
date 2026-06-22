@@ -104,6 +104,13 @@ def load_judgment(judgment_path: str) -> dict:
 # ── 証跡ファイル探索 ─────────────────────────────────────────────────────────
 
 def find_evidence_file(evidence_dir: str, tc_no: str, shubetsu: str) -> str:
+    """後方互換: 最初の1ファイルのみ返す。"""
+    files = find_evidence_files(evidence_dir, tc_no, shubetsu)
+    return files[0] if files else ""
+
+
+def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
+    """証跡ディレクトリから TC-001 に対応する全ファイルを返す（複数証跡・分岐ラベル対応）。"""
     subdir_map = {"SOQL": "soql", "ApexTest": "apex", "AnonApex": "apex",
                   "UI": "screen", "メタ確認": "meta", "ファイル確認": "meta"}
     subdir = subdir_map.get(shubetsu, "")
@@ -111,13 +118,52 @@ def find_evidence_file(evidence_dir: str, tc_no: str, shubetsu: str) -> str:
     if subdir:
         search_dirs.append(os.path.join(evidence_dir, subdir))
     search_dirs.append(evidence_dir)
+    found = []
+    seen = set()
     for d in search_dirs:
         if not os.path.isdir(d):
             continue
         for fname in sorted(os.listdir(d)):
-            if fname.startswith(tc_no):
-                return os.path.join(d, fname)
-    return ""
+            # before ファイルは除外
+            if "_before." in fname:
+                continue
+            if fname.startswith(tc_no) or fname.startswith(tc_no.replace("TC-", "tc-")):
+                fpath = os.path.join(d, fname)
+                if fpath not in seen:
+                    seen.add(fpath)
+                    found.append(fpath)
+    return found
+
+
+# ── テキスト証跡ヘルパー ─────────────────────────────────────────────────────
+
+def _read_text_safe(path: str) -> str:
+    """UTF-16 LE 自動検出＋制御文字除去してテキストを返す（打ち切りなし）。"""
+    try:
+        raw = Path(path).read_bytes()
+        if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
+            text = raw.decode("utf-16", errors="replace")
+        elif len(raw) > 1 and raw[1] == 0x00:
+            text = raw.decode("utf-16-le", errors="replace")
+        else:
+            text = raw.decode("utf-8", errors="replace")
+    except Exception:
+        text = ""
+    return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)
+
+
+def _append_text_block(ws, path: str, start_row: int) -> int:
+    """テキストファイルを ws の start_row から全行展開し、書いた行数を返す（打ち切りなし）。"""
+    text = _read_text_safe(path)
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        c = ws.cell(row=start_row + i, column=2, value=line)
+        c.font = Font(name="Courier New", size=9)
+    return len(lines)
+
+
+def _count_lines(path: str) -> int:
+    return len(_read_text_safe(path).splitlines())
 
 
 # ── Sheet 1: テスト結果 ───────────────────────────────────────────────────────
@@ -208,10 +254,11 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
         shubetsu = tc.get("種別", "")
         auto = tc.get("自動化可否", "自動").strip()
         is_manual = "要手動" in auto
-        j_result = judgment.get(no, {})
-        evidence_path = j_result.get("evidence", "") or find_evidence_file(evidence_dir, no, shubetsu)
 
-        # セクションヘッダー
+        # 複数証跡ファイルを全件取得
+        all_evidence = find_evidence_files(evidence_dir, no, shubetsu)
+
+        # TC セクションヘッダー
         ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)
         hdr = ws.cell(row=row_ptr, column=1,
                       value=f"■ {no}: {tc.get('観点', '')} （{shubetsu}）")
@@ -221,12 +268,6 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
         anchor_cell_addr = f"A{row_ptr}"
         row_ptr += 1
 
-        # テスト結果シートの「証跡」列からハイパーリンクを設定
-        result_row = tc_to_row.get(no)
-        if result_row:
-            # Excel 内部リンク形式
-            pass  # wb 参照が必要なため呼び出し側で設定
-
         if is_manual:
             # 要手動: 貼付枠を残す
             ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)
@@ -235,7 +276,6 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
             c.fill = EVIDENCE_BG
             c.alignment = WRAP
             row_ptr += 1
-            # 貼付エリア 10 行
             paste_top = row_ptr
             paste_bottom = paste_top + 9
             for r in range(paste_top, paste_bottom + 1):
@@ -245,56 +285,67 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
             ws.cell(paste_top, 1, "（スクリーンショット貼付エリア）").alignment = WRAP
             row_ptr = paste_bottom + 2
 
-        elif evidence_path and evidence_path.lower().endswith(".png") and _PIL_OK:
-            # PNG スクショ: 自動貼付
-            try:
-                pil_img = PILImage.open(evidence_path)
-                # 幅 800px 以内にリサイズ
-                max_w = 800
-                w, h = pil_img.size
-                if w > max_w:
-                    ratio = max_w / w
-                    pil_img = pil_img.resize((int(w * ratio), int(h * ratio)), PILImage.LANCZOS)
-                    resized_path = evidence_path.replace(".png", "_resized.png")
-                    pil_img.save(resized_path)
-                    evidence_path = resized_path
-
-                xl_img = XLImage(evidence_path)
-                xl_img.anchor = f"B{row_ptr}"
-                ws.add_image(xl_img)
-                img_rows = max(10, int(pil_img.size[1] / 18) + 2)
-                ws.row_dimensions[row_ptr].height = pil_img.size[1] * 0.75
-                row_ptr += img_rows + 1
-            except Exception as e:
-                ws.cell(row_ptr, 2, f"[WARN] 画像読込失敗: {e}").alignment = WRAP
-                row_ptr += 2
-
-        elif evidence_path and os.path.exists(evidence_path):
-            # テキスト証跡: セルに展開（先頭 50 行）
-            # UTF-16 LE（Write ツール Windows 出力）も自動検出して読む
-            try:
-                raw = Path(evidence_path).read_bytes()
-                if raw[:2] in (b'\xff\xfe', b'\xfe\xff'):
-                    text = raw.decode("utf-16", errors="replace")
-                elif raw[:2] == b'\x00\x00' or (len(raw) > 1 and raw[1] == 0x00):
-                    text = raw.decode("utf-16-le", errors="replace")
-                else:
-                    text = raw.decode("utf-8", errors="replace")
-            except Exception:
-                text = ""
-            # openpyxl が拒否する制御文字（0x00-0x08, 0x0B-0x0C, 0x0E-0x1F）を除去
-            import re as _re
-            text = _re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)
-            lines = text.splitlines()[:50]
-            for line in lines:
-                c = ws.cell(row=row_ptr, column=2, value=line)
-                c.font = Font(name="Courier New", size=9)
-                row_ptr += 1
-            row_ptr += 1
-
-        else:
+        elif not all_evidence:
             ws.cell(row_ptr, 2, "（証跡ファイルなし）").alignment = WRAP
             row_ptr += 2
+
+        else:
+            # 証跡ファイルを1ファイル1ブロックで展開（PNG は before 除く / txt は DOM 含む）
+            # PNG + 同名 txt のペアは PNG -> txt の順で同一ブロックに入れる
+            processed = set()
+            for ep in all_evidence:
+                if ep in processed:
+                    continue
+                processed.add(ep)
+                fname = os.path.basename(ep)
+
+                # ブロック小見出し（複数ある場合のみ）
+                if len(all_evidence) > 1:
+                    ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)
+                    sub_hdr = ws.cell(row=row_ptr, column=1, value=f"  └ {fname}")
+                    sub_hdr.font = Font(italic=True, name="游ゴシック", size=9)
+                    sub_hdr.alignment = WRAP
+                    row_ptr += 1
+
+                if ep.lower().endswith(".png") and _PIL_OK:
+                    # PNG: 自動貼付
+                    try:
+                        pil_img = PILImage.open(ep)
+                        max_w = 800
+                        w, h = pil_img.size
+                        if w > max_w:
+                            ratio = max_w / w
+                            pil_img = pil_img.resize((int(w * ratio), int(h * ratio)), PILImage.LANCZOS)
+                            resized_path = ep.replace(".png", "_resized.png")
+                            pil_img.save(resized_path)
+                            ep_use = resized_path
+                        else:
+                            ep_use = ep
+                        xl_img = XLImage(ep_use)
+                        xl_img.anchor = f"B{row_ptr}"
+                        ws.add_image(xl_img)
+                        img_rows = max(10, int(pil_img.size[1] / 18) + 2)
+                        ws.row_dimensions[row_ptr].height = pil_img.size[1] * 0.75
+                        row_ptr += img_rows + 1
+                    except Exception as e:
+                        ws.cell(row_ptr, 2, f"[WARN] 画像読込失敗: {e}").alignment = WRAP
+                        row_ptr += 2
+
+                    # 同名 DOM スナップショット (.txt) を連続して展開
+                    snap_path = re.sub(r'\.png$', '.txt', ep, flags=re.IGNORECASE)
+                    if os.path.exists(snap_path) and snap_path not in processed:
+                        processed.add(snap_path)
+                        _append_text_block(ws, snap_path, row_ptr)
+                        row_ptr += _count_lines(snap_path) + 1
+
+                elif ep.lower().endswith(".png") and not _PIL_OK:
+                    ws.cell(row_ptr, 2, f"[PNG] {fname} — Pillow 未インストールのため未貼付").alignment = WRAP
+                    row_ptr += 2
+
+                else:
+                    # テキスト証跡: 全行展開（打ち切りなし）
+                    n = _append_text_block(ws, ep, row_ptr)
+                    row_ptr += n + 1
 
         # 証跡シート先頭アドレスをメモ（後でリンク設定）
         tc_to_row[no + "_ev"] = anchor_cell_addr

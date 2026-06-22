@@ -79,7 +79,15 @@ if [ ! -f "$SPEC_PATH" ]; then
   echo "[INFO] test-spec.md が見つかりません。Phase B でテスト仕様を展開します。"
 fi
 
-# 7. Pillow の存在確認・自動インストール（PNG 自動貼付に必要）
+# 7. 差分デプロイ（Sandbox へ。本番 alias は上で物理ブロック済み）
+echo "=== force-app 差分を Sandbox にデプロイ ==="
+sf project deploy start --target-org "$SF_ALIAS" --ignore-conflicts --concise || {
+  echo "[FATAL] デプロイ失敗。実装コードを確認してください。"
+  exit 1
+}
+echo "OK: Sandbox デプロイ完了"
+
+# 8. Pillow の存在確認・自動インストール（PNG 自動貼付に必要）
 python -c "import PIL" 2>/dev/null || {
   echo "[INFO] Pillow が未インストールです。自動インストールを実行します..."
   pip install Pillow
@@ -90,9 +98,29 @@ python -c "import PIL" 2>/dev/null || {
   fi
 }
 
-# 8. 再開確認
+# 9. 差分再実行モードの判定
+TARGET_TC_LIST=""
+if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
+  echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
+  echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
+  TARGET_TC_LIST=$(python -c "
+import json, sys
+with open(r'$JUDGMENT_PATH') as f: d = json.load(f)
+ng = [r['no'] for r in d.get('results', []) if r.get('status') == 'NG']
+print(','.join(ng))
+" 2>/dev/null || echo "")
+  if [ -z "$TARGET_TC_LIST" ]; then
+    echo "[INFO] 前回 NG なし。差分対象なし（全件スキップ）。"
+  else
+    echo "[INFO] 差分対象: $TARGET_TC_LIST"
+  fi
+else
+  echo "[INFO] 全量実行モード（初回または --full 指定）"
+fi
+
+# 10. 再開確認
 if [ -d "${EVIDENCE_DIR}/after" ]; then
-  echo "[INFO] ${EVIDENCE_DIR}/after が既に存在します。再実行の場合は既存の証跡を上書きします（TC番号固定名のため）。"
+  echo "[INFO] ${EVIDENCE_DIR}/after が既に存在します。差分再実行モードでは非対象 TC の既存証跡を維持します。"
 fi
 ```
 
@@ -106,9 +134,10 @@ Sandbox   : {alias}
 Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 
 実行内容:
-  Phase B: テスト仕様の展開（test-spec.md 生成）
-  Phase C: SOQL / Apex テスト / 匿名 Apex / Playwright UI の自動実行
-  Phase D: エビデンス.xlsx 生成（スクショ・SOQL 証跡を自動貼付）
+  Phase A: force-app 差分を Sandbox にデプロイ
+  Phase B: テスト仕様の展開（test-spec.md 生成・網羅性チェック）
+  Phase C: SOQL / Apex テスト / 匿名 Apex / Playwright UI の自動実行（分岐網羅・before/after）
+  Phase D: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
   Phase E: OK/NG 判定・対応記録.xlsx 更新
   Phase F: test-report.md 生成・テストデータ後始末
 
@@ -139,7 +168,11 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 - `メタ確認` — XML/JSON ファイルを Read/Grep で照合
 - `ファイル確認` — force-app/ 配下のファイル内容確認
 
-自動化可否: 技術的に自動実行できない場合のみ `要手動（理由）`。それ以外は `自動`。
+自動化可否: 以下の3類型のみ `要手動（理由）`。**それ以外は必ず `自動`**。判断に迷う場合は `自動` にする。
+  - 実外部サービスへの実通信が必須
+  - 本番限定データ・権限セットが物理的前提
+  - スケジュール実時刻起動が必須なバッチ
+  ※ UI確認・条件分岐・ユーザ別表示はすべて `自動`（Playwright で取得する）
 
 **展開の注意**:
 - No は `implementation-plan.md` の TC番号を引き継ぐ（再採番しない。新規観点のみ続き番号で追加）
@@ -149,6 +182,13 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 - 証跡取得は「SOQL結果txt」「スクショPNG」「Apexデバッグログ」等を明示する
 - AnonApex は「前提・データ準備」列に作成するデータとその値（Name プレフィックス等）を具体的に記載する
 - 課題種別ごとの必須観点は `.claude/templates/backlog/test-pattern-map.md` に従う。機械不可は `自動化可否=要手動（理由）` で skip 可（無理強いしない）
+- 条件分岐がある場合（ビザ種別・入力値・権限等）は**分岐ごとに別の TC 行** or 「証跡取得」列に `{No}_{観点}_{分岐ラベル}.png` / `.txt` を列挙する
+- 「期待結果」列は分岐ごとに記述可（例: `I797あり→質問表示 / I797なし→非表示`）
+
+**網羅性セルフチェック**（test-spec.md 生成直後・Phase C 前に必ず実施）:
+1. `investigation.md` の「課題原文」各要求 → 対応 TC のマッピングを照合する
+2. 未カバーの要求があれば TC を追加してから Phase C に進む
+3. 全カバーできたことを確認してから委譲する
 
 ---
 
@@ -157,6 +197,10 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 > **[auto-evidence-runner へ委譲]**
 
 `test-spec.md` の各ケースを種別に応じて実行し、証跡を `{evidence_dir}` に保存する。
+
+auto-evidence-runner への委譲パラメータ:
+- `{target_tc_list}` — Phase A で確定した差分再実行対象の TC番号リスト（空=全件）
+- `{evidence_dir}` — `{xlsx_folder}/evidence`
 
 詳細手順は `auto-evidence-runner.md` の Step 2〜6 を参照。
 
@@ -193,12 +237,21 @@ python scripts/python/backlog-xlsx/generate_evidence_xlsx.py \
 > **[ハーネス直接実行]**
 
 ```bash
+# 差分再実行時は前回判定を --prev で渡して前回 OK をマージする
+PREV_ARG=""
+if [ -f "{judgment_path}.prev" ]; then
+  PREV_ARG="--prev {judgment_path}.prev"
+elif [ -f "{judgment_path}" ]; then
+  cp "{judgment_path}" "{judgment_path}.prev"
+fi
+
 python scripts/python/backlog-xlsx/judge_results.py \
   --folder "{xlsx_folder}" \
   --issue-id "{issueID}" \
   --spec "{spec_path}" \
   --evidence-dir "{evidence_dir}/after" \
-  --out "{judgment_path}"
+  --out "{judgment_path}" \
+  $PREV_ARG
 ```
 
 `judge_results.py` は exit 1 で NG を報告する。終了コードを確認:
