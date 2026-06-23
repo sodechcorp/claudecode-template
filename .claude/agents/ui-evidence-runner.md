@@ -20,6 +20,7 @@ tools:
   - mcp__playwright__browser_wait_for
   - mcp__playwright__browser_take_screenshot
   - mcp__playwright__browser_evaluate
+  - mcp__playwright__browser_run_code_unsafe
   - mcp__playwright__browser_close
 ---
 
@@ -66,34 +67,69 @@ JSON の `result.url` を `FRONTDOOR_URL` として取得する。**accessToken 
 
 ---
 
-## Step 2: 単一ユーザ UI 証跡（ユーザ切替なし）
+## Step 2: 単一ユーザ UI 証跡（ユーザ切替なし）— browser_run_code_unsafe 集約
 
 「前提・データ準備」に対象ユーザ指定がないケースを対象にする。
 
-各 TC について以下を実行する:
+### ロケータ指針（Salesforce LWC/Aura・Shadow DOM 対応）
 
-1. `mcp__playwright__browser_navigate` に `FRONTDOOR_URL` を渡してログイン
-2. **操作前（before）**: `mcp__playwright__browser_take_screenshot` で  
-   `{evidence_dir}/before/{No}_{観点サニタイズ}_before.png` を取得
-3. 「実行アクション」の手順を `browser_click` / `browser_type` / `browser_fill_form` / `browser_wait_for` で実行
-4. **操作後（after）各分岐でペアを取得**:
-   - `mcp__playwright__browser_take_screenshot` → `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.png`（分岐なしは分岐ラベル省略）
-   - `mcp__playwright__browser_snapshot` → DOM 内容を `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に保存
-5. 「実行アクション」が条件分岐を持つ場合（ビザ種別・入力値・表示条件等）、**各分岐ごとにステップ 2〜4 を繰り返す**
-6. 全 TC 完了後に `mcp__playwright__browser_close` でセッションを閉じる
+Salesforce の画面は LWC/Aura の Shadow DOM を持つため、固定セレクタ（`#id`・`.class`）は機能しない。以下のロケータを使う（いずれも Shadow DOM を自動貫通する）:
 
-**DOM スナップショット保存フォーマット**:
+| ロケータ | 用途 |
+|---|---|
+| `page.getByText('ラベル名')` | 表示テキスト（ボタン・リンク・見出しなど）|
+| `page.getByRole('button', {name: 'ラベル名'})` | ボタン・コントロール |
+| `page.getByLabel('ラベル名')` | フォーム入力欄 |
+| `page.locator('[aria-label="ラベル名"]')` | aria-label で特定する場合 |
+
+`#id`・`.class` の固定セレクタは動的レンダリングで変わるため使わない。
+
+### 基本方針: 1 TC = 1 コードブロック
+
+`mcp__playwright__browser_run_code_unsafe` に `async (page) => { ... }` を渡し、
+navigate → before撮影 → 操作 → after撮影 → DOM return を**1往復（1 MCP コール）**に収める。
+
+**コードブロック構成**:
+
+1. **1件目の TC のみ**: `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用し、アプリ内遷移（`page.goto('アプリURL')` や操作ナビ）のみ。
+2. **before 撮影**: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png'})`
+3. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`page.waitForSelector` / `page.waitForLoadState` で遷移・表示を待つ。
+4. **after 撮影（分岐ごと）**: 分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`。
+5. **return**: `JSON.stringify({url: page.url(), text: await page.locator('body').innerText()})` を返す。エージェントは戻り値を `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に Write する。
+
+**コードブロック例（プリチェック画面のラベル確認）**:
+```javascript
+async (page) => {
+  // 1件目のみ: await page.goto('FRONTDOOR_URL');
+  await page.screenshot({path: 'C:/path/evidence/before/TC-001_ラベル確認_before.png'});
+  // 画面遷移
+  await page.getByText('プリチェック').click();
+  await page.waitForLoadState('networkidle');
+  // after 撮影
+  await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png'});
+  // DOM return（エージェントが .txt に Write する）
+  return JSON.stringify({url: page.url(), text: await page.locator('body').innerText()});
+}
 ```
-=== DOM スナップショット ===
-No: {No}
-観点: {観点}
-分岐: {分岐ラベル}（なければ省略）
-URL: {現在の URL}
----
-{browser_snapshot の出力テキスト（フォーム値・表示テキスト・エラーメッセージ等）}
-```
 
-**ツール呼び出し**: `mcp__playwright__browser_*` を直接使用する（Bash 経由不可・Agent ツール不要）。
+**条件分岐がある場合**: 1ブロック内で全分岐を順に実行し、分岐ごとに after 撮影する。各分岐の前後で操作を戻す（デフォルト選択に戻す・フォームリセット等）ことで1フローに収める。
+
+**パス指定**: `page.screenshot({path: ...})` には**絶対パス**を使う（`{evidence_dir}` を展開した実パス文字列を埋め込む）。
+
+### フォールバック手順（コードブロックが throw した場合）
+
+コードブロックがロケータ不一致・タイムアウトで失敗した場合:
+
+1. `mcp__playwright__browser_snapshot` で現在の DOM を取得し、実際の aria-label・テキスト・ロール等を確認する
+2. コードブロックのロケータ・waitFor 条件を修正して `mcp__playwright__browser_run_code_unsafe` を再実行する
+3. 2回目も失敗した場合は、個別の `mcp__playwright__browser_click` / `mcp__playwright__browser_type` 等を使って対話的に操作し証跡を取得する（**フォールバックに使う既存個別ツールはそのまま維持している**）
+
+### セキュリティ
+
+- **FRONTDOOR_URL（accessToken 含む）をコードブロック引数に直書きしない**。`page.goto(FRONTDOOR_URL)` と書く際は、エージェント変数として展開した値をコードブロック文字列に埋め込む。戻り値（DOM テキスト）に accessToken が含まれないことを確認してから Write する。
+- `browser_run_code_unsafe` は RCE 相当のため **Sandbox セッション限定**で使う（オーケストレータの Step 0 で Sandbox 確認済み前提）。
+
+全 TC 完了後に `mcp__playwright__browser_close` でセッションを閉じる。
 
 ---
 
@@ -103,11 +139,16 @@ URL: {現在の URL}
 
 ### Login As 前提チェック（対象 TC の最初に1回だけ実施）
 
+`mcp__playwright__browser_run_code_unsafe` で以下を確認する:
+```javascript
+async (page) => {
+  await page.goto('/lightning/setup/SecuritySessionSetting/home');
+  await page.waitForLoadState('networkidle');
+  const text = await page.locator('body').innerText();
+  return text;
+}
 ```
-設定 > セキュリティ > ユーザセッションの設定 > 管理者がユーザとしてログインできる
-```
-
-`browser_navigate` でセットアップ画面にアクセスして確認する。無効の場合は全対象 TC を `要手動（Login As 不可）` に降格して記録し Step 3 を終了する。
+返却テキストに「管理者がユーザとしてログインできる」の有効状態を確認する。無効の場合は全対象 TC を `要手動（Login As 不可）` に降格して記録し Step 3 を終了する。
 
 ### 実ユーザ名の解決
 
@@ -115,23 +156,49 @@ URL: {現在の URL}
 2. `{org_profile_path}` の実ユーザ一覧（セクション4）から該当ユーザの実際のユーザ名を取得する
 3. `{org_profile_path}` に見当たらない場合のみ「{プロファイル名} のユーザ名を教えてください」と1回質問する（パスワード不要）
 
-### Login As 操作手順（各ユーザで繰り返す）
+### Login As 操作（各ユーザに対して browser_run_code_unsafe で集約）
 
-1. `FRONTDOOR_URL` でログイン済みの管理者セッション（既存セッションを維持）
-2. `browser_navigate` で `/lightning/setup/ManageUsers/home` に遷移
-3. 対象ユーザ名で検索 → ユーザ名リンクをクリック → ユーザ詳細ページを開く
-4. 「ユーザに代わってログイン（Login As）」ボタンをクリック
-5. 対象画面に遷移（「実行アクション」の URL またはナビゲーション手順に従う）
-6. **before/after と分岐ごとにペアで取得**:
-   - `browser_take_screenshot` → `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}_{分岐ラベル}.png`
-   - `browser_snapshot` → `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}_{分岐ラベル}.txt`（DOM内容・表示値）
-7. `browser_navigate` で `/secur/logout.jsp` に遷移してプロキシを解除（管理者セッションに戻る）
-8. 次のユーザへ（ステップ 2 から繰り返す）
+各ユーザに対して以下の1コードブロックで実行する:
+
+```javascript
+async (page) => {
+  // ユーザ管理ページに遷移（管理者セッション流用）
+  await page.goto('/lightning/setup/ManageUsers/home');
+  await page.waitForLoadState('networkidle');
+  // ユーザ検索（検索ボックスにユーザ名を入力して絞込）
+  const searchBox = page.getByLabel('Search') || page.getByPlaceholder('Search');
+  await searchBox.fill('{ユーザ名}');
+  await page.keyboard.press('Enter');
+  await page.waitForLoadState('networkidle');
+  // ユーザ名リンクをクリックしてユーザ詳細ページへ
+  await page.getByText('{ユーザ名}').first().click();
+  await page.waitForLoadState('networkidle');
+  // Login As ボタンをクリック
+  await page.getByRole('button', {name: 'ユーザに代わってログイン'}).click();
+  await page.waitForLoadState('networkidle');
+  // 対象画面に遷移（実行アクションに従う）
+  await page.goto('{対象画面URL or AppName}');
+  await page.waitForLoadState('networkidle');
+  // before 撮影（必要な場合）
+  await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_{ユーザ名}_before.png'});
+  // 操作・分岐ごとの after 撮影
+  await page.screenshot({path: '/絶対パス/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.png'});
+  const text = await page.locator('body').innerText();
+  // プロキシ解除（管理者セッションに戻る）
+  await page.goto('/secur/logout.jsp');
+  await page.waitForLoadState('networkidle');
+  return JSON.stringify({url: page.url(), text: text});
+}
+```
+
+**補足**:
+- ユーザ名リンクの特定が難しい場合は、先に `mcp__playwright__browser_snapshot` で DOM を1回読んでロケータを確認し、その後コードブロックに組み込む
+- プロキシ解除 `/secur/logout.jsp` は**毎ユーザ必ず実行**（次ユーザのログイン前に管理者セッションに戻る）
+- エージェントは return した DOM テキストを `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.txt` に Write する
 
 **注意**:
 - accessToken はいかなる形でもファイル・ログ・証跡に出力しない
-- Login As が完了したら必ずプロキシを解除してから次ユーザに進む
-- 全ユーザ確認後に `browser_close` でセッションを閉じる
+- 全ユーザ確認後に `mcp__playwright__browser_close` でセッションを閉じる
 
 ---
 
