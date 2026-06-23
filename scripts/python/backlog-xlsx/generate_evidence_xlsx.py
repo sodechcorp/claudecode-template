@@ -26,15 +26,17 @@ import re
 import sys
 from pathlib import Path
 
-from _common import validate_folder, _stripe_fill
+from _common import (
+    validate_folder, _stripe_fill,
+    _font, _align, _thin_border, _thin_side,
+    _set_row_height, _set_col_width, _freeze,
+    _auto_col_width, _row_height_by_lines,
+)
 
 try:
     from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Font, PatternFill, Border, Side, GradientFill
-    from openpyxl.styles.differential import DifferentialStyle
-    from openpyxl.formatting.rule import Rule
+    from openpyxl.styles import PatternFill, Font, Border, Side
     from openpyxl.utils import get_column_letter
-    from openpyxl.worksheet.hyperlink import Hyperlink
 except ImportError:
     print("[ERROR] openpyxl がインストールされていません。`pip install openpyxl` を実行してください。")
     sys.exit(1)
@@ -51,21 +53,28 @@ except ImportError:
     _PIL_OK = False
 
 # ── スタイル定数 ─────────────────────────────────────────────────────────────
-WRAP = Alignment(wrap_text=True, vertical="top")
-HDR_FILL = PatternFill("solid", fgColor="1F3864")   # 濃紺ヘッダー
-HDR_FONT = Font(bold=True, color="FFFFFF", name="游ゴシック", size=10)
-OK_FILL  = PatternFill("solid", fgColor="C6EFCE")   # 緑
-NG_FILL  = PatternFill("solid", fgColor="FFC7CE")   # 赤
-MANUAL_FILL = PatternFill("solid", fgColor="FFEB9C") # 黄（要手動）
-EVIDENCE_BG = PatternFill("solid", fgColor="FFF3CD") # エビデンス枠
-LIGHT_BLUE  = PatternFill("solid", fgColor="D6E4F7") # サブヘッダー
-WHITE  = PatternFill("solid", fgColor="FFFFFF")
+HDR_FILL    = PatternFill("solid", fgColor="1F3864")   # 濃紺ヘッダー
+HDR_FONT    = _font(fg="FFFFFF", bold=True, size=10)
+OK_FILL     = PatternFill("solid", fgColor="C6EFCE")   # 緑
+NG_FILL     = PatternFill("solid", fgColor="FFC7CE")   # 赤
+MANUAL_FILL = PatternFill("solid", fgColor="FFEB9C")   # 黄（要手動）
+EVIDENCE_BG = PatternFill("solid", fgColor="FFF3CD")   # エビデンス枠
+LIGHT_BLUE  = PatternFill("solid", fgColor="D6E4F7")   # サブヘッダー
+WHITE       = PatternFill("solid", fgColor="FFFFFF")
 
-THIN = Side(style="thin", color="AAAAAA")
-THIN_BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+THIN_BORDER = _thin_border("AAAAAA")
+WRAP        = _align("left", "top", wrap=True)
+CENTER_MID  = _align("center", "center", wrap=False)
 
-COL_WIDTHS_RESULT = [8, 30, 12, 20, 20, 10, 20]  # No/観点/種別/期待/実際/判定/証跡リンク
-COL_WIDTHS_EVIDENCE = [8, 60]
+# 列幅初期値（auto-fit の下限として機能）
+_MIN_COL_WIDTHS_RESULT   = [8, 18, 12, 18, 18, 10, 18]   # No/観点/種別/期待/実際/判定/証跡リンク
+_MIN_COL_WIDTHS_EVIDENCE = [8, 58]
+
+# 印刷設定
+_PAPER_SIZE   = 9   # A4
+_ORIENTATION  = "landscape"
+_MARGIN_CM    = 0.8  # 上下左右余白 cm（openpyxl は inch 単位）
+_CM_PER_INCH  = 2.54
 
 
 # ── パーサ ───────────────────────────────────────────────────────────────────
@@ -177,6 +186,8 @@ def _append_text_block(ws, path: str, start_row: int) -> int:
         safe = (" " + line) if line.startswith("=") else line
         c = ws.cell(row=start_row + i, column=2, value=safe)
         c.font = Font(name="Courier New", size=9)
+        c.border = THIN_BORDER
+        c.alignment = _align("left", "top", wrap=True)
     return len(lines)
 
 
@@ -196,19 +207,20 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
         c = ws.cell(row=1, column=j, value=h)
         c.fill = HDR_FILL
         c.font = HDR_FONT
-        c.alignment = WRAP
+        c.alignment = CENTER_MID
         c.border = THIN_BORDER
-    ws.row_dimensions[1].height = 22
+    _set_row_height(ws, 1, 22)
 
-    # 列幅
-    for j, w in enumerate(COL_WIDTHS_RESULT, start=1):
-        ws.column_dimensions[get_column_letter(j)].width = w
+    # 列幅初期値を設定（auto-fit の下限）
+    for j, w in enumerate(_MIN_COL_WIDTHS_RESULT, start=1):
+        _set_col_width(ws, j, w)
 
     tc_to_row = {}
     for i, tc in enumerate(test_cases):
         row = i + 2
         no = tc.get("No", "")
         shubetsu = tc.get("種別", "")
+        kanpoin = tc.get("観点", "")
         kiki = tc.get("期待結果", "")
         auto = tc.get("自動化可否", "自動").strip()
         is_manual = "要手動" in auto
@@ -231,19 +243,48 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
 
         fill = _stripe_fill(i) if status == "OK" else row_fill
 
-        vals = [no, tc.get("観点", ""), shubetsu, kiki, actual, judge_text, "→証跡"]
+        vals = [no, kanpoin, shubetsu, kiki, actual, judge_text, "→証跡"]
         for j_col, val in enumerate(vals, start=1):
             c = ws.cell(row=row, column=j_col, value=val)
-            c.alignment = WRAP
             c.border = THIN_BORDER
-            if j_col == 6:  # 判定列は個別の色
+            if j_col == 1:
+                # No 列: 中央揃え・游ゴシック
+                c.alignment = CENTER_MID
+                c.font = _font(bold=True)
+                c.fill = fill
+            elif j_col == 6:
+                # 判定列: 中央揃え・太字
+                c.alignment = CENTER_MID
                 c.fill = row_fill
-                c.font = Font(bold=True, name="游ゴシック", size=10)
+                c.font = _font(bold=True)
             else:
+                c.alignment = WRAP
+                c.font = _font()
                 c.fill = fill
 
-        ws.row_dimensions[row].height = 40
+        # 行高: 実際の結果が長い場合に折り返し分を確保（下限 30pt）
+        h = max(30.0, _row_height_by_lines(actual, col_width=18))
+        _set_row_height(ws, row, h)
         tc_to_row[no] = row
+
+    # 観点・期待結果・実際の結果列は内容に応じて幅を自動調整
+    for col_idx in [2, 4, 5]:  # 観点, 期待結果, 実際の結果
+        _auto_col_width(ws, col_idx, min_w=_MIN_COL_WIDTHS_RESULT[col_idx - 1], max_w=40)
+
+    _freeze(ws, 2)
+
+    # 印刷設定
+    ws.page_setup.paperSize = _PAPER_SIZE
+    ws.page_setup.orientation = _ORIENTATION
+    ws.page_setup.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    margin_inch = _MARGIN_CM / _CM_PER_INCH
+    ws.page_margins.top    = margin_inch
+    ws.page_margins.bottom = margin_inch
+    ws.page_margins.left   = margin_inch
+    ws.page_margins.right  = margin_inch
+    ws.print_title_rows = "1:1"  # ヘッダー行を全ページに繰り返し
 
     return tc_to_row
 
@@ -259,10 +300,11 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
         c = ws.cell(row=1, column=j, value=h)
         c.fill = HDR_FILL
         c.font = HDR_FONT
-        c.alignment = WRAP
+        c.alignment = CENTER_MID
         c.border = THIN_BORDER
-    for j, w in enumerate(COL_WIDTHS_EVIDENCE, start=1):
-        ws.column_dimensions[get_column_letter(j)].width = w
+    for j, w in enumerate(_MIN_COL_WIDTHS_EVIDENCE, start=1):
+        _set_col_width(ws, j, w)
+    _set_row_height(ws, 1, 22)
 
     row_ptr = 2
     result_ws_name = "テスト結果"
@@ -281,9 +323,11 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
         hdr = ws.cell(row=row_ptr, column=1,
                       value=f"■ {no}: {tc.get('観点', '')} （{shubetsu}）")
         hdr.fill = LIGHT_BLUE
-        hdr.font = Font(bold=True, name="游ゴシック", size=10)
+        hdr.font = _font(bold=True, size=10)
         hdr.alignment = WRAP
+        hdr.border = THIN_BORDER
         anchor_cell_addr = f"A{row_ptr}"
+        _set_row_height(ws, row_ptr, 20)
         row_ptr += 1
 
         if is_manual:
@@ -292,19 +336,30 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
             c = ws.cell(row=row_ptr, column=1,
                         value="⬜ 要手動確認 — ユーザーがここにスクリーンショットを貼り付けてください")
             c.fill = EVIDENCE_BG
+            c.font = _font()
             c.alignment = WRAP
+            c.border = THIN_BORDER
             row_ptr += 1
             paste_top = row_ptr
             paste_bottom = paste_top + 9
             for r in range(paste_top, paste_bottom + 1):
                 for col in range(1, 3):
-                    ws.cell(r, col).fill = WHITE
+                    cell = ws.cell(r, col)
+                    cell.fill = WHITE
+                    cell.border = THIN_BORDER
             ws.merge_cells(start_row=paste_top, start_column=1, end_row=paste_bottom, end_column=2)
-            ws.cell(paste_top, 1, "（スクリーンショット貼付エリア）").alignment = WRAP
+            inst = ws.cell(paste_top, 1, "（スクリーンショット貼付エリア）")
+            inst.alignment = _align("center", "center", wrap=False)
+            inst.font = _font(fg="888888", italic=True)
             row_ptr = paste_bottom + 2
 
         elif not all_evidence:
-            ws.cell(row_ptr, 2, "（証跡ファイルなし）").alignment = WRAP
+            c = ws.cell(row_ptr, 2, "（証跡ファイルなし）")
+            c.alignment = WRAP
+            c.font = _font(fg="888888", italic=True)
+            c.border = THIN_BORDER
+            c1 = ws.cell(row_ptr, 1)
+            c1.border = THIN_BORDER
             row_ptr += 2
 
         else:
@@ -321,8 +376,10 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                 if len(all_evidence) > 1:
                     ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)
                     sub_hdr = ws.cell(row=row_ptr, column=1, value=f"  └ {fname}")
-                    sub_hdr.font = Font(italic=True, name="游ゴシック", size=9)
+                    sub_hdr.font = _font(italic=True, size=9, fg="444444")
                     sub_hdr.alignment = WRAP
+                    sub_hdr.border = THIN_BORDER
+                    _set_row_height(ws, row_ptr, 16)
                     row_ptr += 1
 
                 if ep.lower().endswith(".png") and _PIL_OK:
@@ -349,10 +406,16 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                         ROW_PX = 20
                         img_rows = max(10, (disp_h + ROW_PX - 1) // ROW_PX + 2)  # ceil + 余白2行
                         for r in range(row_ptr, row_ptr + img_rows):
-                            ws.row_dimensions[r].height = 15  # 15pt = 20px 固定
+                            _set_row_height(ws, r, 15)  # 15pt = 20px 固定
+                            ws.cell(r, 1).border = THIN_BORDER
+                            ws.cell(r, 2).border = THIN_BORDER
                         row_ptr += img_rows + 1
                     except Exception as e:
-                        ws.cell(row_ptr, 2, f"[WARN] 画像読込失敗: {e}").alignment = WRAP
+                        c = ws.cell(row_ptr, 2, f"[WARN] 画像読込失敗: {e}")
+                        c.alignment = WRAP
+                        c.font = _font(fg="CC0000")
+                        c.border = THIN_BORDER
+                        ws.cell(row_ptr, 1).border = THIN_BORDER
                         row_ptr += 2
 
                     # 同名 DOM スナップショット (.txt) を連続して展開
@@ -363,16 +426,36 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                         row_ptr += _count_lines(snap_path) + 1
 
                 elif ep.lower().endswith(".png") and not _PIL_OK:
-                    ws.cell(row_ptr, 2, f"[PNG] {fname} — Pillow 未インストールのため未貼付").alignment = WRAP
+                    c = ws.cell(row_ptr, 2, f"[PNG] {fname} — Pillow 未インストールのため未貼付")
+                    c.alignment = WRAP
+                    c.font = _font(fg="888888")
+                    c.border = THIN_BORDER
+                    ws.cell(row_ptr, 1).border = THIN_BORDER
                     row_ptr += 2
 
                 else:
                     # テキスト証跡: 全行展開（打ち切りなし）
                     n = _append_text_block(ws, ep, row_ptr)
+                    ws.cell(row_ptr, 1).border = THIN_BORDER
                     row_ptr += n + 1
 
         # 証跡シート先頭アドレスをメモ（後でリンク設定）
         tc_to_row[no + "_ev"] = anchor_cell_addr
+
+    _freeze(ws, 2)
+
+    # 印刷設定
+    ws.page_setup.paperSize = _PAPER_SIZE
+    ws.page_setup.orientation = _ORIENTATION
+    ws.page_setup.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    margin_inch = _MARGIN_CM / _CM_PER_INCH
+    ws.page_margins.top    = margin_inch
+    ws.page_margins.bottom = margin_inch
+    ws.page_margins.left   = margin_inch
+    ws.page_margins.right  = margin_inch
+    ws.print_title_rows = "1:1"  # ヘッダー行を全ページに繰り返し
 
 
 # ── ハイパーリンク設定 ────────────────────────────────────────────────────────
@@ -387,8 +470,9 @@ def set_hyperlinks(result_ws, evidence_ws_name: str, tc_to_row: dict, test_cases
             continue
         cell = result_ws.cell(row=result_row, column=7)
         cell.hyperlink = f"#{evidence_ws_name}!{ev_addr}"
-        cell.font = Font(color="0563C1", underline="single", name="游ゴシック", size=10)
+        cell.font = _font(color="0563C1", underline="single")
         cell.value = "→ 証跡を見る"
+        cell.alignment = CENTER_MID
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -422,10 +506,6 @@ def main():
     build_evidence_sheet(evidence_ws, test_cases, judgment, args.evidence_dir, tc_to_row)
     set_hyperlinks(result_ws, "証跡", tc_to_row, test_cases)
 
-    # ウィンドウ固定（ヘッダー行）
-    result_ws.freeze_panes = "A2"
-    evidence_ws.freeze_panes = "A2"
-
     out_path = os.path.join(args.folder, f"{args.issue_id}_エビデンス.xlsx")
     os.makedirs(args.folder, exist_ok=True)
     try:
@@ -434,8 +514,8 @@ def main():
         print(f"[ERROR] xlsx の保存失敗（ファイルが開かれている可能性）: {out_path}\n{e}")
         sys.exit(1)
 
-    ok_count = sum(1 for r in judgment.values() if r.get("status") == "OK")
-    ng_count = sum(1 for r in judgment.values() if r.get("status") == "NG")
+    ok_count   = sum(1 for r in judgment.values() if r.get("status") == "OK")
+    ng_count   = sum(1 for r in judgment.values() if r.get("status") == "NG")
     skip_count = sum(1 for r in judgment.values() if r.get("status") == "SKIP")
 
     print(f"生成完了: {out_path}")

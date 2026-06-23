@@ -3,7 +3,8 @@
 from pathlib import Path
 
 try:
-    from openpyxl.styles import PatternFill
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
     _OPENPYXL_AVAILABLE = True
 except ImportError:
     _OPENPYXL_AVAILABLE = False
@@ -24,6 +25,83 @@ def _stripe_fill(i):
     """
     rgb = _STRIPE_A_RGB if i % 2 == 0 else _STRIPE_B_RGB
     return PatternFill("solid", fgColor=rgb)
+
+
+# ── 書式ヘルパー（游ゴシック統一） ───────────────────────────────────────────
+# sf-doc-mcp/writer.py の _font/_align/_thin/_medium 相当を移植。
+# generate_evidence_xlsx.py 等が import して Calibri 混在を解消する。
+
+def _font(fg: str = "1A1A1A", bold: bool = False, size: int = 10,
+          name: str = "游ゴシック", italic: bool = False,
+          underline: str = None, color: str = None) -> "Font":
+    """游ゴシック既定のフォント生成。color は fg の別名（互換）。"""
+    actual_fg = color if color else fg
+    kwargs = dict(color=actual_fg, bold=bold, size=size, name=name, italic=italic)
+    if underline:
+        kwargs["underline"] = underline
+    return Font(**kwargs)
+
+
+def _align(h: str = "left", v: str = "top", wrap: bool = True) -> "Alignment":
+    return Alignment(horizontal=h, vertical=v, wrap_text=wrap)
+
+
+def _thin_side(color: str = "AAAAAA") -> "Side":
+    return Side(style="thin", color=color)
+
+
+def _medium_side(color: str = "888888") -> "Side":
+    return Side(style="medium", color=color)
+
+
+def _thin_border(color: str = "AAAAAA") -> "Border":
+    s = _thin_side(color)
+    return Border(left=s, right=s, top=s, bottom=s)
+
+
+def _set_row_height(ws, row: int, h: float) -> None:
+    ws.row_dimensions[row].height = h
+
+
+def _set_col_width(ws, col: int, w: float) -> None:
+    ws.column_dimensions[get_column_letter(col)].width = w
+
+
+def _freeze(ws, row: int) -> None:
+    ws.freeze_panes = f"A{row}"
+
+
+def _auto_col_width(ws, col: int, min_w: float = 8, max_w: float = 40) -> None:
+    """列内の最大文字数から列幅を推算して設定する（上限・下限付き）。
+    openpyxl は実フォント幅を計算できないため、文字数×係数の近似値を使う。
+    """
+    max_len = 0
+    col_letter = get_column_letter(col)
+    for cell in ws[col_letter]:
+        if cell.value:
+            # 改行を含む場合は最大行の長さを使う
+            cell_len = max(len(str(line)) for line in str(cell.value).splitlines())
+            max_len = max(max_len, cell_len)
+    # 全角文字（CJK）は幅 2 なので係数 1.8 で近似
+    estimated = max_len * 1.8
+    ws.column_dimensions[col_letter].width = max(min_w, min(estimated, max_w))
+
+
+def _row_height_by_lines(text: str, col_width: float = 30, base_pt: float = 15) -> float:
+    """折り返し行数から行高を推算して返す（折り返し列幅を col_width 文字と仮定）。
+
+    1行あたり base_pt pt として、改行＋折り返し行数分の高さを返す。
+    """
+    if not text:
+        return base_pt * 1.5
+    lines = str(text).splitlines()
+    total = 0
+    for line in lines:
+        # 全角文字は幅 2 として折り返し行数を推算
+        line_width = sum(2 if ord(c) > 0x7F else 1 for c in line)
+        wrapped = max(1, (line_width + int(col_width) - 1) // int(col_width))
+        total += wrapped
+    return max(base_pt * 1.5, base_pt * total)
 
 
 def validate_folder(value: str) -> str:

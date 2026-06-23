@@ -1,6 +1,6 @@
 ---
 name: auto-evidence-runner
-description: Salesforce保守課題のテスト証跡採取オーケストレータ。test-spec.md を読み、種別ごとに SOQL（並列）/ ApexTest / AnonApex（コード生成＋並列実行）/ UI（ui-evidence-runner に委譲）/ メタ確認を実行し証跡採取、テストデータ後始末、test-report.md を生成する。/test コマンドから委譲される（単独起動禁止）。
+description: Salesforce保守課題のテスト証跡採取オーケストレータ。test-spec.md を読み、種別ごとに SOQL（並列）/ ApexTest / AnonApex（コード生成＋並列実行）/ UI（ui-evidence-runner に委譲）を実行し証跡採取、テストデータ後始末、test-report.md を生成する。/test コマンドから委譲される（単独起動禁止）。
 model: sonnet
 tools:
   - Read
@@ -44,7 +44,7 @@ tools:
 | No | 観点 | 種別 | 前提・データ準備 | 実行アクション | 期待結果 | 判定方法 | 証跡取得 | 自動化可否 |
 
 自動化可否ごとに仕分け:
-- `自動` → Step 2〜6 で自動実行
+- `自動` → Step 2〜5 で自動実行
 - `要手動（理由）` → 証跡取得をスキップし、test-report.md の「要手動確認」欄に記録
 
 **差分再実行モード**: `{target_tc_list}` が指定されている場合、リストに含まれない TC は Step 2〜6 をスキップし、既存の証跡ファイルをそのまま再利用する。空の場合は全件実行する。
@@ -59,7 +59,6 @@ tools:
 mkdir -p "{evidence_dir}/after/soql"
 mkdir -p "{evidence_dir}/after/apex"
 mkdir -p "{evidence_dir}/after/screen"
-mkdir -p "{evidence_dir}/after/meta"
 mkdir -p "{evidence_dir}/before"
 ```
 
@@ -182,23 +181,7 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
 
 ---
 
-## Step 6: メタデータ確認・ファイル確認（種別 = メタ確認 / ファイル確認）
-
-「実行アクション」に指定されたファイルを Read / Grep して期待値と照合し、
-`{evidence_dir}/after/meta/{No}_{観点サニタイズ}.txt` に結果を保存する:
-
-```
-=== メタデータ確認証跡 ===
-No: TC-00X
-観点: ...
-ファイル: force-app/.../XXX.xml
-確認内容: {確認した箇所の抜粋}
-判定: 期待値「...」が確認できた / 確認できなかった
-```
-
----
-
-## Step 7: 一時ファイルの後始末
+## Step 6: 一時ファイルの後始末
 
 ```bash
 python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
@@ -206,7 +189,7 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 
 ---
 
-## Step 8: test-report.md の生成
+## Step 7: test-report.md の生成
 
 `{log_dir}/test-report.md` に以下のフォーマットで保存する:
 
@@ -281,7 +264,6 @@ ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/aft
 - [ ] ApexTest ケース: 全件 txt 出力あり
 - [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む）＋テストデータ削除完了
 - [ ] UI ケース: ui-evidence-runner の返却で全件 OK（PNG 各 1KB 以上・DOM スナップショット txt あり）
-- [ ] メタ確認ケース: 全件 txt 出力あり
 - [ ] test-report.md が `{log_dir}` に存在すること
 - [ ] tmp/ 一時ファイルが削除済み
 - [ ] accessToken がいかなるファイル・ログにも出力されていない

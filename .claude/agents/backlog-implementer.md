@@ -141,6 +141,8 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 - **NG 例**: 「preCheck.html: isCriminalHistoryVisible @track / getter 追加 / handleCriminalHistoryChange handler 実装」
 - 理由: xlsx 対応内容シートの言語記述セクションに直接投影されるため、業務担当者が読める語彙が必要。`@track` / `getter` / `handler` 等の技術用語は括弧補足でも使わない
 
+> **重要**: implementation-plan.md の「変更ファイル一覧」「対応内容」は `/test` の網羅性チェック（変更点回帰）の input になる。**変更したコンポーネントと挙動の変化を漏れなく日本語で記載すること**（省略・略記は test 側の TC 生成ミスにつながる）。
+
 ### 5. Before / After の提示
 
 全ての変更ファイルについて、変更前後を提示する:

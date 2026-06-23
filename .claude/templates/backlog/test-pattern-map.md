@@ -9,6 +9,8 @@
 
 **テストの主眼**: Apex / Flow / LWC を実際に動かし「データ準備 → 処理起動 → 結果確認（SOQL ＋ UI）」で実処理の挙動を確認すること。カバレッジはおまけ。AnonApex / UI を最優先実行、ApexTest は回帰・カバレッジ補助。
 
+> **テストの対象外**: メタデータ（XML/JSON）・force-app 配下のソースコードの内容確認は `/backlog` が実施済み。`/test` では扱わない。権限・レイアウト確認は UI（Login As の実画面）で行う。
+
 ---
 
 ## 種別一覧（実行手段）
@@ -18,9 +20,7 @@
 | `SOQL` | `sf data query` | データ件数・フィールド値の確認 |
 | `ApexTest` | `sf apex run test` | 既存テストクラスの回帰確認・権限ロジック（System.runAs） |
 | `AnonApex` | `sf apex run --file`（匿名Apex） | データ作成・Flow起動・ビジネスロジック直接実行・結果確認 |
-| `UI` | Playwright ヘッドレス | 画面表示・ボタン・遷移・ユーザ別見え方確認 |
-| `メタ確認` | Read / Grep | メタデータ XML / JSON の設定値照合 |
-| `ファイル確認` | Read / Grep | force-app/ 配下コードの内容確認 |
+| `UI` | Playwright ヘッドレス | 画面表示・ボタン・遷移・ユーザ別見え方・権限差分（Login As）確認 |
 
 ---
 
@@ -36,7 +36,7 @@
 | LWC | 画面表示・操作・エラー表示（UI: Playwright）＋ コントローラ（ApexTest） | デザイン微調整の目視 |
 | 権限・FLS | `System.runAs` での権限差分（ApexTest）＋ 該当ユーザの UI 表示（UI: Login As） | 本番限定権限セット |
 | 数式・ロールアップ | 子操作 → 親再計算 ＋ 境界値（AnonApex / SOQL） | — |
-| 連携（外部） | `HttpCalloutMock` でモックテスト（ApexTest）＋ Named Credential 設定確認（メタ確認） | 実外部疎通（要手動） |
+| 連携（外部） | `HttpCalloutMock` でモックテスト（ApexTest） | 実外部疎通（要手動） |
 
 ---
 
@@ -85,6 +85,7 @@ static void testAsTargetUser() {
 | `Apex PASS` | `sf apex run test` が全テスト PASS |
 | `PNG 存在` | スクショ PNG が 1KB 以上存在 |
 | `スクショ＋DOM照合` | 画面表示の確認（PNG＋ `browser_snapshot` のペアで自動判定。期待テキストが DOM に含まれるか機械照合） |
+| `完全一致` | フィールド値・設定値が完全一致 |
 
 > **廃止**: `スクショ目視（要手動に格下げ推奨）` — これは使わない。画面確認は常にスクショ＋DOM照合で自動実行する。
 

@@ -220,9 +220,8 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 2. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列）
 3. AnonApex → コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列）
 4. ApexTest → 直列実行
-5. メタ確認/ファイル確認 → Read/Grep
-6. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）
-7. 証跡存在確認 → cleanup（逐次）→ test-report.md 生成
+5. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）
+6. 証跡存在確認 → cleanup（逐次）→ test-report.md 生成
 
 実行後に証跡ファイルの存在確認:
 ```bash
