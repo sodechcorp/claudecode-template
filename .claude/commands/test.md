@@ -177,61 +177,52 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 
 ### Phase B: テスト仕様の展開
 
-> **[auto-evidence-runner へ委譲]**
+> **[test-spec-builder へ委譲]**
 
-> **テストの主眼**: Apex / Flow / LWC を実際に動かし「データ準備 → 処理起動 → 結果確認（SOQL ＋ UI）」で実処理の挙動を確認すること。カバレッジはおまけ。AnonApex / UI を最優先実行、ApexTest は回帰・カバレッジ補助。
+`test-spec-builder` への委譲パラメータ:
+- `issueID`: `{issueID}`
+- `project_dir`: `{PROJECT_DIR}`
+- `log_dir`: `{LOG_DIR}`
+- `impl_plan_path`: `{LOG_DIR}/implementation-plan.md`
+- `investigation_path`: `{LOG_DIR}/investigation.md`
+- `spec_path`: `{SPEC_PATH}`（出力先）
+- `pattern_map_path`: `.claude/templates/backlog/test-pattern-map.md`
+- `force`: `${FORCE_SPEC:-false}`（`--force` 指定時は true）
 
-`implementation-plan.md` の「テスト観点（軽量列挙）」と `investigation.md` のテストシナリオを読み込み、機械実行可能な 9 列スキーマの `test-spec.md` を生成する。
+`test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。
 
-`docs/logs/{issueID}/test-spec.md` に保存する。既に存在する場合はスキップ（`--force` 指定時は再生成）。
+> **仕様スキーマ（参考）**: 9 列 — No / 観点 / 種別 / 前提・データ準備 / 実行アクション / 期待結果 / 判定方法 / 証跡取得 / 自動化可否。  
+> 詳細な展開ルール・種別選択肢・自動化可否判断基準・網羅性チェック手順は `test-spec-builder.md` に定義されている。
 
-**9 列スキーマ**:
-
-| No | 観点 | 種別 | 前提・データ準備 | 実行アクション | 期待結果 | 判定方法 | 証跡取得 | 自動化可否 |
-
-種別の選択肢:
-- `SOQL` — sf data query で確認
-- `ApexTest` — sf apex run test でテストクラス実行（権限差分テストは System.runAs で）
-- `AnonApex` — 匿名 Apex でデータ作成・ロジック起動・Flow 起動（AnonApex を最優先）
-- `UI` — Playwright ヘッドレスで画面操作・スクショ（ユーザ別表示差分は Login As で切替）
-- `メタ確認` — XML/JSON ファイルを Read/Grep で照合
-- `ファイル確認` — force-app/ 配下のファイル内容確認
-
-自動化可否: 以下の3類型のみ `要手動（理由）`。**それ以外は必ず `自動`**。判断に迷う場合は `自動` にする。
-  - 実外部サービスへの実通信が必須
-  - 本番限定データ・権限セットが物理的前提
-  - スケジュール実時刻起動が必須なバッチ
-  ※ UI確認・条件分岐・ユーザ別表示はすべて `自動`（Playwright で取得する）
-
-**展開の注意**:
-- No は `implementation-plan.md` の TC番号を引き継ぐ（再採番しない。新規観点のみ続き番号で追加）
-- 証跡ファイル名は `{No}_{観点サニタイズ}.{txt|png}` 形式とする（before=`before/{No}_{観点}_before.png`、after=`after/{種別}/{No}_{観点}.{txt|png}`）
-- 期待結果は「3 件」「true」「エラーなし」等、機械比較可能な値にする
-- 判定方法は「件数一致」「含む」「存在確認」「完全一致」等を明示する
-- 証跡取得は「SOQL結果txt」「スクショPNG」「Apexデバッグログ」等を明示する
-- AnonApex は「前提・データ準備」列に作成するデータとその値（Name プレフィックス等）を具体的に記載する
-- 課題種別ごとの必須観点は `.claude/templates/backlog/test-pattern-map.md` に従う。機械不可は `自動化可否=要手動（理由）` で skip 可（無理強いしない）
-- 条件分岐がある場合（ビザ種別・入力値・権限等）は**分岐ごとに別の TC 行** or 「証跡取得」列に `{No}_{観点}_{分岐ラベル}.png` / `.txt` を列挙する
-- 「期待結果」列は分岐ごとに記述可（例: `I797あり→質問表示 / I797なし→非表示`）
-
-**網羅性セルフチェック**（test-spec.md 生成直後・Phase C 前に必ず実施）:
-1. `investigation.md` の「課題原文」各要求 → 対応 TC のマッピングを照合する
-2. 未カバーの要求があれば TC を追加してから Phase C に進む
-3. 全カバーできたことを確認してから委譲する
+既に `test-spec.md` が存在する場合はスキップ（`--force` 指定時は再生成）。
 
 ---
 
 ### Phase C: 自動テスト実行＋証跡採取
 
-> **[auto-evidence-runner へ委譲]**
+> **[auto-evidence-runner（オーケストレータ）へ委譲]**
 
-`test-spec.md` の各ケースを種別に応じて実行し、証跡を `{evidence_dir}` に保存する。
+`auto-evidence-runner` への委譲パラメータ:
+- `issueID`: `{issueID}`
+- `alias`: `{SF_ALIAS}`
+- `project_dir`: `{PROJECT_DIR}`
+- `log_dir`: `{LOG_DIR}`
+- `evidence_dir`: `{EVIDENCE_DIR}`
+- `xlsx_folder`: `{XLSX_FOLDER}`
+- `spec_path`: `{SPEC_PATH}`
+- `target_tc_list`: `{TARGET_TC_LIST}`（空=全件）
+- `max_workers_soql`: 4（低速組織や API 制限が疑われる場合は 1 で逐次 / `--serial` を渡す）
+- `max_workers_anon`: 3（同上）
+- `serial`: false（`--serial` 指定時は true で全逐次フォールバック）
 
-auto-evidence-runner への委譲パラメータ:
-- `{target_tc_list}` — Phase A で確定した差分再実行対象の TC番号リスト（空=全件）
-- `{evidence_dir}` — `{xlsx_folder}/evidence`
-
-詳細手順は `auto-evidence-runner.md` の Step 2〜6 を参照。
+**実行の流れ**（`auto-evidence-runner` 内部）:
+1. 種別仕分け＋差分対象 TC の絞り込み
+2. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列）
+3. AnonApex → コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列）
+4. ApexTest → 直列実行
+5. メタ確認/ファイル確認 → Read/Grep
+6. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）
+7. 証跡存在確認 → cleanup（逐次）→ test-report.md 生成
 
 実行後に証跡ファイルの存在確認:
 ```bash

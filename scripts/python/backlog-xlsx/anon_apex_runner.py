@@ -210,6 +210,81 @@ def cleanup_records(alias: str, sobject: str, ids: list) -> dict:
     return {"deleted": deleted, "failed": failed}
 
 
+# ── 一括並列実行（run-batch サブコマンド） ───────────────────────────────────
+
+def run_one_anon_case(alias: str, case: dict) -> dict:
+    """1 AnonApex ケースを実行し証跡保存する。ThreadPoolExecutor から呼ぶ純関数。
+    case = {"no": str, "label": str, "apex_file": str, "out": str}
+    返り値: {"no","label","ok":bool,"out":str,"error":str}
+    """
+    try:
+        apex_code = Path(case["apex_file"]).read_text(encoding="utf-8")
+        data = run_anonymous(alias, case["apex_file"])
+        to_text_evidence(data, case["out"], case["label"], case["no"], apex_code)
+        r = data.get("result", {})
+        return {"no": case["no"], "label": case["label"], "ok": True,
+                "out": case["out"], "error": "",
+                "compiled": r.get("compiled"), "success": r.get("success")}
+    except SystemExit as e:
+        return {"no": case["no"], "label": case["label"], "ok": False,
+                "out": case["out"], "error": str(e),
+                "compiled": None, "success": None}
+
+
+def run_batch_parallel(alias: str, cases: list, max_workers: int = 3,
+                       serial_nos: set = None) -> list:
+    """AnonApex ケース群を並列実行する。
+    - serial_nos に含まれる TC（データ競合懸念）は並列対象外にし、
+      並列バッチ完了後に逐次実行する。
+    - max_workers <= 1 で全逐次（--serial フォールバック）。
+    - rollbackケース（Savepoint/rollback）はトランザクションローカルなので並列安全。
+    - 永続化ケースは AUTOTEST_{issueID}_{TC_No}_ プレフィックスで論理分離される前提。
+    - 同一既存レコードを複数 TC が触る場合は serial_nos に列挙して逐次化すること。
+    - ガバナ制限エラー（ConcurrentPerOrgLongTxn / REQUEST_LIMIT）を検出して警告する。
+    - assert_sandbox は呼び出し元で1回だけ実施済みの前提。
+    返り値: ケースごとの結果 dict リスト（No 昇順）。
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    serial_nos = serial_nos or set()
+    parallel_cases = [c for c in cases if c["no"] not in serial_nos]
+    serial_cases = [c for c in cases if c["no"] in serial_nos]
+
+    results = []
+    limit_errors = []
+
+    if max_workers <= 1:
+        for c in cases:
+            r = run_one_anon_case(alias, c)
+            results.append(r)
+            if not r["ok"] and ("ConcurrentPerOrgLongTxn" in r["error"] or
+                                "REQUEST_LIMIT" in r["error"]):
+                limit_errors.append(r["no"])
+    else:
+        # 並列バッチ（競合懸念のない TC）
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futs = {ex.submit(run_one_anon_case, alias, c): c for c in parallel_cases}
+            for fut in as_completed(futs):
+                r = fut.result()
+                results.append(r)
+                if not r["ok"] and ("ConcurrentPerOrgLongTxn" in r["error"] or
+                                    "REQUEST_LIMIT" in r["error"]):
+                    limit_errors.append(r["no"])
+        # 競合懸念 TC を並列バッチ完了後に逐次実行
+        for c in serial_cases:
+            r = run_one_anon_case(alias, c)
+            results.append(r)
+            if not r["ok"] and ("ConcurrentPerOrgLongTxn" in r["error"] or
+                                "REQUEST_LIMIT" in r["error"]):
+                limit_errors.append(r["no"])
+
+    if limit_errors:
+        print(f"[WARN] ガバナ制限エラーが発生しました（{limit_errors}）。"
+              " --serial オプションで逐次実行に切り替えてください。")
+
+    return sorted(results, key=lambda r: r["no"])
+
+
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -234,13 +309,42 @@ def main():
     p_clean.add_argument("--dry-run", action="store_true", dest="dry_run",
                          help="実際には削除せず件数のみ確認する")
 
+    # run-batch サブコマンド（並列一括実行）
+    p_batch = sub.add_parser("run-batch", help="複数の匿名 Apex を一括実行する（並列対応）")
+    p_batch.add_argument("--alias", default="", help="Sandbox org alias")
+    p_batch.add_argument("--cases-file", required=True, dest="cases_file",
+                         help='実行ケース定義 JSON ファイル（[{"no","label","apex_file","out"},...] 形式）')
+    p_batch.add_argument("--max-workers", type=int, default=3, dest="max_workers",
+                         help="並列 worker 数（デフォルト 3）")
+    p_batch.add_argument("--serial", action="store_true",
+                         help="強制的に逐次実行（ガバナ競合時のフォールバック用）")
+    p_batch.add_argument("--serial-nos", default="", dest="serial_nos",
+                         help="逐次実行に寄せる TC 番号カンマ区切り（同一既存レコード競合懸念 TC）")
+
     args = parser.parse_args()
-    alias = assert_sandbox(args.alias)
+    alias = assert_sandbox(args.alias)  # Sandbox 確認はループ前に1回だけ実施
 
     if args.subcommand == "run":
         apex_code = Path(args.apex_file).read_text(encoding="utf-8")
         data = run_anonymous(alias, args.apex_file)
         to_text_evidence(data, args.out, args.label, args.tc_no, apex_code)
+
+    elif args.subcommand == "run-batch":
+        cases = json.loads(Path(args.cases_file).read_text(encoding="utf-8"))
+        serial_nos = (set(t.strip() for t in args.serial_nos.split(",") if t.strip())
+                      if args.serial_nos else set())
+        max_workers = 1 if args.serial else args.max_workers
+        mode = "逐次" if max_workers <= 1 else f"並列 (max_workers={max_workers})"
+        print(f"[INFO] {len(cases)} 件の AnonApex ケースを{mode}で実行します。")
+        results = run_batch_parallel(alias, cases, max_workers=max_workers,
+                                     serial_nos=serial_nos)
+        ng_count = sum(1 for r in results if not r["ok"])
+        print(f"[INFO] run-batch 完了: {len(results)} 件実行 / NG {ng_count} 件")
+        if ng_count:
+            for r in results:
+                if not r["ok"]:
+                    print(f"  [NG] {r['no']} ({r['label']}): {r['error']}")
+            sys.exit(1)
 
     elif args.subcommand == "cleanup":
         ids = collect_created_ids(alias, args.sobject, args.prefix)
