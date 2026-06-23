@@ -1,6 +1,6 @@
-# 課題種別 → テストパターンマッピング
+﻿# 課題種別 → テストパターンマッピング
 
-`/auto-test` Phase B のテスト仕様展開（test-spec.md 生成）で参照する対応表。
+`/test` Phase B のテスト仕様展開（test-spec.md 生成）で参照する対応表。
 `auto-evidence-runner` Step 1 および `backlog-planner` テスト観点列挙でも参照する。
 
 ---

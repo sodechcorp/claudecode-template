@@ -103,35 +103,51 @@ def load_judgment(judgment_path: str) -> dict:
 
 # ── 証跡ファイル探索 ─────────────────────────────────────────────────────────
 
-def find_evidence_file(evidence_dir: str, tc_no: str, shubetsu: str) -> str:
+def _tc_normalize(tc_str: str) -> int:
+    """TC番号文字列から数値部を抽出（桁差を吸収: TC-004 / TC-04 / TC-4 → 4）。"""
+    m = re.match(r'(?:[Tt][Cc])-0*(\d+)', tc_str.strip())
+    return int(m.group(1)) if m else -1
+
+
+def find_evidence_file(evidence_dir: str, tc_no: str, shubetsu: str, judgment: dict = None) -> str:
     """後方互換: 最初の1ファイルのみ返す。"""
-    files = find_evidence_files(evidence_dir, tc_no, shubetsu)
+    files = find_evidence_files(evidence_dir, tc_no, shubetsu, judgment)
     return files[0] if files else ""
 
 
-def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
-    """証跡ディレクトリから TC-001 に対応する全ファイルを返す（複数証跡・分岐ラベル対応）。"""
-    subdir_map = {"SOQL": "soql", "ApexTest": "apex", "AnonApex": "apex",
-                  "UI": "screen", "メタ確認": "meta", "ファイル確認": "meta"}
-    subdir = subdir_map.get(shubetsu, "")
-    search_dirs = []
-    if subdir:
-        search_dirs.append(os.path.join(evidence_dir, subdir))
-    search_dirs.append(evidence_dir)
+def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: dict = None) -> list:
+    """証跡ディレクトリから TC 番号に対応する全ファイルを返す。
+    優先順:
+      ① judgment-result.json の evidence パス（検証済み正本・絶対パスで直参照）
+      ② os.walk 再帰探索（複合種別・before/after サブディレクトリ・桁差 TC-04 vs TC-004 対応）
+    before ファイル（"_before." を含む）は除外。
+    """
     found = []
     seen = set()
-    for d in search_dirs:
-        if not os.path.isdir(d):
-            continue
-        for fname in sorted(os.listdir(d)):
-            # before ファイルは除外
-            if "_before." in fname:
-                continue
-            if fname.startswith(tc_no) or fname.startswith(tc_no.replace("TC-", "tc-")):
-                fpath = os.path.join(d, fname)
-                if fpath not in seen:
+
+    # ① judgment の evidence パスを最優先（正本が既にある場合は即採用）
+    if judgment is not None:
+        ev_path = judgment.get(tc_no, {}).get("evidence", "")
+        if ev_path and os.path.isfile(ev_path) and ev_path not in seen:
+            seen.add(ev_path)
+            found.append(ev_path)
+
+    # ② os.walk 再帰探索（TC番号正規化で桁差・複合種別・サブディレクトリを吸収）
+    tc_num = _tc_normalize(tc_no)
+    if tc_num >= 0 and os.path.isdir(evidence_dir):
+        for dirpath, _dirs, filenames in os.walk(evidence_dir):
+            for fname in sorted(filenames):
+                if "_before." in fname:
+                    continue
+                fpath = os.path.join(dirpath, fname)
+                if fpath in seen:
+                    continue
+                # ファイル名先頭の "TC-NNN" 部分を抽出して TC番号と比較
+                fname_prefix = fname.split("_")[0]  # "TC-001" / "TC-04" / "tc-4"
+                if _tc_normalize(fname_prefix) == tc_num:
                     seen.add(fpath)
                     found.append(fpath)
+
     return found
 
 
@@ -255,8 +271,8 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
         auto = tc.get("自動化可否", "自動").strip()
         is_manual = "要手動" in auto
 
-        # 複数証跡ファイルを全件取得
-        all_evidence = find_evidence_files(evidence_dir, no, shubetsu)
+        # 複数証跡ファイルを全件取得（judgment 正本→再帰探索の二段構え）
+        all_evidence = find_evidence_files(evidence_dir, no, shubetsu, judgment)
 
         # TC セクションヘッダー
         ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)

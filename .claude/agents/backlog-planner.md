@@ -431,7 +431,7 @@ Phase B の提示を行う**前に**、以下を実施する:
 ## テスト観点（軽量列挙）
 
 investigation.md の Step G に記載されたテストシナリオを元に、テスト観点を列挙する。
-詳細な実行手順・期待結果・判定方法は `/auto-test {issueID}` が Phase B で展開するため、ここでは **観点の網羅性** を確保することに集中する。
+詳細な実行手順・期待結果・判定方法は `/test {issueID}` が Phase B で展開するため、ここでは **観点の網羅性** を確保することに集中する。
 
 > 課題種別ごとに当てるべき観点の指針: [`.claude/templates/backlog/test-pattern-map.md`](../templates/backlog/test-pattern-map.md)
 
@@ -498,7 +498,7 @@ B-3 の提示内容をユーザに見せたら、以下を必ず行う:
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 3.5 に進んでよろしいですか？」とテキストで確認する
 5. 承認後 → `docs/logs/{issueID}/implementation-plan.md` に保存してユーザに提示する
-6. **保存完了をコマンド本体（呼び出し元 /backlog）に明示報告する**: コマンド本体が Phase 3 末尾の xlsx 一括生成スクリプト（create_records.py）を実行するため、planner からは bash を実行しない（エビデンス.xlsx は /auto-test が担当）
+6. **保存完了をコマンド本体（呼び出し元 /backlog）に明示報告する**: コマンド本体が Phase 3 末尾の xlsx 一括生成スクリプト（create_records.py）を実行するため、planner からは bash を実行しない（エビデンス.xlsx は /test が担当）
 
 **全判断ポイントの確認が取れるまで実装に進まない。**
 

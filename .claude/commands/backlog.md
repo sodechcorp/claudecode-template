@@ -1,4 +1,4 @@
----
+﻿---
 description: "Backlog課題の調査・対応・記録を一気通貫で実施する。専門エージェントを順に起動し、各フェーズ完了後にユーザ確認を取りながら進める。/backlog [課題ID] で個別課題対応。"
 ---
 
@@ -296,7 +296,7 @@ python scripts/python/backlog-xlsx/create_records.py \
   --implementation-plan docs/logs/{issueID}/implementation-plan.md
 ```
 
-> **エビデンス.xlsx の扱い**: 上記 create_records.py は対応記録.xlsx のみ生成する。エビデンス.xlsx は Phase 4 完了後に `/auto-test {issueID}` が generate_evidence_xlsx.py で生成するため、このタイミングでは実行しない。
+> **エビデンス.xlsx の扱い**: 上記 create_records.py は対応記録.xlsx のみ生成する。エビデンス.xlsx は Phase 4 完了後に `/test {issueID}` が generate_evidence_xlsx.py で生成するため、このタイミングでは実行しない。
 
 **スクリプト失敗時の対処**（エラー出力あり / 終了コード 非0）:
 1. エラー内容をユーザに提示する
@@ -309,7 +309,7 @@ python scripts/python/backlog-xlsx/create_records.py \
 生成完了後にファイルパスをユーザに提示する（`{xlsx_folder}` = null の場合はスキップ）:
 - `{xlsx_folder}/{issueID}_対応記録.xlsx`
 
-（エビデンス.xlsx は Phase 4 完了後に `/auto-test {issueID}` が生成する）
+（エビデンス.xlsx は Phase 4 完了後に `/test {issueID}` が生成する）
 
 **実装前エビデンスの取得依頼**（Phase 4 の実装着手前に必ず案内する）:
 
@@ -385,9 +385,9 @@ xlsx_folder: {xlsx_folder}
 
 ---
 
-### Phase 5: テスト・検証（backlog-tester または /auto-test）
+### Phase 5: テスト・検証（backlog-tester または /test）
 
-> **全自動テスト（推奨）**: テスト実行・証跡採取・エビデンス.xlsx 生成をすべて自動化したい場合は、`backlog-tester` の代わりに `/auto-test {issueID}` を実行する。SOQL / Apex テスト / 匿名 Apex（データ作成・Flow 起動）/ Playwright ヘッドレス画面操作を無人で実行し、証跡付き Excel を自動生成する。
+> **全自動テスト（推奨）**: テスト実行・証跡採取・エビデンス.xlsx 生成をすべて自動化したい場合は、`backlog-tester` の代わりに `/test {issueID}` を実行する。SOQL / Apex テスト / 匿名 Apex（データ作成・Flow 起動）/ Playwright ヘッドレス画面操作を無人で実行し、証跡付き Excel を自動生成する。
 
 **通常モード（合同 UI 確認を含む）**: `backlog-tester` エージェントを起動する:
 
@@ -407,11 +407,11 @@ xlsx_folder: {xlsx_folder}
 
 > xlsx 更新（timeline + テスト・検証シート H列「実際の結果」）は担当エージェントが行う:
 > - 通常経路（backlog-tester）: エージェント内 Step 8 が `cell --col 8` で実装後行を記入
-> - 全自動経路（/auto-test）: judge_results.py が実装後・自動行の H列を自動更新。UI手動行は人がエビデンス.xlsx で確認
+> - 全自動経路（/test）: judge_results.py が実装後・自動行の H列を自動更新。UI手動行は人がエビデンス.xlsx で確認
 >
 > **Phase 6 への進行条件**: 全テスト行の H列（実際の結果）が `OK: …` または `NG: …` の形式で埋まっていること。UI手動行は人が確認済みであること。
 
-> **次に進む条件（通常経路）**: 全テスト PASS かつユーザ確認サインがあった後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 6 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む。全自動経路（/auto-test）では test-report.md の総合判定が PASS であることを確認する
+> **次に進む条件（通常経路）**: 全テスト PASS かつユーザ確認サインがあった後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 6 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む。全自動経路（/test）では test-report.md の総合判定が PASS であることを確認する
 >
 > **Phase 5 典型例**: 「ユーザ合同確認が取れていないシナリオの扱い」「Before/After エビデンスが対になっているか」
 

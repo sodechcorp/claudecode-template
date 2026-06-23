@@ -1,4 +1,4 @@
-# /auto-test [課題ID]
+# /test [課題ID]
 
 Salesforce 保守課題の実装後テストを全自動実行し、エビデンスを証跡採取・Excel 出力する。
 
@@ -27,7 +27,7 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 # 1. 課題ID の解決
 ISSUE_ID="${1:-}"
 if [ -z "$ISSUE_ID" ]; then
-  echo "[FATAL] 課題IDを指定してください: /auto-test GF-350"
+  echo "[FATAL] 課題IDを指定してください: /test GF-350"
   exit 1
 fi
 
@@ -57,24 +57,49 @@ if [ "$IS_SANDBOX" != "True" ]; then
 fi
 echo "OK: Sandbox 接続確認済み ($SF_ALIAS)"
 
-# 5. xlsx_folder の確定（docs/.backlog_config.yml から読む）
+# 5. xlsx_folder の確定（優先: investigation.md フロントマター → .backlog_config.yml → LOG_DIR）
 XLSX_FOLDER=""
-CONFIG_FILE="${PROJECT_DIR}/docs/.backlog_config.yml"
-if [ -f "$CONFIG_FILE" ]; then
+EVIDENCE_DIR=""
+
+# ① investigation.md フロントマターから読む（/backlog と同じ一次ソース）
+INVEST_FILE="${LOG_DIR}/investigation.md"
+if [ -f "$INVEST_FILE" ]; then
   XLSX_FOLDER=$(python -c "
+import sys, re
+text = open(r'${INVEST_FILE}', encoding='utf-8').read()
+m = re.search(r'^xlsx_folder:\s*(.+)$', text, re.MULTILINE)
+print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')
+" 2>/dev/null || echo "")
+  EVIDENCE_DIR=$(python -c "
+import sys, re
+text = open(r'${INVEST_FILE}', encoding='utf-8').read()
+m = re.search(r'^evidence_dir:\s*(.+)$', text, re.MULTILINE)
+print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')
+" 2>/dev/null || echo "")
+fi
+
+# ② .backlog_config.yml から読む（後方互換）
+if [ -z "$XLSX_FOLDER" ]; then
+  CONFIG_FILE="${PROJECT_DIR}/docs/.backlog_config.yml"
+  if [ -f "$CONFIG_FILE" ]; then
+    XLSX_FOLDER=$(python -c "
 import yaml, sys
 with open(r'${CONFIG_FILE}', encoding='utf-8') as f:
     d = yaml.safe_load(f) or {}
 issues = d.get('issues', {})
 print(issues.get('${ISSUE_ID}', {}).get('xlsx_folder', ''))
 " 2>/dev/null || echo "")
-fi
-if [ -z "$XLSX_FOLDER" ]; then
-  XLSX_FOLDER="$LOG_DIR"
-  echo "[INFO] xlsx_folder 未設定。証跡を ${LOG_DIR} に保存します。"
+  fi
 fi
 
-EVIDENCE_DIR="${XLSX_FOLDER}/evidence"
+# ③ フォールバック: LOG_DIR
+if [ -z "$XLSX_FOLDER" ]; then
+  XLSX_FOLDER="$LOG_DIR"
+  echo "[INFO] xlsx_folder 未設定。${LOG_DIR} に保存します。"
+fi
+if [ -z "$EVIDENCE_DIR" ]; then
+  EVIDENCE_DIR="${XLSX_FOLDER}/evidence"
+fi
 SPEC_PATH="${LOG_DIR}/test-spec.md"
 JUDGMENT_PATH="${LOG_DIR}/judgment-result.json"
 
@@ -131,7 +156,7 @@ fi
 **ユーザー確認プロトコル**（実行前に必ず提示する）:
 
 ```
-=== /auto-test 実行前確認 ===
+=== /test 実行前確認 ===
 課題ID    : {issueID}
 Sandbox   : {alias}
 証跡保存先: {evidence_dir}
@@ -278,7 +303,7 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
 
 1. test-report.md の「NG 一覧」と `test-fail-routing.md` で戻り先 Phase を確定する
 2. ユーザーに戻り先 Phase と修正すべき点を提示する
-3. 修正後に再度 `/auto-test {issueID}` を実行するよう案内する
+3. 修正後に再度 `/test {issueID}` を実行するよう案内する
 
 #### xlsx 対応記録の更新（タイムライン）
 
@@ -306,7 +331,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 ## 完了報告フォーマット
 
 ```
-=== /auto-test {issueID} 完了 ===
+=== /test {issueID} 完了 ===
 
 テスト結果: {OK=N / NG=N / 要手動=N}
 総合判定: PASS ✅ / FAIL ❌ （NG が {N} 件）
@@ -319,7 +344,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 {NG がある場合}
 NG 一覧:
   - TC-00X: {観点} — {理由}
-  → /backlog Phase {N} に差し戻して修正後、再度 /auto-test {issueID} を実行してください。
+  → /backlog Phase {N} に差し戻して修正後、再度 /test {issueID} を実行してください。
 
 {要手動がある場合}
 要手動確認:

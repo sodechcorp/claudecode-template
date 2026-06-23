@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """backlog-xlsx / create_records.py
 対応記録.xlsx を生成する（Phase 3 完了直後に MD3点を読んで全シート埋め）
 
@@ -1307,8 +1307,8 @@ def fill_test(ws, impl_md):
             row.get("種別", row.get("実行種別", "")),  # 新4列スキーマは「種別」、旧は「実行種別」
             row.get("確認観点", row.get("テスト項目", "")),
             row.get("確認手順", row.get("確認方法", "")),  # E (E-F 結合の左端) 新スキーマでは空
-            row.get("期待結果", ""),    # G 新スキーマでは空（/auto-test が展開）
-            row.get("実際の結果", ""),  # H (テスト実行後に /auto-test が記入)
+            row.get("期待結果", ""),    # G 新スキーマでは空（/test が展開）
+            row.get("実際の結果", ""),  # H (テスト実行後に /test が記入)
         ]
         # E-F 結合のため F(col=6) はスキップ。G=col7, H=col8 に書く
         col_map = [1, 2, 3, 4, 5, 7, 8]

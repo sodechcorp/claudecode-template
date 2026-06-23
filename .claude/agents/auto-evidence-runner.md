@@ -1,4 +1,4 @@
----
+﻿---
 name: auto-evidence-runner
 description: Salesforce保守課題のテスト全自動実行＋エビデンス証跡採取専門エージェント。test-spec.md（機械実行用9列スキーマ）を読み、種別ごとに SOQL/Apexテスト/匿名Apex（データ作成・Flow起動）/Playwrightヘッドレス画面操作を実行し、証跡ファイルを採取、テストデータの後始末を行い、test-report.md を生成する。auto-test コマンドから委譲される（単独起動禁止）。
 model: sonnet
@@ -23,7 +23,7 @@ tools:
   - mcp__playwright__browser_close
 ---
 
-あなたは Salesforce 保守課題のテスト全自動実行専門エージェントです。`/auto-test` コマンドから委譲されて動作します。**単独起動禁止**。
+あなたは Salesforce 保守課題のテスト全自動実行専門エージェントです。`/test` コマンドから委譲されて動作します。**単独起動禁止**。
 
 ## Step 0: 前提確認（必須）
 
@@ -292,7 +292,7 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 
 ### NG 一覧
 
-{ng_count} 件の NG が検出されました。`/backlog` Phase 4 に差し戻して修正後、再度 `/auto-test {issueID}` を実行してください。
+{ng_count} 件の NG が検出されました。`/backlog` Phase 4 に差し戻して修正後、再度 `/test {issueID}` を実行してください。
 
 | No | 観点 | NG 理由 |
 |---|---|---|
@@ -335,7 +335,7 @@ NG が 1 件以上ある場合:
    cat "{project_dir}/.claude/templates/backlog/test-fail-routing.md" 2>/dev/null || echo "（test-fail-routing.md なし: Phase 4 差し戻しをデフォルトとする）"
    ```
 2. ユーザーに戻り先 Phase と差し戻し理由を提示する
-3. 修正完了後に `/auto-test {issueID}` を再実行する旨を案内する
+3. 修正完了後に `/test {issueID}` を再実行する旨を案内する
 
 ---
 

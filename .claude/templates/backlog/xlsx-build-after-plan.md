@@ -1,4 +1,4 @@
-# Phase 3 末尾: xlsx 一括生成手順
+﻿# Phase 3 末尾: xlsx 一括生成手順
 
 Phase 3（実装方針確定）後に対応記録.xlsx を一括生成する。
 
@@ -36,7 +36,7 @@ python scripts/python/backlog-xlsx/create_records.py \
 | 対応内容 | 変更ファイル一覧・影響確認チェックリスト（Before/After は実装後に追記） |
 | テスト・検証 | テスト観点一覧（実際の結果は Phase 3.5 で validator / Phase 5 で tester または judge_results.py が記入） |
 
-> **エビデンス.xlsx**: Phase 4 完了後に `/auto-test {issueID}` が `generate_evidence_xlsx.py` で生成する。このタイミングでは生成しない。
+> **エビデンス.xlsx**: Phase 4 完了後に `/test {issueID}` が `generate_evidence_xlsx.py` で生成する。このタイミングでは生成しない。
 
 ---
 

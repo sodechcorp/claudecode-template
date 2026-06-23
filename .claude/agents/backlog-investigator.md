@@ -535,7 +535,7 @@ Sandbox で再現できる場合は使わない（最終手段）。
 
 ## テストシナリオ
 
-> 採番は `TC-001` 形式で統一する。backlog-planner はこの TC番号を引き継ぎ、`/auto-test` の test-spec.md まで一貫して使う（再採番しない）。
+> 採番は `TC-001` 形式で統一する。backlog-planner はこの TC番号を引き継ぎ、`/test` の test-spec.md まで一貫して使う（再採番しない）。
 > 種別 = `SOQL` / `ApexTest` / `AnonApex` / `UI` / `メタ確認` / `ファイル確認`（課題種別ごとの推奨テストパターン: `.claude/templates/backlog/test-pattern-map.md` 参照）
 
 **網羅性ゲート（必須）**: 以下を全て満たすこと:

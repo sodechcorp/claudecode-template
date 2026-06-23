@@ -1,4 +1,4 @@
-# /backlog À la carte option 仕組み
+﻿# /backlog À la carte option 仕組み
 
 `/backlog` コマンドは「ベース処理（最小限・全課題必須）」と「オプション（必要時のみ実行）」の組み合わせで動作する。重い処理・細かいチェックを **必要な時だけ呼ぶ** ことで、軽い課題は軽く・重い課題は徹底的に対応できるようにしている。
 
@@ -437,8 +437,8 @@ light_mode: false
 | 対応内容 | 変更ファイル一覧 | Phase 3 / create_records.py | 一括生成 |
 | 対応内容 | Before / After | Phase 4 / implementer | `before-after` |
 | テスト・検証 | テスト項目（タイミング=実装前・実行種別 != UI手動 行の実際の結果 H列） | Phase 3.5 / validator | Step 6（cell --col 8）|
-| テスト・検証 | テスト項目（タイミング=実装後・実行種別 != UI手動 行の実際の結果 H列） | Phase 5 / tester または /auto-test 経路 judge_results.py | `cell --col 8`（実装後・自動行のみ） |
-| エビデンス.xlsx | 証跡（SOQL/スクショ）正本・期待/実際/判定の詳細 | /auto-test が generate_evidence_xlsx.py で自動生成 | — |
+| テスト・検証 | テスト項目（タイミング=実装後・実行種別 != UI手動 行の実際の結果 H列） | Phase 5 / tester または /test 経路 judge_results.py | `cell --col 8`（実装後・自動行のみ） |
+| エビデンス.xlsx | 証跡（SOQL/スクショ）正本・期待/実際/判定の詳細 | /test が generate_evidence_xlsx.py で自動生成 | — |
 | 残対応・懸念・保留 | 懸念・許容影響・保留 Q の初期行 | Phase 3 / create_records.py | 一括生成 |
 | 残対応・懸念・保留 | 実装中に発生した残対応 | Phase 4 / implementer | `pending --kind 後回しの残対応` |
 | 残対応・懸念・保留 | テスト中に発見したスコープ外 | Phase 5 / tester | `pending --kind 懸念` |
