@@ -339,11 +339,17 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                             ep_use = resized_path
                         else:
                             ep_use = ep
+                        disp_w, disp_h = pil_img.size  # 実際に貼り付ける表示サイズ（px）
                         xl_img = XLImage(ep_use)
+                        xl_img.width  = disp_w          # DPIメタデータを無視し表示サイズを固定
+                        xl_img.height = disp_h
                         xl_img.anchor = f"B{row_ptr}"
                         ws.add_image(xl_img)
-                        img_rows = max(10, int(pil_img.size[1] / 18) + 2)
-                        # 行高は変更しない（デフォルト高さ行を img_rows 分送るだけで画像は上に浮く）
+                        # 行高を 15pt (≒20px@96dpi) に固定し、画像が占める行数を決定論的に算出
+                        ROW_PX = 20
+                        img_rows = max(10, (disp_h + ROW_PX - 1) // ROW_PX + 2)  # ceil + 余白2行
+                        for r in range(row_ptr, row_ptr + img_rows):
+                            ws.row_dimensions[r].height = 15  # 15pt = 20px 固定
                         row_ptr += img_rows + 1
                     except Exception as e:
                         ws.cell(row_ptr, 2, f"[WARN] 画像読込失敗: {e}").alignment = WRAP
