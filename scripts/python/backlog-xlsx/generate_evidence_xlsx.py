@@ -173,7 +173,9 @@ def _append_text_block(ws, path: str, start_row: int) -> int:
     text = _read_text_safe(path)
     lines = text.splitlines()
     for i, line in enumerate(lines):
-        c = ws.cell(row=start_row + i, column=2, value=line)
+        # "=" 始まりの行は openpyxl が数式セルとして書き出し Excel 修復ダイアログが出る
+        safe = (" " + line) if line.startswith("=") else line
+        c = ws.cell(row=start_row + i, column=2, value=safe)
         c.font = Font(name="Courier New", size=9)
     return len(lines)
 
