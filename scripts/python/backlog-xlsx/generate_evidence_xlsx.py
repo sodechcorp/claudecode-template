@@ -325,7 +325,7 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                         xl_img.anchor = f"B{row_ptr}"
                         ws.add_image(xl_img)
                         img_rows = max(10, int(pil_img.size[1] / 18) + 2)
-                        ws.row_dimensions[row_ptr].height = pil_img.size[1] * 0.75
+                        # 行高は変更しない（デフォルト高さ行を img_rows 分送るだけで画像は上に浮く）
                         row_ptr += img_rows + 1
                     except Exception as e:
                         ws.cell(row_ptr, 2, f"[WARN] 画像読込失敗: {e}").alignment = WRAP
