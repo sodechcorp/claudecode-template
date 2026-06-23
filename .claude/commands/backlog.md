@@ -375,11 +375,11 @@ xlsx_folder: {xlsx_folder}
 
 ---
 
-### Phase 5: テスト・検証（backlog-tester または /test）
+### Phase 5: スモーク確認（backlog-tester）
 
-> **全自動テスト（推奨）**: テスト実行・証跡採取・エビデンス.xlsx 生成をすべて自動化したい場合は、`backlog-tester` の代わりに `/test {issueID}` を実行する。SOQL / Apex テスト / 匿名 Apex（データ作成・Flow 起動）/ Playwright ヘッドレス画面操作を無人で実行し、証跡付き Excel を自動生成する。
+> **目的**: 実装後にデプロイが通っているか・Apex テストが壊れていないか・明らかな実装ミスがないかを短時間で確認する。証跡採取・エビデンス xlsx 生成は行わない。スモーク PASS 後に `/test {issueID}` で網羅的テストを実施する。
 
-**通常モード（合同 UI 確認を含む）**: `backlog-tester` エージェントを起動する:
+`backlog-tester` エージェントを起動する:
 
 ```
 調査レポート: docs/logs/{issueID}/investigation.md
@@ -390,20 +390,13 @@ xlsx_folder: {xlsx_folder}
 
 > `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 
-テスト結果をユーザに報告する。NG 項目があれば以下を参照して戻り先を判断する:
+スモーク確認の結果を報告する:
+- **PASS** → `/test {issueID}` を実行する（網羅的テスト・証跡採取・エビデンス Excel 生成）
+- **FAIL** → Phase 4 に差し戻す（`/test` は実行しない。明らかな壊れを修正してから再度スモーク確認）
 
-> NG 戻り先テーブル: [.claude/templates/backlog/test-fail-routing.md](../templates/backlog/test-fail-routing.md)
-> ファイルが存在しない場合は NG の原因を 1 行で提示し「Phase 3（実装方針修正）と Phase 4（実装修正）のどちらに戻りますか？」とテキストで確認する。
-
-> xlsx 更新（timeline + テスト・検証シート H列「実際の結果」）は担当エージェントが行う:
-> - 通常経路（backlog-tester）: エージェント内 Step 8 が `cell --col 8` で実装後行を記入
-> - 全自動経路（/test）: judge_results.py が実装後・自動行の H列を自動更新。UI手動行は人がエビデンス.xlsx で確認
+> **次に進む条件**: スモーク PASS 後に `/test {issueID}` の総合判定が PASS であること。`/test` NG 時は `test-fail-routing.md` に従い修正→再 `/test`。Phase 6 への進行条件は `/test` 完了時に `judge_results.py` が H列（実際の結果）を全行埋めていること。
 >
-> **Phase 6 への進行条件**: 全テスト行の H列（実際の結果）が `OK: …` または `NG: …` の形式で埋まっていること。UI手動行は人が確認済みであること。
-
-> **次に進む条件（通常経路）**: 全テスト PASS かつユーザ確認サインがあった後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 6 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む。全自動経路（/test）では test-report.md の総合判定が PASS であることを確認する
->
-> **Phase 5 典型例**: 「ユーザ合同確認が取れていないシナリオの扱い」「Before/After エビデンスが対になっているか」
+> **Phase 5 典型例**: 「Apex テストが失敗する・デプロイエラーが出る」→ Phase 4 差し戻し
 
 ---
 

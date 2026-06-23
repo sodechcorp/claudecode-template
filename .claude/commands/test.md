@@ -299,11 +299,18 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
 2. 匿名 Apex で作成したテストデータを削除する（cleanup）
 3. 一時ファイル（`{log_dir}/tmp/`）を削除する
 
-#### NG があった場合の差し戻し
+#### NG があった場合の差し戻し（期待値ドリフト防止）
 
-1. test-report.md の「NG 一覧」と `test-fail-routing.md` で戻り先 Phase を確定する
-2. ユーザーに戻り先 Phase と修正すべき点を提示する
-3. 修正後に再度 `/test {issueID}` を実行するよう案内する
+> **設計原則**: `investigation.md`（課題原文・真因）は不変。修正は「実装方針の変更」であり「課題認識の変更」ではない。`test-spec.md` の期待結果は NG 理由なく書き換えない。
+
+1. `test-report.md` の「NG 一覧」と `test-fail-routing.md` で戻り先 Phase を確定する
+2. **NGの原因と修正方針を `implementation-plan.md` の改版履歴に追記する**（修正に着手する前に必ず実施）:
+   ```
+   | {YYYY-MM-DD} | /test NG差し戻し | {NGのTC番号・観点} | {NGの原因（実際の結果）} | {修正方針（何をどう変えるか）} | investigation.md §{対応する要求} |
+   ```
+   これにより「何をなぜ変えたか」が記録に残り、NG 修正ループで実装の方向が課題の真因から静かにずれるのを防ぐ。
+3. ユーザーに戻り先 Phase・NG 原因・修正方針（上記で記録した内容）を提示する
+4. 修正後に再度 `/test {issueID}` を実行するよう案内する（差分再実行モードで前回 OK の TC は証跡を流用・取り直しなし）
 
 #### xlsx 対応記録の更新（タイムライン）
 
@@ -344,7 +351,12 @@ python scripts/python/backlog-xlsx/update_records.py \
 {NG がある場合}
 NG 一覧:
   - TC-00X: {観点} — {理由}
-  → /backlog Phase {N} に差し戻して修正後、再度 /test {issueID} を実行してください。
+
+修正手順（この順番で実施してください）:
+  1. implementation-plan.md の改版履歴にNG原因と修正方針を追記
+     （何をなぜ変えるかを記録してから手を動かす。investigation.md は変更しない）
+  2. /backlog Phase {N} で修正を実施
+  3. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用）
 
 {要手動がある場合}
 要手動確認:
