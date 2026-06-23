@@ -311,16 +311,6 @@ python scripts/python/backlog-xlsx/create_records.py \
 
 （エビデンス.xlsx は Phase 4 完了後に `/test {issueID}` が生成する）
 
-**実装前エビデンスの取得依頼**（Phase 4 の実装着手前に必ず案内する）:
-
-- **バグの場合**: 再現手順を実機で実施し、画面スクリーンショット・コンソールログ・対象レコード値を取得し `{evidence_dir}/before/` 配下に保存
-- **追加要望の場合**: 変更前の現状画面・データの状態をスクリーンショット保存（変更後との比較用）。`{evidence_dir}/before/` 配下に保存
-- **その他の場合**: 変更前の現状を記録しておくことを推奨する。`{evidence_dir}/before/` 配下に保存
-- **Playwright が利用可能な場合**: 対象画面のスクリーンショットを自動取得し `{evidence_dir}/before/{TC番号}_{観点}_before.png` の形式で保存
-  - `{evidence_dir}` = `{xlsx_folder}/evidence` または `{log_dir}/evidence`（before/after はこの直下にサブディレクトリで分ける）
-
-エビデンスは Phase 3.5（実装前検証）と Phase 5（クロステスト）で参照される。
-
 > **次に進む条件**: 全判断ポイントをユーザが確認・確定した後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 3.5 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
 >
 > **Phase 3 典型例**: 「類似実装と異なるパターンを採用した判断ポイントの整合性」「SOQL の LIMIT・権限制御が全ユーザ種別で正しいか」
