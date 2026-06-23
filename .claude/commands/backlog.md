@@ -214,7 +214,7 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 ### Phase 1.5: xlsx フォルダの確定（選択式）
 
 AskUserQuestion で作成有無を選択する:
-- label: `作成する`、description: "対応記録.xlsx を生成する（推奨）。エビデンス.xlsx は /test コマンドが別途生成する"
+- label: `作成する`、description: "対応記録.xlsx を生成する（推奨）"
 - label: `作成しない`、description: "xlsx 生成をスキップして作業を続行する"
 
 > **[共通ルール①]** 各フェーズの `timeline` 呼び出しで判断・選択の根拠がある場合は `--reason "{根拠}"` を追加する（記録の追跡性を高めるため積極的に使用すること）。
