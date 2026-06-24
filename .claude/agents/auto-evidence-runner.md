@@ -79,7 +79,7 @@ python scripts/python/backlog-xlsx/soql_evidence.py \
 
 `{serial}` が true の場合は `--serial` を追加する（`--max-workers` は無視され逐次動作）。
 
-`{target_tc_list}` が空の場合は `--target-tc` 引数を省略する（全件実行）。
+`{target_tc_list}` が空文字でもそのまま渡してよい（soql_evidence.py は空文字を全件実行として扱う）。
 
 ---
 
@@ -155,12 +155,14 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py run-batch \
 
 #### 4-4: 後始末（Savepoint/rollback 以外の場合）
 
-永続化したテストデータを削除:
+永続化したテストデータを削除する。**課題単位プレフィックス `AUTOTEST_{issueID}_` を使い、永続化した SObject ごとに cleanup を繰り返す**（このプレフィックスは生成名 `AUTOTEST_{issueID}_{TC_No}_…` の先頭一致なので、SObject 1 つにつき 1 回で全 TC 分のテストデータを回収できる）:
+
 ```bash
+# 永続化した SObject ごとに繰り返す
 python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
   --alias "{alias}" \
   --sobject {SObject名} \
-  --external-id-prefix "AUTOTEST_{issueID}_TC_{No}_"
+  --external-id-prefix "AUTOTEST_{issueID}_"
 ```
 
 ---
@@ -177,7 +179,7 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
 - `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル）
 - `org_profile_path`: `{log_dir}/org-profile.md`（Login As ケースがある場合）
 
-`ui-evidence-runner` の返却（各 TC の証跡ファイル名・取得成否・Login As 降格有無）を受け取り、Step 8 の test-report.md 生成に使う。
+`ui-evidence-runner` の返却（各 TC の証跡ファイル名・取得成否・Login As 降格有無）を受け取り、Step 7 の test-report.md 生成に使う。
 
 ---
 
@@ -257,7 +259,7 @@ NG が 1 件以上ある場合:
 ## 完了条件（セルフチェック）
 
 ```bash
-ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/after/screen/" "{evidence_dir}/after/meta/" 2>/dev/null
+ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/after/screen/" 2>/dev/null
 ```
 
 - [ ] SOQL ケース: 全件 txt 出力あり
