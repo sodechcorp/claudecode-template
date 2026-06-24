@@ -2,7 +2,7 @@
 
 Salesforce 保守課題の実装後テストを全自動実行し、エビデンスを証跡採取・Excel 出力する。
 
-`/backlog` Phase 4（実装完了）後に実行すること。Phase 5（合同 UI 確認）の代替。
+`/backlog` Phase 5（スモーク確認）PASS 後に実行する網羅的テスト工程。証跡を自動採取し Excel 出力する。
 
 ---
 
@@ -10,7 +10,7 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 | 前提 | 確認方法 |
 |---|---|
-| `/backlog` Phase 4（実装）が完了済みであること | `docs/logs/{issueID}/implementation-plan.md` が存在する |
+| `/backlog` Phase 4（実装）完了 + Phase 5（スモーク確認）PASS 後であること | `implementation-plan.md` の存在を確認（※これは Phase 3 成果物。実装・スモーク完了自体は自動検査されない前提条件） |
 | Sandbox org に認証済みであること | `sf auth list` でログイン状態を確認 |
 | `docs/logs/{issueID}/test-spec.md` が存在すること | Phase B で生成。なければ Phase B を先に実行 |
 | Pillow インストール | Phase A で自動インストール実行。失敗時は手動貼付にフォールバック |
@@ -25,11 +25,17 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 ```bash
 # 1. 課題ID の解決
-ISSUE_ID="${1:-}"
+ISSUE_ID="{issueID}"
 if [ -z "$ISSUE_ID" ]; then
   echo "[FATAL] 課題IDを指定してください: /test GF-350"
   exit 1
 fi
+
+# オプション（/test {issueID} [--full] [--force]）— アシスタントが起動引数から置換
+#   --full 指定時 → FORCE_FULL=1 / 未指定 → 空
+#   --force 指定時 → FORCE_SPEC=true / 未指定 → false
+FORCE_FULL="{force_full}"
+FORCE_SPEC="{force_spec}"
 
 # 2. プロジェクトルート・ログディレクトリの確定
 PROJECT_DIR="$(pwd)"
@@ -108,25 +114,6 @@ if [ ! -f "$SPEC_PATH" ]; then
   echo "[INFO] test-spec.md が見つかりません。Phase B でテスト仕様を展開します。"
 fi
 
-# 7. 差分デプロイ（Sandbox へ。本番 alias は上で物理ブロック済み）
-echo "=== force-app 差分を Sandbox にデプロイ ==="
-sf project deploy start --target-org "$SF_ALIAS" --ignore-conflicts --concise || {
-  echo "[FATAL] デプロイ失敗。実装コードを確認してください。"
-  exit 1
-}
-echo "OK: Sandbox デプロイ完了"
-
-# 8. Pillow の存在確認・自動インストール（PNG 自動貼付に必要）
-python -c "import PIL" 2>/dev/null || {
-  echo "[INFO] Pillow が未インストールです。自動インストールを実行します..."
-  pip install Pillow
-  if python -c "import PIL" 2>/dev/null; then
-    echo "OK: Pillow インストール完了"
-  else
-    echo "[WARN] Pillow のインストールに失敗しました。PNG 自動貼付を手動貼付にフォールバックします。"
-  fi
-}
-
 # 9. 差分再実行モードの判定
 TARGET_TC_LIST=""
 if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
@@ -171,6 +158,41 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
   Phase F: test-report.md 生成・テストデータ後始末
 
 続行しますか？（テスト実行・データ操作が発生します）
+```
+
+> **[ハーネス直接実行（A-2: デプロイ・環境準備）]**
+
+```bash
+# SF_ALIAS の再導出（Bash ツールは毎回新シェル。A-1 の変数を引き継げないため再取得）
+SF_ALIAS=$(sf config get target-org --json | python -c "import sys,json; print(json.load(sys.stdin)['result'][0]['value'])" 2>/dev/null || echo "")
+IS_SANDBOX=$(sf org display --target-org "$SF_ALIAS" --json | python -c "
+import sys,json
+d=json.load(sys.stdin)['result']
+print(d.get('isSandbox')==True or 'sandbox.my.salesforce.com' in d.get('instanceUrl',''))
+" 2>/dev/null || echo "false")
+if [ "$IS_SANDBOX" != "True" ]; then
+  echo "[FATAL] 接続先が Sandbox ではありません ($SF_ALIAS). 本番への操作は禁止されています。"
+  exit 1
+fi
+
+# 7. 差分デプロイ（Sandbox へ。本番 alias は上で物理ブロック済み）
+echo "=== force-app 差分を Sandbox にデプロイ ==="
+sf project deploy start --target-org "$SF_ALIAS" --ignore-conflicts --concise || {
+  echo "[FATAL] デプロイ失敗。実装コードを確認してください。"
+  exit 1
+}
+echo "OK: Sandbox デプロイ完了"
+
+# 8. Pillow の存在確認・自動インストール（PNG 自動貼付に必要）
+python -c "import PIL" 2>/dev/null || {
+  echo "[INFO] Pillow が未インストールです。自動インストールを実行します..."
+  pip install Pillow
+  if python -c "import PIL" 2>/dev/null; then
+    echo "OK: Pillow インストール完了"
+  else
+    echo "[WARN] Pillow のインストールに失敗しました。PNG 自動貼付を手動貼付にフォールバックします。"
+  fi
+}
 ```
 
 ---
@@ -258,10 +280,11 @@ python scripts/python/backlog-xlsx/generate_evidence_xlsx.py \
 ```bash
 # 差分再実行時は前回判定を --prev で渡して前回 OK をマージする
 PREV_ARG=""
+if [ ! -f "{judgment_path}.prev" ] && [ -f "{judgment_path}" ]; then
+  cp "{judgment_path}" "{judgment_path}.prev"
+fi
 if [ -f "{judgment_path}.prev" ]; then
   PREV_ARG="--prev {judgment_path}.prev"
-elif [ -f "{judgment_path}" ]; then
-  cp "{judgment_path}" "{judgment_path}.prev"
 fi
 
 python scripts/python/backlog-xlsx/judge_results.py \
@@ -360,4 +383,4 @@ NG 一覧:
 - **本番組織への操作は Phase A で物理ブロック**。Sandbox alias でのみ実行可。
 - accessToken は一切ファイルに保存しない（`sf org open --url-only` のワンタイム URL のみ使用）。
 - テストデータは必ず後始末する。削除失敗件数は test-report.md に明記してユーザーに手動対応を依頼。
-- `/backlog` Phase 5（合同 UI 確認）とは排他。どちらか一方を使う。
+- `/backlog` Phase 5（スモーク確認）PASS 後の後続工程。スモークが通ってから本コマンドで網羅的テストを実施する。
