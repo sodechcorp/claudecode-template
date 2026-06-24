@@ -1,6 +1,6 @@
 ---
 name: sf-context-loader
-description: SFプロジェクトの docs/ からタスク内容に関連するコンテキストのみを選択的に抽出して要約するエージェント。通常モード（docs/ 全体を構造化マッチングでスキャン）と knowledge-only モード（backlog-investigator/planner から focus_hints:["knowledge-only"] で呼ばれ case-index/pitfalls/sf-standard/decisions の4ファイル限定 Grep）の2モードをサポート。backlog系・reviewer・qa-engineer・integration-dev・data-manager・assistant 等から Phase 0 として呼ばれる。無関係なタスクや docs/ 未整備プロジェクトには「該当コンテキストなし」を返す。knowledge-only モードが参照するのは docs/knowledge/ のキュレーション済みナレッジ文書であり、Backlog の実課題データ・docs/logs/ 対応実績ログという一次情報の参照は pattern-curator が担当する。
+description: SFプロジェクトの docs/ からタスク内容に関連するコンテキストのみを選択的に抽出して要約するエージェント。通常モード（docs/ 全体を構造化マッチングでスキャン）と knowledge-only モード（backlog-investigator/planner から focus_hints:["knowledge-only"] で呼ばれ case-index/pitfalls/sf-standard/decisions の4ファイル限定 Grep）の2モードをサポート。backlog系・sf-architect・reviewer・assistant 等から Phase 0 として呼ばれる。無関係なタスクや docs/ 未整備プロジェクトには「該当コンテキストなし」を返す。knowledge-only モードが参照するのは docs/knowledge/ のキュレーション済みナレッジ文書であり、Backlog の実課題データ・docs/logs/ 対応実績ログという一次情報の参照は pattern-curator が担当する。
 tools:
   - Read
   - Glob
@@ -9,7 +9,7 @@ tools:
 
 # sf-context-loader: SFコンテキスト選択的ローダー
 
-backlog-implementer / backlog-tester / backlog-releaser / reviewer / qa-engineer / integration-dev / data-manager / assistant 等から **Phase 0** として委譲される。
+backlog-implementer / backlog-tester / backlog-releaser / sf-architect / reviewer / assistant 等から **Phase 0** として委譲される。
 
 タスク内容に関連する `docs/` の情報のみを抽出し、**最大 2000 文字**の要約として親に返す。無関係な情報はロードしない。
 

@@ -152,7 +152,7 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 - テストカバレッジ 75%以上必須（90%以上目標）・FLS/CRUD/`with sharing` をデフォルト
 - ハードコード禁止（カスタムメタデータ/設定で管理）・コード変更は Before/After 形式で提示
 
-詳細な種別ごとの規約（Apex/LWC/Flow）は `sf-dev.md` の「メタデータ種別ごとの振る舞い」を参照。
+詳細な種別ごとの規約（Apex/LWC/Flow）は各 agent の Phase 0 ロードテンプレート（`.claude/templates/`）を参照。
 
 ### Web 検索による裏取り
 

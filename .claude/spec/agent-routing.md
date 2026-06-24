@@ -6,12 +6,8 @@
 
 | タスクの性質 | エージェント |
 |---|---|
-| Apex / LWC / Flow / メタデータ実装 / 新規開発 / 機能改修 / デプロイ | `sf-dev` |
-| テスト計画 / テストケース作成 / バグ調査 / UAT支援 / 品質確認 | `qa-engineer` |
 | コードレビュー / セキュリティ監査 / PRレビュー支援 / ドキュメントレビュー（設計書・要件定義書） | `reviewer` |
 | 要件定義 / 設計書作成 / 設計レビュー / オブジェクト定義書 / 影響調査 / ユーザーストーリー | `sf-architect` |
-| データ移行 / CSVマッピング / Data Loader / SOQL最適化 / バルク処理 / データクレンジング | `data-manager` |
-| 外部API連携 / REST・SOAP / Named Credentials / Platform Events / MuleSoft | `integration-dev` |
 | 一般調査 / メール下書き / 翻訳 / アドホック / その他秘書業務 | `assistant` |
 | 工数計算 / 工数見積 / 工数 / effort / 見積 / 「何時間」「どのくらい」系の新規見積依頼（コマンド内外問わず） | `sf-effort-estimator` |
 
@@ -27,7 +23,7 @@
 
 ## Phase 0（sf-context-loader）を持つエージェント一覧
 
-sf-dev / sf-architect / qa-engineer / reviewer / data-manager / integration-dev / assistant（SF条件付き）/ backlog-investigator / backlog-planner / backlog-implementer / backlog-tester / backlog-validator / backlog-releaser
+sf-architect / reviewer / assistant（SF条件付き）/ backlog-investigator / backlog-planner / backlog-implementer / backlog-tester / backlog-validator / backlog-releaser
 
 ## 保守特化エージェント（/backlog フロー内で Claude が自動委譲）
 

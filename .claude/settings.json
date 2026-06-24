@@ -23,7 +23,6 @@
           {
             "type": "command",
             "command": "node .claude/hooks/pre-operation.js",
-            "shell": "powershell",
             "timeout": 5
           }
         ]
@@ -36,7 +35,6 @@
           {
             "type": "command",
             "command": "node .claude/hooks/post-query-reminder.js",
-            "shell": "powershell",
             "timeout": 5
           }
         ]

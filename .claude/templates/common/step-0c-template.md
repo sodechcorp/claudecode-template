@@ -1,6 +1,6 @@
 # Step 0c: CRITICAL ルール（SF系エージェント共通）
 
-SF系エージェント（sf-dev / sf-architect / qa-engineer / reviewer / data-manager / integration-dev）は、Phase 0 の直後に本ファイルを Read する。本ファイルを Read したら、このセクションの内容を作業全体に適用する。詳細仕様が必要な時のみ各 spec ファイルを Read すること。
+SF系エージェント（sf-architect / reviewer / backlog系 / assistant 等）は、Phase 0 の直後に本ファイルを Read する。本ファイルを Read したら、このセクションの内容を作業全体に適用する。詳細仕様が必要な時のみ各 spec ファイルを Read すること。
 
 ---
 

@@ -6,12 +6,8 @@
 
 | 作業の種類 | 実行エージェント | チェック担当 | チェック内容 |
 |---|---|---|---|
-| Apex / LWC / トリガー実装 | sf-dev | **reviewer** | コード品質・ガバナ制限・FLS・テストカバレッジ |
-| Flow 作成・変更 | sf-dev | **reviewer** | ループ内DML・フォールトパス・命名規則 |
-| テストクラス作成 | sf-dev | **qa-engineer** | 正常系/異常系/バルクの網羅性・アサーション品質 |
 | 設計書・要件定義書 | sf-architect | **reviewer** | 整合性・スコープ・受入基準の明確性・依頼との一致 |
-| データ移行・SOQL | data-manager | **reviewer** | パフォーマンス・データ整合性・ガバナ制限 |
-| 外部API連携 | integration-dev | **reviewer** | エラーハンドリング・リトライ・セキュリティ |
+| Apex / LWC / Flow 実装（保守課題） | backlog-implementer | **reviewer** | コード品質・ガバナ制限・FLS・テストカバレッジ |
 
 ## ゲートの動作
 
