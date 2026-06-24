@@ -110,7 +110,7 @@ version_increment: {version_increment}
 ---
 
 ## Phase 最終: クリーンアップ
-[共通ルール参照](.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
+[共通ルール参照](../CLAUDE.md#一時ファイルの後片付け全エージェント共通)
 
 ```bash
 python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"

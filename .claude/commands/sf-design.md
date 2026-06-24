@@ -6,9 +6,9 @@ Salesforce プロジェクトの設計書を生成します。
 
 **詳細設計 / プログラム設計** の2層構成に対応しています。
 
-**AskUserQuestion のルール（厳守）:** [共通ルール参照](.claude/CLAUDE.md#askuserquestion-ルール厳守)
+**AskUserQuestion のルール（厳守）:** [共通ルール参照](../CLAUDE.md#askuserquestion-ルール厳守)
 
-**テンプレート置換ルール（厳守）:** [共通ルール参照](.claude/CLAUDE.md#テンプレート置換ルール厳守) — 加えて以下の固有規則を適用する:
+**テンプレート置換ルール（厳守）:** [共通ルール参照](../CLAUDE.md#テンプレート置換ルール厳守) — 加えて以下の固有規則を適用する:
 - **列挙値** (`{version_increment}`): `minor` / `major` 以外が指定された場合は `minor` にフォールバックし、ユーザーに「未知の値のためminorに置換」と警告する。
 
 ---

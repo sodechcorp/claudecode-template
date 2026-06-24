@@ -2,9 +2,9 @@
 description: "Salesforce 組織情報を分析し、組織概要・オブジェクト構成・マスタデータ・設計書・機能グループ・保守履歴・情報所在マップ・SF標準仕様の8カテゴリを docs/ 配下に生成する。3ページのUIで実行カテゴリを選択する。"
 ---
 
-**AskUserQuestion のルール（厳守）:** [共通ルール参照](.claude/CLAUDE.md#askuserquestion-ルール厳守)
+**AskUserQuestion のルール（厳守）:** [共通ルール参照](../CLAUDE.md#askuserquestion-ルール厳守)
 
-**テンプレート置換ルール（厳守）:** [共通ルール参照](.claude/CLAUDE.md#テンプレート置換ルール厳守)
+**テンプレート置換ルール（厳守）:** [共通ルール参照](../CLAUDE.md#テンプレート置換ルール厳守)
 
 ---
 

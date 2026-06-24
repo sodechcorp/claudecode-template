@@ -14,9 +14,9 @@ tools:
 
 > **共通手順**: まず Read ツールで `.claude/templates/sf-memory/cat4-common.md` を読み込む。Phase 0 / 0.5 / 1.5 / 2 / 2.5 / 3 / 最終 / 最終報告フォーマットは共通テンプレートに従う。以下はこのエージェント固有の差分のみ。
 
-**テンプレート置換ルール（厳守）:** [共通ルール参照](.claude/CLAUDE.md#テンプレート置換ルール厳守) — `{project_dir}` `{api_name}` `{source_file_paths}` `{new_hash}` `{kebab_name}` を実値で置換する。`{source_file_paths}` は Python list リテラル形式（`["path1", "path2"]`）で渡す。
+**テンプレート置換ルール（厳守）:** [共通ルール参照](../CLAUDE.md#テンプレート置換ルール厳守) — `{project_dir}` `{api_name}` `{source_file_paths}` `{new_hash}` `{kebab_name}` を実値で置換する。`{source_file_paths}` は Python list リテラル形式（`["path1", "path2"]`）で渡す。
 
-> **値セル記載原則リマインダ（apex は訂正頻発のため再掲）**: FR/UC を requirements.md / usecases.md と横断照合・訂正した場合、照合根拠・旧採番・訂正経緯を基本情報テーブルの値セルに `（...）` で書かない。確定値のみ記載し、訂正経緯は**セル外**の `<!-- 訂正: 旧値 → 新値（理由） -->` コメントへ退避する。[値セル記載原則](.claude/spec/sf-memory-quality.md#値セル記載原則差分更新横断補完共通) 参照。
+> **値セル記載原則リマインダ（apex は訂正頻発のため再掲）**: FR/UC を requirements.md / usecases.md と横断照合・訂正した場合、照合根拠・旧採番・訂正経緯を基本情報テーブルの値セルに `（...）` で書かない。確定値のみ記載し、訂正経緯は**セル外**の `<!-- 訂正: 旧値 → 新値（理由） -->` コメントへ退避する。[値セル記載原則](../spec/sf-memory-quality.md#値セル記載原則差分更新横断補完共通) 参照。
 
 ## 受け取る情報
 

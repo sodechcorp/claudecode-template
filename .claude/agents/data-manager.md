@@ -183,7 +183,7 @@ sf data export tree --target-org <your-alias> --query "SELECT Id, Name FROM Acco
 
 ## Phase 最終: 品質ゲート（必須）
 
-[共通ルール参照](.claude/CLAUDE.md#quality-gate品質ゲート)
+[共通ルール参照](../CLAUDE.md#quality-gate品質ゲート)
 
 完了報告の**直前**に必ず実行する。スキップ条件を満たさないのにスキップした場合はルール違反。
 

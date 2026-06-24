@@ -12,7 +12,7 @@ tools:
 
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
 
-> **テンプレート置換ルール（厳守）**: [共通ルール参照](.claude/CLAUDE.md#テンプレート置換ルール厳守) — 適用プレースホルダー: `{project_dir}` `{output_dir}` `{author}`
+> **テンプレート置換ルール（厳守）**: [共通ルール参照](../CLAUDE.md#テンプレート置換ルール厳守) — 適用プレースホルダー: `{project_dir}` `{output_dir}` `{author}`
 
 # sf-doc-overview-writer: プロジェクト概要書ステップ
 

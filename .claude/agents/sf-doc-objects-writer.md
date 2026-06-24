@@ -15,7 +15,7 @@ tools:
 
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
 
-> **テンプレート置換ルール（厳守）**: [共通ルール参照](.claude/CLAUDE.md#テンプレート置換ルール厳守) — 適用プレースホルダー: `{project_dir}` `{output_dir}` `{author}` `{SF_ALIAS}` `{システム名称}` `{latest_obj_file}` — **列挙値** (`{version_increment}`): `minor` / `major` 以外なら `minor` にフォールバック
+> **テンプレート置換ルール（厳守）**: [共通ルール参照](../CLAUDE.md#テンプレート置換ルール厳守) — 適用プレースホルダー: `{project_dir}` `{output_dir}` `{author}` `{SF_ALIAS}` `{システム名称}` `{latest_obj_file}` — **列挙値** (`{version_increment}`): `minor` / `major` 以外なら `minor` にフォールバック
 
 # sf-doc-objects-writer: オブジェクト定義書ステップ
 
