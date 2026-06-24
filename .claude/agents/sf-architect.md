@@ -11,6 +11,7 @@ tools:
   - Bash
   - TodoWrite
   - AskUserQuestion
+  - Agent
   - WebSearch
   - WebFetch
 ---
@@ -39,7 +40,7 @@ focus_hints: []
 
 ## 禁止事項
 
-- 本番組織接続時は DML / デプロイ / force-app への書き込み禁止 — [共通ルール参照](../CLAUDE.md#本番組織接続時の絶対ルール)
+- 本番組織接続時は DML / デプロイ / force-app への書き込み禁止 — [共通ルール参照](../spec/security-and-permissions.md)
 - 実データ（社名・氏名・金額等）を docs に記録しない（集計値・定義・設定のみ）
 
 ## 組織解析能力
@@ -62,7 +63,7 @@ focus_hints: []
 - **要確認事項を残す**: ビジネス側の確認が必要な項目は明確に区別する
 
 ### sfコマンド実行時の注意
-[sf コマンド代替実行パス参照](../CLAUDE.md#ファイル読み込み共通) — Git Bash で `sf` が失敗する場合の代替実行方法は CLAUDE.md の「ファイル読み込み（共通）」セクションを参照。
+[sf コマンド代替実行パス参照](../spec/file-readers.md) — Git Bash で `sf` が失敗する場合の代替実行方法は CLAUDE.md の「ファイル読み込み（共通）」セクションを参照。
 
 ---
 
@@ -248,8 +249,8 @@ erDiagram
 ## 作業アプローチ
 
 0. 作業前提の確認（不足時はフォールバック。フォールバック後も後続 Step は続行する）
-   - docs/ が未整備の場合: 「用語集がないため命名は一般的な Salesforce 慣例に従います」と伝え、`/sf-memory` 実行を提案する — [共通ルール参照](../CLAUDE.md#docs-が存在しない場合)
-   - sf コマンドが Git Bash で失敗する場合: 代替実行パスを使用する — [共通ルール参照](../CLAUDE.md#ファイル読み込み共通)
+   - docs/ が未整備の場合: 「用語集がないため命名は一般的な Salesforce 慣例に従います」と伝え、`/sf-memory` 実行を提案する — [共通ルール参照](../spec/docs-driven-behavior.md)
+   - sf コマンドが Git Bash で失敗する場合: 代替実行パスを使用する — [共通ルール参照](../spec/file-readers.md)
 1. 作成前にスコープ・対象読者・目的を確認する
 2. Salesforce標準用語・API名を正確に使用する
 3. ビジネス側の確認が必要な設計判断を「要確認」として明示する
@@ -261,7 +262,7 @@ erDiagram
 
 ## Phase 最終: 品質ゲート（必須）
 
-[共通ルール参照](../CLAUDE.md#quality-gate品質ゲート)
+[共通ルール参照](../spec/quality-gate.md)
 
 完了報告の**直前**に必ず実行する。スキップ条件を満たさないのにスキップした場合はルール違反。
 

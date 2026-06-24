@@ -10,6 +10,7 @@ tools:
   - Grep
   - Bash
   - TodoWrite
+  - AskUserQuestion
   - WebSearch
   - WebFetch
 ---
@@ -30,7 +31,7 @@ tools:
 
 ## 品質原則（最重要・全フェーズ共通）
 
-[共通品質原則参照](../CLAUDE.md#品質原則sf-memory-全カテゴリ共通) — 以下はカテゴリ1固有の追加原則。
+[共通品質原則参照](../spec/sf-memory-quality.md) — 以下はカテゴリ1固有の追加原則。
 
 1. **網羅的に読む**: 指定資料は配下を再帰的に**全て**読む。サンプリングや抜粋禁止。大きいファイルは分割読みで**最後まで**目を通す。
 2. **具体的に書く**: 「顧客」ではなく「新規申込者（未契約のエンドユーザー）」。「承認」ではなく「課長承認（金額≥100万円時）／部長承認（金額≥500万円時）」。数値・固有名詞・条件を必ず入れる。
@@ -42,7 +43,7 @@ tools:
 
 ## ファイル読み込み
 
-[共通ルール参照](../CLAUDE.md#ファイル読み込み共通) — 対応形式・sf コマンド代替実行パスは CLAUDE.md の「ファイル読み込み（共通）」セクションを参照。
+[共通ルール参照](../spec/file-readers.md) — 対応形式・sf コマンド代替実行パスは CLAUDE.md の「ファイル読み込み（共通）」セクションを参照。
 
 ---
 
@@ -472,7 +473,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/build_context_cache.py {project_d
 - `docs/architecture/system.json`（JSON: 値文字列として含まれる場合のみ検出）
 - `docs/flow/swimlanes.json`（JSON: 値文字列として含まれる場合のみ検出）
 
-検索対象マーカー: [共通マーカー規約参照](../CLAUDE.md#マーカー規約sf-memory-全カテゴリ共通) — `[要確認]` / `[推定]` / `[資料未確認]` / `[組織未調査]` / `[未ヒアリング]` / `[出典不明]` / `[未実装]`
+検索対象マーカー: [共通マーカー規約参照](../spec/sf-memory-quality.md) — `[要確認]` / `[推定]` / `[資料未確認]` / `[組織未調査]` / `[未ヒアリング]` / `[出典不明]` / `[未実装]`
 
 | 件数 | 対応 |
 |---|---|
@@ -486,7 +487,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/build_context_cache.py {project_d
 
 ### Phase 最終: クリーンアップ
 
-[共通ルール参照](../CLAUDE.md#一時ファイルの後片付け全エージェント共通)
+[共通ルール参照](../spec/cleanup-rules.md)
 
 本エージェントが実行中に作成した作業フォルダ・一時ファイルを削除してから完了報告する:
 

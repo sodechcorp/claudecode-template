@@ -384,7 +384,7 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate_feature_list.py" \
 
 > **`skip_cleanup = true` の場合は tmp_dir 削除（cleanup_design_workspace.py の実行）をスキップして完了報告のみ行う。**（後続バッチが同じ tmp_dir を使用するため中間バッチでは削除しない）
 
-[共通ルール参照]({project_dir}/.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
+[共通ルール参照]({project_dir}/.claude/spec/cleanup-rules.md)
 
 tmp_dir を削除し、output_dir およびプロジェクトルート（CWD）に残った一時ファイルも合わせてクリーンアップする:
 ```bash
