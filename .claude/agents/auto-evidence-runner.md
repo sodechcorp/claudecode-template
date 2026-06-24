@@ -44,7 +44,7 @@ tools:
 
 | 委譲元フェーズ | `{judgment_path}` | 実行 Step | スキップ |
 |---|---|---|---|
-| **Phase C**（証跡採取） | 空/未指定 | Step 1〜5 ＋ 完了セルフチェック | Step 4-4・Step 6・Step 7 |
+| **Phase C**（証跡採取） | 空/未指定 | Step 1〜5 ＋ Step 4-2.5（事前 cleanup）＋ 完了セルフチェック | Step 4-4・Step 6・Step 7 |
 | **Phase F**（レポート・後始末） | 指定あり | Step 4-4 → Step 6 → Step 7 | Step 1〜5（証跡採取を再実行しない） |
 
 **OK/NG の権威判定は `/test` Phase E の `judge_results.py` が担当**する（`judgment-result.json` に保存）。
@@ -157,6 +157,28 @@ mkdir -p "{log_dir}/tmp"
 ]
 ```
 
+#### 4-2.5: 事前 cleanup（前回異常終了の残留回収）— **Phase C（証跡採取モード）でのみ実行**
+
+`{judgment_path}` が指定されている（Phase F）の場合はこのサブステップをスキップする。
+
+4-1 で生成した匿名 Apex のうち **永続化（Savepoint/rollback を使わない）ケースの挿入先 SObject** を対象に、
+前回の `/test` 実行が Phase C〜F の途中で中断・異常終了した場合に残留しているデータを事前に回収する。
+
+`anon_apex_runner.py cleanup` はプレフィックス一致の冪等回収（0件マッチでも正常終了・無害）なので、
+残留がない正常時に走らせても副作用はない。
+
+```bash
+# 今回永続化する SObject ごとに繰り返す（前回残留の事前回収。0 件なら無害）
+python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
+  --alias "{alias}" \
+  --sobject {SObject名} \
+  --external-id-prefix "AUTOTEST_{issueID}_"
+```
+
+> **対象 SObject の判断**: 4-1 で生成した匿名 Apex コードのうち `Database.setSavepoint()` → `rollback()` パターン **以外** を使うケースの insert 対象 SObject を列挙する。Savepoint/rollback ケースはデータが永続化されないためスキップしてよい。
+>
+> **差分再実行時の注意**: `{target_tc_list}` 指定の差分再実行では「今回実行する TC の SObject」のみ対象となる。前回と異なる SObject に残留がある場合は `/test {issueID} --full`（全量再実行）を使うと全 SObject 分の残留を回収できる。
+
 #### 4-3: 一括並列実行
 
 ```bash
@@ -172,6 +194,8 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py run-batch \
 #### 4-4: 後始末（Savepoint/rollback 以外の場合）— **Phase F（レポート・後始末モード）でのみ実行**
 
 `{judgment_path}` が空/未指定（Phase C）の場合はこのサブステップをスキップする。
+
+> Step 4-2.5（Phase C）が「前回残留の事前回収」を担うため、4-4 は「今回 run-batch で作成したデータの正規後始末」に集中する。cleanup コマンドはプレフィックス一致の冪等回収なので、4-2.5 と 4-4 の二重実行になっても副作用はない（0件マッチで正常終了）。
 
 永続化したテストデータを削除する。**課題単位プレフィックス `AUTOTEST_{issueID}_` を使い、永続化した SObject ごとに cleanup を繰り返す**（このプレフィックスは生成名 `AUTOTEST_{issueID}_{TC_No}_…` の先頭一致なので、SObject 1 つにつき 1 回で全 TC 分のテストデータを回収できる）:
 
