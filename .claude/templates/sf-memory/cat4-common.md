@@ -266,7 +266,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/verify_cat4_completeness.py \
 
 ## Phase 最終: クリーンアップ
 
-[共通ルール参照](.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
+[共通ルール参照](.claude/spec/cleanup-rules.md)
 
 ---
 

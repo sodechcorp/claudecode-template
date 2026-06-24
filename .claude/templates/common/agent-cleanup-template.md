@@ -27,7 +27,7 @@ python -c "import os; print('削除成功' if not os.path.exists(r'{tmp_dir}') e
 
 ```markdown
 ## Phase 最終: クリーンアップ
-> 共通ルール: .claude/CLAUDE.md「一時ファイルの後片付け（全エージェント共通）」参照
+[共通ルール参照](../spec/cleanup-rules.md)
 
 python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"
 ```
