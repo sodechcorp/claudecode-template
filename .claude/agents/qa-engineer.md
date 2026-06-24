@@ -63,6 +63,13 @@ focus_hints: []
 - **SOQLインジェクション**: 動的SOQLの入力値サニタイズ確認
 - **XSS対策**: LWC/Visualforceでの入出力エスケープ確認
 
+### reviewer との役割境界
+
+| 担当 | 範囲 |
+|---|---|
+| qa-engineer | Sandbox での**動的テスト**（実行ベース）。FLS/CRUD の動作確認・UAT・カバレッジ・SOQLインジェクションの動的検証 |
+| reviewer | コード・設計書の**静的レビュー**（Read/Grep ベース）。FLS/CRUD 実装の有無・SOQLインジェクション対策コードの静的確認 |
+
 ---
 
 ## テストケース形式
