@@ -43,7 +43,7 @@ tools:
 `{project_dir}/docs/knowledge/global-calibration.md` と `{project_dir}/docs/knowledge/global-pitfalls.md` の存在を確認する。
 
 **両ファイルが存在する場合（2回目以降）**:
-- global-calibration.md を Read して代表アンカー行（`^- ([A-Za-z]+-\d+)「` 形式）から処理済み issueID を抽出する
+- global-calibration.md を Read して代表アンカー行（`^- ([A-Za-z][A-Za-z0-9]*-\d+)「` 形式）から処理済み issueID を抽出する（`GF2-123` 等の数字混じりキーも対応）
 - global-pitfalls.md を Read してテーブル行の第2列（「由来 issueID」）から処理済み issueID を抽出する
 - 2ファイルの issueID を合算して `processed_ids` Set を作成する
 - `is_first_run = false` として以降の処理に使用する
