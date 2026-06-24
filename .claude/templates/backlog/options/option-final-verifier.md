@@ -8,6 +8,7 @@
 
 **このオプションは必ず `backlog-blind-final-verifier` subagent を Task ツールで起動して実行する。parent 内で直接実行してはならない（blind 性が崩れる）。**
 
+<!-- ⚠️ 引き渡し情報（下記 1〜7）は backlog-blind-final-verifier.md の「ミッション」入力契約（7 項目）と一致させること。項目を増減する場合は両ファイルを同時に更新する。 -->
 subagent への引き渡し情報:
 1. 課題 ID（Backlog issue key）
 2. 課題本文の全文
