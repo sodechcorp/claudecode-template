@@ -7,6 +7,7 @@ tools:
   - Write
   - Edit
   - Glob
+  - Grep
   - Bash
   - Agent
 ---
@@ -171,7 +172,7 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 ### 3.5. xlsx 対応記録の追記
 
-> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
+> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
 > **注**: リリース実施記録（デプロイ日時・対象環境・結果）は **人間がデプロイ後に手動で xlsx に記録する**。Claude Code は関与しない。対応記録テンプレートから「■ リリース実施記録」セクションは削除済み。
 
@@ -195,6 +196,13 @@ for r in range(4, ws.max_row + 1):
     if any(v): print(r, v)
 "
 ```
+
+> **更新が必要な行があれば** `cell` で該当セルを書き換える（例: ステータス列を「完了」に更新）:
+> ```bash
+> python scripts/python/backlog-xlsx/update_records.py \
+>   --folder "{xlsx_folder}" --issue-id "{issueID}" \
+>   cell --sheet "残対応・懸念・保留" --row {対象行} --col 4 --value "完了" --force
+> ```
 
 **③ タイムライン追記**（Phase 6 完了時に1回のみ）:
 ```bash
@@ -231,9 +239,9 @@ python scripts/python/backlog-xlsx/update_records.py \
 1. `docs/logs/{issueID}/discussion-log.md` を Read して上記パターンに該当する記述を抽出する
    - 種別タグ `落とし穴` / `ハマり` が付いた行を優先的に抽出する（discussion-log-spec.md 参照）
    - タグなしの場合も「○○すると××が壊れる」「気を付けないと」等の自然言語パターンを検出する
-2. 抽出件数は最大5件（過剰追記防止）。既に `docs/knowledge/pitfalls.md` に以下の基準で類似度80%以上の行があれば除外する:
-   - `(カテゴリが同一 ? 0.4 : 0) + (落とし穴の発生箇所・対象語彙の Jaccard 類似度 × 0.4) + (対処方針の語彙 Jaccard 類似度 × 0.2) ≥ 0.8` でスキップ
-   - 簡易判定: 「同じオブジェクトの同じ操作パターン」が既存行にあれば類似と見なしてよい
+2. 抽出件数は最大5件（過剰追記防止）。既に `docs/knowledge/pitfalls.md` に類似行があれば除外する:
+   - **主判定**: 「同じオブジェクトの同じ操作パターン」が既存行にあれば類似と見なしてスキップ（厳密計算不要）
+   - **参考目安**: `(カテゴリが同一 ? 0.4 : 0) + (発生箇所・語彙の Jaccard 類似度 × 0.4) + (対処方針の語彙 Jaccard 類似度 × 0.2) ≥ 0.8`
 3. 抽出結果をユーザーにテキストで提示する:
    - 1件の場合: 「この落とし穴を pitfalls.md に追記しますか？ [追記する / スキップ]」
    - 複数件の場合: 番号付きリストで各件を提示し「全件追記 / 個別選択（番号で指定）/ スキップ」の3択で確認
@@ -256,7 +264,7 @@ python scripts/python/backlog-xlsx/update_records.py \
    - **その他**: リマインド省略可
 3. ユーザーから「サイン取得済み」「サイン不要」の報告を受けるまで **完了報告に進まない**（バグの場合は必須）
 4. ユーザーから報告を受けた後、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が設定されている場合のみ xlsx タイムラインに記録:
-   > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする（[xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
+   > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
@@ -320,6 +328,8 @@ python scripts/python/backlog-xlsx/update_records.py \
 - [ ] 管理画面操作手順書に従い担当者が操作を実施する
 ```
 
+> ⚠️ この完了報告は中間ドラフト。出力後も処理は終わりではない。続けて Step 4.5（case-index 追記）→ 4.6（自己点検）→ 5（議論・最終完了報告）→ 6（ドキュメント更新通知）を必ず実行する。
+
 ---
 
 ### 4.5. case-index.md への自動追記
@@ -341,7 +351,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 2. `docs/logs/{issueID}/implementation-plan.md` を Read して「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
 3. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
    > 追記フォーマット・新規作成ヘッダー: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §case-index.md 追記フォーマット
-5. `docs/knowledge/case-index.md` が存在しない場合は上記パーシャルの新規作成ヘッダーを使用してから追記する。
+4. `docs/knowledge/case-index.md` が存在しない場合は上記パーシャルの新規作成ヘッダーを使用してから追記する。
 
 **スキップ条件**: 当課題の行がすでに存在する場合はスキップ（重複防止）。  
 **失敗時**: 「`docs/knowledge/case-index.md` の追記に失敗しました。以下の1行を手動で先頭に追加してください」とユーザーに案内する。
