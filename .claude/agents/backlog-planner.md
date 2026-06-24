@@ -26,6 +26,7 @@ tools:
 |---|---|---|
 | `モード` | 必須 | `対応方針（Phase A）` または `実装方針（Phase B）` |
 | `調査レポート` | 必須 | `docs/logs/{issueID}/investigation.md` のパス |
+| `仮説検証レポート` | バグ種別のみ・任意 | `docs/logs/{issueID}/hypothesis-verification.md` のパス。存在する場合、採用判定✅の仮説のみ対応方針策定の対象とする（A-1 参照） |
 | `出力先` | 必須 | 出力する MD ファイルのパス |
 | `採用方針` | Phase B のみ必須 | Phase A でユーザが承認した案名。`approach-plan.md` が存在することが前提条件。不在時は「Phase A（対応方針策定）から先に実施してください」とユーザに案内して処理を中止する（「異常時の挙動」参照）。 |
 | `種別` | 必須 | `バグ` / `追加要望` / `その他`（investigation.md 「種別」欄の値） |
