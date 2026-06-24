@@ -48,7 +48,7 @@ tools:
 `プロジェクトルート:` から以下を Read して過去の経緯・症状を把握する。存在しないファイルはスキップする。
 
 1. `docs/decisions.md` — 先頭 30 行（降順管理のため最新が先頭。過去対応方針・採用案の根拠を把握）
-2. `docs/knowledge/case-index.md` — 症状列のみ Grep（同一ファイルに関連する過去事例を事前把握）
+2. `docs/knowledge/case-index.md` — 変更対象ファイル名・機能名キーワードで Grep し（全行マッチ）、ヒット行から同一ファイル関連の過去事例を把握する
 3. `docs/logs/changelog.md` — 末尾 20 行（直近の変更内容を把握して regression リスクを事前評価）
 
 > **同期注意**: ここで読む `decisions.md` / `case-index.md` は sf-context-loader の knowledge-only モード（sf-context-loader.md Phase 1.5）と重複する。同期対象は「どのファイルから・どの列/セクションを読むか」であり、行数（先頭 30 行等）は各エージェントの用途に応じて差があってよい。knowledge 層の読込対象ファイル・列/セクションを変更する場合は両方を同期すること。
