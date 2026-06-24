@@ -77,8 +77,8 @@ tools:
 [共通手順参照](../templates/sf-memory/phase0.5-common.md) — cat5 固有の必須キー:
 
 ```
-必須キー: generated_at / groups（dict 形式）
-グループ毎の必須フィールド: id / name / actor / uc_anchors / components / assignment_confidence
+必須キー: generated_at / groups（list 形式）
+グループ毎の必須フィールド: group_id / name_ja / uc_id / feature_ids / components / assignment_confidence
 ```
 
 `docs/.sf/feature_groups.yml` の存在を確認する:
@@ -137,9 +137,9 @@ ls force-app/main/default/triggers/ 2>/dev/null
 
 **ソース再 grep を撤廃し、cat4-apex/flow/lwc が Phase 0 で生成したスケルトン JSON を参照する（R2・Q9 解消）**:
 
-- **Apexクラス**: `docs/.sf/_apex_skeletons.json` の該当クラスエントリから `soql_objects` / `dml_objects` を読む。キャッシュがない場合のみ `.cls` ファイルを直接 Read する
+- **Apexクラス**: `docs/.sf/_apex_skeletons.json` の該当クラスエントリ（キー=クラス名）の `steps[]` を走査し、`steps[].object_ref.text`（対象オブジェクト名）および `steps[].sub_steps[]`（`title='SOQL'` または `'DML'`）の `detail`（SOQL/DML 内容）から operated_objects を抽出する。キャッシュがない場合のみ `.cls` ファイルを直接 Read する
 - **Flow**: `docs/.sf/_flow_index.json` の該当フローエントリから `objects` を読む。キャッシュがない場合のみ `flow-meta.xml` を Read する
-- **LWC**: `docs/.sf/_lwc_skeletons.json` の該当コンポーネントエントリから `@salesforce/schema` インポートを読む。キャッシュがない場合のみ `.js` を Read する
+- **LWC**: `docs/.sf/_lwc_skeletons.json` の該当コンポーネントエントリの `_parser_meta.apex_imports`（呼び出す Apex クラス.メソッド名）から、その Apex の operated_objects を辿る。`@salesforce/schema` のような直接 SObject 参照はスケルトンに含まれないため、必要時のみ `.js` を直接 Read する
 
 **Apexトリガー**: Phase 1 で取得した `TableEnumOrId` = 直接対象オブジェクト（最も信頼性が高い）
 

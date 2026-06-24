@@ -337,7 +337,7 @@ print()
 print('| FG-ID | 名前 | コンポーネント数 |')
 print('|---|---|---|')
 for g in groups:
-    print(f\"| {g['group_id']} | {g['name_ja']} | {len(g.get('feature_ids', []))} |\")
+    print(f\"| {g['group_id']} | {g['name_ja']} | {len(g.get('components', []))} |\")
 print()
 print(f'合計: {len(groups)} グループ')
 print()

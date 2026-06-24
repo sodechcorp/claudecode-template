@@ -16,6 +16,7 @@ groups:
     description: "受注確定後に請求レコードと納品スケジュールを自動生成する処理群"
     trigger: "Opportunity.StageName が '受注確定' に更新されたとき（トリガー起動）"
     uc_id: "UC-03"                  # 紐付くUCのID（usecases.md の uc_id）
+    assignment_confidence: "high"  # UC-anchor 優先度から導出（high/medium/low）
     feature_ids:                   # docs/.sf/feature_ids.yml の F-xxx（例: F-001）。存在する場合は必ず参照
       - "F-001"
       - "F-002"
@@ -57,6 +58,7 @@ groups:
 | `components` | array | このFGに属するコンポーネントのAPI名リスト |
 | `related_objects` | array | 関連するSalesforceオブジェクトのAPI名リスト |
 | `related_fgs` | array | 処理が一部またがる他FGのIDリスト |
+| `assignment_confidence` | string | 割り当て根拠強度（`high`/`medium`/`low`）。UC-anchor 優先度から導出（cat5 Phase 3）。任意フィールド |
 
 ---
 

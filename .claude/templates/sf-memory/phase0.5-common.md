@@ -43,8 +43,8 @@
 
 ### cat5: feature_groups.yml
 ```
-必須キー: generated_at / groups（dict 形式）
-グループ毎の必須フィールド: id / name / actor / uc_anchors / components / assignment_confidence
+必須キー: generated_at / groups（list 形式）
+グループ毎の必須フィールド: group_id / name_ja / uc_id / feature_ids / components / assignment_confidence
 ```
 
 ---
