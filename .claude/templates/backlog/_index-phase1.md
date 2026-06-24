@@ -41,6 +41,7 @@ options:
     category: B
     auto-execute-when:
       - 種別が追加要望
+      - 種別がバグかつ非自明で同種処理が他のオブジェクト・ビザ種別・コンポーネントに存在しうる（正常動作する類似実装と比較して差異を特定するため）
       - 課題に「同じパターン」「類似機能」「他で実装済み」の言及あり
       - 新規 LWC・Apex クラス・Flow を作成する場合
     auto-skip-when:
@@ -95,12 +96,13 @@ options:
     description: blind second-opinion（前情報なし原因仮説）— subagent 化必須
     category: D
     auto-execute-when:
+      - 種別がバグかつ非自明（典型的自明ケース以外）
       - 課題優先度が「高」または「緊急」
       - 課題に「全社影響」「重要バグ」「複数箇所で発生」等の言及あり
       - 既存仮説が単一原因に偏っている兆候（option-multi-cause-hypothesis 結果が薄い）
     auto-skip-when:
       - 種別が「その他」かつ単純な設定変更のみ
-      - typo 修正・ラベル変更レベル
+      - typo 修正・ラベル変更レベル（典型的自明ケース）
     ask-user-prompt: |
       この課題は影響範囲が小さい修正のようです。blind 別仮説（subagent）の検証は省略してもよさそうですか？
     estimated-cost: 重
@@ -299,6 +301,50 @@ options:
     ask-user-prompt: |
       この課題は新機能追加で再現概念が無関係です。再現手順の 1 操作粒度分解は省略してもよさそうですか？
     estimated-cost: 中
+
+  - name: option-apex-debug-log
+    description: Sandbox で Apex デバッグログを取得・解析し、バグの発生箇所・例外内容・実行時変数値を特定
+    category: A
+    auto-execute-when:
+      - 種別がバグかつ非自明で Apex / Trigger / Flow が関与する処理
+      - 課題にエラー・例外・「処理が走らない」「値が入らない」「保存できない」等の実行時挙動の問題
+      - 静的コード読解のみでは分岐到達・例外発生箇所を確定できない
+    auto-skip-when:
+      - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
+      - 種別が「追加要望」または「その他」
+      - 変更対象が純 UI（HTML・表示文言のみ）・ラベル変更・設定のみで Apex / Trigger / Flow が非関与
+    ask-user-prompt: |
+      この課題はバックエンドロジックに関係しないようです。Apex デバッグログの取得・解析は省略してもよさそうですか？
+    estimated-cost: 中
+
+  - name: option-cross-record-comparison
+    description: 症状あり/なしレコードを SOQL で抽出・比較し、差分フィールドを原因候補に昇格
+    category: A
+    auto-execute-when:
+      - 種別がバグで「特定のレコードのみ発生」「一部で再現」「特定ユーザーだけ」等の限定的発生パターン
+      - 同一オブジェクト内で正常動作するレコードと異常レコードが混在する
+    auto-skip-when:
+      - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
+      - 種別が「追加要望」または「その他」
+      - 全レコードで一律に発生する（比較対象となる正常レコードが存在しない）
+      - 設定・コードのみが原因でデータ差分が関係しない（単一コード分岐の誤り等）
+    ask-user-prompt: |
+      この課題は全レコードで一律に発生しているようです。症状あり/なしレコードの差分比較は省略してもよさそうですか？
+    estimated-cost: 中
+
+  - name: option-error-message-reverse-lookup
+    description: エラー文言・例外メッセージを起点に force-app/ を grep し発生源（Apex/Validation Rule/カスタムラベル/LWC）を特定
+    category: A
+    auto-execute-when:
+      - 課題に具体的なエラー文言・トーストメッセージ・例外メッセージが記載されている
+      - 種別がバグで「エラーになる」「保存できない」「弾かれる」等の拒否系症状
+    auto-skip-when:
+      - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
+      - 種別が「追加要望」または「その他」
+      - エラー文言の記載がなく、症状が「表示されない」「データが変わらない」等の無反応系のみ
+    ask-user-prompt: |
+      この課題にはエラー文言の記載がないようです。エラーメッセージからの逆引き grep は省略してもよさそうですか？
+    estimated-cost: 軽
 ```
 
 ---

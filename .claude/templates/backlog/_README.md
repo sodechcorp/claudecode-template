@@ -73,6 +73,14 @@
 - **ユーザー確認はフェーズ末の業務判断のみ**: 過去データの扱い・業務ルール解釈・受入条件・適用範囲の確認に限る。実装側で判別できる事項（テストクラス追加・命名・grep して確認するだけの調査・既存パターン踏襲・カバレッジ要件）は確認に出さない
 - **option カタログの選択は意味のあるシグナルに基づく**: `auto-execute-when` / `auto-skip-when` は「課題内容・変更対象・規模」から評価可能な条件のみ
 
+#### ⚠️ バグ非自明における徹底調査ゲート
+
+種別が**バグかつ非自明**（タイポ修正・ラベル変更等の典型的自明ケース以外）の場合、以下が上記「迷ったら実行」より優先して適用される:
+
+- **原因特定系オプションは `auto-execute-when` ヒット有無に関わらず実行側へ倒す**: category A（常時実行寄り: option-symptom-reverification / option-multi-cause-hypothesis / option-counter-evidence-search / option-causal-chain-analysis / option-apex-debug-log / option-cross-record-comparison / option-error-message-reverse-lookup / option-assumption-listing）および option-reverse-grep は、明示的なキーワードシグナルがなくても実行する
+- **カタログに無い調査手段も自律的に実行**: 21 オプションは最低限の床。バグ非自明では、カタログ外の調査方法も investigator 自身が発想して実行してよい（実行ログに `[EXEC] adhoc-{名前}` で記録）
+- **コスト最適化の適用対象は「自明ケース・追加要望・その他」のみ**: `default-when-uncertain: skip` の軽量化バイアスはバグ非自明に適用しない（軽量課題・追加要望・その他は従来通り）
+
 ### 典型的自明ケース定義（共通参照）
 
 以下に該当する課題は「典型的自明ケース」として、関連オプションは `auto-skip-when` で skip する。各オプションの `auto-skip-when` は「典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）」と記述すれば該当条件を継承する。
@@ -182,6 +190,24 @@
 - エビデンスファイル作成（簡易/詳細選択は AskUserQuestion で現状維持）
 
 詳細は各エージェント定義（`backlog-investigator.md` 等）を参照。
+
+---
+
+## §調査責務の境界
+
+各 Phase で「何をユーザーに問い、何を自分で確認するか」の線引き。特に Phase 1（investigator）に適用。
+
+| 分類 | 内容 | 判断基準 |
+|---|---|---|
+| **ユーザーに出してよい（Q 番号 or テキスト依頼）** | (a) 業務判断（対応方針が変わる Q）/ (b) ClaudeCode が本当にアクセスできない外部データ（本番限定実値・認証必須リンク・スクショ実体・別 SF 組織設定） | 自分のツールでは取得不可能か？ |
+| **絶対に委ねない（自分で確認）** | 調査方法・着眼点（「ログを見るべきか」「どこを grep するか」）/ Sandbox で再現可能な事象 / コード・メタデータで判明する事実 / Apex ログで判明する実行時挙動 / 類似レコードとの差分 | 自分のツール（Read/Grep/Bash/sf CLI/WebFetch）で確認できるか？ |
+
+**判定原則**: 「自分のツールで確認できるか？」を先に問う。できるなら聞かない。聞く前に自分で試した旨と結果を investigation.md に残す。
+
+**investigator が犯しがちな誤り（禁止）**:
+- 「ログを確認するよう依頼しますか？」→ 禁止。自分で Apex デバッグログを取得する（option-apex-debug-log）
+- 「似たレコードを共有してもらえますか？」→ 禁止。自分で SOQL で抽出・比較する（option-cross-record-comparison）
+- 「エラー箇所を特定するための追加情報をください」→ 禁止。エラー文言を自分で逆引き grep する（option-error-message-reverse-lookup）
 
 ---
 
