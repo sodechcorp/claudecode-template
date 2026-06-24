@@ -51,7 +51,7 @@ tools:
 2. `docs/knowledge/case-index.md` — 症状列のみ Grep（同一ファイルに関連する過去事例を事前把握）
 3. `docs/logs/changelog.md` — 末尾 20 行（直近の変更内容を把握して regression リスクを事前評価）
 
-> **同期注意**: ここで読む `decisions.md` / `case-index.md` は sf-context-loader の knowledge-only モード（sf-context-loader.md Phase 1.5）と重複する。knowledge 層の読込仕様を変更する場合は両方を同期すること。
+> **同期注意**: ここで読む `decisions.md` / `case-index.md` は sf-context-loader の knowledge-only モード（sf-context-loader.md Phase 1.5）と重複する。同期対象は「どのファイルから・どの列/セクションを読むか」であり、行数（先頭 30 行等）は各エージェントの用途に応じて差があってよい。knowledge 層の読込対象ファイル・列/セクションを変更する場合は両方を同期すること。
 
 これにより、依存先 grep の前に「過去の対応文脈」を持った状態で regression 確認に入れる。
 
@@ -59,11 +59,13 @@ tools:
 
 ## 確認手順
 
+> **パス基準（必須）**: 以下の全 Bash コマンドは `プロジェクトルート:` で渡されたパスを基準に実行する。各コマンドで `{プロジェクトルート}/force-app/`・`git -C {プロジェクトルート} log ...` のようにルートを明示すること。CWD 依存の相対パスは、CWD≠ルート時にエラーなく 0 件を返す（偽の「依存先なし」を招く）ため禁止。
+
 ### Step 1: 変更ファイルの依存先 grep
 
 変更予定ファイルの主要なクラス名・メソッド名・API 名を抽出し、プロジェクト全体で参照元を検索する:
 ```bash
-grep -r "{クラス名/メソッド名}" force-app/ --include="*.cls" --include="*.js" --include="*.html" -l
+grep -r "{クラス名/メソッド名}" {プロジェクトルート}/force-app/ --include="*.cls" --include="*.js" --include="*.html" -l
 ```
 
 ### Step 2: 既存テストのカバレッジ確認
@@ -71,30 +73,32 @@ grep -r "{クラス名/メソッド名}" force-app/ --include="*.cls" --include=
 変更ファイルに関連するテストクラスを特定し、テスト内容を確認する:
 1. テストクラスの一覧を取得:
    ```bash
-   grep -r "testMethod\|@IsTest" force-app/ --include="*.cls" -l
+   grep -r "testMethod\|@IsTest" {プロジェクトルート}/force-app/ --include="*.cls" -l
    ```
 2. 変更クラスに対応するテストクラスを特定
 3. テストクラスの `@IsTest` メソッドと assert 内容を Read して確認
 
 ### Step 3: 影響範囲の再走査
 
-`docs/logs/{現課題ID}/implementation-plan.md` を Read し、変更ファイル以外への副作用（Trigger 起動・Flow 連携・外部 API 呼び出し）を grep で確認する:
+`{プロジェクトルート}/docs/logs/{現課題ID}/implementation-plan.md` を Read し、変更ファイル以外への副作用（Trigger 起動・Flow 連携・外部 API 呼び出し）を grep で確認する。implementation-plan.md が存在しない場合は本 Step をスキップし、返却フォーマットの「影響範囲（再走査）」欄に「implementation-plan.md 未検出・再走査スキップ」と記録する:
 ```bash
-grep -r "{変更対象の主要API名}" force-app/ --include="*.trigger" --include="*.flow-meta.xml" -l
+grep -r "{変更対象の主要API名}" {プロジェクトルート}/force-app/ --include="*.trigger" --include="*.flow-meta.xml" -l
 ```
 
 ### Step 4: 過去修正履歴（git log）
 
 変更予定ファイルごとに git 履歴を確認する:
 ```bash
-git log --oneline -20 -- {変更対象ファイルパス}
+git -C {プロジェクトルート} log --oneline -20 -- {変更対象ファイルパス}
 ```
 
 ---
 
 ## 返却フォーマット
 
-以下のフォーマットで validator に返却する（本筋セクションのみ必須・おまけは任意）:
+以下のフォーマットで validator に返却する（本筋セクションのみ必須・おまけは任意）。
+
+> **出典必須**: 依存先・影響範囲（再走査）の各項目は、発見元のファイルパスと行番号を `（{ファイルパス}:{行番号}）` の形で末尾に添えること。
 
 ---
 
@@ -103,14 +107,14 @@ git log --oneline -20 -- {変更対象ファイルパス}
 ### 本筋: 変更による影響懸念
 
 **依存先**:
-- {依存先クラス/コンポーネント名}: {影響可能性1行}（なければ「確認した範囲で依存先なし」）
+- {依存先クラス/コンポーネント名}: {影響可能性1行}（{ファイルパス}:{行番号}）（なければ「確認した範囲で依存先なし」）
 
 **テストカバレッジ**:
 - {テストクラス名}: {カバーしているシナリオ概要}
 - カバーされていないシナリオ: {あれば記載・なければ「確認した範囲でカバー済み」}
 
 **影響範囲（再走査）**:
-- {追加発見した影響先がある場合のみ記載・なければ「implementation-plan.md の範囲内・追加発見なし」}
+- {追加発見した影響先がある場合のみ記載・なければ「implementation-plan.md の範囲内・追加発見なし」}（{ファイルパス}:{行番号}）
 
 **過去修正履歴**:
 - {ファイル名}: 直近 20 件以内に {件数} 件の修正あり（{直近の修正概要}）

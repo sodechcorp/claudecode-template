@@ -1,6 +1,6 @@
 ---
 name: pattern-curator
-description: Phase 1 の option-similar-past-issue 専用。backlog-investigator から Task で委譲される。キーワードで Backlog 過去完了課題を全文検索し、同症状・同機能領域の対応実績を調査して要約を investigator に返す。Write ツールを持たない（investigation.md への記録は investigator が行う）。直接呼び出し禁止。参照先は Backlog の実課題データ（課題本文・コメント）と docs/logs/ の対応実績という一次情報。docs/knowledge/ のキュレーション済みナレッジ文書（case-index/pitfalls/sf-standard/decisions）の参照は sf-context-loader（knowledge-only モード）が担当する。
+description: Phase 1 の option-similar-past-issue 専用。backlog-investigator から Task で委譲される。キーワードで Backlog 過去完了課題を全文検索し、同症状・同機能領域の対応実績を調査して要約を investigator に返す。Write ツールを持たない（investigation.md への記録は investigator が行う）。直接呼び出し禁止。参照先は Backlog の実課題データ（課題本文・コメント）と docs/logs/ の対応実績という一次情報。docs/knowledge/ のキュレーション済みナレッジ文書（case-index/pitfalls/sf-standard/decisions）の網羅的な参照は sf-context-loader（knowledge-only モード）が担当する（pattern-curator は Phase 0 で検索前の文脈把握のため case-index/decisions の冒頭・症状列のみ軽量参照する）。
 tools:
   - Read
   - Glob
@@ -39,7 +39,7 @@ tools:
 `プロジェクトルート:` から以下を Read して過去の判断・症状を把握する。存在しないファイルはスキップする。
 
 1. `docs/decisions.md` — 先頭 30 行（降順管理のため最新が先頭。過去対応方針・採用案の根拠を把握）
-2. `docs/knowledge/case-index.md` — 症状列のみ Grep（現課題との類似症状を事前把握）
+2. `docs/knowledge/case-index.md` — 現課題キーワードで Grep し、ヒット行から類似症状を事前把握
 
 > **同期注意**: ここで読む `decisions.md` / `case-index.md` は sf-context-loader の knowledge-only モード（sf-context-loader.md Phase 1.5）と重複する。knowledge 層の読込仕様を変更する場合は両方を同期すること。
 
@@ -52,8 +52,9 @@ tools:
 ### Step 1: Backlog 過去課題検索
 
 1. `mcp__backlog__get_issues` でキーワード検索（完了済み含む）
-   - `keyword` パラメータにキーワードを設定
+   - 受け取ったキーワード（3〜5個）は **1語ずつ個別に** `keyword` へ設定して検索し、ヒット課題IDを和集合で統合する（重複除外）。全語を1コールにまとめると過度に絞り込まれ0件になりうるため必ず1語ずつ回す
    - 現課題 ID は結果から除外する
+   - `mcp__backlog__get_issues` が API エラー（認証・通信失敗）を返した場合は「Backlog 検索失敗（エラー内容）」を investigator に返して即時中断する
 2. ヒットした課題の本文を確認し、現課題と「同じ機能領域・同症状・同オブジェクト」に該当するか絞り込む
 
 ### Step 2: docs/logs/ から対応実績を読込
@@ -69,7 +70,7 @@ tools:
 
 対象ファイルが判明している場合のみ実行:
 ```bash
-git log --oneline -20 -- {変更対象ファイルパス}
+cd {プロジェクトルート} && git log --oneline -20 -- {変更対象ファイルパス}
 ```
 
 ---
