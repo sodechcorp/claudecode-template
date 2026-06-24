@@ -57,6 +57,8 @@ Step 0b（オプション index 読込）は Step 0a 完了後に続けて実施
 
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
 
+> ⚠️ **Step 0a-2 先行確認（スキップ判定）**: インライン手順を実行する前に **Step 0a-2（自明ケース判定）** を先に確認すること。自明ケースに該当する場合は以下のオプション index 読込・逐次評価を一括スキップして **Step 0c** へ進む。
+
 **インライン最小手順（_README.md が参照不可な場合も以下を実施すること）**:
 
 1. モードに応じてオプション index を Read する:
@@ -300,7 +302,7 @@ Phase A で方針が確定した後に実施する。
 
 **approach-plan.md 不在チェック**: Phase B 開始前に `docs/logs/{issueID}/approach-plan.md` の存在を Glob / Read で確認する。不在の場合は「approach-plan.md が見つかりません。Phase A（対応方針策定）から先に実施してください」とユーザに案内し、処理を中止する。
 
-**Q 答え確認（Phase B-1 前必須）**: `approach-plan.md` を Read し、「Q 答え確定」セクションから確定済みの Q 答えを抽出する。
+**Q 答え確認（Phase B-1 前必須）**: `approach-plan.md` を Read し、「業務要件への回答」セクションから確定済みの Q 答えを抽出する。
 
 - 未確定の Q が残っている場合は Phase B を開始せず、「Q{N} が未確定です。Phase A に戻って確定する必要があります」とユーザに案内する
 - 確定済み Q 答えは `implementation-plan.md` の「前提条件」セクション冒頭に転記する:
@@ -550,15 +552,3 @@ B-3 の提示内容をユーザに見せたら、以下を必ず行う:
 - **approach-plan.md 未取得（Phase B 起動時）**: `Phase A（対応方針策定）から先に実施してください` とユーザに案内し、処理を中止する
 - **approach-plan.md 保存失敗**: 生成済みの方針内容をチャットにそのまま再出力してユーザが内容を保全できるようにする。エラー内容をユーザに提示する。ディレクトリ不在が原因の場合は「`docs/logs/{issueID}/` ディレクトリを手動で作成してください（例: `mkdir -p docs/logs/{issueID}/`）」とユーザに依頼してから再試行する。それでも失敗する場合は手動保存を依頼して処理を中止する
 - **implementation-plan.md 保存失敗**: approach-plan.md 保存失敗と同じ手順を適用する（コンテンツ再出力 → エラー提示 → ディレクトリ作成依頼 → 再試行 → 手動依頼）
-
----
-
-## Phase 最終: クリーンアップ
-
-[共通ルール参照](.claude/CLAUDE.md#一時ファイルの後片付け全エージェント共通)
-
-作業中に作成した一時ファイルがあれば削除する:
-
-```python
-python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"
-```
