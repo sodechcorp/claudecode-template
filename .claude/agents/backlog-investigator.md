@@ -633,6 +633,7 @@ Sandbox で再現できる場合は使わない（最終手段）。
 4. ユーザの応答が一巡したら次フェーズへの確認をテキストで行う（AskUserQuestion は使わず、テキスト会話で進行する。_README.md §AskUserQuestion の使用ルールに準拠）:
    - 種別が **バグ** の場合: 「Phase 1.6（Sandbox 仮説検証）に進んでよろしいですか？」と確認する
    - 種別が **追加要望・その他** の場合: 「Phase 1.5 に進んでよろしいですか？」と確認する
+5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照。ファイルが無ければ spec の手順でヘッダーから新規作成する）
 
 ---
 
@@ -664,14 +665,15 @@ Sandbox で再現できる場合は使わない（最終手段）。
 
 **結果の分岐**:
 - 再現仮説 ≥ 1 件 → `hypothesis-verification.md` を保存してフェーズ完了提示へ
-- 再現仮説 = 0 件 → 「全仮説が再現しませんでした。investigation.md の仮説を見直して Phase 1 を再実施します」とユーザに提示し、`investigation.md` に新仮説を追記してから再度 Phase 1.6 を実施する（**再実施前に `docs/logs/{issueID}/discussion-log.md` の改版履歴から Phase 1.6 再実施回数を確認すること。2 回以上に達していれば backlog.md のカウント上限処理に従い自動再実施を停止する**）
-- 検証中に新事実発見 → `investigation.md` の仮説・再現条件を更新してから Phase 1.6 を再実施する（同上の回数確認を行う）
+- 再現仮説 = 0 件 → 「全仮説が再現しませんでした。investigation.md の仮説を見直して Phase 1 を再実施します」とユーザに提示し、`investigation.md` に新仮説を追記する。再実施前に **`docs/logs/{issueID}/discussion-log.md` に `[investigator] 変更: Phase 1.6 再実施（理由: 全仮説再現せず）` を追記**し（ファイルが無ければ新規作成）、同ファイルの「Phase 1.6 再実施」エントリ数を数える。**2 件以上に達していれば backlog.md のカウント上限処理に従い自動再実施を停止する**。上限に達していなければ再度 Phase 1.6 を実施する
+- 検証中に新事実発見 → `investigation.md` の仮説・再現条件を更新する。再実施前に **`docs/logs/{issueID}/discussion-log.md` に `[investigator] 変更: Phase 1.6 再実施（理由: 新事実発見）` を追記**し（ファイルが無ければ新規作成）、同ファイルの「Phase 1.6 再実施」エントリ数を数える。**2 件以上に達していれば backlog.md のカウント上限処理に従い自動再実施を停止する**。上限に達していなければ再度 Phase 1.6 を実施する
 
 **フェーズ完了の提示**:
 1. 検証結果の 2〜3 行サマリー（再現仮説 N 件・除外仮説 N 件・検証不可 N 件）
 2. 確認事項（検証不可の仮説がある場合はデータ準備の依頼事項を明記。なければ「特に確認事項はありません」）
 3. ユーザの自由テキスト応答を待つ
 4. 「Phase 1.5 に進んでよろしいですか？」とテキストで確認する
+5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）
 
 ---
 
