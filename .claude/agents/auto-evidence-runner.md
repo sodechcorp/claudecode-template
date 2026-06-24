@@ -195,7 +195,6 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
 - `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル）
-- `org_profile_path`: `{log_dir}/org-profile.md`（Login As ケースがある場合）
 
 `ui-evidence-runner` の返却（各 TC の証跡ファイル名・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 生成は Phase F（Step 7）が `{judgment_path}` JSON から行う。
 

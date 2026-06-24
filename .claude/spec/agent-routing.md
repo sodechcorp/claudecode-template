@@ -44,6 +44,7 @@ sf-dev / sf-architect / qa-engineer / reviewer / data-manager / integration-dev 
 | `/sf-memory` Phase 0 コンテキスト読込 | `sf-context-loader` |
 | `/sf-design` 各ステップ | `sf-design-step1〜3` / `sf-design-writer` / `sf-screen-writer` / `sf-detail-design-writer` / `sf-doc-overview-writer` / `sf-doc-objects-writer` |
 | `/backlog` 各 Phase | `backlog-investigator` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator` |
+| `/test` 各 Phase（証跡採取・レポート） | `auto-evidence-runner` / `ui-evidence-runner` / `test-spec-builder` |
 | blind 系（Task 経由のみ・親の情報を受け取らない） | `backlog-blind-second-opinion` / `backlog-blind-final-verifier` / `backlog-blind-validator` |
 
 > `sf-design-step2` の委譲先（順番厳守）: ① `sf-screen-writer`（画面系: LWC/画面フロー/Aura/VF）→ ② `sf-design-writer`（Apex系・機能一覧、①の結果を集約）の順に両方委譲
