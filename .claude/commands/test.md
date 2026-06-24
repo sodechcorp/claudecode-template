@@ -236,14 +236,15 @@ python -c "import PIL" 2>/dev/null || {
 - `max_workers_soql`: 4（低速組織や API 制限が疑われる場合は 1 で逐次 / `--serial` を渡す）
 - `max_workers_anon`: 3（同上）
 - `serial`: false（`--serial` 指定時は true で全逐次フォールバック）
+- ※ `judgment_path` は **渡さない**（= 証跡採取モードで起動。後始末・test-report.md 生成は Phase F が担当）
 
-**実行の流れ**（`auto-evidence-runner` 内部）:
+**実行の流れ**（`auto-evidence-runner` 内部・証跡採取モード）:
 1. 種別仕分け＋差分対象 TC の絞り込み
 2. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列）
 3. AnonApex → コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列）
 4. ApexTest → 直列実行
 5. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）
-6. 証跡存在確認 → cleanup（逐次）→ test-report.md 生成
+6. 証跡存在確認（後始末・test-report.md 生成は Phase F が担当）
 
 実行後に証跡ファイルの存在確認:
 ```bash
@@ -306,11 +307,23 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
 
 ### Phase F: test-report.md 生成・後始末
 
-> **[auto-evidence-runner へ委譲]**
+> **[auto-evidence-runner（レポート・後始末モード）へ委譲]**
 
-1. `{judgment_path}` を読み、test-report.md を `{log_dir}` に生成する
-2. 匿名 Apex で作成したテストデータを削除する（cleanup）
-3. 一時ファイル（`{log_dir}/tmp/`）を削除する
+`auto-evidence-runner` への委譲パラメータ:
+- `issueID`: `{issueID}`
+- `alias`: `{SF_ALIAS}`
+- `project_dir`: `{PROJECT_DIR}`
+- `log_dir`: `{LOG_DIR}`
+- `evidence_dir`: `{EVIDENCE_DIR}`
+- `xlsx_folder`: `{XLSX_FOLDER}`
+- `spec_path`: `{SPEC_PATH}`
+- `judgment_path`: `{JUDGMENT_PATH}`（**必須**・Phase E の `judge_results.py` が生成した JSON）
+- ※ `target_tc_list` / `max_workers_*` / `serial` は不要（証跡採取を再実行しないため）
+
+`{judgment_path}` が指定されているため auto-evidence-runner は**レポート・後始末モード**で起動する:
+1. `{judgment_path}` JSON を読み、test-report.md を `{log_dir}` に生成する（Step 7）
+2. 匿名 Apex で作成したテストデータを削除する（cleanup・Step 4-4）
+3. 一時ファイル（`{log_dir}/tmp/`）を削除する（Step 6）
 
 #### NG があった場合の差し戻し（期待値ドリフト防止）
 

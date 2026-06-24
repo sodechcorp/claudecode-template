@@ -34,6 +34,22 @@ tools:
 - `{max_workers_soql}` — SOQL 並列 worker 数（デフォルト 4）
 - `{max_workers_anon}` — AnonApex 並列 worker 数（デフォルト 3）
 - `{serial}` — true の場合は全種別を強制逐次実行（ガバナ競合時のフォールバック）
+- `{judgment_path}` — `{log_dir}/judgment-result.json` のパス（**Phase F 再委譲時のみ指定**。空/未指定の場合は証跡採取モードで動作し、Step 4-4/6/7 は実行しない）
+
+---
+
+## 実行フェーズと担当範囲（必読）
+
+このエージェントは `/test` コマンドから **2 回** 委譲される。`{judgment_path}` の有無でモードが変わる:
+
+| 委譲元フェーズ | `{judgment_path}` | 実行 Step | スキップ |
+|---|---|---|---|
+| **Phase C**（証跡採取） | 空/未指定 | Step 1〜5 ＋ 完了セルフチェック | Step 4-4・Step 6・Step 7 |
+| **Phase F**（レポート・後始末） | 指定あり | Step 4-4 → Step 6 → Step 7 | Step 1〜5（証跡採取を再実行しない） |
+
+**OK/NG の権威判定は `/test` Phase E の `judge_results.py` が担当**する（`judgment-result.json` に保存）。
+- **証跡採取モード（Phase C）**: 証跡ファイルの存在・内容を確認するが、最終的な OK/NG の確定はしない
+- **レポート・後始末モード（Phase F）**: `{judgment_path}` の JSON を読み、判定列・NG 一覧・サマリーをレポートに反映する
 
 ---
 
@@ -153,7 +169,9 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py run-batch \
 
 `{serial}` が true の場合は `--serial` を追加する。
 
-#### 4-4: 後始末（Savepoint/rollback 以外の場合）
+#### 4-4: 後始末（Savepoint/rollback 以外の場合）— **Phase F（レポート・後始末モード）でのみ実行**
+
+`{judgment_path}` が空/未指定（Phase C）の場合はこのサブステップをスキップする。
 
 永続化したテストデータを削除する。**課題単位プレフィックス `AUTOTEST_{issueID}_` を使い、永続化した SObject ごとに cleanup を繰り返す**（このプレフィックスは生成名 `AUTOTEST_{issueID}_{TC_No}_…` の先頭一致なので、SObject 1 つにつき 1 回で全 TC 分のテストデータを回収できる）:
 
@@ -179,11 +197,13 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
 - `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル）
 - `org_profile_path`: `{log_dir}/org-profile.md`（Login As ケースがある場合）
 
-`ui-evidence-runner` の返却（各 TC の証跡ファイル名・取得成否・Login As 降格有無）を受け取り、Step 7 の test-report.md 生成に使う。
+`ui-evidence-runner` の返却（各 TC の証跡ファイル名・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 生成は Phase F（Step 7）が `{judgment_path}` JSON から行う。
 
 ---
 
-## Step 6: 一時ファイルの後始末
+## Step 6: 一時ファイルの後始末 — **Phase F（レポート・後始末モード）でのみ実行**
+
+`{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。
 
 ```bash
 python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
@@ -191,7 +211,18 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 
 ---
 
-## Step 7: test-report.md の生成
+## Step 7: test-report.md の生成 — **Phase F（レポート・後始末モード）でのみ実行**
+
+`{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。
+
+**生成元**: `{judgment_path}`（`judge_results.py` が Phase E で生成した `judgment-result.json`）。
+以下のキーを使って各列を組み立てる:
+- `results[].status` → 判定列（OK/NG/SKIP）・絵文字マッピング: OK=✅ / NG=❌ / SKIP=（要手動）
+- `results[].actual` → 実際の結果列
+- `results[].label` + 種別は `{spec_path}` を照合して補完
+- `ng_list[].reason` → NG 一覧の理由
+- `skip_list` → 要手動確認テーブル（test-spec.md の観点・理由を補完）
+- `ok`/`ng`/`skip`/`total` → テスト実行サマリー
 
 `{log_dir}/test-report.md` に以下のフォーマットで保存する:
 
@@ -257,6 +288,9 @@ NG が 1 件以上ある場合:
 ---
 
 ## 完了条件（セルフチェック）
+
+**証跡採取モード（Phase C・`{judgment_path}` 未指定）の完了条件**: 証跡ファイルの存在確認（下記 ☑ 項目）まで。test-report.md 生成・後始末・tmp 削除は実施しない。
+**レポート・後始末モード（Phase F・`{judgment_path}` 指定あり）の完了条件**: test-report.md 生成・cleanup・tmp 削除まで（証跡採取は再実行しない）。
 
 ```bash
 ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/after/screen/" 2>/dev/null
