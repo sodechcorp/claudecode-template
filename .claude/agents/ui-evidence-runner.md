@@ -34,6 +34,7 @@ tools:
 - `{alias}` — Sandbox org alias（Sandbox 確認はオーケストレータ側で完了済み）
 - `{log_dir}` — `{project_dir}/docs/logs/{issueID}/`
 - `{evidence_dir}` — 証跡保存先ルート（`{xlsx_folder}/evidence`）
+- `{max_workers_ui}` — UI 並列コンテキスト数（デフォルト 3。`serial`=true 時は 1）
 - `{ui_cases}` — 実行対象 TC のリスト（差分再実行モードの絞り込み済み）
   ```
   各 TC: No / 観点 / 前提・データ準備 / 実行アクション / 期待結果 / 判定方法 / 証跡命名 / 分岐ラベル（あれば）
@@ -72,32 +73,71 @@ mkdir -p "{evidence_dir}/before"
 
 ---
 
-## Step 2: 単一ユーザ UI 証跡（ユーザ切替なし）— browser_run_code_unsafe 集約
+## Step 1.5: ケース分類（並列可 / 逐次 / Login As）
 
-「前提・データ準備」に対象ユーザ指定がないケースを対象にする。
+`{ui_cases}` の「実行アクション」と「前提・データ準備」を読み、各 TC を 3 グループに仕分ける:
 
-ロケータ・コードブロック方式・フォールバック・セキュリティは `playwright-sf-screen-ops.md` の各セクションに従う。
+| グループ | 判定基準 | 実行方式 |
+|---|---|---|
+| **① 並列可** | 表示・参照のみ（登録/編集/削除を伴わない）かつユーザ切替なし | Step 2A: 複数コンテキスト並列（max_workers_ui 同時実行） |
+| **② 逐次** | データ作成/更新/削除を伴う、または分岐操作で既存データを変更する | Step 2B: 単一セッション逐次 |
+| **③ Login As** | 「対象プロファイル: 〜」または「確認ユーザ: 〜」が記載されている | Step 3: ユーザ単位バッチ |
 
-### TC 固有の命名規則
+**判定に迷う場合は逐次（②）扱いにする**（並列で状態が壊れるリスクを避ける）。
+
+---
+
+## Step 2: 単一ユーザ UI 証跡（ユーザ切替なし）
+
+「前提・データ準備」に対象ユーザ指定がないケースを対象にする（グループ①②）。
+
+ロケータ・`waitSfReady`・コードブロック方式・フォールバック・セキュリティは `playwright-sf-screen-ops.md` の各セクションに従う。
+
+### TC 固有の命名規則（共通）
 
 ファイル名は必ず `{No}_` で始める（下流 `generate_evidence_xlsx.py` が `split('_')[0]` の No 接頭辞で TC に紐づけるため）。観点サニタイズはスペース・`/`・`\`・記号を除去し `_` を区切りに使う。`ui_cases` の「証跡命名」フィールドを命名の権威とする。
 
-### コードブロック構成（1 TC = 1 コードブロック）
+**パス指定**: `page.screenshot({path: ...})` には**絶対パス**を使う（`{evidence_dir}` を展開した実パス文字列を埋め込む）。
 
-1. **1件目の TC のみ**: `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用し、アプリ内遷移（`page.goto('アプリURL')` や操作ナビ）のみ。
-2. **before 撮影**: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png'})`
-3. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`page.waitForSelector` / `page.waitForLoadState` で遷移・表示を待つ。
-4. **after 撮影（分岐ごと）**: 分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`。
-5. **return**: `JSON.stringify({url: page.url(), text: await page.locator('body').innerText()})` を返す。エージェントは戻り値を `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に Write する。
+### Step 2A: 並列コンテキスト（グループ①：読み取り専用）
+
+`playwright-sf-screen-ops.md` の「並列 UI 証跡（複数コンテキスト）」に従い、`{max_workers_ui}` 件ずつ `Promise.all` でチャンク処理する。
+
+- 各コンテキストが自前で `goto(FRONTDOOR_URL)` ログイン → TC 撮影 → コンテキストを閉じる
+- return 値は `JSON.stringify([{no, ok, text, url}, ...])` の配列。エージェントは各要素の `text` を `{No}_{観点サニタイズ}.txt` に Write する
+- **newContext 不可時**: 単一セッションの逐次（Step 2B と同じ方式）にフォールバックする。先にプローブコードで確認することを推奨:
+  ```javascript
+  async (page) => {
+    const ctx = await page.context().browser().newContext();
+    await ctx.close();
+    return 'newContext: OK';
+  }
+  ```
+
+### Step 2B: 単一セッション逐次（グループ②：データ作成/更新あり）
+
+1件目の TC のみ `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用しアプリ内遷移のみ。
+
+コードブロック構成（1 TC = 1 コードブロック）:
+1. **before 撮影**: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png'})`
+2. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で遷移・表示を待つ。
+3. **after 撮影（分岐ごと）**: 分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`。
+4. **return**: `JSON.stringify({url: page.url(), text: await page.locator('body').innerText()})` を返す。エージェントは戻り値を `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に Write する。
 
 **コードブロック例（プリチェック画面のラベル確認）**:
 ```javascript
 async (page) => {
+  page.setDefaultTimeout(15000);
+  async function waitSfReady(page) {
+    await page.waitForLoadState('domcontentloaded');
+    await page.locator('.slds-spinner, lightning-spinner')
+      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+  }
   // 1件目のみ: await page.goto('FRONTDOOR_URL');
   await page.screenshot({path: 'C:/path/evidence/before/TC-001_ラベル確認_before.png'});
   // 画面遷移
   await page.getByText('プリチェック').click();
-  await page.waitForLoadState('networkidle');
+  await waitSfReady(page);
   // after 撮影
   await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png'});
   // DOM return（エージェントが .txt に Write する）
@@ -107,21 +147,27 @@ async (page) => {
 
 **条件分岐がある場合**: 1ブロック内で全分岐を順に実行し、分岐ごとに after 撮影する。各分岐の前後で操作を戻す（デフォルト選択に戻す・フォームリセット等）ことで1フローに収める。
 
-**パス指定**: `page.screenshot({path: ...})` には**絶対パス**を使う（`{evidence_dir}` を展開した実パス文字列を埋め込む）。
-
-全 TC 完了後に `mcp__playwright__browser_close` でセッションを閉じる。
+グループ①②の全 TC 完了後に `mcp__playwright__browser_close` でセッションを閉じる。
 
 ---
 
-## Step 3: 複数ユーザ（権限別）UI 証跡 — Login As
+## Step 3: 複数ユーザ（権限別）UI 証跡 — Login As バッチ
 
-「前提・データ準備」に「対象プロファイル: {プロファイル名}」または「確認ユーザ: {ユーザ名}」が記載されているケースを対象にする。
+「前提・データ準備」に「対象プロファイル: {プロファイル名}」または「確認ユーザ: {ユーザ名}」が記載されているケースを対象にする（グループ③）。
 
-Login As 前提チェック・実ユーザ名の解決・Login As 操作手順は `playwright-sf-screen-ops.md` の「Login As」セクションに従う。
+**バッチ化の原則**: `ui_cases` を対象ユーザ単位でグルーピングし、ユーザごとに `Login As 1回 → 当該ユーザの全 TC を連続撮影 → logout 1回` に収める。TC ごとに Login As/logout を往復しない。
+
+Login As 前提チェック・実ユーザ名の解決・Login As バッチ操作手順は `playwright-sf-screen-ops.md` の「Login As」セクションに従う。
 
 ### 実ユーザ名の解決（TC 固有）
 
 `{ui_cases}` の「前提・データ準備」記載のプロファイル名/ユーザ名を確認する（`test-spec.md` への直接参照は不要。`ui_cases` に含まれている）。ログインユーザ名は共通手順の SOQL クエリで取得する（`org-profile.md` は業務上の氏名・役割のみでログインユーザ名を持たないため）。
+
+### グルーピングの手順
+
+1. `ui_cases` から対象ユーザ（プロファイル/ユーザ名）を一覧化し重複を排除する
+2. ユーザごとに「そのユーザが必要な TC リスト」をまとめる
+3. ユーザ数だけコードブロックを実行する（1ユーザ = 1コードブロック）
 
 ### 証跡の命名（TC 固有）
 

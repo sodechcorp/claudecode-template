@@ -33,6 +33,7 @@ tools:
 - `{target_tc_list}` — **差分再実行時のみ**。再実行対象の TC 番号リスト（例: `TC-003,TC-011`）。空の場合は全件実行
 - `{max_workers_soql}` — SOQL 並列 worker 数（デフォルト 4）
 - `{max_workers_anon}` — AnonApex 並列 worker 数（デフォルト 3）
+- `{max_workers_ui}` — UI 並列コンテキスト数（デフォルト 3。`{serial}`=true 時は 1 で委譲）
 - `{serial}` — true の場合は全種別を強制逐次実行（ガバナ競合時のフォールバック）
 - `{judgment_path}` — `{log_dir}/judgment-result.json` のパス（**Phase F 再委譲時のみ指定**。空/未指定の場合は証跡採取モードで動作し、Step 4-4/6/7 は実行しない）
 
@@ -218,6 +219,7 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
 - `alias`: `{alias}`（Sandbox 確認済み前提）
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
+- `max_workers_ui`: `{serial}` が true の場合は `1`、それ以外は `{max_workers_ui}`（デフォルト 3）
 - `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル）
 
 `ui-evidence-runner` の返却（各 TC の証跡ファイル名・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 生成は Phase F（Step 7）が `{judgment_path}` JSON から行う。

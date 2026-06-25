@@ -27,6 +27,29 @@ JSON の `result.url` を `FRONTDOOR_URL` として取得する。
 
 ---
 
+## 高速待機（networkidle 禁止）
+
+**`waitForLoadState('networkidle')` は Salesforce Lightning で使わない。**
+
+Salesforce Lightning は EMP/CometD のロングポーリングにより通信が途切れず、`networkidle` がほぼ成立しない。毎遷移で既定タイムアウト（Playwright デフォルト 30 秒）まで空待ちし、UI ケース数 × 遷移数 × 数十秒で線形に膨らむ。
+
+代わりに **`waitSfReady`** ヘルパーを使う。各コードブロック内で以下のように定義して呼び出す:
+
+```javascript
+async function waitSfReady(page) {
+  // domcontentloaded で DOM 確定後、Lightning スピナーが消えるまで待つ
+  await page.waitForLoadState('domcontentloaded');
+  await page.locator('.slds-spinner, lightning-spinner')
+    .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+}
+```
+
+- 各コードブロックの冒頭で `page.setDefaultTimeout(15000)` を設定し、ロケータ不一致を 15 秒で fail-fast させる
+- 目的画面のアンカー要素が分かる場合は `waitSfReady` の後に `await page.waitForSelector('<アンカー>', { timeout: 15000 })` を併用する（より確実）
+- `waitForTimeout` は引き続き最終手段のみ（アニメーション等で他に手がない場合）
+
+---
+
 ## ロケータ指針（Salesforce LWC/Aura・Shadow DOM 対応）
 
 Salesforce の画面は LWC/Aura の Shadow DOM を持つため、固定セレクタ（`#id`・`.class`）は機能しない。以下を使う（いずれも Shadow DOM を自動貫通する）:
@@ -49,14 +72,20 @@ navigate → 操作 → screenshot/return を**1往復（1 MCP コール）**に
 
 ```javascript
 async (page) => {
+  page.setDefaultTimeout(15000);
+  async function waitSfReady(page) {
+    await page.waitForLoadState('domcontentloaded');
+    await page.locator('.slds-spinner, lightning-spinner')
+      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+  }
   // 画面に遷移（1件目のみ: await page.goto(FRONTDOOR_URL) でログインしてもよい）
   await page.goto('{対象URL}');
-  await page.waitForLoadState('networkidle');
+  await waitSfReady(page);
   // before 撮影
   await page.screenshot({path: '/絶対パス/xxx_before.png'});
   // 操作（ロケータ指針に従う）
   await page.getByText('{ラベル}').click();
-  await page.waitForLoadState('networkidle');
+  await waitSfReady(page);
   // after 撮影
   await page.screenshot({path: '/絶対パス/xxx.png'});
   // DOM return（エージェントが .txt に Write する）
@@ -68,9 +97,10 @@ async (page) => {
 
 ### 操作待機パターン
 
-- 画面遷移後: `page.waitForLoadState('networkidle')`
-- 特定要素の出現: `page.waitForSelector('[aria-label="..."]')`
-- アニメーション考慮: `page.waitForTimeout(500)` （最終手段のみ）
+- 画面遷移後: `await waitSfReady(page)`（domcontentloaded＋スピナー消滅を待つ）
+- 特定アンカー要素の出現: `await page.waitForSelector('[aria-label="..."]', { timeout: 15000 })`（目的画面固有要素が分かる場合に `waitSfReady` と併用）
+- アニメーション考慮: `await page.waitForTimeout(500)`（最終手段のみ）
+- ❌ `page.waitForLoadState('networkidle')` — Salesforce Lightning では成立しないため使用禁止（→「高速待機」セクション参照）
 
 ---
 
@@ -111,43 +141,133 @@ sf data query --target-org "$SF_ALIAS" \
 
 複数該当時は Name が対象と一致するものを選ぶ。組織クエリで特定できない場合のみユーザに 1 回質問する（パスワード不要）。
 
-### Login As 操作（各ユーザに対して 1 コードブロック）
+### Login As 操作（ユーザ単位バッチ — 1 Login As → 全 TC → 1 logout）
+
+**バッチ化の原則**: 同じユーザが対象の TC を全てまとめて 1 コードブロックで実行する。TC ごとに Login As/logout を往復しない。
 
 ```javascript
 async (page) => {
-  // ユーザ管理ページに遷移（管理者セッション流用）
+  page.setDefaultTimeout(15000);
+  async function waitSfReady(page) {
+    await page.waitForLoadState('domcontentloaded');
+    await page.locator('.slds-spinner, lightning-spinner')
+      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+  }
+
+  // ─── Login As（このユーザの TC 群を開始する前に 1 回だけ実行）───
   await page.goto('/lightning/setup/ManageUsers/home');
-  await page.waitForLoadState('networkidle');
-  // ユーザ検索
+  await waitSfReady(page);
   const searchBox = page.getByLabel('検索').or(page.getByPlaceholder('検索'));
   await searchBox.fill('{ユーザ名}');
   await page.keyboard.press('Enter');
-  await page.waitForLoadState('networkidle');
-  // ユーザ名リンクをクリックしてユーザ詳細ページへ
+  await waitSfReady(page);
   await page.getByText('{ユーザ名}').first().click();
-  await page.waitForLoadState('networkidle');
-  // Login As ボタンをクリック
+  await waitSfReady(page);
   await page.getByRole('button', {name: 'ユーザに代わってログイン'}).click();
-  await page.waitForLoadState('networkidle');
-  // 対象画面に遷移
-  // ※ page.goto() は URL/パスのみ受け付ける。アプリ名しかない場合はアプリランチャ経由:
-  //   await page.getByRole('button', {name: 'アプリケーションランチャー'}).click();
-  //   await page.getByText('{アプリ名}').click();
-  await page.goto('{対象画面URL}');
-  await page.waitForLoadState('networkidle');
-  // 操作・撮影
-  await page.screenshot({path: '/絶対パス/xxx.png'});
-  const text = await page.locator('body').innerText();
-  // プロキシ解除（管理者セッションに戻る）― 毎ユーザ必ず実行
+  await waitSfReady(page);
+
+  // ─── 当該ユーザの TC を連続撮影（TC が増えてもここに追加するだけ）───
+  // TC-XXX: {観点}
+  await page.goto('{対象画面URL_1}');
+  await waitSfReady(page);
+  await page.screenshot({path: '/絶対パス/{No}_xxx_before.png'});
+  // （操作があれば）
+  await page.getByText('{ラベル}').click();
+  await waitSfReady(page);
+  await page.screenshot({path: '/絶対パス/{No}_xxx.png'});
+  const text1 = await page.locator('body').innerText();
+
+  // TC-YYY: {観点} — 同ユーザの次 TC はそのまま続ける（再ログイン不要）
+  await page.goto('{対象画面URL_2}');
+  await waitSfReady(page);
+  await page.screenshot({path: '/絶対パス/{No2}_yyy_before.png'});
+  await page.screenshot({path: '/絶対パス/{No2}_yyy.png'});
+  const text2 = await page.locator('body').innerText();
+
+  // ─── プロキシ解除（このユーザの全 TC 完了後に 1 回だけ実行）───
   await page.goto('/secur/logout.jsp');
-  await page.waitForLoadState('networkidle');
-  return JSON.stringify({url: page.url(), text: text});
+  await waitSfReady(page);
+
+  return JSON.stringify([
+    {no: '{No}',  url: page.url(), text: text1},
+    {no: '{No2}', url: page.url(), text: text2},
+  ]);
 }
 ```
 
-**注意**: プロキシ解除 `/secur/logout.jsp` は**毎ユーザ必ず実行**（次ユーザのログイン前に管理者セッションに戻る）。
+**注意**:
+- プロキシ解除 `/secur/logout.jsp` は**当該ユーザの全 TC 完了後に 1 回だけ**実行（次ユーザの Login As 前に管理者セッションに戻る）
+- 複数ユーザがいる場合は**ユーザ分コードブロックを繰り返す**（1ユーザ = 1コードブロック、TC 数は各コードブロック内で吸収）
+- ユーザ名リンクの特定が難しい場合は先に `mcp__playwright__browser_snapshot` で DOM を確認してからコードブロックに組み込む
 
-ユーザ名リンクの特定が難しい場合は先に `mcp__playwright__browser_snapshot` で DOM を確認してからコードブロックに組み込む。
+---
+
+## 並列 UI 証跡（複数コンテキスト）
+
+**読み取り専用かつユーザ切替なし**の TC のみが対象。データ作成/更新を伴うケースと Login As ケースは逐次を維持する。
+
+### 仕組み
+
+`page.context().browser().newContext()` で TC ごとに独立したブラウザコンテキストを作成し、各コンテキストが自前で `goto(FRONTDOOR_URL)` ログイン → 割当 TC を撮影 → コンテキストを閉じる。`max_workers_ui`（デフォルト3）件ずつ `Promise.all` でチャンク処理する。
+
+### 骨格コード
+
+```javascript
+async (page) => {
+  const MAX_WORKERS = 3; // max_workers_ui を展開
+  const FRONTDOOR = 'FRONTDOOR_URL_HERE'; // 変数展開で埋め込む（accessToken は直書き禁止）
+
+  async function waitSfReady(p) {
+    await p.waitForLoadState('domcontentloaded');
+    await p.locator('.slds-spinner, lightning-spinner')
+      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+  }
+
+  // 並列可 TC のリスト（エージェントが TC 分だけ定義する）
+  const tasks = [
+    { no: 'TC-001', url: '{対象URL_1}', beforePath: '/絶対パス/TC-001_xxx_before.png', afterPath: '/絶対パス/TC-001_xxx.png', txtPath: '/絶対パス/TC-001_xxx.txt' },
+    { no: 'TC-003', url: '{対象URL_2}', beforePath: '/絶対パス/TC-003_yyy_before.png', afterPath: '/絶対パス/TC-003_yyy.png', txtPath: '/絶対パス/TC-003_yyy.txt' },
+    // ... TC 数だけ追加
+  ];
+
+  const results = [];
+  // MAX_WORKERS 件ずつチャンク処理
+  for (let i = 0; i < tasks.length; i += MAX_WORKERS) {
+    const chunk = tasks.slice(i, i + MAX_WORKERS);
+    const chunkResults = await Promise.all(chunk.map(async (t) => {
+      let ctx;
+      try {
+        ctx = await page.context().browser().newContext();
+        const p = await ctx.newPage();
+        p.setDefaultTimeout(15000);
+        await p.goto(FRONTDOOR);
+        await waitSfReady(p);
+        await p.goto(t.url);
+        await waitSfReady(p);
+        await p.screenshot({ path: t.beforePath });
+        // ケース固有操作があればここに挿入
+        await p.screenshot({ path: t.afterPath });
+        const text = await p.locator('body').innerText();
+        return { no: t.no, ok: true, text, url: p.url() };
+      } catch (e) {
+        return { no: t.no, ok: false, error: String(e) };
+      } finally {
+        if (ctx) await ctx.close();
+      }
+    }));
+    results.push(...chunkResults);
+  }
+  return JSON.stringify(results);
+}
+```
+
+### newContext 不可時のフォールバック
+
+`page.context().browser().newContext()` が Playwright MCP の制約で使えない場合は、単一セッションの逐次処理に自動フォールバックする。その場合でも Tier 1（`waitSfReady`）と Tier 2（Login As バッチ化）の高速化は有効。
+
+### accessToken 秘匿（並列時も同じ規約）
+
+`FRONTDOOR_URL` は変数として展開した値をコードブロック文字列に埋め込む。return 値・ファイル・ログに含めない。複数コンテキストに渡す場合も同様。
 
 ---
 

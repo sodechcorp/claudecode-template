@@ -235,6 +235,7 @@ python -c "import PIL" 2>/dev/null || {
 - `target_tc_list`: `{TARGET_TC_LIST}`（空=全件）
 - `max_workers_soql`: 4（低速組織や API 制限が疑われる場合は 1 で逐次 / `--serial` を渡す）
 - `max_workers_anon`: 3（同上）
+- `max_workers_ui`: 3（UI 並列コンテキスト数。`--serial` 指定時は 1 で逐次フォールバック）
 - `serial`: false（`--serial` 指定時は true で全逐次フォールバック）
 - ※ `judgment_path` は **渡さない**（= 証跡採取モードで起動。後始末・test-report.md 生成は Phase F が担当）
 
@@ -243,7 +244,7 @@ python -c "import PIL" 2>/dev/null || {
 2. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列）
 3. AnonApex → コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列）
 4. ApexTest → 直列実行
-5. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）
+5. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）。読み取り専用ケースは複数コンテキスト並列（max_workers_ui=3）、データ更新/Login As ケースは逐次
 6. 証跡存在確認（後始末・test-report.md 生成は Phase F が担当）
 
 実行後に証跡ファイルの存在確認:
