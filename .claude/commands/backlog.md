@@ -189,14 +189,14 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 >
 > **`--light` でもスキップしない**: Phase 1.6 は原因診断の正しさを確認する検証ゲートであり、light がスキップする Phase 2（方針の選択）/ Phase 3.5（実装前検証）とは性質が異なる。未検証の仮説のまま軽微修正を当てるのが最も危険なため、バグ系は light でも通常どおり実行する。
 
-`backlog-investigator` エージェントを **Phase 1.6 モード** で起動する:
+`backlog-repro-runner` エージェントを起動する（実際に Sandbox 画面を操作してバグを再現する）:
 
 ```
 課題ID: {issueID}
 プロジェクトルート: {カレントディレクトリ}
-モード: Phase 1.6
 調査レポート: docs/logs/{issueID}/investigation.md
 出力先: docs/logs/{issueID}/hypothesis-verification.md
+証跡保存先: docs/logs/{issueID}/repro
 ```
 
 エージェントが `hypothesis-verification.md` を保存したら内容をユーザに提示する。

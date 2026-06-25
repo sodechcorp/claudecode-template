@@ -33,8 +33,6 @@ tools:
 直接の呼び出しはサポートしていません。Backlog 課題の調査をしたい場合は `/backlog {課題ID}` を実行してください。
 ```
 
-**モード分岐**: 起動プロンプトに `モード: Phase 1.6` が含まれる場合は、通常 Phase 1（Step 0〜Step H）を実行せず、本ファイル末尾の `## Phase 1.6 モード` セクションの手順に従う。
-
 **課題の先行取得**: 通常 Phase 1（Step 0〜H）では Step 0a / Step 0a-2 が課題本文・コメントを前提とする。Step 0 に入る前に、まず Step A の `mcp__backlog__get_issue` / `mcp__backlog__get_issue_comments` を実行して課題本文・コメントを取得しておくこと。
 
 ---
@@ -517,12 +515,15 @@ Sandbox で再現できる場合は使わない（最終手段）。
 
 **採用仮説（最有力）**: H1（理由: ...）※ Phase 1.6 で Sandbox 検証するまで暫定
 
-- **再現条件**:
-  - 前提データ: （オブジェクト・レコードID・状態。Sandbox で同等データを準備するための情報）
-  - 操作ユーザ: （プロファイル・権限セット）
-  - 操作手順: （1. ○○ 2. ○○ 3. ○○）
-  - 期待される結果:
-  - 実際に発生する結果:
+- **再現条件**（`backlog-repro-runner` が Sandbox 実画面で再現するための入力仕様。1ステップ粒度で記載する）:
+  - 前提データ: （オブジェクト名・レコードID・状態・必要なフィールド値。Sandbox で同等データを準備できる粒度で）
+  - 操作ユーザ: （プロファイル名・権限セット。Login As で代理ログインが必要な場合は明記）
+  - 操作手順:
+    1. （最初の操作。URL / 画面名 / クリック対象ラベルを明記）
+    2. （次の操作）
+    3. ...
+  - 期待される結果: （正常ならどうなるか）
+  - 実際に発生する結果: （バグ時に何が起きるか。エラーメッセージ・表示の変化・無反応等）
 
 追加要望の場合:
 - **本質的に必要なこと**:（実現したい業務的ゴール）
@@ -641,46 +642,6 @@ Sandbox で再現できる場合は使わない（最終手段）。
    - 種別が **バグ** の場合: 「Phase 1.6（Sandbox 仮説検証）に進んでよろしいですか？」と確認する
    - 種別が **追加要望・その他** の場合: 「Phase 1.5 に進んでよろしいですか？」と確認する
 5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照。ファイルが無ければ spec の手順でヘッダーから新規作成する）
-
----
-
-## Phase 1.6 モード（Sandbox 仮説検証）
-
-起動プロンプトに `モード: Phase 1.6` が含まれている場合、以下の手順で実行する。通常の Phase 1 調査（Step A〜H）は行わない。
-
-### 起動確認
-
-以下のキーが全て含まれているか確認する:
-- `課題ID:`
-- `プロジェクトルート:`
-- `モード: Phase 1.6`
-- `調査レポート:`
-- `出力先:`
-
-いずれかが欠けている場合は「Phase 1.6 モードのパラメータが不完全です。backlog.md の Phase 1.6 起動手順を確認してください」と返して中断する。
-
-### Phase 1.6 実行手順
-
-> 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
-> 本 agent の Phase: 1.6（`_index-phase1_6.md` を Read して判定）
-
-**Step 0b**: `.claude/templates/backlog/_index-phase1_6.md` を Read してオプション判定する。バグ種別の場合は `option-sandbox-hypothesis-verification` が auto-execute のため、手順ファイル [options/option-sandbox-hypothesis-verification.md](../templates/backlog/options/option-sandbox-hypothesis-verification.md) を Read して実行する。
-
-**仮説リスト抽出**: `{調査レポート}` を Read し、「根本原因」セクションから仮説リスト（H1〜Hn）・再現条件・期待/実際の結果を抽出する。
-
-**Sandbox 検証**: `option-sandbox-hypothesis-verification.md` の手順に従い、各仮説を Sandbox で順次検証する。
-
-**結果の分岐**:
-- 再現仮説 ≥ 1 件 → `hypothesis-verification.md` を保存してフェーズ完了提示へ
-- 再現仮説 = 0 件 → 「全仮説が再現しませんでした。investigation.md の仮説を見直して Phase 1 を再実施します」とユーザに提示し、`investigation.md` に新仮説を追記する。再実施前に **`docs/logs/{issueID}/discussion-log.md` に `[investigator] 変更: Phase 1.6 再実施（理由: 全仮説再現せず）` を追記**し（ファイルが無ければ新規作成）、同ファイルの「Phase 1.6 再実施」エントリ数を数える。**2 件以上に達していれば backlog.md のカウント上限処理に従い自動再実施を停止する**。上限に達していなければ再度 Phase 1.6 を実施する
-- 検証中に新事実発見 → `investigation.md` の仮説・再現条件を更新する。再実施前に **`docs/logs/{issueID}/discussion-log.md` に `[investigator] 変更: Phase 1.6 再実施（理由: 新事実発見）` を追記**し（ファイルが無ければ新規作成）、同ファイルの「Phase 1.6 再実施」エントリ数を数える。**2 件以上に達していれば backlog.md のカウント上限処理に従い自動再実施を停止する**。上限に達していなければ再度 Phase 1.6 を実施する
-
-**フェーズ完了の提示**:
-1. 検証結果の 2〜3 行サマリー（再現仮説 N 件・除外仮説 N 件・検証不可 N 件）
-2. 確認事項（検証不可の仮説がある場合はデータ準備の依頼事項を明記。なければ「特に確認事項はありません」）
-3. ユーザの自由テキスト応答を待つ
-4. 「Phase 1.5 に進んでよろしいですか？」とテキストで確認する
-5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）
 
 ---
 
