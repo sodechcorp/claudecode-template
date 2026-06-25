@@ -121,7 +121,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 以下のルールで実装する:
 
 - FLS / CRUD / `with sharing` / ガバナ制限 / バルク処理を意識する
-- **新規メタデータ作成時（項目・オブジェクト・レコードタイプ・タブ・Apex・フロー）**: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md) の該当種別セクションに従い、FLS・CRUD・ページレイアウト配置・タブ設定・権限セット割当を必ず設定する。チェック漏れを黙殺しない（「確認したが不要と判断した」場合もその旨を明示する）
+- **新規メタデータ作成時（項目・オブジェクト・レコードタイプ・タブ・Apex・フロー）**: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md) の該当種別セクションに従い、FLS・CRUD・ページレイアウト配置・タブ設定を**案件の全プロファイル（標準含む）に付与**する。**権限セットは自動で作成・更新しない**（ユーザー明示指定時のみ）。チェック漏れを黙殺しない（「確認したが不要と判断した」場合もその旨を明示する）
 - **実装前に**: implementation-plan.md の API 名を `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` で再照合し、一致することを確認してから使用する
   - 不一致の場合は実装を止め、計画書の API 名と field-meta.xml のどちらが正しいかユーザに確認する
 - APIフィールド名は計画書記載の API 名を起点とし、field-meta.xml で存在を確認した上で使用する

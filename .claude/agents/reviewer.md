@@ -118,27 +118,28 @@ Critical X件 / Warning X件
 
 > 参照: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md)
 
-レビュー対象に**新規作成されたメタデータ**が含まれる場合、以下を Critical / Warning で指摘する:
+レビュー対象に**新規作成されたメタデータ**が含まれる場合、以下を Critical / Warning で指摘する。
+付与先は**案件の全プロファイル（標準含む）**。**権限セットの欠落は指摘対象外**（仕様依存のため、ユーザー明示指定時のみ対応）。
 
 **カスタム項目（Critical）**
-- [ ] FLS が権限セットに設定されているか（`fieldPermissions` に `readable/editable`）
+- [ ] 全プロファイルに FLS が設定されているか（`fieldPermissions` に `readable/editable`）
 - [ ] ページレイアウトに配置されているか（`.layout-meta.xml` に追加されているか）
 
 **カスタムオブジェクト（Critical）**
-- [ ] CRUD 権限が権限セットに設定されているか（`objectPermissions`）
-- [ ] タブ（`tab-meta.xml`）が存在し、権限セットの `tabSettings` に設定されているか
-- [ ] ページレイアウトが作成され、プロファイル/権限セットに割り当てられているか
+- [ ] 全プロファイルに CRUD 権限が設定されているか（`objectPermissions`）
+- [ ] タブ（`tab-meta.xml`）が存在し、全プロファイルの `tabVisibilities` に設定されているか
+- [ ] ページレイアウトが作成され、プロファイルに割り当てられているか
 
 **レコードタイプ（Critical）**
-- [ ] 権限セットの `recordTypeVisibilities` に追加されているか
-- [ ] レイアウト割当（ProfileLayout）が設定されているか
+- [ ] 全プロファイルの `recordTypeVisibilities` に追加されているか
+- [ ] 各プロファイルのレイアウト割当（`layoutAssignments`）が設定されているか
 
 **タブ（Warning）**
-- [ ] 権限セットの `tabSettings` に `visibility` が設定されているか
+- [ ] 全プロファイルの `tabVisibilities` に `visibility` が設定されているか
 - [ ] 対象アプリの `navItems` に追加されているか
 
 **Apex クラス / VF ページ（Warning）**
-- [ ] 権限セットの `classAccesses` / `pageAccesses` に追加されているか
+- [ ] 全プロファイルの `classAccesses` / `pageAccesses` に追加されているか
 
 ※ 上記が「不要と判断した」場合も、その理由が作業完了コメント・changelog.md に明記されているか確認する（黙殺 = Warning 扱い）
 

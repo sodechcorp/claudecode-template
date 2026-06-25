@@ -9,7 +9,7 @@
 3. プロジェクトルート `CLAUDE.md` の命名規則に従う
 4. `force-app/` が存在するか確認 → なければ「`/sf-retrieve` または `sf project retrieve` を実行して force-app/ を生成してください」と案内してから続行
 5. メタデータファイルを作成（force-app 配下）
-6. **権限・基本設定を設定する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「カスタム項目」セクションに従い、FLS（権限セット）・ページレイアウト配置を必ず実施。チェック漏れを黙殺しない
+6. **権限・基本設定を設定する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「カスタム項目」セクションに従い、FLS（全プロファイル）・ページレイアウト配置を必ず実施。チェック漏れを黙殺しない
 7. `docs/catalog/` の該当定義書を更新（項目追加を反映）
 
 ## 「オブジェクトを作って」「カスタムオブジェクト追加して」
@@ -18,7 +18,7 @@
 2. `docs/overview/org-profile.md` の用語集で命名を統一
 3. プロジェクトルート `CLAUDE.md` の命名規則に従う
 4. メタデータファイルを作成（`force-app/main/default/objects/` 配下）
-5. **権限・基本設定を設定する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「カスタムオブジェクト」セクションに従い、CRUD権限・タブ・ページレイアウト・アプリ追加を必ず実施
+5. **権限・基本設定を設定する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「カスタムオブジェクト」セクションに従い、CRUD権限（全プロファイル）・タブ・ページレイアウト・アプリ追加を必ず実施
 6. `docs/catalog/` に新オブジェクトの定義書を作成
 
 ## 「レコードタイプを作って」
@@ -26,13 +26,13 @@
 1. 対象オブジェクトの既存レコードタイプ構成（`force-app/` の `recordType-meta.xml`）を確認
 2. 要件（ピックリスト制限・レイアウト分岐・対象ユーザー）を確認
 3. メタデータファイルを作成
-4. **権限・基本設定を設定する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「レコードタイプ」セクションに従い、権限セット割当・レイアウト割当・ピックリスト値割当を必ず実施
+4. **権限・基本設定を設定する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「レコードタイプ」セクションに従い、全プロファイル割当・レイアウト割当・ピックリスト値割当を必ず実施
 
 ## 「タブを作って」
 
 1. 対象オブジェクト・Webタブ・VFページ等の種別を確認
 2. メタデータファイルを作成（`force-app/main/default/tabs/` 配下）
-3. **権限・基本設定を設定する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「タブ」セクションに従い、権限セットのタブ表示設定・アプリへの追加を必ず実施
+3. **権限・基本設定を設定する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「タブ」セクションに従い、全プロファイルのタブ表示設定・アプリへの追加を必ず実施
 
 ## 「Apex 作って」「トリガー書いて」
 
@@ -40,7 +40,7 @@
 2. `docs/catalog/` で対象オブジェクトの項目・リレーションを確認
 3. `docs/requirements/requirements.md` で関連するビジネスルール（BR-XXX）を確認
 4. Quality Standards に従って実装（バルク対応・テストクラス付き）
-5. **権限・基本設定を確認する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「Apex クラス」セクションに従い、対象権限セットへの `classAccesses` 付与を確認
+5. **権限・基本設定を確認する**: [new-metadata-permissions-checklist.md](new-metadata-permissions-checklist.md) の「Apex クラス」セクションに従い、全プロファイルへの `classAccesses` 付与を確認
 6. 設計書がない場合は「設計書がありませんが実装しますか？先に `sf-architect` に設計書作成を依頼することも可能です」と提案
 
 ## 「フロー作って」
