@@ -119,10 +119,16 @@ mkdir -p "{evidence_dir}/before"
 1件目の TC のみ `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用しアプリ内遷移のみ。
 
 コードブロック構成（1 TC = 1 コードブロック）:
-1. **before 撮影**: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png'})`
+1. **before 撮影 + DOM取得（F-6/F-7）**:
+   - スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true})`
+   - before DOM: `const beforeText = await page.locator('body').innerText()` → エージェントが `before/{No}_{観点サニタイズ}_before.txt` に Write する（状態遷移観点で判定に使用）
 2. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で遷移・表示を待つ。
-3. **after 撮影（分岐ごと）**: 分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`。
-4. **return**: `JSON.stringify({url: page.url(), text: await page.locator('body').innerText()})` を返す。エージェントは戻り値を `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に Write する。
+3. **after 撮影（分岐ごと）**:
+   - スクショ: `fullPage: true` で全ページ撮影。分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`
+   - after DOM: `await page.locator('body').innerText()` → `.txt` に Write（判定の主役）
+4. **return**: `JSON.stringify({url: page.url(), beforeText, text: await page.locator('body').innerText()})` を返す。エージェントは `text` を `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write する。
+
+> **fullPage の理由**: Salesforce のレコード詳細・リスト画面は観点となる項目・セクションが viewport 下方に折り返すことが多い。`fullPage: true` で全ページを撮影することで、PNG 証跡に確認観点が必ず写るようにする。
 
 **コードブロック例（プリチェック画面のラベル確認）**:
 ```javascript
@@ -134,14 +140,17 @@ async (page) => {
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
   // 1件目のみ: await page.goto('FRONTDOOR_URL');
-  await page.screenshot({path: 'C:/path/evidence/before/TC-001_ラベル確認_before.png'});
+  // before 撮影（fullPage: true）+ before DOM 取得（状態遷移観点で使用）
+  await page.screenshot({path: 'C:/path/evidence/before/TC-001_ラベル確認_before.png', fullPage: true});
+  const beforeText = await page.locator('body').innerText();
   // 画面遷移
   await page.getByText('プリチェック').click();
   await waitSfReady(page);
-  // after 撮影
-  await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png'});
-  // DOM return（エージェントが .txt に Write する）
-  return JSON.stringify({url: page.url(), text: await page.locator('body').innerText()});
+  // after 撮影（fullPage: true）+ after DOM return
+  await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png', fullPage: true});
+  const afterText = await page.locator('body').innerText();
+  // エージェントは beforeText → before/TC-001_ラベル確認_before.txt に Write する
+  return JSON.stringify({url: page.url(), beforeText, text: afterText});
 }
 ```
 

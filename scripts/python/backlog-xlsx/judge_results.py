@@ -147,17 +147,32 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                 ok = m_verdict.group(1) == "OK"
                 m_reason = re.search(r"^判定\s*:.+?[-—]\s*(.+)$", snap, re.MULTILINE)
                 reason = m_reason.group(1).strip() if m_reason else ""
+                # F-5: 期待結果がある場合は「実際の値:」セクション内で追加照合（採取側OK行を盲信しない）
+                if ok and kiki:
+                    m_snap_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", snap, re.DOTALL)
+                    if m_snap_section and kiki.lower() not in m_snap_section.group(1).lower():
+                        ok = False
+                        reason = f"採取側はOKとしているが期待値「{kiki[:30]}」が「実際の値:」セクションに見つかりません"
                 actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）" + (" — " + reason[:40] if reason else "")
                 return {"ok": ok, "actual": actual_str, "reason": "" if ok else reason}
-            # kiki による DOM 照合（フォールバック）
-            if kiki:
-                ok = kiki.lower() in snap.lower()
+            # F-2/F-3: kiki による DOM 照合（「実際の値:」セクション優先スコープ）
+            if kiki or "含まない" in judge_method or "非表示" in judge_method or "なし確認" in judge_method:
+                m_snap_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", snap, re.DOTALL)
+                search_scope = m_snap_section.group(1) if m_snap_section else snap
+                # F-3: 否定確認（PNG+DOM の場合も適用）
+                if "含まない" in judge_method or "非表示" in judge_method or "なし確認" in judge_method:
+                    ok = kiki.lower() not in search_scope.lower() if kiki else True
+                    actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）— 「{kiki[:20]}」{'なし(OK)' if ok else 'あり(NG)'}"
+                    reason = "" if ok else f"「{kiki[:30]}」が DOM に残存（非表示のはずが表示されている）"
+                    return {"ok": ok, "actual": actual_str, "reason": reason}
+                ok = kiki.lower() in search_scope.lower() if kiki else True
                 actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）— 「{kiki[:20]}」{'あり' if ok else 'なし'}"
                 reason = "" if ok else f"DOM に「{kiki[:30]}」が含まれない（DOM照合失敗）"
                 return {"ok": ok, "actual": actual_str, "reason": reason}
             return {"ok": True, "actual": "画面表示OK（DOM照合済）", "reason": ""}
-        # DOM スナップショットなし: スクショのみ存在（目視確認が必要な旨を明記）
-        return {"ok": True, "actual": "スクショ取得済（DOM照合不可・目視確認）", "reason": ""}
+        # F-1: DOM スナップショットなし → 観点の自動確認不可（要目視）。ok: None = SKIP 扱い
+        return {"ok": None, "actual": "スクショ取得済（DOM未取得・要目視確認）",
+                "reason": "DOM スナップショット（.txt）が採取されていません。ui-evidence-runner の return 値が .txt に Write されているか確認してください"}
 
     # テキスト証跡（SOQL/Apex ログ / DOM スナップショット .txt）
     content = _read_text_evidence(evidence_path)
@@ -168,6 +183,12 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         ok = m_verdict.group(1) == "OK"
         m_reason = re.search(r"^判定\s*:.+?—\s*(.+)$", content, re.MULTILINE)
         reason = m_reason.group(1).strip() if m_reason else ""
+        # F-5: 期待結果がある場合は「実際の値:」セクション内で追加照合（採取側OK行を盲信しない）
+        if ok and kiki:
+            m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
+            if m_actual_section and kiki.lower() not in m_actual_section.group(1).lower():
+                ok = False
+                reason = f"採取側はOKとしているが期待値「{kiki[:30]}」が「実際の値:」セクションに見つかりません"
         actual_str = "OK — " + reason if ok else "NG — " + reason
         return {"ok": ok, "actual": actual_str, "reason": "" if ok else reason}
 
@@ -186,10 +207,20 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
     if m_expected_count and m_actual_count:
         exp = int(m_expected_count.group(1))
         act = int(m_actual_count.group(1))
-        ok = (exp == act) if "完全一致" in judge_method or "件数一致" in judge_method else (act >= exp)
+        # F-4: 件数デフォルトは完全一致。spec に「以上」と明記した場合のみ >= に緩和
+        ok = (act >= exp) if "以上" in judge_method else (exp == act)
         actual_str = f"{act} 件"
         reason = "" if ok else f"期待 {exp} 件 / 実際 {act} 件"
         return {"ok": ok, "actual": actual_str, "reason": reason}
+
+    # F-3: 否定確認（含まない/非表示/なし確認）: 期待文字列が証跡に存在しないことを確認
+    if "含まない" in judge_method or "非表示" in judge_method or "なし確認" in judge_method:
+        m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
+        search_scope = m_actual_section.group(1) if m_actual_section else content
+        ok = kiki.lower() not in search_scope.lower() if kiki else True
+        actual_str = f"「{kiki[:30]}」{'あり（NG）' if not ok else 'なし（OK）'}"
+        return {"ok": ok, "actual": actual_str,
+                "reason": "" if ok else f"「{kiki[:30]}」が証跡に残存（非表示のはずが表示されている）"}
 
     # 含む判定 (期待結果に含まれるべき文字列): 「実際の値:」行以降のみを検索し期待値行の誤ヒットを防ぐ
     if "含む" in judge_method or "存在" in judge_method:
@@ -232,8 +263,76 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
 
     # デフォルト: 判定パターン未一致は「要確認」（NG扱い）— 証跡があるだけで OK にしない
     return {"ok": False, "actual": "証跡あり（判定パターン未一致）",
-            "reason": "判定方法を機械可読な値（含む/件数一致/完全一致等）にしてください",
+            "reason": "判定方法を機械可読な値（含む/件数一致/完全一致/含まない/前後比較等）にしてください",
             "ng_type": "要確認"}
+
+
+def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
+    """F-7: 状態遷移前後比較判定（判定方法に「前後比較」を含むケース専用）。
+    before/{No}_*.txt と after/{soql|apex|screen}/{No}_*.txt を突き合わせる。
+    期待結果の形式: 「before:初期値 / after:変更後値」（例: before:未送信 / after:送信済）"""
+    no = tc.get("No", "")
+    kiki = tc.get("期待結果", "").strip()
+
+    # 期待結果を before: / after: で分解
+    m_before_exp = re.search(r"(?:before|変更前)\s*[:：]\s*(.+?)(?:\s*/\s*(?:after|変更後)\s*[:：]|$)",
+                             kiki, re.IGNORECASE)
+    m_after_exp  = re.search(r"(?:after|変更後)\s*[:：]\s*(.+)", kiki, re.IGNORECASE)
+    exp_before = m_before_exp.group(1).strip() if m_before_exp else ""
+    exp_after  = m_after_exp.group(1).strip()  if m_after_exp  else kiki
+
+    # before .txt を収集（before/ ディレクトリ）
+    before_dir = os.path.join(os.path.dirname(os.path.abspath(evidence_dir)), "before")
+    before_txts = []
+    if os.path.isdir(before_dir):
+        for fname in sorted(os.listdir(before_dir)):
+            if "_resized." in fname:
+                continue
+            if (fname.startswith(no) or fname.startswith(no.replace("TC-", "tc-"))) \
+                    and fname.lower().endswith(".txt"):
+                before_txts.append(os.path.join(before_dir, fname))
+
+    # after DOM .txt を確認
+    after_ok = False
+    after_actual = ""
+    for fpath in after_txts:
+        content = _read_text_evidence(fpath)
+        m_sec = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
+        scope = m_sec.group(1) if m_sec else content
+        if exp_after and exp_after.lower() in scope.lower():
+            after_ok = True
+            after_actual = f"after:「{exp_after[:20]}」あり"
+            break
+    if not after_txts:
+        after_actual = "after DOM 証跡なし"
+    elif not after_ok:
+        after_actual = f"after:「{exp_after[:20]}」なし"
+
+    # before DOM .txt を確認（.txt が無い場合は PNG のみ＝参考のみ・判定は after のみで行う）
+    before_ok = True
+    before_actual = ""
+    if before_txts and exp_before:
+        before_ok = False
+        for fpath in before_txts:
+            content = _read_text_evidence(fpath)
+            if exp_before.lower() in content.lower():
+                before_ok = True
+                before_actual = f"before:「{exp_before[:20]}」確認済"
+                break
+        if not before_ok:
+            before_actual = f"before:「{exp_before[:20]}」なし"
+    elif not before_txts:
+        before_actual = "before DOM 未取得（PNG のみ・参考）"
+
+    ok = after_ok and before_ok
+    actual_parts = [p for p in [before_actual, after_actual] if p]
+    actual = " / ".join(actual_parts) if actual_parts else "証跡不足"
+    reason = ""
+    if not after_ok:
+        reason = f"after に「{exp_after[:30]}」が見つかりません（状態遷移が未確認）"
+    elif not before_ok:
+        reason = f"before に「{exp_before[:30]}」が見つかりません（初期状態が未確認）"
+    return {"ok": ok, "actual": actual, "reason": reason}
 
 
 def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
@@ -262,6 +361,11 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     if not all_files:
         return {"ok": False, "actual": "", "reason": f"証跡ファイルが見つかりません (No: {no})", "ng_type": "未実行"}
 
+    # F-7: 状態遷移前後比較（before/after DOM テキストを突き合わせる）
+    if "前後比較" in judge_method and evidence_dir:
+        after_txts = [f for f in all_files if f.lower().endswith(".txt")]
+        return _judge_transition(tc, after_txts, evidence_dir)
+
     # PNG と txt を分ける: PNG がある場合は PNG で判定（内部で snap.txt を参照）
     # PNG が無く txt のみの場合は txt で判定
     png_files = [f for f in all_files if f.lower().endswith(".png")]
@@ -278,15 +382,21 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     if not results:
         return {"ok": False, "actual": "", "reason": f"判定可能な証跡ファイルがありません (No: {no})"}
 
-    # AND 評価: 全分岐 OK で OK（1件でも NG なら NG）
-    ng_results = [r for r in results if r.get("ok") is False]
-    ok_results = [r for r in results if r.get("ok") is True]
+    # AND 評価: 全分岐 OK で OK（NG > SKIP > OK の優先順位）
+    ng_results   = [r for r in results if r.get("ok") is False]
+    skip_results = [r for r in results if r.get("ok") is None]
+    ok_results   = [r for r in results if r.get("ok") is True]
 
     if ng_results:
         # 最初の NG の理由を採用（ng_type も伝播）
         ng = ng_results[0]
         actuals = " / ".join(r["actual"] for r in results)
         return {"ok": False, "actual": actuals, "reason": ng["reason"], "ng_type": ng.get("ng_type", "")}
+
+    if skip_results:
+        # ok: None（DOM未取得・要目視等）は SKIP として伝播
+        actuals = " / ".join(r["actual"] for r in skip_results)
+        return {"ok": None, "actual": actuals, "reason": skip_results[0].get("reason", "")}
 
     # 全件 OK
     actuals = " / ".join(r["actual"] for r in ok_results)

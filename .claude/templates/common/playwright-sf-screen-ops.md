@@ -81,15 +81,16 @@ async (page) => {
   // 画面に遷移（1件目のみ: await page.goto(FRONTDOOR_URL) でログインしてもよい）
   await page.goto('{対象URL}');
   await waitSfReady(page);
-  // before 撮影
-  await page.screenshot({path: '/絶対パス/xxx_before.png'});
+  // before 撮影（fullPage: true で観点が viewport 外でも写る）+ before DOM 取得
+  await page.screenshot({path: '/絶対パス/xxx_before.png', fullPage: true});
+  const beforeText = await page.locator('body').innerText();
   // 操作（ロケータ指針に従う）
   await page.getByText('{ラベル}').click();
   await waitSfReady(page);
-  // after 撮影
-  await page.screenshot({path: '/絶対パス/xxx.png'});
-  // DOM return（エージェントが .txt に Write する）
-  return JSON.stringify({url: page.url(), text: await page.locator('body').innerText()});
+  // after 撮影（fullPage: true）
+  await page.screenshot({path: '/絶対パス/xxx.png', fullPage: true});
+  // DOM return（エージェントが after .txt に Write する。beforeText は before .txt に Write する）
+  return JSON.stringify({url: page.url(), beforeText, text: await page.locator('body').innerText()});
 }
 ```
 
@@ -178,27 +179,32 @@ async (page) => {
   // TC-XXX: {観点}
   await page.goto('{対象画面URL_1}');
   await waitSfReady(page);
-  await page.screenshot({path: '/絶対パス/{No}_xxx_before.png'});
+  // before 撮影（fullPage: true）+ before DOM 取得
+  await page.screenshot({path: '/絶対パス/{No}_xxx_before.png', fullPage: true});
+  const beforeText1 = await page.locator('body').innerText();
   // （操作があれば）
   await page.getByText('{ラベル}').click();
   await waitSfReady(page);
-  await page.screenshot({path: '/絶対パス/{No}_xxx.png'});
+  // after 撮影（fullPage: true）
+  await page.screenshot({path: '/絶対パス/{No}_xxx.png', fullPage: true});
   const text1 = await page.locator('body').innerText();
 
   // TC-YYY: {観点} — 同ユーザの次 TC はそのまま続ける（再ログイン不要）
   await page.goto('{対象画面URL_2}');
   await waitSfReady(page);
-  await page.screenshot({path: '/絶対パス/{No2}_yyy_before.png'});
-  await page.screenshot({path: '/絶対パス/{No2}_yyy.png'});
+  await page.screenshot({path: '/絶対パス/{No2}_yyy_before.png', fullPage: true});
+  const beforeText2 = await page.locator('body').innerText();
+  await page.screenshot({path: '/絶対パス/{No2}_yyy.png', fullPage: true});
   const text2 = await page.locator('body').innerText();
 
   // ─── プロキシ解除（このユーザの全 TC 完了後に 1 回だけ実行）───
   await page.goto('/secur/logout.jsp');
   await waitSfReady(page);
 
+  // エージェントは text → after .txt に、beforeText → before .txt に Write する
   return JSON.stringify([
-    {no: '{No}',  url: page.url(), text: text1},
-    {no: '{No2}', url: page.url(), text: text2},
+    {no: '{No}',  url: page.url(), beforeText: beforeText1, text: text1},
+    {no: '{No2}', url: page.url(), beforeText: beforeText2, text: text2},
   ]);
 }
 ```
@@ -252,11 +258,14 @@ async (page) => {
         await waitSfReady(p);
         await p.goto(t.url);
         await waitSfReady(p);
-        await p.screenshot({ path: t.beforePath });
+        // before 撮影（fullPage: true）+ before DOM 取得
+        await p.screenshot({ path: t.beforePath, fullPage: true });
+        const beforeText = await p.locator('body').innerText();
         // ケース固有操作があればここに挿入
-        await p.screenshot({ path: t.afterPath });
+        // after 撮影（fullPage: true）
+        await p.screenshot({ path: t.afterPath, fullPage: true });
         const text = await p.locator('body').innerText();
-        return { no: t.no, ok: true, text, url: p.url() };
+        return { no: t.no, ok: true, beforeText, text, url: p.url() };
       } catch (e) {
         return { no: t.no, ok: false, error: String(e) };
       } finally {
