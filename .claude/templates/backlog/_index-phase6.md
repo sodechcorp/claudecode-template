@@ -1,6 +1,6 @@
-# Phase 6 オプションインデックス（リリース）
+# Phase 6 オプションインデックス（Sandbox リリース）
 
-backlog-releaser が Phase 6 の Step 0b で参照する判定情報。3 オプション。
+backlog-releaser が Phase 6 の Step 0b で参照する判定情報。2 オプション。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
 
@@ -41,17 +41,7 @@ options:
       この修正は影響範囲が小さく関係者周知は不要そうです。ステークホルダーへの完了通知は省略してもよさそうですか？
     estimated-cost: 軽
 
-  - name: option-rollback-readiness
-    description: ロールバック手順最終確認（git reset / 再デプロイ手順の検証・確認）
-    category: C
-    auto-execute-when:
-      - 本番デプロイを含む（管理画面操作・Metadata API 問わず）
-      - データ変更・構造変更を含む（ロールバックが複雑になる可能性）
-      - 課題に「本番」「リリース」「デプロイ」等のワード
-    auto-skip-when:
-      - Sandbox のみの変更（本番デプロイなし）
-      - 設定変更のみで即時ロールバック可能
-    ask-user-prompt: |
-      この修正は Sandbox のみの変更のようです。本番ロールバック手順最終確認は省略してもよさそうですか？
-    estimated-cost: 軽
+  # option-rollback-readiness は Phase 6 から除去（Phase 6 は Sandbox 専用のため常に auto-skip になるため）。
+  # 将来の本番リリース専用コマンドで再利用予定。資産は _archive-production-release.md に退避済み。
+  # オプション定義ファイル自体は options/option-rollback-readiness.md に残存。
 ```

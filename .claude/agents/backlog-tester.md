@@ -144,7 +144,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 {PASSの場合}
 Apexテスト・基本SOQL確認ともに問題なし。
-→ /test {issueID} で網羅的テストを実行してください。
+→ 別セッションで /test {issueID} を起動してください（網羅的テスト・証跡採取・エビデンス Excel 生成）。
 
 {FAILの場合}
 NG: {原因を1行で}
