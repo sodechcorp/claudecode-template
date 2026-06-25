@@ -119,27 +119,36 @@ Critical X件 / Warning X件
 > 参照: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md)
 
 レビュー対象に**新規作成されたメタデータ**が含まれる場合、以下を Critical / Warning で指摘する。
-付与先は**案件の全プロファイル（標準含む）**。**権限セットの欠落は指摘対象外**（仕様依存のため、ユーザー明示指定時のみ対応）。
+
+**付与先の原則**:
+- **システム管理者プロファイル**: 必ず全権限を付与（必須・例外なし）
+- **その他のプロファイル**: 自動付与禁止。組織の権限設計（プロファイル中心 or 権限セット中心）を確認し、ユーザーと相談して付与先を決める。未検討・黙殺は禁止
+- **権限セット**: 自動で触らない。ユーザーが明示指定したときのみ対応
 
 **カスタム項目（Critical）**
-- [ ] 全プロファイルに FLS が設定されているか（`fieldPermissions` に `readable/editable`）
+- [ ] システム管理者プロファイルに FLS が設定されているか（`fieldPermissions` に `readable/editable`）
+- [ ] その他プロファイルへの FLS 付与方針が確認・明示されているか（黙殺禁止）
 - [ ] ページレイアウトに配置されているか（`.layout-meta.xml` に追加されているか）
 
 **カスタムオブジェクト（Critical）**
-- [ ] 全プロファイルに CRUD 権限が設定されているか（`objectPermissions`）
-- [ ] タブ（`tab-meta.xml`）が存在し、全プロファイルの `tabVisibilities` に設定されているか
+- [ ] システム管理者プロファイルに CRUD 権限が設定されているか（`objectPermissions`）
+- [ ] その他プロファイルへの CRUD 付与方針が確認・明示されているか
+- [ ] タブ（`tab-meta.xml`）が存在し、システム管理者プロファイルの `tabVisibilities` に設定されているか
 - [ ] ページレイアウトが作成され、プロファイルに割り当てられているか
 
 **レコードタイプ（Critical）**
-- [ ] 全プロファイルの `recordTypeVisibilities` に追加されているか
+- [ ] システム管理者プロファイルの `recordTypeVisibilities` に追加されているか
+- [ ] その他プロファイルへの割当方針が確認・明示されているか
 - [ ] 各プロファイルのレイアウト割当（`layoutAssignments`）が設定されているか
 
 **タブ（Warning）**
-- [ ] 全プロファイルの `tabVisibilities` に `visibility` が設定されているか
+- [ ] システム管理者プロファイルの `tabVisibilities` に `visibility` が設定されているか
+- [ ] その他プロファイルへの付与方針が確認・明示されているか
 - [ ] 対象アプリの `navItems` に追加されているか
 
 **Apex クラス / VF ページ（Warning）**
-- [ ] 全プロファイルの `classAccesses` / `pageAccesses` に追加されているか
+- [ ] システム管理者プロファイルの `classAccesses` / `pageAccesses` に追加されているか
+- [ ] その他プロファイルへの付与方針が確認・明示されているか
 
 ※ 上記が「不要と判断した」場合も、その理由が作業完了コメント・changelog.md に明記されているか確認する（黙殺 = Warning 扱い）
 
