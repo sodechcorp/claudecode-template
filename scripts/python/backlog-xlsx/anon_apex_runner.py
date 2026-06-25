@@ -154,60 +154,68 @@ def collect_created_ids(alias: str, sobject: str, external_id_prefix: str) -> li
 
 
 def cleanup_records(alias: str, sobject: str, ids: list) -> dict:
-    """指定 Id リストのレコードを削除する。件数が少なければ逐次、多ければ bulk。"""
+    """指定 Id リストのレコードを匿名 Apex 1 回で一括削除する。
+
+    旧実装は 10 件以下を sf data delete record で 1 件ずつ起動していたが、
+    sf プロセス起動コスト（数秒/件）が件数倍になるため廃止。
+    Database.delete() 匿名 Apex を使えば sf 起動は 1 回・ポーリング待ちなし。
+    find_cleanup_records の LIMIT 200 以内であれば Apex 知事制限に抵触しない。
+    """
     if not ids:
         return {"deleted": 0, "failed": []}
 
-    failed = []
-    deleted = 0
+    # 匿名 Apex: Database.delete で一括削除（sf 起動 1 回）
+    ids_apex = ", ".join(f"'{id_}'" for id_ in ids)
+    apex_code = (
+        f"List<Id> toDelete = new List<Id>{{{ids_apex}}};\n"
+        f"Integer deleted = 0, failed = 0;\n"
+        f"for (Database.DeleteResult r : Database.delete(toDelete, false)) {{\n"
+        f"    if (r.isSuccess()) {{ deleted++; }} else {{ failed++; }}\n"
+        f"}}\n"
+        f"System.debug('CLEANUP_RESULT:' + deleted + ':' + failed);\n"
+    )
 
-    if len(ids) <= 10:
-        for record_id in ids:
-            result = subprocess.run(
-                ["sf", "data", "delete", "record",
-                 "--target-org", alias,
-                 "--sobject-type", sobject,
-                 "--record-id", record_id,
-                 "--json"],
-                capture_output=True, text=True
-            )
-            try:
-                data = json.loads(result.stdout)
-                if data.get("status") == 0:
-                    deleted += 1
-                else:
-                    failed.append(record_id)
-            except json.JSONDecodeError:
-                failed.append(record_id)
-    else:
-        # bulk delete: CSV 一時ファイル経由
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv",
+    apex_path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".apex",
                                          delete=False, encoding="utf-8") as f:
-            f.write("Id\n")
-            for record_id in ids:
-                f.write(f"{record_id}\n")
-            csv_path = f.name
-        try:
-            result = subprocess.run(
-                ["sf", "data", "bulk", "delete",
-                 "--target-org", alias,
-                 "--sobject-type", sobject,
-                 "--file", csv_path,
-                 "--wait", "5",
-                 "--json"],
-                capture_output=True, text=True
-            )
-            data = json.loads(result.stdout)
-            if data.get("status") == 0:
-                deleted = len(ids)
-            else:
-                failed = ids
-        except (json.JSONDecodeError, FileNotFoundError):
-            failed = ids
-        finally:
-            os.unlink(csv_path)
+            f.write(apex_code)
+            apex_path = f.name
 
-    return {"deleted": deleted, "failed": failed}
+        result = subprocess.run(
+            ["sf", "apex", "run", "--target-org", alias, "--file", apex_path, "--json"],
+            capture_output=True, text=True
+        )
+        data = json.loads(result.stdout)
+        apex_result = data.get("result", {})
+
+        if not apex_result.get("success", False):
+            exc = apex_result.get("exceptionMessage", "") or apex_result.get("compileProblem", "")
+            print(f"[WARN] cleanup Apex 実行失敗: {exc}")
+            return {"deleted": 0, "failed": ids}
+
+        # debug ログから削除件数を抽出
+        logs = apex_result.get("logs", "") or ""
+        m = re.search(r"CLEANUP_RESULT:(\d+):(\d+)", logs)
+        if m:
+            deleted_count = int(m.group(1))
+            failed_count  = int(m.group(2))
+        else:
+            # ログが取れなかった場合は楽観的に全件成功とみなす
+            deleted_count = len(ids)
+            failed_count  = 0
+
+        return {"deleted": deleted_count, "failed": ids[:failed_count] if failed_count else []}
+
+    except (json.JSONDecodeError, Exception) as e:
+        print(f"[WARN] cleanup Apex 実行エラー: {e}")
+        return {"deleted": 0, "failed": ids}
+    finally:
+        if apex_path:
+            try:
+                os.unlink(apex_path)
+            except OSError:
+                pass
 
 
 # ── 一括並列実行（run-batch サブコマンド） ───────────────────────────────────

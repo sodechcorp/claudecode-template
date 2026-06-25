@@ -120,8 +120,16 @@ async (page) => {
 
 ```javascript
 async (page) => {
+  page.setDefaultTimeout(15000);
+  async function waitSfReady(page) {
+    await page.waitForLoadState('domcontentloaded');
+    await page.locator('.slds-spinner, lightning-spinner')
+      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+  }
   await page.goto('/lightning/setup/LoginAccessPolicies/home');
-  await page.waitForLoadState('networkidle');
+  await waitSfReady(page);
+  // アンカー要素（設定ページ固有テキスト）の出現で遷移完了を確認
+  await page.waitForSelector('text=ログインアクセスポリシー', { timeout: 15000 }).catch(() => {});
   const text = await page.locator('body').innerText();
   return text;
 }
