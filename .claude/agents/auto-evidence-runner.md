@@ -126,18 +126,19 @@ sf apex run test \
 
 ## Step 4: 匿名 Apex 実行（種別 = AnonApex）— 並列実行
 
-#### 4-1: 匿名 Apex コードの生成（LLM 判断・このエージェントが担当）
+#### 4-1: 匿名 Apex コードの一括生成（全 TC を 1 パスで生成・LLM 判断・このエージェントが担当）
 
-各 AnonApex ケースの「前提・データ準備」と「実行アクション」を読み、実行する匿名 Apex コードを生成する。
+全 AnonApex 種別 TC の「前提・データ準備」と「実行アクション」を一度にまとめて読み、**1 回の LLM 生成で全 TC 分の匿名 Apex コードを一括出力する**（TC ごとに往復しない）。
 
 **生成指針**:
+- **各 TC のコードは独立生成する**（TC 間でロジックを混ぜない。1 ファイル = 1 TC に完結させる）。
 - テストデータ insert には必ず `Name` 列に `AUTOTEST_{issueID}_{TC_No}_` プレフィックスを付ける（後始末用）。
 - 永続化確認が不要な場合は `Database.setSavepoint()` → ロジック/Flow 起動 → 結果確認 → `Database.rollback()` のパターンを優先する（並列安全）。
 - `System.debug()` で結果・件数・フィールド値を出力し証跡に残す。**必ず「入力値→処理経路→結果値」を全て debug する**。
 - Flow 起動は `Flow.Interview.{Flow_API名}` または `Database.executeBatch` を使う。
-- **条件分岐の網羅**: 「実行アクション」が分岐を持つ場合、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**。1ファイル内で全分岐をカバーする。
+- **条件分岐の網羅（各 TC に適用・省略禁止）**: 「実行アクション」が分岐を持つ場合、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**。1 ファイル内で全分岐をカバーする。
 
-生成した Apex を `{log_dir}/tmp/TC_{No}_anon.apex` に Write する:
+生成した各 TC の Apex を `{log_dir}/tmp/TC_{No}_anon.apex` に Write する:
 ```bash
 mkdir -p "{log_dir}/tmp"
 ```

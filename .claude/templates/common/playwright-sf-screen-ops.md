@@ -105,6 +105,35 @@ async (page) => {
 
 ---
 
+## 先読み snapshot（ロケータ確定の事前確認）
+
+Salesforce の画面は LWC/Aura の Shadow DOM レンダリングが動的なため、ロケータが事前に確定できない場合がある。**ロケータが不確実・動的な画面**では、コードブロックを書く前に `mcp__playwright__browser_snapshot` を 1 回取得して実際の aria-label・テキスト・ロールを確認してからロケータを確定することで、失敗→snapshot→再実行の往復を削減できる。
+
+- 先読み snapshot は `waitSfReady(page)` 後（DOM 確定後）に取得する
+- **固定 aria-label が既知の画面（設定画面・標準 UI 等）では先読みを省略してよい**（乱発抑制）
+- 先読みした DOM から実際の aria-label・ロール・テキストを確認し、それをコードブロックに埋め込む
+- 先読み snapshot は証跡として保存しない（参照のみ）
+
+```javascript
+// 先読み snapshot の例（ロケータ確定前・証跡保存なし）
+async (page) => {
+  page.setDefaultTimeout(15000);
+  async function waitSfReady(page) {
+    await page.waitForLoadState('domcontentloaded');
+    await page.locator('.slds-spinner, lightning-spinner')
+      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+  }
+  await page.goto('{対象URL}');
+  await waitSfReady(page);
+  // DOM を確認してロケータを確定する（参照のみ）
+  return await page.locator('body').innerText();
+}
+```
+
+この後 `mcp__playwright__browser_snapshot` でのスナップショット確認、または上記コードブロックの返却テキストからロケータを確定し、本番操作コードブロックに組み込む。
+
+---
+
 ## フォールバック手順（コードブロックが失敗した場合）
 
 コードブロックがロケータ不一致・タイムアウトで失敗した場合:

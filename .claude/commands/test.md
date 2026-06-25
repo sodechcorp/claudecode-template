@@ -339,6 +339,133 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
 2. 匿名 Apex で作成したテストデータを削除する（cleanup・Step 4-4）
 3. 一時ファイル（`{log_dir}/tmp/`）を削除する（Step 6）
 
+---
+
+### Phase F-2: NG 自動修正ループ（実装バグ限定）
+
+> **[ハーネス直接実行]**
+
+`judgment-result.json` の `ng_list` から、`ng_type` が空（実装バグ）の TC とそれ以外（要確認・未実行）の TC を分類する:
+
+```bash
+# 実装バグ TC（ng_type が空文字 = 証跡あり・実装が期待値と不一致）
+AUTO_FIX_TCS=$(python -c "
+import json
+d=json.load(open(r'{JUDGMENT_PATH}', encoding='utf-8'))
+print(','.join(r['no'] for r in d.get('ng_list',[]) if (r.get('ng_type','') or '')==''))
+" 2>/dev/null || echo "")
+
+# その他のNG（要確認/未実行）— 後続の手動案内で対応
+OTHER_NG=$(python -c "
+import json
+d=json.load(open(r'{JUDGMENT_PATH}', encoding='utf-8'))
+print(','.join(r['no'] for r in d.get('ng_list',[]) if (r.get('ng_type','') or '') in ('要確認','未実行')))
+" 2>/dev/null || echo "")
+
+echo "実装バグ（自動修正候補）: ${AUTO_FIX_TCS:-なし}"
+echo "その他のNG（要確認/未実行）: ${OTHER_NG:-なし}"
+```
+
+**`AUTO_FIX_TCS` が空の場合**: このフェーズをスキップし、後続「NG があった場合の差し戻し」セクションで手動案内を実施する。
+
+**`AUTO_FIX_TCS` が非空の場合**: 以下のガードを確認する。
+
+```bash
+# ループ上限チェック（退避済み R{N}.json 本数で通算カウント。退避自体は次回 /test Phase A が実施・ここでは読むだけ）
+PREV_ROUND_F2=$(python -c "
+import glob, re
+base = r'{JUDGMENT_PATH}'.replace('.json','')
+files = glob.glob(base + '.R*.json')
+nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]
+print(max(nums) if nums else 0)
+" 2>/dev/null || echo "0")
+echo "これまでの NG 修正回数（退避済み R{N} 本数）: ${PREV_ROUND_F2} 回"
+
+# 前提ファイルの存在確認（backlog-implementer が必須とするファイル）
+PLAN_EXISTS=$([ -f "{LOG_DIR}/implementation-plan.md" ] && echo "true" || echo "false")
+INVEST_EXISTS=$([ -f "{LOG_DIR}/investigation.md" ] && echo "true" || echo "false")
+echo "implementation-plan.md: ${PLAN_EXISTS} / investigation.md: ${INVEST_EXISTS}"
+```
+
+**ガード①: ループ上限到達（`PREV_ROUND_F2 >= 3`）**:
+→ 自動修正をスキップ。後続「NG があった場合の差し戻し」セクションで「繰り返し NG が続いています。業務担当者との打合せを推奨します。」を提示して停止する。
+
+**ガード②: 前提ファイル欠落**（`PLAN_EXISTS` または `INVEST_EXISTS` が false）:
+→ 自動修正不可。「`implementation-plan.md` / `investigation.md` が見つかりません。`/backlog` Phase 1〜3 を先に完了させてください。」を提示し、後続の手動案内に移行する。
+
+**ガードを全て通過した場合**: 以下の順で agent を直列 Task 起動して自動修正・再デプロイを実施する。
+
+#### F-2 Step 1: backlog-implementer（実装修正）
+
+Task tool で `backlog-implementer` を起動する:
+
+```
+task_description: 「/test 自動修正起動: {issueID} の実装バグ NG（{AUTO_FIX_TCS}）を修正する。
+  NG の詳細は {JUDGMENT_PATH} の ng_list と {LOG_DIR}/test-report.md を参照。
+  実装方針（implementation-plan.md）の変更は禁止。investigation.md は不変。
+  期待値ドリフト禁止（test.md 343行原則）。」
+パラメータ:
+  issueID: {ISSUE_ID}
+  project_dir: {PROJECT_DIR}
+  log_dir: {LOG_DIR}
+  xlsx_folder: {XLSX_FOLDER}
+  auto_fix_mode: true
+  auto_fix_tcs: {AUTO_FIX_TCS}
+  ng_source: {JUDGMENT_PATH}
+```
+
+**backlog-implementer が経路2/3（実装方針の問題・検証漏れ）を報告した場合**: 自動修正ループを中断し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する（実装バグのつもりが方針問題 → 人間判断に委ねる）。
+
+#### F-2 Step 2: backlog-tester（dry-run 検証）
+
+Task tool で `backlog-tester` を起動する:
+
+```
+task_description: 「/test 自動修正起動: {issueID} の修正後 dry-run 検証（PASS/FAIL を返す）」
+パラメータ:
+  issueID: {ISSUE_ID}
+  project_dir: {PROJECT_DIR}
+  log_dir: {LOG_DIR}
+  xlsx_folder: {XLSX_FOLDER}
+  auto_fix_mode: true
+```
+
+- **PASS** → F-2 Step 3 へ進む。
+- **FAIL** → 自動再デプロイしない。dry-run のエラー内容を提示し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
+
+#### F-2 Step 3: backlog-releaser（軽量再デプロイ・確認なし）
+
+Task tool で `backlog-releaser` を起動する:
+
+```
+task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox 軽量再デプロイ（確認なし・dry-run PASS 済み）」
+パラメータ:
+  issueID: {ISSUE_ID}
+  project_dir: {PROJECT_DIR}
+  log_dir: {LOG_DIR}
+  xlsx_folder: {XLSX_FOLDER}
+  auto_fix_mode: true
+  redeploy_no_confirm: true
+```
+
+`test-report.md` は Phase F で生成済みのため、releaser のモード判定（test-report.md 存在 → 軽量再デプロイ）が自動適用される（お客様確認・知見還流をスキップ）。
+
+#### F-2 完了報告
+
+```
+=== 自動修正・再デプロイ完了 ===
+修正した NG : {AUTO_FIX_TCS}
+再デプロイ  : Sandbox ({SF_ALIAS}) に再デプロイ完了
+
+次のステップ（別セッションで実施）:
+  /test {issueID} を再実行してください（差分モード）。
+  次回 /test 起動時に今回の judgment-result.json と証跡が自動的に R{N+1} として退避されます。
+```
+
+`OTHER_NG` が空でない場合は、続けて後続「NG があった場合の差し戻し」セクションで `OTHER_NG` の手動案内も実施する。
+
+---
+
 #### NG があった場合の差し戻し（期待値ドリフト防止）
 
 > **設計原則**: `investigation.md`（課題原文・真因）は不変。修正は「実装方針の変更」であり「課題認識の変更」ではない。`test-spec.md` の期待結果は NG 理由なく書き換えない。
@@ -414,9 +541,15 @@ python scripts/python/backlog-xlsx/update_records.py \
   test-report.md  : {log_dir}/test-report.md
   証跡ファイル    : {evidence_dir}/ 配下 {N} ファイル
 
-{NG がある場合}
+{実装バグ NG が Phase F-2 で自動修正・再デプロイされた場合}
+自動修正: 完了（Phase F-2）
+  修正 TC: {AUTO_FIX_TCS}
+  次のステップ: 別セッションで /test {issueID} を再実行してください（差分モード）。
+               次回 /test 起動時に今回の証跡が自動的に R{N} として退避されます。
+
+{手動対応が必要な NG がある場合（要確認/未実行 / 自動修正のガードで止まった場合 / dry-run FAIL の場合）}
 NG 一覧:
-  - TC-00X: {観点} — {理由}
+  - TC-00X: {観点} — {理由}（ng_type: {値}）
 
 修正手順（この順番で実施してください）:
   1. implementation-plan.md の改版履歴にNG原因と修正方針を追記
