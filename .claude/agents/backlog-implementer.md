@@ -105,19 +105,6 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 
 ### 3. 実装
 
-> **バックアップ情報の記録（`{xlsx_folder}` 設定時のみ）**: 実装着手前に以下を1回だけ実行してロールバック起点を記録する。`{xlsx_folder}` / `{issueID}` が未設定の場合はスキップ。
-
-```bash
-GIT_HASH=$(git rev-parse --short HEAD)
-STASH_NAME="backlog-{issueID}"
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  backup-info \
-  --git-hash "$GIT_HASH" \
-  --stash "$STASH_NAME" \
-  --rollback "git revert $GIT_HASH"
-```
-
 以下のルールで実装する:
 
 - FLS / CRUD / `with sharing` / ガバナ制限 / バルク処理を意識する
@@ -147,13 +134,17 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 対象ファイルが存在しない場合は「設計書がありません。作成しますか？」と確認する（勝手に作成しない）。Yes の場合は `sf-architect` に設計書の作成を依頼し、生成された設計書へ当該変更内容を反映してから次の変更ファイルへ進む（backlog-implementer 自身が独自フォーマットで新規作成しない）。No の場合は当該ドキュメントの更新をスキップし、changelog.md に「{日付} {ファイル名}: 設計書作成スキップ（ユーザー確認済み）」を追記してから次の変更ファイルへ進む。
 
-### 4.5 実装計画・変更ファイル一覧の記述規約（xlsx 言語記述に直接投影）
+### 4.5 実装計画・変更ファイル一覧の記述規約（xlsx に直接投影）
 
 implementation-plan.md の「対応内容」セクションおよび変更ファイル一覧の「変更概要」列は **自然な日本語** で書く。
 
-- **OK 例**: 「preCheck.html: 犯罪歴確認ラジオボタンを渡航者種別 SA-001〜SA-012 のみ表示する設問として追加」
-- **NG 例**: 「preCheck.html: isCriminalHistoryVisible @track / getter 追加 / handleCriminalHistoryChange handler 実装」
-- 理由: xlsx 対応内容シートの言語記述セクションに直接投影されるため、業務担当者が読める語彙が必要。`@track` / `getter` / `handler` 等の技術用語は括弧補足でも使わない
+**資材名の書き方（対応記録 xlsx ②「変更を加えた資材一覧」に直接転記される）**:
+- **表示名（ラベル）優先・API名は括弧補助のみ**
+  - OK 例: 「preCheck 画面（preCheck）」「犯罪歴確認フラグ（CriminalHistory__c）」「渡航者マスタ（BusinessTraveler__c）」
+  - NG 例: 「preCheck」「BusinessTraveler__c.CriminalHistory__c」「handleCriminalHistoryChange handler」
+- **変更概要も業務語彙で**: `@track` / `getter` / `handler` 等の技術用語は括弧補足でも使わない
+  - OK 例: 「犯罪歴確認ラジオボタンを渡航者種別 SA-001〜SA-012 のみ表示する設問として追加」
+  - NG 例: 「isCriminalHistoryVisible @track / getter 追加 / handleCriminalHistoryChange handler 実装」
 
 > **重要**: implementation-plan.md の「変更ファイル一覧」「対応内容」は `/test` の網羅性チェック（変更点回帰）の input になる。**変更したコンポーネントと挙動の変化を漏れなく日本語で記載すること**（省略・略記は test 側の TC 生成ミスにつながる）。
 
@@ -197,7 +188,26 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 
 > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
-**① Before/After 追記**（実装完了後、変更ファイルごとに1回ずつ実行）:
+**① 実施した対応 の記入**（実装完了後に1回だけ実行）:
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  cell --sheet "対応内容" --row 2 --col 1 --force \
+  --value "{何をどう実施したかを人間が読める日本語で記述。API名・技術用語不使用。3〜8行程度}"
+```
+
+**② 変更を加えた資材一覧 への追記**（変更ファイルごとに1回ずつ実行）:
+```bash
+python scripts/python/backlog-xlsx/update_records.py \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  content-list \
+  --label "{資材の表示名（API名は括弧補助）。例: 「preCheck 画面（preCheck）」}" \
+  --kind "{変更種別: 新規追加 / 変更 / 削除 のいずれか}" \
+  --detail "{変更内容を業務語彙で1〜2行。例: 「犯罪歴確認ラジオボタンを追加」}"
+# 変更ファイルが複数ある場合は変更ファイルごとに繰り返す
+```
+
+**③ Before/After 追記**（任意・コード変更があり前後比較を残したい場合のみ）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
@@ -205,26 +215,15 @@ python scripts/python/backlog-xlsx/update_records.py \
   --file "{ファイルパス}" \
   --before "{変更前コード要約（1〜3行）}" \
   --after "{変更後コード要約（1〜3行）}"
-# 変更ファイルが複数ある場合は変更ファイルごとに繰り返す
+# 変更ファイルが複数ある場合は変更ファイルごとに繰り返す（Before/Afterが不要なファイルはスキップ可）
 ```
 
-**② 残対応追記**（実装中に「現課題スコープ外」「後で対応」と判断したものがある場合のみ）:
-```bash
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  pending \
-  --kind "後回しの残対応" \
-  --content "{残対応の内容（1〜2行）}" \
-  --status "保留" \
-  --next-action "{いつ・誰が対応するか}"
-```
-
-**③ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
+**④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "実装" \
-  --content "Phase 4 実装完了: {変更ファイル数}ファイル変更（{主な変更概要1行}）"
+  --content "Phase 4 実装完了: {変更ファイル数}ファイル変更（{主な変更概要1行・業務語彙}）"
 ```
 
 ---

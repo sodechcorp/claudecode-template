@@ -181,37 +181,16 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
-> **注**: リリース実施記録（デプロイ日時・対象環境・結果）は **人間がデプロイ後に手動で xlsx に記録する**。Claude Code は関与しない。対応記録テンプレートから「■ リリース実施記録」セクションは削除済み。
+> **注**: リリース実施記録（デプロイ日時・対象環境・結果）は **人間がデプロイ後に手動で xlsx に記録する**。Claude Code は関与しない。
 
-**① サマリー・経緯シート: 最終対応サマリー（B9）を記入**:
+**① ステータスを「完了」に更新**:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "サマリー・経緯" --row 9 --col 2 --force \
-  --value "{対応の最終サマリー（採用方針・実装変更点・テスト結果・リリース日を含む2〜3行）}"
+  cell --sheet "課題と対応方針" --label "ステータス" --col 2 --value "完了" --force
 ```
 
-**② 残対応・懸念・保留シート: 未対応の残件ステータスを最終確認する**（完了・不要になったものを更新）:
-```bash
-# 残対応・懸念・保留の内容を確認する
-python -c "
-import openpyxl, os
-wb = openpyxl.load_workbook(os.path.join('{xlsx_folder}', '{issueID}_対応記録.xlsx'))
-ws = wb['残対応・懸念・保留']
-for r in range(4, ws.max_row + 1):
-    v = [ws.cell(r, c).value for c in range(1, 7)]
-    if any(v): print(r, v)
-"
-```
-
-> **更新が必要な行があれば** `cell` で該当セルを書き換える（例: ステータス列を「完了」に更新）:
-> ```bash
-> python scripts/python/backlog-xlsx/update_records.py \
->   --folder "{xlsx_folder}" --issue-id "{issueID}" \
->   cell --sheet "残対応・懸念・保留" --row {対象行} --col 4 --value "完了" --force
-> ```
-
-**③ タイムライン追記**（Phase 6 完了時に1回のみ）:
+**② タイムライン追記**（Phase 6 完了時に1回のみ）:
 ```bash
 python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \

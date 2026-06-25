@@ -4,23 +4,22 @@ backlog-xlsx / update_records.py
 対応記録.xlsx を更新するスクリプト
 
 Usage (タイムライン行を追加):
-    python update_records.py --folder FOLDER --issue-id ID timeline \
-      --phase "調査" --source "Claude" --content "〇〇を調査: 原因は△△"
+    python update_records.py --folder FOLDER --issue-id ID timeline \\
+      --phase "調査" --source "Claude" --content "○○を調査: 原因は△△"
 
 Usage (セルを直接更新):
-    python update_records.py --folder FOLDER --issue-id ID cell \
-      --sheet "対応方針" --row 10 --col 1 --value "採用理由の説明"
+    python update_records.py --folder FOLDER --issue-id ID cell \\
+      --sheet "課題と対応方針" --label "ステータス" --col 2 --value "完了" --force
 
-Usage (チェックリスト更新):
-    python update_records.py --folder FOLDER --issue-id ID checklist \
-      --sheet "対応内容" --section "影響確認チェックリスト" --indices "1,2,3"
+    python update_records.py --folder FOLDER --issue-id ID cell \\
+      --sheet "対応内容" --row 2 --col 1 --value "○○を実施した" --force
 
-Usage (バックアップ情報):
-    python update_records.py --folder FOLDER --issue-id ID backup-info \
-      --git-hash abc1234 --stash "backlog-GF-340" --rollback "git revert abc1234"
+Usage (変更した資材を1行追加):
+    python update_records.py --folder FOLDER --issue-id ID content-list \\
+      --label "preCheck 画面（preCheck）" --kind "変更" --detail "ラジオボタン追加"
 
 Usage (Before/After 追記):
-    python update_records.py --folder FOLDER --issue-id ID before-after \
+    python update_records.py --folder FOLDER --issue-id ID before-after \\
       --file "force-app/.../X.cls" --before "変更前コード" --after "変更後コード"
 """
 
@@ -82,20 +81,20 @@ def _copy_font(src_font):
 
 
 def cmd_timeline(args, wb):
-    """サマリー・経緯シートのタイムラインに1行追加する"""
-    sheet_name = "サマリー・経緯"
+    """課題と対応方針 シートのタイムラインに1行追加する"""
+    sheet_name = "課題と対応方針"
     if sheet_name not in wb.sheetnames:
         print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
         sys.exit(1)
     ws = wb[sheet_name]
 
-    # タイムラインセクションヘッダーを検索（判断保留事項の "No" と区別するため）
+    # タイムラインセクションヘッダーを検索
     tl_section_row = find_header_row(ws, ("■ 対応経緯タイムライン",))
     if tl_section_row is None:
         print("[ERROR] タイムラインセクション（■ 対応経緯タイムライン）が見つかりません。")
         sys.exit(1)
 
-    # 列ヘッダー行（No / 日時 / 担当 / フェーズ / 内容 / 理由）
+    # 列ヘッダー行（No / 日時 / 発生元 / フェーズ / 内容 / 理由）
     col_header_row = tl_section_row + 1
     data_start = col_header_row + 1
 
@@ -140,51 +139,33 @@ def cmd_timeline(args, wb):
 
 
 def cmd_cell(args, wb):
-    """指定したシート・行・列のセルを更新する"""
+    """指定したシート・行（または行ラベル）・列のセルを更新する"""
     if args.sheet not in wb.sheetnames:
         print(f"[ERROR] シート '{args.sheet}' が見つかりません。利用可能: {wb.sheetnames}")
         sys.exit(1)
     ws = wb[args.sheet]
-    cell = ws.cell(row=args.row, column=args.col)
+
+    # --label 指定時はラベル検索で行番号を決定（--row より優先）
+    row = getattr(args, "row", None)
+    label = getattr(args, "label", "") or ""
+    if label:
+        found = find_label_row(ws, label)
+        if found is None:
+            print(f"[ERROR] ラベル '{label}' が見つかりません（シート: {args.sheet}）")
+            sys.exit(1)
+        row = found
+
+    if row is None:
+        print("[ERROR] --row または --label のいずれかを指定してください。")
+        sys.exit(1)
+
+    cell = ws.cell(row=row, column=args.col)
     if cell.value and not getattr(args, "force", False):
         print(f"[WARN] 既存値あり: {cell.value!r} → --force を指定しないと上書きしません")
         return
     cell.value = args.value
     cell.alignment = WRAP
-    print(f"セル更新: {args.sheet}!({args.row},{args.col}) = {str(args.value)[:40]}...")
-
-
-
-def cmd_backup_info(args, wb):
-    """対応内容シートのバックアップ情報（Git hash / stash名 / 巻き戻し方法）を書き込む"""
-    sheet_name = "対応内容"
-    if sheet_name not in wb.sheetnames:
-        print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
-        sys.exit(1)
-    ws = wb[sheet_name]
-
-    label_map = {
-        "Git hash": args.git_hash,
-        "stash": args.stash,
-        "巻き戻し": args.rollback,
-    }
-
-    written = 0
-    for label, value in label_map.items():
-        row = find_label_row(ws, label)
-        if row is None:
-            print(f"[WARN] '{label}' ラベル行が見つかりません（スキップ）")
-            continue
-        cell = ws.cell(row, 2)
-        if cell.value and not getattr(args, "force", False):
-            print(f"[SKIP] 行{row} '{label}': 既存値あり → --force で上書き")
-            continue
-        cell.value = value
-        cell.alignment = WRAP
-        written += 1
-        print(f"[OK] 行{row} '{label}' → {str(value)[:40]}")
-
-    print(f"[OK] バックアップ情報: {written}/{len(label_map)} 件書き込みました")
+    print(f"セル更新: {args.sheet}!(行{row},{args.col}) = {str(args.value)[:40]}...")
 
 
 def cmd_before_after(args, wb):
@@ -209,8 +190,6 @@ def cmd_before_after(args, wb):
         c.alignment = WRAP
         c.font = Font(name="游ゴシック", size=10, bold=bold)
 
-    # ファイル名行 / Before行 / After行 をすべて col 1 に書き込む
-    # （テンプレートの Before/After 行は A:D マージ済みのため col 2 以降は MergedCell）
     _write_cell_1(next_row,     f"【{args.file}】",        bold=True)
     _write_cell_1(next_row + 1, f"Before: {args.before}",  bold=False)
     _write_cell_1(next_row + 2, f"After:  {args.after}",   bold=False)
@@ -218,159 +197,51 @@ def cmd_before_after(args, wb):
     print(f"[OK] Before/After 追記: 行{next_row}〜{next_row + 2} / {args.file}")
 
 
+def cmd_content_list(args, wb):
+    """対応内容シートの「変更を加えた資材一覧」に1行追加する。
 
-
-def _extract_validation_summary(text):
-    """validation-report.md から実装前検証の概要サマリー文字列を抽出する。"""
-    trivial_match = re.search(r"自明ケース判定[:：]\s*該当[（(]([^）)]+)[）)]?", text)
-    if trivial_match:
-        return f"実装前確認済み（自明ケース: {trivial_match.group(1).strip()[:40]}）"
-
-    step_results = {}
-    for step_num in range(1, 5):
-        step_match = re.search(
-            rf"#{2,3}\s+Step\s+{step_num}[：:\s].*?\n(.*?)(?=\n#{2,3}\s+|\Z)",
-            text, re.DOTALL
-        )
-        if step_match:
-            body = step_match.group(1)
-            if re.search(r"skip|スキップ", body, re.IGNORECASE):
-                step_results[step_num] = "SKIP"
-            elif re.search(r"\bNG\b|要修正|問題あり|要戻り", body, re.IGNORECASE):
-                step_results[step_num] = "NG"
-            else:
-                step_results[step_num] = "OK"
-
-    if step_results:
-        ng_steps = [str(k) for k, v in step_results.items() if v == "NG"]
-        skip_steps = [str(k) for k, v in step_results.items() if v == "SKIP"]
-        ok_steps = [str(k) for k, v in step_results.items() if v == "OK"]
-        parts = []
-        if ok_steps:
-            parts.append(f"OK: Step{','.join(ok_steps)}")
-        if skip_steps:
-            parts.append(f"SKIP: Step{','.join(skip_steps)}")
-        if ng_steps:
-            parts.append(f"NG: Step{','.join(ng_steps)}")
-        return "実装前確認済み（" + " / ".join(parts) + "）"
-
-    verdict_match = re.search(r"#{2,3}\s+総合判定\n+\*+([^\n*]+)\*+", text)
-    if verdict_match:
-        return f"実装前確認済み: {verdict_match.group(1).strip()}"
-
-    return "実装前確認済み（validation-report.md 参照）"
-
-
-def cmd_test_precheck(args, wb):
-    """validation-report.md の確認結果をテスト・検証シートの「実装前」行に反映する。"""
-    sheet_name = "テスト・検証"
-    if sheet_name not in wb.sheetnames:
-        # 旧名称にフォールバック（移行期対応）
-        if "テスト・検証記録" in wb.sheetnames:
-            sheet_name = "テスト・検証記録"
-        else:
-            print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
-            sys.exit(1)
-
-    if not os.path.exists(args.report):
-        print(f"[ERROR] validation-report.md が見つかりません: {args.report}")
-        sys.exit(1)
-
-    with open(args.report, encoding="utf-8") as f:
-        validation_text = f.read()
-
-    summary = _extract_validation_summary(validation_text)
-    ws = wb[sheet_name]
-
-    header_row = None
-    for row in ws.iter_rows(min_row=1, max_row=30):
-        for cell in row:
-            if cell.value == "No":
-                next_cell = ws.cell(cell.row, cell.column + 1)
-                if next_cell.value in ("タイミング", "区分", "確認観点"):
-                    header_row = cell.row
-                    break
-        if header_row:
-            break
-
-    if not header_row:
-        print("[WARN] テスト・検証シートのヘッダー行が見つかりませんでした。")
-        return
-
-    max_rows = getattr(args, "max_rows", 1000)
-    updated = 0
-    for r in range(header_row + 1, header_row + max_rows + 1):
-        no_val = ws.cell(r, 1).value
-        timing_val = ws.cell(r, 2).value
-        if no_val is None and timing_val is None:
-            break
-        if str(timing_val or "").strip() == "実装前":
-            # H 列 (col=8) = 実際の結果  [Q0: 判定列廃止、G=期待結果, H=実際の結果]
-            result_cell = ws.cell(r, 8)
-            if not result_cell.value or getattr(args, "force", False):
-                result_cell.value = summary
-                result_cell.alignment = WRAP
-                fill = _stripe_fill(updated)
-                result_cell.fill = fill
-            updated += 1
-
-    print(f"[OK] 実装前テスト行 {updated} 件に validation-report.md の結果を反映しました")
-
-
-def cmd_pending(args, wb):
-    """残対応・懸念・保留シートに1行追加する。"""
-    sheet_name = "残対応・懸念・保留"
+    引数:
+      --label : 資材名（日本語表示名優先・API名は括弧補助）
+                例: 「preCheck 画面（preCheck）」「犯罪歴確認フラグ（CriminalHistory__c）」
+      --kind  : 変更種別（例: 新規追加 / 変更 / 削除）
+      --detail: 変更内容（人間が読める日本語で1〜2行）
+    """
+    sheet_name = "対応内容"
     if sheet_name not in wb.sheetnames:
         print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
         sys.exit(1)
     ws = wb[sheet_name]
 
-    # ■ 残対応・懸念事項一覧 のデータ開始行を動的特定
-    data_start = None
-    for row in ws.iter_rows(min_col=1, max_col=1):
-        cell = row[0]
-        if cell.value and "■ 残対応" in str(cell.value):
-            data_start = cell.row + 2  # ヘッダー行 + 列ヘッダ行
-            break
-    if data_start is None:
-        data_start = 4  # fallback
+    # 「変更を加えた資材一覧」セクションヘッダーを検索
+    section_row = find_header_row(ws, ("■ 変更を加えた資材一覧",))
+    if section_row is None:
+        print("[ERROR] ■ 変更を加えた資材一覧 セクションが見つかりません。")
+        sys.exit(1)
 
-    # 最終 No を特定して次の行番号を決める
-    last_row = data_start
+    # 列ヘッダー行（No / 資材名 / 変更種別 / 変更内容）
+    col_header_row = section_row + 1
+    data_start = col_header_row + 1
+
+    # 既存の最大 No と次の空行を取得
     max_no = 0
-    for r in range(data_start, ws.max_row + 1):
-        val = ws.cell(r, 1).value
-        if val is None and ws.cell(r, 2).value is None:
-            break
-        last_row = r
-        try:
-            no = int(str(val or "").strip())
-            if no > max_no:
-                max_no = no
-        except ValueError:
-            pass
+    for r in range(data_start, ws.max_row + 2):
+        v = ws.cell(r, 1).value
+        if isinstance(v, int) and v > 0:
+            max_no = max(max_no, v)
+        elif isinstance(v, str) and str(v).strip().isdigit():
+            max_no = max(max_no, int(str(v).strip()))
 
-    # 重複チェック: 同じ内容が既に存在するか
-    if not getattr(args, "force", False):
-        for r in range(data_start, last_row + 1):
-            existing = ws.cell(r, 3).value
-            if existing and str(existing).strip() == str(args.content).strip():
-                print(f"[SKIP] 同じ内容が既に存在します (r{r}): {args.content[:40]}")
-                return
-
-    new_row = last_row + 1
+    next_row = find_next_empty_row(ws, col=1, start_row=data_start)
     new_no = max_no + 1
     fill = _stripe_fill(new_no - 1)
-    ws.cell(new_row, 1, value=new_no).alignment = WRAP
-    ws.cell(new_row, 2, value=args.kind).alignment = WRAP
-    ws.cell(new_row, 3, value=args.content).alignment = WRAP
-    ws.cell(new_row, 4, value=args.status).alignment = WRAP
-    ws.cell(new_row, 5, value=getattr(args, "next_action", "") or "").alignment = WRAP
-    for col in range(1, 6):
-        c = ws.cell(new_row, col)
-        c.fill = fill
 
-    print(f"[OK] 残対応・懸念・保留 r{new_row} に追記: [{args.kind}] {args.content[:40]}")
+    # データ書き込み: No(A), 資材名(B), 変更種別(C), 変更内容(D)
+    for col, value in enumerate([new_no, args.label, args.kind, args.detail], start=1):
+        cell = ws.cell(row=next_row, column=col, value=value)
+        cell.alignment = WRAP
+        cell.fill = fill
+
+    print(f"[OK] 変更資材追加: No={new_no} / 行{next_row} / {args.label[:30]} / {args.kind}")
 
 
 TIMELINE_PHASES = ["調査", "対応方針", "実装方針", "実装前検証", "実装", "テスト", "最終検証", "リリース", "お客様確認"]
@@ -392,27 +263,16 @@ def main():
     p_tl.add_argument("--reason",  default="", help="変更・判断の理由（任意）")
     p_tl.add_argument("--force",   action="store_true", help="重複・既存値があっても上書きする")
 
-    # セル直接更新
+    # セル直接更新（--label または --row で行を指定）
     p_cell = sub.add_parser("cell", help="特定セルを直接更新する")
     p_cell.add_argument("--sheet", required=True, help="シート名")
-    p_cell.add_argument("--row",   required=True, type=int, help="行番号")
+    p_cell.add_argument("--row",   type=int, default=None,
+                        help="行番号（--label の代わりに使用）")
+    p_cell.add_argument("--label", default="",
+                        help="行ラベル（A列の部分一致で行を検索。--row より優先）")
     p_cell.add_argument("--col",   required=True, type=int, help="列番号")
     p_cell.add_argument("--value", required=True, help="書き込む値")
     p_cell.add_argument("--force", action="store_true", help="既存値があっても上書きする")
-
-    # テスト実装前結果反映
-    p_precheck = sub.add_parser("test-precheck", help="validation-report.md の実装前確認結果をテスト行に反映する")
-    p_precheck.add_argument("--report",    required=True, help="validation-report.md のパス")
-    p_precheck.add_argument("--max-rows",  type=int, default=1000, dest="max_rows",
-                            help="ヘッダー行から走査する最大行数（デフォルト: 1000）")
-    p_precheck.add_argument("--force",     action="store_true", help="既存値があっても上書きする")
-
-    # バックアップ情報
-    p_bi = sub.add_parser("backup-info", help="対応内容シートにバックアップ情報を書き込む")
-    p_bi.add_argument("--git-hash", required=True, dest="git_hash", help="Git commit hash (例: abc1234)")
-    p_bi.add_argument("--stash",    required=True, help="git stash 名 (例: backlog-GF-340)")
-    p_bi.add_argument("--rollback", required=True, help="巻き戻し方法 (例: git revert abc1234)")
-    p_bi.add_argument("--force",    action="store_true", help="既存値があっても上書きする")
 
     # Before/After 追記
     p_ba = sub.add_parser("before-after", help="対応内容シートの Before/After セクションに変更前後を追記する")
@@ -421,17 +281,14 @@ def main():
     p_ba.add_argument("--after",  required=True, help="変更後コード / 設定値")
     p_ba.add_argument("--force",  action="store_true")
 
-    # 残対応・懸念・保留 追記
-    p_pd = sub.add_parser("pending", help="残対応・懸念・保留シートに1行追加する")
-    p_pd.add_argument("--kind",        required=True,
-                      choices=["懸念", "許容した影響", "後回しの残対応", "保留", "次課題提案"],
-                      help="種別")
-    p_pd.add_argument("--content",     required=True, help="内容")
-    p_pd.add_argument("--status",      required=True,
-                      choices=["未対応", "許容済", "保留", "提案", "完了"],
-                      help="ステータス")
-    p_pd.add_argument("--next-action", default="", dest="next_action", help="次アクション（任意）")
-    p_pd.add_argument("--force",       action="store_true", help="重複内容があっても追加する")
+    # 変更した資材一覧に1行追加
+    p_cl = sub.add_parser("content-list", help="対応内容シートの変更を加えた資材一覧に1行追加する")
+    p_cl.add_argument("--label",  required=True,
+                      help="資材名（日本語表示名優先・API名括弧補助。例: 「preCheck 画面（preCheck）」）")
+    p_cl.add_argument("--kind",   required=True,
+                      help="変更種別（例: 新規追加 / 変更 / 削除）")
+    p_cl.add_argument("--detail", required=True,
+                      help="変更内容（人間が読める日本語で1〜2行）")
 
     args = parser.parse_args()
     args.folder = validate_folder(args.folder)
@@ -451,14 +308,10 @@ def main():
         cmd_timeline(args, wb)
     elif args.command == "cell":
         cmd_cell(args, wb)
-    elif args.command == "test-precheck":
-        cmd_test_precheck(args, wb)
-    elif args.command == "backup-info":
-        cmd_backup_info(args, wb)
     elif args.command == "before-after":
         cmd_before_after(args, wb)
-    elif args.command == "pending":
-        cmd_pending(args, wb)
+    elif args.command == "content-list":
+        cmd_content_list(args, wb)
 
     try:
         wb.save(xlsx_path)

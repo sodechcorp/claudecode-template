@@ -289,8 +289,7 @@ default_stance: {Phase 2 と同じ値を引き継ぐ}
 python scripts/python/backlog-xlsx/create_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   --investigation docs/logs/{issueID}/investigation.md \
-  --approach-plan docs/logs/{issueID}/approach-plan.md \
-  --implementation-plan docs/logs/{issueID}/implementation-plan.md
+  --approach-plan docs/logs/{issueID}/approach-plan.md
 ```
 
 > **エビデンス.xlsx の扱い**: 上記 create_records.py は対応記録.xlsx のみ生成する。エビデンス.xlsx は Phase 4 完了後に `/test {issueID}` が generate_evidence_xlsx.py で生成するため、このタイミングでは実行しない。
@@ -334,12 +333,6 @@ python scripts/python/backlog-xlsx/update_records.py \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "実装前検証" \
   --content "実装前検証完了: {ドライラン/テスト/影響範囲/クロスレビュー/エビデンスの結果サマリーを1行で}"
-```
-
-```bash
-python scripts/python/backlog-xlsx/update_records.py \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  test-precheck --report "docs/logs/{issueID}/validation-report.md"
 ```
 
 > **次に進む条件**: 全検証項目 OK をユーザが確認した後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？」をテキストで提示してやり取りを経て進む

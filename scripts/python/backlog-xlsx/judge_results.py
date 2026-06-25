@@ -416,11 +416,8 @@ def main():
             "evidence": evidence_path,
         })
 
-        # xlsx H 列更新
-        if not args.no_xlsx and ok is not None:
-            updated = update_xlsx_h_col(args.folder, args.issue_id, no, xlsx_value)
-            if not updated:
-                print(f"[WARN] {no}: 対応記録.xlsx の H 列更新をスキップ（行特定失敗）")
+        # xlsx H 列更新: 対応記録.xlsx のテスト・検証シートは廃止済みのためスキップ
+        # （テストエビデンスはエビデンス.xlsx に集約。--no-xlsx フラグは互換維持のため残す）
 
         icon = {"OK": "[OK]", "NG": "[NG]", "SKIP": "[--]"}[status]
         print(f"{icon} {no}: {tc.get('観点', '')} → {actual}" + (f" ({reason})" if reason else ""))
