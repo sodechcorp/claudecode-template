@@ -24,6 +24,7 @@ import json
 import os
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 from _common import (
@@ -67,7 +68,7 @@ WRAP        = _align("left", "top", wrap=True)
 CENTER_MID  = _align("center", "center", wrap=False)
 
 # 列幅初期値（auto-fit の下限として機能）
-_MIN_COL_WIDTHS_RESULT   = [8, 18, 12, 18, 18, 10, 18]   # No/観点/種別/期待/実際/判定/証跡リンク
+_MIN_COL_WIDTHS_RESULT   = [8, 8, 18, 12, 18, 18, 10, 24, 14]   # No/対応要求/観点/種別/期待/実際/判定/NG原因/証跡リンク
 _MIN_COL_WIDTHS_EVIDENCE = [8, 58]
 
 # 印刷設定
@@ -146,7 +147,8 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: 
     if tc_num >= 0 and os.path.isdir(evidence_dir):
         for dirpath, _dirs, filenames in os.walk(evidence_dir):
             for fname in sorted(filenames):
-                if "_before." in fname:
+                # before / リサイズ済みサムネイルは対象外
+                if "_before." in fname or "_resized." in fname:
                     continue
                 fpath = os.path.join(dirpath, fname)
                 if fpath in seen:
@@ -195,11 +197,34 @@ def _count_lines(path: str) -> int:
     return len(_read_text_safe(path).splitlines())
 
 
+# ── 結果シートヘルパー ────────────────────────────────────────────────────────
+
+def _extract_req_label(kanpoin: str) -> str:
+    """観点テキストから要求ラベル（①②③ / 回帰）を抽出する。"""
+    m = re.match(r'^([①②③④⑤⑥⑦⑧⑨⑩]+)', kanpoin.strip())
+    if m:
+        return m.group(1)
+    if "回帰" in kanpoin:
+        return "回帰"
+    return ""
+
+
+def _build_ng_action(j_result: dict) -> str:
+    """NG判定結果からユーザー向けのアクション文を生成する（NG原因/次アクション列）。"""
+    reason = j_result.get("reason", "")
+    ng_type = j_result.get("ng_type", "")
+    if ng_type == "未実行":
+        return "再テスト要" + (f": {reason}" if reason else "（証跡なし）")
+    if ng_type == "要確認":
+        return "判定方法修正要" + (f": {reason}" if reason else "")
+    return reason or "要確認"
+
+
 # ── Sheet 1: テスト結果 ───────────────────────────────────────────────────────
 
 def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) -> dict:
     """テスト結果シートを構築し {tc_no: sheet2_anchor} を返す（証跡シートへのリンク用）。"""
-    headers = ["No", "確認観点", "種別", "期待結果", "実際の結果", "判定", "証跡"]
+    headers = ["No", "対応要求", "確認観点", "種別", "期待結果", "実際の結果", "判定", "NG原因/次アクション", "証跡"]
     ws.title = "テスト結果"
 
     # ヘッダー行
@@ -243,7 +268,9 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
 
         fill = _stripe_fill(i) if status == "OK" else row_fill
 
-        vals = [no, kanpoin, shubetsu, kiki, actual, judge_text, "→証跡"]
+        req_label = _extract_req_label(kanpoin)
+        ng_action = _build_ng_action(j_result) if status == "NG" else ""
+        vals = [no, req_label, kanpoin, shubetsu, kiki, actual, judge_text, ng_action, "→証跡"]
         for j_col, val in enumerate(vals, start=1):
             c = ws.cell(row=row, column=j_col, value=val)
             c.border = THIN_BORDER
@@ -252,11 +279,21 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
                 c.alignment = CENTER_MID
                 c.font = _font(bold=True)
                 c.fill = fill
-            elif j_col == 6:
+            elif j_col == 2:
+                # 対応要求列: 中央揃え・小さめフォント
+                c.alignment = CENTER_MID
+                c.font = _font(bold=True, size=9)
+                c.fill = fill
+            elif j_col == 7:
                 # 判定列: 中央揃え・太字
                 c.alignment = CENTER_MID
                 c.fill = row_fill
                 c.font = _font(bold=True)
+            elif j_col == 8:
+                # NG原因/次アクション列: NG のみ赤背景
+                c.alignment = WRAP
+                c.font = _font(size=9)
+                c.fill = row_fill if status == "NG" else fill
             else:
                 c.alignment = WRAP
                 c.font = _font()
@@ -267,9 +304,39 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
         _set_row_height(ws, row, h)
         tc_to_row[no] = row
 
-    # 観点・期待結果・実際の結果列は内容に応じて幅を自動調整
-    for col_idx in [2, 4, 5]:  # 観点, 期待結果, 実際の結果
+    # 観点・期待結果・実際の結果列は内容に応じて幅を自動調整（列番号が1シフト）
+    for col_idx in [3, 5, 6]:  # 確認観点, 期待結果, 実際の結果
         _auto_col_width(ws, col_idx, min_w=_MIN_COL_WIDTHS_RESULT[col_idx - 1], max_w=40)
+
+    # ── 要件カバレッジ・サマリー（末尾に追記）──────────────────────────────
+    req_count: Counter = Counter()
+    req_ok: Counter = Counter()
+    req_ng: Counter = Counter()
+    for tc in test_cases:
+        lbl = _extract_req_label(tc.get("観点", "")) or "その他"
+        j_r = judgment.get(tc.get("No", ""), {})
+        st = j_r.get("status", "")
+        req_count[lbl] += 1
+        if st == "OK":
+            req_ok[lbl] += 1
+        elif st == "NG":
+            req_ng[lbl] += 1
+    summary_parts = []
+    for lbl in sorted(req_count.keys()):
+        n = req_count[lbl]
+        ok_ = req_ok.get(lbl, 0)
+        ng_ = req_ng.get(lbl, 0)
+        summary_parts.append(f"{lbl}: {n}TC (OK={ok_}/NG={ng_})")
+    summary_row = len(test_cases) + 3  # ヘッダー行 + データ行数 + 空白行1
+    ncols = len(headers)
+    ws.merge_cells(start_row=summary_row, start_column=1, end_row=summary_row, end_column=ncols)
+    sc = ws.cell(row=summary_row, column=1,
+                 value="■ 要件カバレッジ: " + " | ".join(summary_parts))
+    sc.fill = LIGHT_BLUE
+    sc.font = _font(bold=True, size=9)
+    sc.alignment = _align("left", "center")
+    sc.border = THIN_BORDER
+    _set_row_height(ws, summary_row, 20)
 
     _freeze(ws, 2)
 
@@ -468,7 +535,7 @@ def set_hyperlinks(result_ws, evidence_ws_name: str, tc_to_row: dict, test_cases
         ev_addr = tc_to_row.get(no + "_ev", "A2")
         if not result_row:
             continue
-        cell = result_ws.cell(row=result_row, column=7)
+        cell = result_ws.cell(row=result_row, column=9)  # 証跡列（列追加後は9列目）
         cell.hyperlink = f"#{evidence_ws_name}!{ev_addr}"
         cell.font = _font(color="0563C1", underline="single")
         cell.value = "→ 証跡を見る"

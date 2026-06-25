@@ -329,7 +329,17 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
 
 > **設計原則**: `investigation.md`（課題原文・真因）は不変。修正は「実装方針の変更」であり「課題認識の変更」ではない。`test-spec.md` の期待結果は NG 理由なく書き換えない。
 
-1. `test-report.md` の「NG 一覧」と `test-fail-routing.md` で戻り先 Phase を確定する
+1. `judgment-result.json` の `ng_type` で NG の種類を区別し、戻り先を確定する:
+
+   | `ng_type` | NG の意味 | 次のアクション |
+   |---|---|---|
+   | `"未実行"` | 証跡が採取されていない（環境起因・実行漏れ・デプロイ後キャッシュ遅延） | **再テスト**: 差分再実行（`/test {issueID}` のみ・実装修正不要） |
+   | `"要確認"` | 証跡はあるが判定パターンが機械照合できない | **test-spec.md の判定方法を修正**後に再実行 |
+   | `""` (空) | 証跡あり・実装が期待値と一致しない（実装バグ） | **実装差し戻し**: 実装修正→ `/test {issueID}` 再実行 |
+
+   NG 種類が混在している場合は、実装バグ（ng_type 空）を最優先で修正してから再テストする。
+
+2. `test-report.md` の「NG 一覧」と `test-fail-routing.md` で戻り先 Phase を確定する
 2. **NGの原因と修正方針を `implementation-plan.md` の改版履歴に追記する**（修正に着手する前に必ず実施）:
    ```
    | {YYYY-MM-DD} | /test NG差し戻し | {NGのTC番号・観点} | {NGの原因（実際の結果）} | {修正方針（何をどう変えるか）} | investigation.md §{対応する要求} |

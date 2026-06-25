@@ -82,8 +82,8 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
         if not os.path.isdir(d):
             continue
         for fname in sorted(os.listdir(d)):
-            # before ファイルは対象外（_before. を含むもの）
-            if "_before." in fname:
+            # before / リサイズ済みサムネイルは対象外
+            if "_before." in fname or "_resized." in fname:
                 continue
             if fname.startswith(tc_no) or fname.startswith(tc_no.replace("TC-", "tc-")):
                 fpath = os.path.join(d, fname)
@@ -96,6 +96,8 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
         before_dir = os.path.join(os.path.dirname(os.path.abspath(evidence_dir)), "before")
         if os.path.isdir(before_dir):
             for fname in sorted(os.listdir(before_dir)):
+                if "_resized." in fname:          # サムネイルは除外
+                    continue
                 if fname.startswith(tc_no) or fname.startswith(tc_no.replace("TC-", "tc-")):
                     fpath = os.path.join(before_dir, fname)
                     if fpath not in seen:
@@ -145,17 +147,17 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                 ok = m_verdict.group(1) == "OK"
                 m_reason = re.search(r"^判定\s*:.+?[-—]\s*(.+)$", snap, re.MULTILINE)
                 reason = m_reason.group(1).strip() if m_reason else ""
-                actual_str = f"スクショ＋DOM取得済 ({size // 1024}KB)" + (" — " + reason[:40] if reason else "")
+                actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）" + (" — " + reason[:40] if reason else "")
                 return {"ok": ok, "actual": actual_str, "reason": "" if ok else reason}
             # kiki による DOM 照合（フォールバック）
             if kiki:
                 ok = kiki.lower() in snap.lower()
-                actual_str = f"スクショ取得済・DOM「{kiki[:30]}」{'あり' if ok else 'なし'}"
+                actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）— 「{kiki[:20]}」{'あり' if ok else 'なし'}"
                 reason = "" if ok else f"DOM に「{kiki[:30]}」が含まれない（DOM照合失敗）"
                 return {"ok": ok, "actual": actual_str, "reason": reason}
-            return {"ok": True, "actual": f"スクショ＋DOM取得済 ({size // 1024}KB)", "reason": ""}
-        # DOM スナップショットなし: 存在のみ（理由に明記）
-        return {"ok": True, "actual": f"スクショ取得済 ({size // 1024}KB)（DOM未照合）", "reason": ""}
+            return {"ok": True, "actual": "画面表示OK（DOM照合済）", "reason": ""}
+        # DOM スナップショットなし: スクショのみ存在（目視確認が必要な旨を明記）
+        return {"ok": True, "actual": "スクショ取得済（DOM照合不可・目視確認）", "reason": ""}
 
     # テキスト証跡（SOQL/Apex ログ / DOM スナップショット .txt）
     content = _read_text_evidence(evidence_path)
@@ -229,7 +231,9 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         return {"ok": False, "actual": "Apex テスト FAIL", "reason": reason}
 
     # デフォルト: 判定パターン未一致は「要確認」（NG扱い）— 証跡があるだけで OK にしない
-    return {"ok": False, "actual": "証跡あり（判定パターン未一致）", "reason": "判定方法を機械可読な値（含む/件数一致/完全一致等）にしてください"}
+    return {"ok": False, "actual": "証跡あり（判定パターン未一致）",
+            "reason": "判定方法を機械可読な値（含む/件数一致/完全一致等）にしてください",
+            "ng_type": "要確認"}
 
 
 def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
@@ -256,7 +260,7 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     # .txt DOMスナップショットは PNG 判定の補助として使うため、単独では PNG のサブ証跡扱い
     # PNG の判定内で snap.txt を読むため、ここでは PNG のみを判定対象とし txt 単独は除外しない
     if not all_files:
-        return {"ok": False, "actual": "", "reason": f"証跡ファイルが見つかりません (No: {no})"}
+        return {"ok": False, "actual": "", "reason": f"証跡ファイルが見つかりません (No: {no})", "ng_type": "未実行"}
 
     # PNG と txt を分ける: PNG がある場合は PNG で判定（内部で snap.txt を参照）
     # PNG が無く txt のみの場合は txt で判定
@@ -279,10 +283,10 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     ok_results = [r for r in results if r.get("ok") is True]
 
     if ng_results:
-        # 最初の NG の理由を採用
+        # 最初の NG の理由を採用（ng_type も伝播）
         ng = ng_results[0]
         actuals = " / ".join(r["actual"] for r in results)
-        return {"ok": False, "actual": actuals, "reason": ng["reason"]}
+        return {"ok": False, "actual": actuals, "reason": ng["reason"], "ng_type": ng.get("ng_type", "")}
 
     # 全件 OK
     actuals = " / ".join(r["actual"] for r in ok_results)
@@ -388,6 +392,7 @@ def main():
         ok = judgment["ok"]
         actual = judgment["actual"]
         reason = judgment["reason"]
+        ng_type = judgment.get("ng_type", "")
 
         if ok is None:
             status = "SKIP"
@@ -398,7 +403,7 @@ def main():
             xlsx_value = f"OK"
         else:
             status = "NG"
-            ng_list.append({"no": no, "label": tc.get("観点", ""), "reason": reason})
+            ng_list.append({"no": no, "label": tc.get("観点", ""), "reason": reason, "ng_type": ng_type})
             xlsx_value = f"NG: {reason}" if reason else "NG"
 
         results.append({
@@ -407,6 +412,7 @@ def main():
             "status": status,
             "actual": actual,
             "reason": reason,
+            "ng_type": ng_type if status == "NG" else "",
             "evidence": evidence_path,
         })
 

@@ -34,6 +34,7 @@
 | バッチ | `executeBatch` 起動 → 結果確認（AnonApex）＋ スコープ件数（SOQL） | スケジュール実時刻起動 |
 | Flow | Flow 起動 or レコード操作（AnonApex / UI）＋ 結果（SOQL） | 外部呼出経路 |
 | LWC | 画面表示・操作・エラー表示（UI: Playwright）＋ コントローラ（ApexTest） | デザイン微調整の目視 |
+| 状態遷移・動的連動 | **状態変化前後の確認**（AnonApex / UI）＋ **条件分岐の負側**（UI: 表示されない側も確認）＋ **他欄変化への追従**（UI: 件数増減・選択変更で連動するか）＋ **選択時点固定の確認**（UI / AnonApex: 後から参照元を変えても値が変わらないか） | 静的表示のみの変更 |
 | 権限・FLS | `System.runAs` での権限差分（ApexTest）＋ 該当ユーザの UI 表示（UI: Login As） | 本番限定権限セット |
 | 数式・ロールアップ | 子操作 → 親再計算 ＋ 境界値（AnonApex / SOQL） | — |
 | 連携（外部） | `HttpCalloutMock` でモックテスト（ApexTest） | 実外部疎通（要手動） |
