@@ -9,6 +9,7 @@ Usage:
 シート構成（2シート）:
   ① 課題と対応方針  — 課題整理 / 経緯・対応方針 / タイムライン
   ② 対応内容        — 実施した対応 / 変更を加えた資材一覧 / Before/After（任意）
+                      / NG対応履歴（/test NG 時の回次別修正記録）
 """
 
 import sys
@@ -200,6 +201,14 @@ def _build_sheet_content(wb):
         cell.fill = _fill(_STRIPE_A)
         cell.border = _THIN_BORDER
         ws.row_dimensions[r].height = 28
+
+    # ── ■ NG対応履歴 ─────────────────────────────────────────────
+    # /test NG 時の回次別修正記録（回次 / TC番号 / NG原因 / 修正内容）
+    _section_header(ws, 18, "■ NG対応履歴（/test NG 修正ループ記録）", max_col=MAX_COL)
+    _col_header_row(ws, 19, ["回次", "TC番号", "NG原因", "修正内容"])
+
+    for i in range(4):
+        _data_row(ws, 20 + i, MAX_COL, i)
 
     # タブ色
     ws.sheet_properties.tabColor = "70AD47"

@@ -21,6 +21,10 @@ Usage (変更した資材を1行追加):
 Usage (Before/After 追記):
     python update_records.py --folder FOLDER --issue-id ID before-after \\
       --file "force-app/.../X.cls" --before "変更前コード" --after "変更後コード"
+
+Usage (NG対応履歴に1行追加):
+    python update_records.py --folder FOLDER --issue-id ID ng-history \\
+      --round "R1" --tc "TC-003" --reason "件数NG: 期待3件だが1件" --fix "SOQL WHERE 条件を修正"
 """
 
 import argparse
@@ -244,6 +248,50 @@ def cmd_content_list(args, wb):
     print(f"[OK] 変更資材追加: No={new_no} / 行{next_row} / {args.label[:30]} / {args.kind}")
 
 
+def cmd_ng_history(args, wb):
+    """対応内容シートの「NG対応履歴」セクションに1行追加する。
+
+    引数:
+      --round  : 回次（例: R1 / R2）
+      --tc     : TC番号（例: TC-003）
+      --reason : NG原因（機械判定の reason / 目視確認内容）
+      --fix    : 修正内容（何をどう変えたか）
+    """
+    sheet_name = "対応内容"
+    if sheet_name not in wb.sheetnames:
+        print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
+        sys.exit(1)
+    ws = wb[sheet_name]
+
+    section_row = find_header_row(ws, ("■ NG対応履歴",))
+    if section_row is None:
+        print("[ERROR] ■ NG対応履歴 セクションが見つかりません。テンプレートを再生成してください（build_template.py を実行）。")
+        sys.exit(1)
+
+    col_header_row = section_row + 1
+    data_start = col_header_row + 1
+
+    next_row = find_next_empty_row(ws, col=1, start_row=data_start)
+
+    # 重複検出: 回次(A) + TC(B) の組み合わせ一致でスキップ
+    if not getattr(args, "force", False):
+        for r in range(data_start, next_row):
+            existing_round = str(ws.cell(r, 1).value or "").strip()
+            existing_tc    = str(ws.cell(r, 2).value or "").strip()
+            if existing_round == str(args.round).strip() and existing_tc == str(args.tc).strip():
+                print(f"[SKIP] 重複: round={args.round}, tc={args.tc} （--force で強制追記）")
+                return
+
+    # 空行が足りない場合は1行追加して書き込む
+    fill = _stripe_fill(next_row - data_start)
+    for col, value in enumerate([args.round, args.tc, args.reason, args.fix], start=1):
+        cell = ws.cell(row=next_row, column=col, value=value)
+        cell.alignment = WRAP
+        cell.fill = fill
+
+    print(f"[OK] NG対応履歴追加: 行{next_row} / {args.round} / {args.tc} / {args.reason[:30]}")
+
+
 TIMELINE_PHASES = ["調査", "対応方針", "実装方針", "実装前検証", "実装", "テスト", "最終検証", "リリース", "お客様確認"]
 
 
@@ -290,6 +338,14 @@ def main():
     p_cl.add_argument("--detail", required=True,
                       help="変更内容（人間が読める日本語で1〜2行）")
 
+    # NG対応履歴に1行追加
+    p_ng = sub.add_parser("ng-history", help="対応内容シートのNG対応履歴に1行追加する（/test NG 修正ループ記録）")
+    p_ng.add_argument("--round",  required=True, help="回次（例: R1 / R2）")
+    p_ng.add_argument("--tc",     required=True, help="TC番号（例: TC-003）")
+    p_ng.add_argument("--reason", required=True, help="NG原因（機械判定のreason / 目視確認内容）")
+    p_ng.add_argument("--fix",    required=True, help="修正内容（何をどう変えたか）")
+    p_ng.add_argument("--force",  action="store_true", help="同一回次+TC が既にあっても上書きする")
+
     args = parser.parse_args()
     args.folder = validate_folder(args.folder)
 
@@ -312,6 +368,8 @@ def main():
         cmd_before_after(args, wb)
     elif args.command == "content-list":
         cmd_content_list(args, wb)
+    elif args.command == "ng-history":
+        cmd_ng_history(args, wb)
 
     try:
         wb.save(xlsx_path)

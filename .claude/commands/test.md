@@ -114,11 +114,30 @@ if [ ! -f "$SPEC_PATH" ]; then
   echo "[INFO] test-spec.md が見つかりません。Phase B でテスト仕様を展開します。"
 fi
 
-# 9. 差分再実行モードの判定
+# 9. 回次退避 + 差分再実行モードの判定
 TARGET_TC_LIST=""
 if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
   echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
+
+  # ── 回次退避（今回の実行前に前回データをアーカイブする）──────────────────
+  # 退避済み R{N}.json の本数 + 1 が今回の回次番号
+  PREV_ROUND=$(python -c "
+import glob, re, os
+base = r'$JUDGMENT_PATH'.replace('.json','')
+files = glob.glob(base + '.R*.json')
+nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]
+print(max(nums) if nums else 0)
+" 2>/dev/null || echo "0")
+  ARCHIVE_N=$((PREV_ROUND + 1))
+  ARCHIVED_J="${JUDGMENT_PATH%.json}.R${ARCHIVE_N}.json"
+  ARCHIVED_EV="${EVIDENCE_DIR}/after_R${ARCHIVE_N}"
+  cp "$JUDGMENT_PATH" "$ARCHIVED_J" 2>/dev/null && echo "[INFO] 回次退避: $ARCHIVED_J"
+  if [ -d "${EVIDENCE_DIR}/after" ]; then
+    cp -r "${EVIDENCE_DIR}/after" "$ARCHIVED_EV" 2>/dev/null && echo "[INFO] 証跡退避: $ARCHIVED_EV"
+  fi
+  # ─────────────────────────────────────────────────────────────────────────
+
   TARGET_TC_LIST=$(python -c "
 import json, sys
 with open(r'$JUDGMENT_PATH') as f: d = json.load(f)
@@ -128,7 +147,8 @@ print(','.join(ng))
   if [ -z "$TARGET_TC_LIST" ]; then
     echo "[INFO] 前回 NG なし。差分対象なし（全件スキップ）。"
   else
-    echo "[INFO] 差分対象: $TARGET_TC_LIST"
+    echo "[INFO] 差分対象（前回 NG）: $TARGET_TC_LIST"
+    echo "[INFO] 影響範囲の TC も再テスト対象に含めるか、auto-evidence-runner が確認します。"
   fi
 else
   echo "[INFO] 全量実行モード（初回または --full 指定）"
@@ -338,8 +358,24 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
    | {YYYY-MM-DD} | /test NG差し戻し | {NGのTC番号・観点} | {NGの原因（実際の結果）} | {修正方針（何をどう変えるか）} | investigation.md §{対応する要求} |
    ```
    これにより「何をなぜ変えたか」が記録に残り、NG 修正ループで実装の方向が課題の真因から静かにずれるのを防ぐ。
-3. ユーザーに戻り先 Phase・NG 原因・修正方針（上記で記録した内容）を提示する
-4. 修正後に再度 `/test {issueID}` を実行するよう案内する（差分再実行モードで前回 OK の TC は証跡を流用・取り直しなし）
+3. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ）:
+   ```bash
+   python scripts/python/backlog-xlsx/update_records.py \
+     --folder "{xlsx_folder}" --issue-id "{issueID}" ng-history \
+     --round "R{N}" --tc "{TC番号}" --reason "{NG原因}" --fix "{修正方針}"
+   ```
+   複数 NG TC がある場合は TC ごとに1回ずつ呼ぶ。
+
+4. ユーザーに戻り先 Phase・NG 原因・修正方針（上記で記録した内容）を提示する
+
+5. 修正後の手順をユーザーに案内する:
+   ```
+   修正手順（この順番で実施してください）:
+     1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run 確認）
+     2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
+     3. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用・取り直しなし）
+        次回 /test 起動時に judgment-result.json と証跡が自動的に R{N} として退避されます
+   ```
 
 #### xlsx 対応記録の更新（タイムライン）
 
@@ -384,8 +420,10 @@ NG 一覧:
 修正手順（この順番で実施してください）:
   1. implementation-plan.md の改版履歴にNG原因と修正方針を追記
      （何をなぜ変えるかを記録してから手を動かす。investigation.md は変更しない）
-  2. /backlog Phase {N} で修正を実施
-  3. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用）
+  2. 対応記録.xlsx の「NG対応履歴」に回次・TC・原因・修正内容を記録
+  3. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run）
+  4. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
+  5. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用・前回結果は自動退避）
 
 {要手動がある場合}
 要手動確認:

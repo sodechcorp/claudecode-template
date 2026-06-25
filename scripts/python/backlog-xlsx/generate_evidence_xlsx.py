@@ -6,17 +6,25 @@
 test-spec.md（9列スキーマ）を読み、コンパクト表＋証跡別シートの 2 シート構成で生成する。
 
 Sheet 1「テスト結果」  : 1 行 = 1 ケース。実際の結果・判定（OK/NG 色分け）を自動記入。
-Sheet 2「証跡」        : 各ケースの証跡（スクショ PNG / SOQL テキスト）を縦に配置し、
-                          「テスト結果」シートからハイパーリンクで紐付け。
+                          再テスト時は回次別判定列（R1/R2…）を動的追加し OK/NG 推移を一覧化。
+Sheet 2「証跡」 or     : 各ケースの証跡（スクショ PNG / SOQL テキスト）を縦に配置し、
+「証跡_R1」「証跡_R2」…  「テスト結果」シートからハイパーリンクで紐付け。
+                          再テスト時は回次別シートを生成（証跡_R1 / 証跡_R2 …）。
 「要手動」ケースのみ旧来の「貼付枠＋指示文」を証跡シートに残す（ハイブリッド）。
 
-Usage:
+Usage（初回・単一回次）:
     python generate_evidence_xlsx.py \\
       --folder /path/to/xlsx_folder \\
       --issue-id GF-350 \\
       --spec /path/to/docs/logs/GF-350/test-spec.md \\
-      --evidence-dir /path/to/evidence/after \\
-      --judgment /path/to/judgment-result.json
+      --evidence-dir /path/to/docs/logs/GF-350/evidence/after \\
+      --judgment /path/to/docs/logs/GF-350/judgment-result.json
+
+回次履歴は judgment-result.R1.json / evidence/after_R1/ として自動退避済みの場合、
+--judgment / --evidence-dir に現在のパスを指定するだけで過去回次を自動発見・表示する。
+退避コマンド例（test.md Phase A で実行）:
+    cp judgment-result.json judgment-result.R1.json
+    cp -r evidence/after    evidence/after_R1
 """
 
 import argparse
@@ -109,6 +117,42 @@ def load_judgment(judgment_path: str) -> dict:
         return {}
     data = json.loads(Path(judgment_path).read_text(encoding="utf-8"))
     return {r["no"]: r for r in data.get("results", [])}
+
+
+def discover_rounds(judgment_path: str, evidence_dir: str) -> list:
+    """退避済み回次を自動発見し (round_label, judgment_path, evidence_dir) のリストを返す。
+
+    退避ファイルの命名規則:
+        過去回次: judgment-result.R{N}.json  /  evidence/after_R{N}/
+        現回次  : judgment-result.json        /  evidence/after/
+    返却例（2回目実行時）:
+        [("R1", ".../judgment-result.R1.json", ".../evidence/after_R1"),
+         ("R2", ".../judgment-result.json",    ".../evidence/after")]
+    初回（退避なし）:
+        [("R1", ".../judgment-result.json",    ".../evidence/after")]
+    """
+    rounds = []
+    if not judgment_path:
+        rounds.append(("R1", judgment_path, evidence_dir))
+        return rounds
+
+    j_dir      = os.path.dirname(os.path.abspath(judgment_path))
+    ev_parent  = os.path.dirname(os.path.abspath(evidence_dir)) if evidence_dir else j_dir
+
+    # 退避済み回次（R1, R2, ...）を番号順に収集
+    n = 1
+    while True:
+        r_jpath = os.path.join(j_dir, f"judgment-result.R{n}.json")
+        r_evdir = os.path.join(ev_parent, f"after_R{n}")
+        if os.path.exists(r_jpath):
+            rounds.append((f"R{n}", r_jpath, r_evdir))
+            n += 1
+        else:
+            break
+
+    # 現回次（常に最後尾）
+    rounds.append((f"R{n}", judgment_path, evidence_dir))
+    return rounds
 
 
 # ── 証跡ファイル探索 ─────────────────────────────────────────────────────────
@@ -220,11 +264,71 @@ def _build_ng_action(j_result: dict) -> str:
     return reason or "要確認"
 
 
+# ── 回次探索 ─────────────────────────────────────────────────────────────────
+
+def discover_rounds(judgment_path: str, evidence_dir: str) -> list:
+    """archived rounds を検出して [(label, j_path, ev_dir), ...] を返す。
+
+    judgment-result.R1.json / evidence/after_R1 が存在する場合:
+        [("R1", ".../judgment-result.R1.json", ".../after_R1"),
+         ("R2", ".../judgment-result.json",    ".../after")]   # 現回次
+    単一回次（アーカイブなし）の場合:
+        [("R1", ".../judgment-result.json", ".../after")]
+    """
+    folder = os.path.dirname(os.path.abspath(judgment_path))
+    ev_parent = os.path.dirname(os.path.abspath(evidence_dir))
+    base = os.path.splitext(os.path.basename(judgment_path))[0]  # "judgment-result"
+
+    archived = []
+    try:
+        for f in sorted(os.listdir(folder)):
+            m = re.match(rf'^{re.escape(base)}\.R(\d+)\.json$', f)
+            if m:
+                archived.append((int(m.group(1)), os.path.join(folder, f)))
+    except OSError:
+        pass
+    archived.sort(key=lambda x: x[0])
+
+    rounds = []
+    for n, j_path in archived:
+        label = f"R{n}"
+        ev_d = os.path.join(ev_parent, f"after_R{n}")
+        rounds.append((label, j_path, ev_d))
+
+    # 現回次番号: アーカイブ数 + 1
+    current_n = len(archived) + 1
+    rounds.append((f"R{current_n}", judgment_path, evidence_dir))
+    return rounds
+
+
 # ── Sheet 1: テスト結果 ───────────────────────────────────────────────────────
 
-def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) -> dict:
-    """テスト結果シートを構築し {tc_no: sheet2_anchor} を返す（証跡シートへのリンク用）。"""
-    headers = ["No", "対応要求", "確認観点", "種別", "期待結果", "実際の結果", "判定", "NG原因/次アクション", "証跡"]
+def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
+                       all_rounds: list = None) -> tuple:
+    """テスト結果シートを構築し (tc_to_row, link_col) を返す。
+
+    all_rounds: [(round_label, judgment_dict), ...] を渡すと回次別判定列を追加する。
+                None または 1 要素の場合は従来どおり（回次列なし）。
+    link_col  : 証跡ハイパーリンクの列番号（回次列追加で変わるため返却）。
+    """
+    is_multi = all_rounds is not None and len(all_rounds) > 1
+
+    # ── 動的列定義 ────────────────────────────────────────────────────────────
+    base_left  = ["No", "対応要求", "確認観点", "種別", "期待結果"]
+    round_cols = [lbl for lbl, _ in all_rounds] if is_multi else []
+    base_right = ["実際の結果", "判定", "NG原因/次アクション", "証跡"]
+    headers    = base_left + round_cols + base_right
+
+    n_left  = len(base_left)                        # 5
+    n_round = len(round_cols)                       # 0 or ≥2
+    col_actual = n_left + n_round + 1               # 実際の結果
+    col_judge  = col_actual + 1                     # 判定
+    col_ng     = col_judge  + 1                     # NG原因
+    col_link   = col_ng     + 1                     # 証跡リンク（動的）
+
+    # 回次別 judgment を dict に整理（all_rounds は (label, j_dict) リスト）
+    round_judgments = all_rounds if is_multi else []
+
     ws.title = "テスト結果"
 
     # ヘッダー行
@@ -234,11 +338,16 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
         c.font = HDR_FONT
         c.alignment = CENTER_MID
         c.border = THIN_BORDER
+        # 回次列はやや幅を狭める（6pt）
+        if n_left < j <= n_left + n_round:
+            _set_col_width(ws, j, 6)
     _set_row_height(ws, 1, 22)
 
-    # 列幅初期値を設定（auto-fit の下限）
+    # 固定列の列幅初期値（auto-fit 下限）
     for j, w in enumerate(_MIN_COL_WIDTHS_RESULT, start=1):
-        _set_col_width(ws, j, w)
+        # 回次列が挿入されるため右側の列はインデックスをずらす
+        actual_j = j if j <= n_left else j + n_round
+        _set_col_width(ws, actual_j, w)
 
     tc_to_row = {}
     for i, tc in enumerate(test_cases):
@@ -250,7 +359,7 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
         auto = tc.get("自動化可否", "自動").strip()
         is_manual = "要手動" in auto
 
-        # 判定結果から実際の結果・ステータスを取得
+        # 最新回次の判定結果から実際の結果・ステータスを取得
         j_result = judgment.get(no, {})
         actual = j_result.get("actual", "")
         status = j_result.get("status", "SKIP" if is_manual else "")
@@ -270,7 +379,27 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
 
         req_label = _extract_req_label(kanpoin)
         ng_action = _build_ng_action(j_result) if status == "NG" else ""
-        vals = [no, req_label, kanpoin, shubetsu, kiki, actual, judge_text, ng_action, "→証跡"]
+
+        # 回次別ステータスを事前計算（is_multi 時のみ）
+        round_statuses = []
+        if is_multi:
+            for _, r_j in round_judgments:
+                r_res = r_j.get(no, {})
+                round_statuses.append(r_res.get("status", ""))
+
+        # vals: base_left + round_cols（判定アイコン）+ base_right
+        left_vals  = [no, req_label, kanpoin, shubetsu, kiki]
+        round_vals = []
+        for rs in round_statuses:
+            if rs == "OK":
+                round_vals.append("✅")
+            elif rs == "NG":
+                round_vals.append("❌")
+            else:
+                round_vals.append("⬜")
+        right_vals = [actual, judge_text, ng_action, "→証跡"]
+        vals = left_vals + round_vals + right_vals
+
         for j_col, val in enumerate(vals, start=1):
             c = ws.cell(row=row, column=j_col, value=val)
             c.border = THIN_BORDER
@@ -284,12 +413,20 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
                 c.alignment = CENTER_MID
                 c.font = _font(bold=True, size=9)
                 c.fill = fill
-            elif j_col == 7:
+            elif n_left < j_col <= n_left + n_round:
+                # 回次別判定列: アイコン中央揃え・回次ステータス色
+                r_idx = j_col - n_left - 1
+                rs = round_statuses[r_idx]
+                c.alignment = CENTER_MID
+                c.font = _font(size=9)
+                c.fill = (OK_FILL if rs == "OK" else
+                          NG_FILL if rs == "NG" else MANUAL_FILL)
+            elif j_col == col_judge:
                 # 判定列: 中央揃え・太字
                 c.alignment = CENTER_MID
                 c.fill = row_fill
                 c.font = _font(bold=True)
-            elif j_col == 8:
+            elif j_col == col_ng:
                 # NG原因/次アクション列: NG のみ赤背景
                 c.alignment = WRAP
                 c.font = _font(size=9)
@@ -304,9 +441,12 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
         _set_row_height(ws, row, h)
         tc_to_row[no] = row
 
-    # 観点・期待結果・実際の結果列は内容に応じて幅を自動調整（列番号が1シフト）
-    for col_idx in [3, 5, 6]:  # 確認観点, 期待結果, 実際の結果
-        _auto_col_width(ws, col_idx, min_w=_MIN_COL_WIDTHS_RESULT[col_idx - 1], max_w=40)
+    # 観点・期待結果・実際の結果列は内容に応じて幅を自動調整
+    # col_actual は回次列挿入でシフト済みの絶対列番号
+    for col_idx in [3, 5, col_actual]:  # 確認観点, 期待結果, 実際の結果
+        # _MIN_COL_WIDTHS_RESULT の元のインデックスに戻してから参照
+        orig_idx = col_idx if col_idx <= n_left else col_idx - n_round
+        _auto_col_width(ws, col_idx, min_w=_MIN_COL_WIDTHS_RESULT[orig_idx - 1], max_w=40)
 
     # ── 要件カバレッジ・サマリー（末尾に追記）──────────────────────────────
     req_count: Counter = Counter()
@@ -353,14 +493,14 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str) 
     ws.page_margins.right  = margin_inch
     ws.print_title_rows = "1:1"  # ヘッダー行を全ページに繰り返し
 
-    return tc_to_row
+    return tc_to_row, col_link  # col_link は回次列追加でシフトするため返却
 
 
 # ── Sheet 2: 証跡 ────────────────────────────────────────────────────────────
 
 def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str, tc_to_row: dict) -> None:
-    """証跡シートを構築し、テスト結果シートの証跡列にハイパーリンクを設定する。"""
-    ws.title = "証跡"
+    """証跡シートを構築する。シート名は呼び出し側で設定済みのため上書きしない。"""
+    # ws.title はシート作成時に呼び出し側が設定する（単一回次="証跡" / 複数回次="証跡_R{N}"）
 
     headers = ["No", "証跡内容"]
     for j, h in enumerate(headers, start=1):
@@ -527,15 +667,19 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
 
 # ── ハイパーリンク設定 ────────────────────────────────────────────────────────
 
-def set_hyperlinks(result_ws, evidence_ws_name: str, tc_to_row: dict, test_cases: list) -> None:
-    """テスト結果シートの「証跡」列から証跡シートへの内部ハイパーリンクを設定。"""
+def set_hyperlinks(result_ws, evidence_ws_name: str, tc_to_row: dict,
+                   test_cases: list, link_col: int = 9) -> None:
+    """テスト結果シートの「証跡」列から証跡シートへの内部ハイパーリンクを設定。
+
+    link_col: 証跡列の絶対列番号（回次列追加でシフトするため動的に渡す）。
+    """
     for tc in test_cases:
         no = tc.get("No", "")
         result_row = tc_to_row.get(no)
         ev_addr = tc_to_row.get(no + "_ev", "A2")
         if not result_row:
             continue
-        cell = result_ws.cell(row=result_row, column=9)  # 証跡列（列追加後は9列目）
+        cell = result_ws.cell(row=result_row, column=link_col)
         cell.hyperlink = f"#{evidence_ws_name}!{ev_addr}"
         cell.font = _font(color="0563C1", underline="single")
         cell.value = "→ 証跡を見る"
@@ -550,8 +694,8 @@ def main():
     parser.add_argument("--issue-id",     required=True, dest="issue_id")
     parser.add_argument("--spec",         required=True, help="test-spec.md のパス")
     parser.add_argument("--evidence-dir", required=True, dest="evidence_dir",
-                        help="証跡ファイルの after/ ディレクトリ")
-    parser.add_argument("--judgment",     default="",    help="judge_results.py 出力 JSON のパス")
+                        help="証跡ファイルの after/ ディレクトリ（最新回次）")
+    parser.add_argument("--judgment",     default="",    help="judge_results.py 出力 JSON のパス（最新回次）")
     args = parser.parse_args()
 
     args.folder = validate_folder(args.folder)
@@ -563,15 +707,50 @@ def main():
     if not test_cases:
         print("[WARN] test-spec.md にテストケースが見つかりませんでした。空のエビデンスファイルを生成します。")
 
-    judgment = load_judgment(args.judgment)
+    # 回次を自動探索（archived R1/R2... + 現在の最新）
+    # --judgment 未指定時は単一回次として扱う
+    if args.judgment:
+        round_paths = discover_rounds(args.judgment, args.evidence_dir)
+    else:
+        round_paths = [("R1", args.judgment, args.evidence_dir)]
+
+    # 全回次の judgment を読み込む → [(label, j_dict, ev_dir), ...]
+    all_rounds_data = []
+    for label, j_path, ev_dir in round_paths:
+        j_dict = load_judgment(j_path) if j_path else {}
+        all_rounds_data.append((label, j_dict, ev_dir))
+
+    # 最新回次
+    latest_label, latest_judgment, latest_ev_dir = all_rounds_data[-1]
+
+    # build_result_sheet に渡す all_rounds は (label, j_dict) のみ
+    all_rounds_for_sheet = [(lbl, j) for lbl, j, _ in all_rounds_data]
 
     wb = Workbook()
-    result_ws   = wb.active
-    evidence_ws = wb.create_sheet("証跡")
+    result_ws = wb.active
 
-    tc_to_row = build_result_sheet(result_ws, test_cases, judgment, args.evidence_dir)
-    build_evidence_sheet(evidence_ws, test_cases, judgment, args.evidence_dir, tc_to_row)
-    set_hyperlinks(result_ws, "証跡", tc_to_row, test_cases)
+    tc_to_row, link_col = build_result_sheet(
+        result_ws, test_cases, latest_judgment, latest_ev_dir,
+        all_rounds=all_rounds_for_sheet,
+    )
+
+    # 証跡シート: 複数回次ならシート分割、単一なら従来どおり「証跡」
+    is_multi_ev = len(all_rounds_data) > 1
+    if is_multi_ev:
+        for label, j_dict, ev_dir in all_rounds_data:
+            ev_ws = wb.create_sheet(f"証跡_{label}")
+            if label == latest_label:
+                # 最新回次: anchor アドレスを main tc_to_row に書き込む
+                build_evidence_sheet(ev_ws, test_cases, j_dict, ev_dir, tc_to_row)
+            else:
+                build_evidence_sheet(ev_ws, test_cases, j_dict, ev_dir, {})
+        latest_ev_ws_name = f"証跡_{latest_label}"
+    else:
+        evidence_ws = wb.create_sheet("証跡")
+        build_evidence_sheet(evidence_ws, test_cases, latest_judgment, latest_ev_dir, tc_to_row)
+        latest_ev_ws_name = "証跡"
+
+    set_hyperlinks(result_ws, latest_ev_ws_name, tc_to_row, test_cases, link_col=link_col)
 
     out_path = os.path.join(args.folder, f"{args.issue_id}_エビデンス.xlsx")
     os.makedirs(args.folder, exist_ok=True)
@@ -581,12 +760,14 @@ def main():
         print(f"[ERROR] xlsx の保存失敗（ファイルが開かれている可能性）: {out_path}\n{e}")
         sys.exit(1)
 
-    ok_count   = sum(1 for r in judgment.values() if r.get("status") == "OK")
-    ng_count   = sum(1 for r in judgment.values() if r.get("status") == "NG")
-    skip_count = sum(1 for r in judgment.values() if r.get("status") == "SKIP")
+    ok_count   = sum(1 for r in latest_judgment.values() if r.get("status") == "OK")
+    ng_count   = sum(1 for r in latest_judgment.values() if r.get("status") == "NG")
+    skip_count = sum(1 for r in latest_judgment.values() if r.get("status") == "SKIP")
+    round_labels = [lbl for lbl, _, _ in all_rounds_data]
 
     print(f"生成完了: {out_path}")
     print(f"  テストケース: {len(test_cases)} 件 (OK={ok_count} / NG={ng_count} / 要手動={skip_count})")
+    print(f"  回次: {len(all_rounds_data)} 回（{'・'.join(round_labels)}）")
     if not _PIL_OK:
         print("  ※ Pillow 未インストールのため PNG 自動貼付はスキップ。手動で貼り付けてください。")
 

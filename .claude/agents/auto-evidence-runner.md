@@ -307,8 +307,32 @@ NG が 1 件以上ある場合:
    ```bash
    cat "{project_dir}/.claude/templates/backlog/test-fail-routing.md" 2>/dev/null || echo "（test-fail-routing.md なし: Phase 4 差し戻しをデフォルトとする）"
    ```
-2. ユーザーに戻り先 Phase と差し戻し理由を提示する
-3. 修正完了後に `/test {issueID}` を再実行する旨を案内する
+
+2. ループ回次を確認する（`judgment-result.R{N}.json` のファイル数 = これまでの NG 修正回数）:
+   ```bash
+   ls "{log_dir}"/judgment-result.R*.json 2>/dev/null | wc -l
+   ```
+   3 回を超えている場合は「繰り返し NG が続いています。業務担当者との打ち合わせを推奨します」と提案する。
+
+3. **影響範囲の TC を提示する**（修正コンポーネントが変わった場合の回帰漏れ防止）:
+   `implementation-plan.md` の改版履歴（最新行）から変更コンポーネント・オブジェクトを読み取り、test-spec.md の TC（観点・期待結果）と突き合わせて再テスト候補 TC を列挙する。ユーザーに「これらの TC も再テスト対象に含めますか？（--full で全件も可）」と確認する。
+
+4. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ）:
+   ```bash
+   # NG TC ごとに1行追記（R{N} = 現在のアーカイブ数 + 1）
+   python scripts/python/backlog-xlsx/update_records.py \
+     --folder "{xlsx_folder}" --issue-id "{issueID}" ng-history \
+     --round "R{N}" --tc "{TC番号}" --reason "{NG原因}" --fix "（修正方針は /backlog Phase 4 で確定後に記入）"
+   ```
+
+5. ユーザーに戻り先 Phase と以下の修正手順を提示する:
+   ```
+   修正手順:
+     1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run）
+     2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
+     3. /test {issueID} を再実行
+        → 今回の judgment-result.json と証跡は次回 /test 起動時に自動退避（R{N+1} として記録）されます
+   ```
 
 ---
 
