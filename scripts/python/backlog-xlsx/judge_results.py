@@ -55,7 +55,7 @@ def parse_test_spec(spec_path: str) -> list:
 
 def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
     """証跡ディレクトリから TC-001 に対応する全ファイルを返す（複数証跡・分岐ラベル対応）。"""
-    # 種別別サブディレクトリ
+    # 種別別サブディレクトリ（複合種別 "AnonApex + SOQL" 等にも対応）
     subdir_map = {
         "SOQL": "soql",
         "ApexTest": "apex",
@@ -64,19 +64,25 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
         "メタ確認": "meta",
         "ファイル確認": "meta",
     }
-    subdir = subdir_map.get(shubetsu, "")
-    search_dirs = []
-    if subdir:
-        search_dirs.append(os.path.join(evidence_dir, subdir))
+    # " + " で分割して各サブディレクトリを収集（重複なし・順序維持）
+    subdirs_ordered = []
+    seen_subdirs: set = set()
+    for part in re.split(r'\s*\+\s*', shubetsu):
+        sd = subdir_map.get(part.strip(), "")
+        if sd and sd not in seen_subdirs:
+            seen_subdirs.add(sd)
+            subdirs_ordered.append(sd)
+
+    search_dirs = [os.path.join(evidence_dir, sd) for sd in subdirs_ordered]
     search_dirs.append(evidence_dir)
 
     found = []
-    seen = set()
+    seen: set = set()
     for d in search_dirs:
         if not os.path.isdir(d):
             continue
         for fname in sorted(os.listdir(d)):
-            # before ファイルは対象外（_before. で終わるもの）
+            # before ファイルは対象外（_before. を含むもの）
             if "_before." in fname:
                 continue
             if fname.startswith(tc_no) or fname.startswith(tc_no.replace("TC-", "tc-")):
@@ -84,6 +90,18 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
                 if fpath not in seen:
                     seen.add(fpath)
                     found.append(fpath)
+
+    # after/ で見つからない場合は sibling の before/ も検索（Before 証跡ケース: TC-016 等）
+    if not found:
+        before_dir = os.path.join(os.path.dirname(os.path.abspath(evidence_dir)), "before")
+        if os.path.isdir(before_dir):
+            for fname in sorted(os.listdir(before_dir)):
+                if fname.startswith(tc_no) or fname.startswith(tc_no.replace("TC-", "tc-")):
+                    fpath = os.path.join(before_dir, fname)
+                    if fpath not in seen:
+                        seen.add(fpath)
+                        found.append(fpath)
+
     return found
 
 
@@ -121,6 +139,15 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         snap_path = re.sub(r'\.png$', '.txt', evidence_path, flags=re.IGNORECASE)
         if os.path.exists(snap_path):
             snap = _read_text_evidence(snap_path)
+            # 構造化証跡「判定: OK/NG」を最優先で参照
+            m_verdict = re.search(r"^判定\s*:\s*(OK|NG)", snap, re.MULTILINE)
+            if m_verdict:
+                ok = m_verdict.group(1) == "OK"
+                m_reason = re.search(r"^判定\s*:.+?[-—]\s*(.+)$", snap, re.MULTILINE)
+                reason = m_reason.group(1).strip() if m_reason else ""
+                actual_str = f"スクショ＋DOM取得済 ({size // 1024}KB)" + (" — " + reason[:40] if reason else "")
+                return {"ok": ok, "actual": actual_str, "reason": "" if ok else reason}
+            # kiki による DOM 照合（フォールバック）
             if kiki:
                 ok = kiki.lower() in snap.lower()
                 actual_str = f"スクショ取得済・DOM「{kiki[:30]}」{'あり' if ok else 'なし'}"
@@ -145,6 +172,15 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
     # 件数一致判定 (期待結果が "N 件" 形式)
     m_expected_count = re.search(r"(\d+)\s*件", kiki)
     m_actual_count = re.search(r"件数\s*:\s*(\d+)\s*件", content)
+    # sf CLI の "Total number of records retrieved: N." 形式にも対応
+    if not m_actual_count:
+        m_actual_count = re.search(r"Total number of records retrieved:\s*(\d+)", content, re.IGNORECASE)
+    # kiki に "N件" がなくても "完全一致" の judge_method で1件以上取得できていれば OK とみなす
+    if not m_expected_count and m_actual_count and ("完全一致" in judge_method or "件数一致" in judge_method):
+        act = int(m_actual_count.group(1))
+        if act > 0:
+            return {"ok": True, "actual": f"SOQL {act} 件取得", "reason": ""}
+        return {"ok": False, "actual": "SOQL 0件", "reason": "対象レコードが見つかりません"}
     if m_expected_count and m_actual_count:
         exp = int(m_expected_count.group(1))
         act = int(m_actual_count.group(1))
@@ -168,6 +204,22 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         m_fail = re.search(r"(Failures:.+)", content)
         reason = m_fail.group(1) if m_fail else "Apex テスト FAIL"
         return {"ok": False, "actual": "Apex テスト FAIL", "reason": reason}
+    # sf apex run test の表形式（TEST NAME / OUTCOME 列）: 全件 Pass 判定
+    if re.search(r"\bTEST\s+NAME\b", content) and re.search(r"\bOUTCOME\b", content):
+        outcomes = re.findall(r'\.\w+\s+(Pass|Fail|Error|Skip)\b', content, re.IGNORECASE)
+        if outcomes and all(o.lower() == "pass" for o in outcomes):
+            return {"ok": True, "actual": f"Apex テスト PASS ({len(outcomes)} 件全件)", "reason": ""}
+        if outcomes and any(o.lower() in ("fail", "error") for o in outcomes):
+            fail_n = sum(1 for o in outcomes if o.lower() in ("fail", "error"))
+            return {"ok": False, "actual": f"Apex テスト FAIL ({fail_n}/{len(outcomes)} 件)", "reason": "テスト失敗あり"}
+    # Anonymous Apex 実行成功: "Executed successfully." を正として判定
+    if re.search(r"Executed successfully\.", content, re.IGNORECASE):
+        if not re.search(r"(Error:|FATAL_ERROR|System\.\w+Exception)", content):
+            return {"ok": True, "actual": "AnonApex 実行成功", "reason": ""}
+    if re.search(r"(FATAL_ERROR|System\.\w+Exception)", content):
+        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", content)
+        reason = m_err.group(1)[:80] if m_err else "AnonApex 実行エラー"
+        return {"ok": False, "actual": "AnonApex 実行エラー", "reason": reason}
     # Fallback: 旧パターン（sf CLI raw 出力等）
     if "success" in content.lower() and re.search(r"\bPASS\b|\bPassed\b", content):
         return {"ok": True, "actual": "Apex テスト PASS", "reason": ""}
