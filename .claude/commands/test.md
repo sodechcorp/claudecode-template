@@ -2,7 +2,7 @@
 
 Salesforce 保守課題の実装後テストを全自動実行し、エビデンスを証跡採取・Excel 出力する。
 
-`/backlog` Phase 5（スモーク確認）PASS 後に実行する網羅的テスト工程。証跡を自動採取し Excel 出力する。
+`/backlog` Phase 6（Sandbox デプロイ）完了後に実行する網羅的テスト工程。デプロイ済み Sandbox を前提として証跡を自動採取し Excel 出力する（本コマンドはデプロイしない）。
 
 ---
 
@@ -10,7 +10,7 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 | 前提 | 確認方法 |
 |---|---|
-| `/backlog` Phase 4（実装）完了 + Phase 5（スモーク確認）PASS 後であること | `implementation-plan.md` の存在を確認（※これは Phase 3 成果物。実装・スモーク完了自体は自動検査されない前提条件） |
+| `/backlog` Phase 6（Sandbox デプロイ）完了後であること（デプロイ済み Sandbox 前提） | `implementation-plan.md` の存在を確認（※これは Phase 3 成果物。デプロイ完了自体は自動検査されない前提条件） |
 | Sandbox org に認証済みであること | `sf auth list` でログイン状態を確認 |
 | `docs/logs/{issueID}/test-spec.md` が存在すること | Phase B で生成。なければ Phase B を先に実行 |
 | Pillow インストール | Phase A で自動インストール実行。失敗時は手動貼付にフォールバック |
@@ -150,7 +150,7 @@ Sandbox   : {alias}
 Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 
 実行内容:
-  Phase A: force-app 差分を Sandbox にデプロイ
+  Phase A: 前提検証・接続確認（Sandbox 判定）
   Phase B: テスト仕様の展開（test-spec.md 生成・網羅性チェック）
   Phase C: SOQL / Apex テスト / 匿名 Apex / Playwright UI の自動実行（分岐網羅・before/after）
   Phase D: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
@@ -160,7 +160,7 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 続行しますか？（テスト実行・データ操作が発生します）
 ```
 
-> **[ハーネス直接実行（A-2: デプロイ・環境準備）]**
+> **[ハーネス直接実行（A-2: 環境準備）]**
 
 ```bash
 # SF_ALIAS の再導出（Bash ツールは毎回新シェル。A-1 の変数を引き継げないため再取得）
@@ -175,15 +175,7 @@ if [ "$IS_SANDBOX" != "True" ]; then
   exit 1
 fi
 
-# 7. 差分デプロイ（Sandbox へ。本番 alias は上で物理ブロック済み）
-echo "=== force-app 差分を Sandbox にデプロイ ==="
-sf project deploy start --target-org "$SF_ALIAS" --ignore-conflicts --concise || {
-  echo "[FATAL] デプロイ失敗。実装コードを確認してください。"
-  exit 1
-}
-echo "OK: Sandbox デプロイ完了"
-
-# 8. Pillow の存在確認・自動インストール（PNG 自動貼付に必要）
+# 7. Pillow の存在確認・自動インストール（PNG 自動貼付に必要）
 python -c "import PIL" 2>/dev/null || {
   echo "[INFO] Pillow が未インストールです。自動インストールを実行します..."
   pip install Pillow
@@ -407,4 +399,4 @@ NG 一覧:
 - **本番組織への操作は Phase A で物理ブロック**。Sandbox alias でのみ実行可。
 - accessToken は一切ファイルに保存しない（`sf org open --url-only` のワンタイム URL のみ使用）。
 - テストデータは必ず後始末する。削除失敗件数は test-report.md に明記してユーザーに手動対応を依頼。
-- `/backlog` Phase 5（スモーク確認）PASS 後の後続工程。スモークが通ってから本コマンドで網羅的テストを実施する。
+- `/backlog` Phase 6（Sandbox デプロイ）完了後の後続工程。デプロイ済み Sandbox を前提として網羅的テストを実施する（本コマンドはデプロイしない）。
