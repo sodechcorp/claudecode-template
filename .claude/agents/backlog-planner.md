@@ -28,9 +28,9 @@ tools:
 | `調査レポート` | 必須 | `docs/logs/{issueID}/investigation.md` のパス |
 | `仮説検証レポート` | バグ種別のみ・任意 | `docs/logs/{issueID}/hypothesis-verification.md` のパス。存在する場合、採用判定✅の仮説のみ対応方針策定の対象とする（A-1 参照） |
 | `出力先` | 必須 | 出力する MD ファイルのパス |
-| `採用方針` | Phase B のみ必須 | Phase A でユーザが承認した案名。`approach-plan.md` が存在することが前提条件。不在時は「Phase A（対応方針策定）から先に実施してください」とユーザに案内して処理を中止する（「異常時の挙動」参照）。 |
+| `採用方針` | Phase B のみ必須 | Phase A でユーザが承認した案名。通常は `approach-plan.md` が存在することが前提条件。不在時の挙動は investigation.md フロントマターの `light_mode` により分岐する（Phase B 冒頭の不在チェック節参照）。 |
 | `種別` | 必須 | `バグ` / `追加要望` / `その他`（investigation.md 「種別」欄の値） |
-| `default_stance` | 必須 | バグ=`最小修正＋既存への影響ゼロを最優先` / 追加要望=`既存類似実装のパターンに合わせる` / その他=`案件特性に応じて判断` |
+| `default_stance` | 必須 | バグ=`最小修正＋既存への影響ゼロを最優先` / 追加要望=`既存類似実装のパターンに合わせる` / その他=`スコープ規模・本番影響・準備期間を確認のうえ方針を提示し、ユーザに選択させる` |
 
 ---
 
@@ -126,7 +126,7 @@ investigator の調査レポートをもとに、以下の2段階でユーザの
 
 **思考プロセスでは複数の角度から検討する**（解決レイヤー・変更範囲・既存パターン踏襲の有無）。検討の結果、案 A 以外に合理的選択肢が無い場合は **案 A 単独提示で構わない**（無理に B/C を作らない）。複数案を提示するのは Step 0b で `option-alternative-approaches` の auto-execute 条件にマッチした場合のみ（業務判断が分かれる・技術トレードオフあり・既存パターン不整合・優先度 高/緊急・影響範囲大 など）。
 
-> **自明ケース判定（単独案 OK の条件）**: memory §典型的自明ケース定義 の **全条件 AND** を満たす場合のみ。下記のいずれかに該当する場合は複数案を検討する:
+> **自明ケース判定（単独案 OK の条件）**: `_README.md §典型的自明ケース定義` の **全条件 AND** を満たす場合のみ。下記のいずれかに該当する場合は複数案を検討する:
 > - 変更ファイルが 2 件以上（例: LWC + Apex + メタデータ）
 > - 複数オブジェクトへのカスタム項目追加（FLS 設定・プロファイル対象多数）
 > - 既存テストクラスが変更対象ロジックをカバーしていない
@@ -169,8 +169,8 @@ investigator の調査レポートをもとに、以下の2段階でユーザの
 | パラメータ | 値 |
 |---|---|
 | `issueID` | Backlog 課題 ID |
-| `件名` | 課題件名（MCP 取得済みのため渡す） |
-| `本文` | 課題本文（同上） |
+| `件名` | investigation.md 冒頭メタから転記（記憶から補完しない。取得不可なら省略し estimator に MCP 自己取得させる） |
+| `本文` | 同上（investigation.md 冒頭メタから転記。取得不可なら省略） |
 | `種別` | `バグ` / `追加要望` / `その他` |
 | `対応方針` | 採用案（案A）の概要 1〜2 文 |
 | `スコープ` | 変更ファイル数・対象オブジェクト・既存パターン流用可否 |
@@ -336,9 +336,11 @@ A-3 の提示内容をユーザに見せたら、以下を必ず行う:
 
 Phase A で方針が確定した後に実施する。
 
-**approach-plan.md 不在チェック**: Phase B 開始前に `docs/logs/{issueID}/approach-plan.md` の存在を Glob / Read で確認する。不在の場合は「approach-plan.md が見つかりません。Phase A（対応方針策定）から先に実施してください」とユーザに案内し、処理を中止する。
+**approach-plan.md 不在チェック**: Phase B 開始前に `docs/logs/{issueID}/approach-plan.md` の存在を Glob / Read で確認する。不在の場合は、`調査レポート`（investigation.md）のフロントマターから `light_mode` を Read して判定する:
+- `light_mode: true` → `--light` モードのため approach-plan.md は存在しない設計。処理を続行し、Q 転記は次節のとおりスキップする。
+- `light_mode: false` または欄なし → 「approach-plan.md が見つかりません。Phase A（対応方針策定）から先に実施してください」とユーザに案内し、処理を中止する。
 
-**Q 答え確認（Phase B-1 前必須）**: `approach-plan.md` を Read し、「業務要件への回答」セクションから確定済みの Q 答えを抽出する。
+**Q 答え確認（Phase B-1 前必須）**: `approach-plan.md` を Read し、「業務要件への回答」セクションから確定済みの Q 答えを抽出する。**`--light` モード（approach-plan.md 不在・`light_mode: true`）の場合はこのステップをスキップし、`implementation-plan.md` の前提条件に「Q なし（--light モード）」と記入する。**
 
 - 未確定の Q が残っている場合は Phase B を開始せず、「Q{N} が未確定です。Phase A に戻って確定する必要があります」とユーザに案内する
 - 確定済み Q 答えは `implementation-plan.md` の「前提条件」セクション冒頭に転記する:
@@ -549,6 +551,8 @@ B-3 の提示内容をユーザに見せたら、以下を必ず行う:
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 3.5 に進んでよろしいですか？」とテキストで確認する
 5. 承認後 → `docs/logs/{issueID}/implementation-plan.md` に保存してユーザに提示する
+5.5. **`option-validator-blind` 採用時のみ**: 保存直後に `.claude/templates/backlog/blind-prompts/validator.md` を Read してその内容を prompt として `backlog-blind-validator` を Task 起動する（B-3 末尾の詳細参照）
+5.6. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）
 6. **保存完了をコマンド本体（呼び出し元 /backlog）に明示報告する**: コマンド本体が Phase 3 末尾の xlsx 一括生成スクリプト（create_records.py）を実行するため、planner からは bash を実行しない（エビデンス.xlsx は /test が担当）
 
 **全判断ポイントの確認が取れるまで実装に進まない。**
