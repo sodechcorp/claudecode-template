@@ -1,7 +1,7 @@
 // =============================================================================
 // pre-operation.js — Claude Code PreToolUse hook
 //
-// 3つの保護レイヤを提供する:
+// 4つの保護レイヤを提供する:
 //
 // (1) 本番組織へのコマンド: ハードブロック（permissionDecision: deny）
 //     sf project deploy / data ops / apex run / package / org delete を
@@ -15,6 +15,11 @@
 //     add / update / delete / mark / reset で始まるツール名をブロック。
 //     コメント投稿・課題更新・PR操作等は人間が Backlog UI から手動で実施。
 //     get / count / list 等の読み取り系は対象外。
+//
+// (4) スクラッチパッド絶対パスの壊れた形式: ハードブロック（Bash のみ）
+//     POSIX ドライブ形式（/c/Users/...AppData...）またはバックスラッシュ形式（C:\Users\...）を
+//     Bash に含む場合はブロック。C:\c フォルダや文字化けゴミファイルの生成を防ぐ。
+//     forward-slash 形式（C:/Users/...AppData/...）は通過。
 // =============================================================================
 
 let buf = '';
@@ -97,6 +102,28 @@ process.stdin.on('end', () => {
         }));
         return;
       }
+    }
+  }
+
+  // ---- Check 4: 壊れたスクラッチパッド絶対パスのハードブロック（Bash のみ） ----
+  // C:\c\... や CWD 直下の文字化けファイル（C:Users...AppData...）の生成を防ぐ。
+  // 原因: スクラッチパッド絶対パスを mangle-prone な形式で渡している。
+  //   - POSIX ドライブ形式 /c/Users/...AppData... → native exe が C:\c\... を生成
+  //   - バックスラッシュ形式 C:\Users\...AppData... → bash で区切りが消失
+  // 安全な唯一の形式は forward-slash の C:/Users/...AppData/...（bash・native 両対応）。
+  if (toolName === 'Bash') {
+    const command = input.command || '';
+    const posixDrivePath   = /(?:^|[\s"'=(>])\/[a-zA-Z]\/Users\/[^\s"']*AppData/;  // /c/Users/...AppData
+    const backslashWinPath = /[a-zA-Z]:\\Users\\[^\s"']*AppData/;                  // C:\Users\...AppData
+    if (posixDrivePath.test(command) || backslashWinPath.test(command)) {
+      console.log(JSON.stringify({
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          permissionDecision: 'deny',
+          permissionDecisionReason: '[HARD-BLOCK] スクラッチパッド絶対パスが壊れた形式です。C:\\c や文字化けファイルの生成を防ぐためブロックしました。forward-slash 形式（例: C:/Users/sodech/AppData/Local/Temp/claude/.../scratchpad/...）で渡し直してください。\n対象コマンド: ' + command
+        }
+      }));
+      return;
     }
   }
 });
