@@ -81,13 +81,13 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 ### 2a. Sandbox の場合
 
-1. デプロイ対象を一覧化する。**Phase 4（実装）は標準フローでコミットしない設計**のため実装変更は未コミットの作業ツリーに残り、option-progressive-commits 採用時は複数コミットに分かれる。どちらも取り逃さないよう **Phase 4 着手前ハッシュ（base）を起点に差分を取得する**:
-   - **base 取得**（`{xlsx_folder}` 設定時）: backlog-implementer が「対応内容」シートに記録した着手前 Git hash を読む:
+1. デプロイ対象を一覧化する。**Phase 4（実装）は標準フローでコミットしない設計**のため実装変更は未コミットの作業ツリーに残り、option-progressive-commits 採用時は複数コミットに分かれる。どちらも取り逃さないよう **段階コミット一覧の先頭コミット起点（base）から差分を取得する**:
+   - **base 取得**: option-progressive-commits を採用した場合、`docs/logs/{issueID}/implementation-plan.md` の「## 段階コミット一覧」に記録された先頭コミットハッシュを読む:
      ```bash
-     python -c "import openpyxl,os; ws=openpyxl.load_workbook(os.path.join('{xlsx_folder}','{issueID}_対応記録.xlsx'))['対応内容']; print(next((ws.cell(r,2).value for r in range(1,ws.max_row+1) if ws.cell(r,1).value and 'Git hash' in str(ws.cell(r,1).value) and ws.cell(r,2).value), ''))"
+     python -c "import re,os; p=os.path.join('docs/logs/{issueID}','implementation-plan.md'); t=open(p,encoding='utf-8').read() if os.path.exists(p) else ''; m=re.search(r'段階コミット一覧.*?\n((?:\|.*\n)+)', t, re.S); rows=[r for r in (m.group(1).splitlines() if m else []) if re.match(r'\|\s*\d+\s*\|', r)]; print((rows[0].split('|')[2].strip()+'~1') if rows else '')"
      ```
    - **base が取得できた場合**: `git diff --name-only {base} -- 'force-app/**'`（コミット済み・未コミットの両方を網羅）
-   - **base が取得できない場合**（xlsx 未設定・hash 未記録）: `git diff --name-only HEAD -- 'force-app/**'`（未コミットの作業ツリー差分）
+   - **base が取得できない場合**（標準フロー＝コミットなし・段階コミット一覧なし）: `git diff --name-only HEAD -- 'force-app/**'`（未コミットの作業ツリー差分）
    - 上記いずれも差分が空の場合は「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する。`Glob` での全量フォールバックは行わない
 2. dry-run 検証:
    ```bash
@@ -200,7 +200,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 **手順**:
 
 1. `docs/logs/{issueID}/discussion-log.md` を Read して上記パターンに該当する記述を抽出する
-   - 種別タグ `落とし穴` / `ハマり` が付いた行を優先的に抽出する（discussion-log-spec.md 参照）
+   - 種別タグ `落とし穴` / `ハマり` が付いた行を優先的に抽出する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）
    - タグなしの場合も「○○すると××が壊れる」「気を付けないと」等の自然言語パターンを検出する
 2. 抽出件数は最大5件（過剰追記防止）。既に `docs/knowledge/pitfalls.md` に類似行があれば除外する:
    - **主判定**: 「同じオブジェクトの同じ操作パターン」が既存行にあれば類似と見なしてスキップ（厳密計算不要）
