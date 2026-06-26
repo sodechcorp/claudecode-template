@@ -44,7 +44,7 @@ tools:
 
 ## 基盤手順の読込
 
-画面操作の共通手順（frontdoor 認証・ロケータ指針・コードブロック方式・フォールバック・Login As・セキュリティ規約）は以下を Read して従う:
+画面操作の共通手順（frontdoor 認証・ロケータ指針・コードブロック画面操作・フォールバック・Login As・セキュリティ規約）は以下を Read して従う:
 
 > Read `.claude/templates/common/playwright-sf-screen-ops.md`
 
@@ -94,7 +94,7 @@ mkdir -p "{evidence_dir}/before"
 
 「前提・データ準備」に対象ユーザ指定がないケースを対象にする（グループ①②）。
 
-ロケータ・`waitSfReady`・コードブロック方式・フォールバック・セキュリティは `playwright-sf-screen-ops.md` の各セクションに従う。
+ロケータ・コードブロック画面操作・フォールバック・セキュリティは `playwright-sf-screen-ops.md` の各セクションに従う。`waitSfReady` は同ファイルの「高速待機（networkidle 禁止）」節で定義されたヘルパーを使用する。
 
 ### TC 固有の命名規則（共通）
 
@@ -107,7 +107,9 @@ mkdir -p "{evidence_dir}/before"
 `playwright-sf-screen-ops.md` の「並列 UI 証跡（複数コンテキスト）」に従い、`{max_workers_ui}` 件ずつ `Promise.all` でチャンク処理する。
 
 - 各コンテキストが自前で `goto(FRONTDOOR_URL)` ログイン → TC 撮影 → コンテキストを閉じる
-- return 値は `JSON.stringify([{no, ok, text, url}, ...])` の配列。エージェントは各要素の `text` を `{No}_{観点サニタイズ}.txt` に Write する
+- return 値は `JSON.stringify([{no, ok, beforeText, text, url}, ...])` の配列（失敗要素は `{no, ok:false, error}`）。エージェントは各要素を以下の通り処理する:
+  - `ok:true` の要素: `text` を `after/screen/{No}_{観点サニタイズ}.txt` に Write し、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write する
+  - `ok:false` の要素: 当該 `no` を NG として返却テーブルに記録する（`error` の内容を備考欄に記載）
 - **newContext 不可時**: 単一セッションの逐次（Step 2B と同じ方式）にフォールバックする。先にプローブコードで確認することを推奨:
   ```javascript
   async (page) => {
@@ -124,7 +126,7 @@ mkdir -p "{evidence_dir}/before"
 コードブロック構成（1 TC = 1 コードブロック）:
 1. **before 撮影 + DOM取得（F-6/F-7）**:
    - スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true})`
-   - before DOM: `const beforeText = await page.locator('body').innerText()` → エージェントが `before/{No}_{観点サニタイズ}_before.txt` に Write する（状態遷移観点で判定に使用）
+   - before DOM: `const beforeText = await page.locator('body').innerText()` を取得して return 値に含める（`beforeText` フィールド）。Write は item 4 の return 受け取り後に行う（コードブロック内では Write 不可のため）
 2. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で遷移・表示を待つ。
 3. **after 撮影（分岐ごと）＋ 確認対象の赤枠ハイライト**:
    - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。
@@ -273,13 +275,17 @@ Login As 不可の場合は全対象 TC を `要手動（Login As 不可）` に
 
 ---
 
-## Step 4: スクショ存在確認
+## Step 4: 証跡存在確認
 
 ```bash
 ls -lh "{evidence_dir}/after/screen/"
+find "{evidence_dir}/after/screen" -name "*.txt" -size +0c
 ```
 
-PNG が 1KB 以上あることを確認する。0 バイト・不存在の場合は NG として記録する。
+以下の2点を確認する。いずれかが満たされない TC は NG として記録する:
+
+1. **PNG**: 1KB 以上の `.png` が存在すること。0 バイト・不存在の場合は NG
+2. **after DOM テキスト（判定の主役）**: `after/screen/` 配下に各 TC 対応の `.txt` が存在し、非空（1バイト以上）であること。`find` の結果が 0 件、または特定 TC 分の `.txt` が欠落・0 バイトの場合は NG
 
 ---
 
