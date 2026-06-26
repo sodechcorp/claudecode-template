@@ -16,7 +16,6 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -403,50 +402,6 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     return {"ok": True, "actual": actuals, "reason": ""}
 
 
-# ── 対応記録.xlsx H 列の追記 ─────────────────────────────────────────────────
-
-def update_xlsx_h_col(folder: str, issue_id: str, tc_no: str, value: str) -> bool:
-    """update_records.py cell コマンドで H 列を更新する。"""
-    # 対象行番号を特定（実装後・UI手動以外）
-    xlsx_path = os.path.join(folder, f"{issue_id}_対応記録.xlsx")
-    if not os.path.exists(xlsx_path):
-        return False
-
-    find_row_code = f"""
-import openpyxl, os
-wb = openpyxl.load_workbook(r'{xlsx_path}')
-ws = wb['テスト・検証']
-for r in range(1, ws.max_row + 1):
-    v = [ws.cell(r, c).value for c in range(1, 9)]
-    if (any(v) and str(v[1] or '').strip() == '実装後'
-            and str(v[2] or '').strip() != 'UI手動'
-            and str(v[3] or '').strip().startswith('{tc_no}')):
-        print(r)
-        break
-"""
-    result = subprocess.run(
-        ["python", "-c", find_row_code],
-        capture_output=True, text=True
-    )
-    row_str = result.stdout.strip()
-    if not row_str.isdigit():
-        return False
-
-    row_num = int(row_str)
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    update_script = os.path.join(script_dir, "update_records.py")
-
-    result = subprocess.run(
-        ["python", update_script,
-         "--folder", folder, "--issue-id", issue_id,
-         "cell", "--sheet", "テスト・検証",
-         "--row", str(row_num), "--col", "8",
-         "--value", value],
-        capture_output=True, text=True
-    )
-    return result.returncode == 0
-
-
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -457,8 +412,6 @@ def main():
     parser.add_argument("--evidence-dir", required=True, dest="evidence_dir",
                         help="証跡ファイルの after/ ディレクトリ")
     parser.add_argument("--out", default="", help="判定結果 JSON の出力パス（省略時は stdout）")
-    parser.add_argument("--no-xlsx", action="store_true", dest="no_xlsx",
-                        help="対応記録.xlsx の H 列更新をスキップする")
     parser.add_argument("--prev", default="", dest="prev_json",
                         help="前回判定 JSON（差分再実行時に前回 OK を流用する）")
     args = parser.parse_args()
@@ -526,8 +479,7 @@ def main():
             "evidence": evidence_path,
         })
 
-        # xlsx H 列更新: 対応記録.xlsx のテスト・検証シートは廃止済みのためスキップ
-        # （テストエビデンスはエビデンス.xlsx に集約。--no-xlsx フラグは互換維持のため残す）
+        # xlsx H 列更新: テスト・検証シートは廃止済みのため行わない（エビデンスはエビデンス.xlsx に集約）
 
         icon = {"OK": "[OK]", "NG": "[NG]", "SKIP": "[--]"}[status]
         print(f"{icon} {no}: {tc.get('観点', '')} → {actual}" + (f" ({reason})" if reason else ""))
