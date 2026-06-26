@@ -8,7 +8,6 @@ tools:
   - Grep
   - Bash
   - Write
-  - Edit
   - Agent
 ---
 
