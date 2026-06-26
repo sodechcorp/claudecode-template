@@ -10,8 +10,11 @@
 
 `sf org display` で `isSandbox: false` の場合は以下を **絶対に実行しない**（ユーザー指示があっても解除不可）。DML / デプロイ / force-app 書き込みの直前に `sf org display` でライブ確認する（毎メッセージではなく操作直前の1回）:
 
-- DML 操作（`sf data create/update/delete/upsert`・Apex 匿名 DML）
-- デプロイ（`sf project deploy start`）
+- DML 操作（`sf data create/update/delete/upsert/import/bulk/resume`・Apex 匿名 DML）
+- Apex 匿名実行（`sf apex run`）
+- デプロイ（`sf project deploy start`・`sf metadata deploy`（旧コマンドも同様にブロック））
+- パッケージ操作（`sf package install/uninstall`）
+- org 設定変更（`sf org assign/enable/disable/delete`）
 - メタデータ変更・force-app への書き込み
 
 **許可**: SOQL SELECT・`sf project retrieve`・ファイル読み取り・docs/ への書き込み
