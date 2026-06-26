@@ -104,7 +104,7 @@ python scripts/python/backlog-xlsx/soql_evidence.py \
 
 > Sandbox 判定済みであることを前提として実行する（二重確認不要）。
 
-ApexTest ケースがある場合:
+ApexTest ケースがある場合。**複数 TC がある場合は TC ごとに繰り返す**（または複数テストクラスを `--class-names` にカンマ区切りで1回指定し、出力は TC ごとに `{No}_apextest.txt` へリダイレクト）:
 
 ```bash
 sf apex run test \
@@ -126,7 +126,7 @@ sf apex run test \
 
 ## Step 4: 匿名 Apex 実行（種別 = AnonApex）— 並列実行
 
-#### 4-1: 匿名 Apex コードの一括生成（全 TC を 1 パスで生成・LLM 判断・このエージェントが担当）
+#### 4-1: 匿名 Apex コードの一括生成（全 TC を 1 パスで生成・LLM 判断・このエージェントが担当）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 全 AnonApex 種別 TC の「前提・データ準備」と「実行アクション」を一度にまとめて読み、**1 回の LLM 生成で全 TC 分の匿名 Apex コードを一括出力する**（TC ごとに往復しない）。
 
@@ -138,14 +138,14 @@ sf apex run test \
 - Flow 起動は `Flow.Interview.{Flow_API名}` または `Database.executeBatch` を使う。
 - **条件分岐の網羅（各 TC に適用・省略禁止）**: 「実行アクション」が分岐を持つ場合、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**。1 ファイル内で全分岐をカバーする。
 
-生成した各 TC の Apex を `{log_dir}/tmp/TC_{No}_anon.apex` に Write する:
+生成した各 TC の Apex を `{log_dir}/tmp/{No}_anon.apex` に Write する:
 ```bash
 mkdir -p "{log_dir}/tmp"
 ```
 
 **データ競合の確認**: 同一既存レコードを複数 TC が UPDATE/参照する場合は、該当 TC 番号を `serial_nos` に列挙して逐次化する。判定困難なら `--serial` を使う。
 
-#### 4-2: cases ファイル生成
+#### 4-2: cases ファイル生成 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 全 AnonApex ケースを JSON にまとめて `{log_dir}/tmp/anon_cases.json` に Write する:
 ```json
@@ -181,7 +181,7 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
 >
 > **差分再実行時の注意**: `{target_tc_list}` 指定の差分再実行では「今回実行する TC の SObject」のみ対象となる。前回と異なる SObject に残留がある場合は `/test {issueID} --full`（全量再実行）を使うと全 SObject 分の残留を回収できる。
 
-#### 4-3: 一括並列実行
+#### 4-3: 一括並列実行 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 ```bash
 python scripts/python/backlog-xlsx/anon_apex_runner.py run-batch \
@@ -208,6 +208,8 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
   --sobject {SObject名} \
   --external-id-prefix "AUTOTEST_{issueID}_"
 ```
+
+> **対象 SObject の判断（Phase F）**: Phase C（4-1）は別 invocation のため生成コンテキストがない。`{log_dir}/tmp/anon_cases.json` の各 `apex_file` が示す `*.apex` ファイルを Read し、`Database.setSavepoint()` → `rollback()` パターン **以外** で insert している SObject を列挙する（tmp は Phase C で生成され Step 6 まで保持される）。
 
 ---
 
@@ -348,10 +350,11 @@ ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/aft
 
 - [ ] SOQL ケース: 全件 txt 出力あり
 - [ ] ApexTest ケース: 全件 txt 出力あり
-- [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む）＋テストデータ削除完了
+- [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む）
+- [ ] （Phase F のみ）テストデータ削除（cleanup）完了
 - [ ] UI ケース: ui-evidence-runner の返却で全件 OK（PNG 各 1KB 以上・DOM スナップショット txt あり）
-- [ ] test-report.md が `{log_dir}` に存在すること
-- [ ] tmp/ 一時ファイルが削除済み
+- [ ] （Phase F のみ）test-report.md が `{log_dir}` に存在すること
+- [ ] （Phase F のみ）tmp/ 一時ファイルが削除済み
 - [ ] accessToken がいかなるファイル・ログにも出力されていない
 
 未充足項目があれば該当 Step に戻って完了させる。
