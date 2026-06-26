@@ -161,7 +161,7 @@ def cleanup_records(alias: str, sobject: str, ids: list) -> dict:
     旧実装は 10 件以下を sf data delete record で 1 件ずつ起動していたが、
     sf プロセス起動コスト（数秒/件）が件数倍になるため廃止。
     Database.delete() 匿名 Apex を使えば sf 起動は 1 回・ポーリング待ちなし。
-    find_cleanup_records の LIMIT 200 以内であれば Apex 知事制限に抵触しない。
+    collect_created_ids の LIMIT 200 以内であれば Apex 知事制限に抵触しない。
     """
     if not ids:
         return {"deleted": 0, "failed": []}
@@ -170,9 +170,11 @@ def cleanup_records(alias: str, sobject: str, ids: list) -> dict:
     ids_apex = ", ".join(f"'{id_}'" for id_ in ids)
     apex_code = (
         f"List<Id> toDelete = new List<Id>{{{ids_apex}}};\n"
+        f"Database.DeleteResult[] rs = Database.delete(toDelete, false);\n"
         f"Integer deleted = 0, failed = 0;\n"
-        f"for (Database.DeleteResult r : Database.delete(toDelete, false)) {{\n"
-        f"    if (r.isSuccess()) {{ deleted++; }} else {{ failed++; }}\n"
+        f"for (Integer i = 0; i < rs.size(); i++) {{\n"
+        f"    if (rs[i].isSuccess()) {{ deleted++; }}\n"
+        f"    else {{ failed++; System.debug('CLEANUP_FAIL_ID:' + toDelete[i]); }}\n"
         f"}}\n"
         f"System.debug('CLEANUP_RESULT:' + deleted + ':' + failed);\n"
     )
@@ -196,18 +198,18 @@ def cleanup_records(alias: str, sobject: str, ids: list) -> dict:
             print(f"[WARN] cleanup Apex 実行失敗: {exc}")
             return {"deleted": 0, "failed": ids}
 
-        # debug ログから削除件数を抽出
+        # debug ログから削除件数・失敗 Id を抽出
         logs = apex_result.get("logs", "") or ""
         m = re.search(r"CLEANUP_RESULT:(\d+):(\d+)", logs)
         if m:
             deleted_count = int(m.group(1))
-            failed_count  = int(m.group(2))
+            failed_ids    = re.findall(r"CLEANUP_FAIL_ID:(\w+)", logs)
         else:
             # ログが取れなかった場合は楽観的に全件成功とみなす
             deleted_count = len(ids)
-            failed_count  = 0
+            failed_ids    = []
 
-        return {"deleted": deleted_count, "failed": ids[:failed_count] if failed_count else []}
+        return {"deleted": deleted_count, "failed": failed_ids}
 
     except (json.JSONDecodeError, Exception) as e:
         print(f"[WARN] cleanup Apex 実行エラー: {e}")
@@ -361,17 +363,29 @@ def main():
         if not ids:
             print(f"[INFO] 削除対象レコードなし (SObject: {args.sobject}, prefix: {args.prefix})")
             return
-        print(f"[INFO] 削除対象: {len(ids)} 件 (SObject: {args.sobject})")
+        print(f"[INFO] 削除対象（初回取得）: {len(ids)} 件 (SObject: {args.sobject})")
         if args.dry_run:
+            if len(ids) >= 200:
+                print("[WARN] LIMIT 200 到達 — 実削除時はループ回収されます。")
             print("[DRY-RUN] 削除をスキップします。")
             for rid in ids:
                 print(f"  - {rid}")
             return
-        result = cleanup_records(alias, args.sobject, ids)
-        print(f"[OK] 削除完了: {result['deleted']} 件")
-        if result["failed"]:
-            print(f"[NG] 削除失敗: {len(result['failed'])} 件 — 手動削除してください:")
-            for rid in result["failed"]:
+        total_deleted = 0
+        all_failed: list = []
+        while ids:
+            result = cleanup_records(alias, args.sobject, ids)
+            total_deleted += result["deleted"]
+            all_failed.extend(result["failed"])
+            # ループ終了条件: 最終ページ（<200件）または全件失敗（無限ループ防止ガード）
+            if len(ids) < 200 or result["deleted"] == 0:
+                break
+            ids = collect_created_ids(alias, args.sobject, args.prefix)
+        all_failed = list(dict.fromkeys(all_failed))  # 重複排除・順序維持
+        print(f"[OK] 削除完了: {total_deleted} 件")
+        if all_failed:
+            print(f"[NG] 削除失敗: {len(all_failed)} 件 — 手動削除してください:")
+            for rid in all_failed:
                 print(f"  - {rid}")
             sys.exit(1)
 
