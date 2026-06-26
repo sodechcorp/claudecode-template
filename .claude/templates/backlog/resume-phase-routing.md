@@ -3,8 +3,9 @@
 `docs/logs/{issueID}/` 配下の既存成果物の有無に応じて再開可能フェーズをテキストで列挙して選択を促す:
 
 - `test-report.md` 存在 **かつ** 内容に NG が含まれる → 「Phase 4（/test NG 修正）から / 中止 のどれにしますか？」
+  - 分岐を提示する前に `test-fail-routing.md §ループ上限` のループ回次を確認する（`docs/logs/{issueID}/` 配下の `judgment-result.R{N}.json` の本数 = これまでの NG 修正回数）。既に上限（3回）に達している場合は「差し戻し上限に達しています。業務担当者との打ち合わせを推奨します」を添えて提示する。
   - 選択後: Phase 4 で修正 → Phase 5（dry-run）→ Phase 6（軽量再デプロイ）→ `/test` 再実行
-- `validation-report.md` 存在 → 「Phase 4（実装）から / Phase 3.5（実装前検証）から / 中止 のどれにしますか？」
+- `validation-report.md` 存在（test-report.md なし） → 「Phase 4（実装）から / Phase 3.5（実装前検証）から / 中止 のどれにしますか？」
 - `implementation-plan.md` 存在（validation-report.md なし） → 「Phase 3.5（実装前検証）から / Phase 3（実装方針確定）から / 中止 のどれにしますか？」
 - `approach-plan.md` 存在（implementation-plan.md なし） → 「Phase 3（実装方針確定）から / Phase 2（対応方針確定）から / 中止 のどれにしますか？」
 - `investigation.md` のみ存在 → 「Phase 2（対応方針確定）から / Phase 1.5（対応記録作成）から / 中止 のどれにしますか？」
