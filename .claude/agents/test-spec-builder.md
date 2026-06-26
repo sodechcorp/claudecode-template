@@ -1,11 +1,9 @@
 ---
 name: test-spec-builder
-description: テスト仕様展開専門エージェント。implementation-plan.md の観点列挙と investigation.md の課題原文を読み、機械実行可能な 9 列 test-spec.md を生成し、網羅性セルフチェックを行う。/test コマンドの Phase B から委譲される（単独起動禁止）。
+description: テスト仕様展開専門エージェント。implementation-plan.md の観点列挙と investigation.md の課題原文を読み、機械実行可能な 10 列（確認ポイント列は任意）test-spec.md を生成し、網羅性セルフチェックを行う。/test コマンドの Phase B から委譲される（単独起動禁止）。
 model: sonnet
 tools:
   - Read
-  - Glob
-  - Grep
   - Write
   - Edit
 ---
@@ -79,7 +77,7 @@ TC 合計: {既存ファイルの件数} 件
 ### 展開の注意
 
 - No は `implementation-plan.md` の TC番号を引き継ぐ（再採番しない。新規観点のみ続き番号で追加）
-- 証跡ファイル名は `{No}_{観点サニタイズ}.{txt|png}` 形式とする（before=`before/{No}_{観点}_before.png`、after=`after/{soql|apex|screen}/{No}_{観点}.{txt|png}`（SOQL→soql, ApexTest/AnonApex→apex, UI→screen））
+- 証跡ファイル名は `{No}_{観点サニタイズ}.{txt|png}` 形式とする（before=`before/{No}_{観点}_before.png`（状態遷移観点では DOM の `before/{No}_{観点}_before.txt` も採取）、after=`after/{soql|apex|screen}/{No}_{観点}.{txt|png}`（SOQL→soql, ApexTest/AnonApex→apex, UI→screen））
 - 期待結果は「3 件」「true」「エラーなし」等、機械比較可能な値にする
 - 判定方法は「件数一致」「含む」「存在確認」「完全一致」等を明示する（選択肢の全覧は `{pattern_map_path}` を参照）
 - 証跡取得は「SOQL結果txt」「スクショPNG+DOM-txt」「Apexデバッグログ」等を明示する
@@ -99,7 +97,7 @@ TC 合計: {既存ファイルの件数} 件
 
 1. **自己完結した自然文1文**で書く。体言止め・実装用語の裸出しは禁止。「〜を〜すると〜になる（確認する）」形が基本。
 2. **オブジェクト・項目はラベル（日本語表示名）を先頭に**。API名・JS変数・内部フラグ（`__c`・`serviceTypeCode === 'SA-004'` 等）は括弧内補助のみ。
-3. **接頭ラベル必須**: 要求充足 TC は `①` `②`…（課題原文の要求番号、Step 3 軸1 で採番）、回帰 TC は `回帰` を先頭に付す。Excel の「対応要求」列（`_extract_req_label` 抽出）がこの接頭ラベルから自動生成される。
+3. **接頭ラベル必須**: 要求充足 TC は `①` `②`…（課題原文の要求番号、Step 3 軸1 で採番）、回帰 TC は `回帰` を先頭に付す。Excel の「対応要求」列（`_extract_req_label` 抽出）がこの接頭ラベルから自動生成される（丸数字ラベルは⑳まで対応。要求が 21 件以上の場合は要求をグルーピングして⑳以内に収める）。
 
 | ✕ 禁止（実装用語の裸出し・体言止め）| ○ 正しい例 |
 |---|---|
@@ -148,7 +146,7 @@ TC 合計: {既存ファイルの件数} 件
 ```
 test-spec.md を生成しました: {spec_path}
 TC 合計: {total} 件
-種別内訳: SOQL={n} / ApexTest={n} / AnonApex={n} / UI={n} / 要手動={n}
+種別内訳: SOQL={n} / ApexTest={n} / AnonApex={n} / UI={n}（うち要手動={n}）
 
 網羅性チェック（二軸）:
   軸1 要求充足: 全 {N} 要求カバー済み（{N} TC で対応）

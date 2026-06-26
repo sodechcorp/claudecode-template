@@ -403,7 +403,7 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
 
 def _extract_req_label(kanpoin: str) -> str:
     """観点テキストから要求ラベル（①②③ / 回帰）を抽出する。"""
-    m = re.match(r'^([①②③④⑤⑥⑦⑧⑨⑩]+)', kanpoin.strip())
+    m = re.match(r'^([①-⑳]+)', kanpoin.strip())
     if m:
         return m.group(1)
     if "回帰" in kanpoin:
