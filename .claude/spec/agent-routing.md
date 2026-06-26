@@ -1,6 +1,6 @@
 # Agent Selection — エージェント選択・委譲ルール
 
-タスクを受け取ったら以下の基準でエージェントに委譲する。複数該当する場合はタスクを分解して各エージェントに割り当てる。
+タスクを受け取ったら以下の基準でエージェントに委譲する。複数該当する場合はタスクを分解して各エージェントに割り当てる（ただし工数見積系は L14 の強制集約が優先。タスク分解より前に `sf-effort-estimator` へ委譲する）。
 
 ## 主担当エージェント（ユーザーから直接指示を受ける）
 
@@ -38,8 +38,9 @@ sf-architect / reviewer / assistant（SF条件付き）/ backlog-investigator / 
 |---|---|
 | `/sf-memory` cat1〜cat6・cat6-global・cat8 / cat7（横断補完） | `sf-analyst-cat1〜cat3` / `sf-analyst-cat4-apex` / `sf-analyst-cat4-flow` / `sf-analyst-cat4-lwc` / `sf-analyst-cat5〜cat6` / `sf-analyst-cat6-global` / `sf-analyst-cat8` / `sf-org-analyst`（= cat7） |
 | `/sf-memory` Phase 0 コンテキスト読込 | `sf-context-loader` |
-| `/sf-design` 各ステップ | `sf-design-step1〜3` / `sf-design-writer` / `sf-screen-writer` / `sf-detail-design-writer` / `sf-doc-overview-writer` / `sf-doc-objects-writer` |
-| `/backlog` 各 Phase | `backlog-investigator` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator` |
+| `/sf-design` 各ステップ | `sf-design-step1〜3` / `sf-design-writer` / `sf-screen-writer` / `sf-detail-design-writer` |
+| `/sf-doc` 各ステップ | `sf-doc-overview-writer` / `sf-doc-objects-writer` |
+| `/backlog` 各 Phase | `backlog-investigator` / `backlog-repro-runner` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator` |
 | `/test` 各 Phase（証跡採取・レポート） | `auto-evidence-runner` / `ui-evidence-runner` / `test-spec-builder` |
 | blind 系（Task 経由のみ・親の情報を受け取らない） | `backlog-blind-second-opinion` / `backlog-blind-final-verifier` / `backlog-blind-validator` |
 
