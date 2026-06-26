@@ -646,11 +646,13 @@ Sandbox で再現できる場合は使わない（最終手段）。
 ---
 
 ## Phase 最終: クリーンアップ
-
 [共通ルール参照](../spec/cleanup-rules.md)
 
-作業中に作成した一時ファイルがあれば削除する:
+このエージェントは通常一時ファイルを作成しない。作業中に作業フォルダ・一時ファイルを作成した場合のみ、その実パスを指定して削除してから完了報告する:
 
-```python
-python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"
+```bash
+python -c "import shutil; shutil.rmtree(r'<作成した作業フォルダの実パス>', ignore_errors=True)"
 ```
+
+- 作業フォルダを作成していなければスキップしてよい
+- エラー終了時は削除しない（デバッグ用に残す）

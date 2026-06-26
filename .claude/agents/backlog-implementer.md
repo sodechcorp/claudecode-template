@@ -276,12 +276,18 @@ Before/After をユーザに提示した後、以下を必ず行う:
 4. やり取りが落ち着いたら「Phase 5 に進んでよろしいですか？」とテキストで確認する
 5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
 
+> **auto_fix_mode: true の場合**: 上記 1〜4 の対話確認は行わず、変更ファイル数・主な変更点・経路 2/3 判定の有無を構造化して呼び出し元（/test）に返す（承認ガード例外 L90-94 と対称）。
+
 ---
 
 ## Phase 最終: クリーンアップ
-[cleanup-rules.md](../spec/cleanup-rules.md)
+[共通ルール参照](../spec/cleanup-rules.md)
 
-作業中に作成した一時ファイルがあれば削除する:
-```python
-python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"
+このエージェントは通常一時ファイルを作成しない。作業中に作業フォルダ・一時ファイルを作成した場合のみ、その実パスを指定して削除してから完了報告する:
+
+```bash
+python -c "import shutil; shutil.rmtree(r'<作成した作業フォルダの実パス>', ignore_errors=True)"
 ```
+
+- 作業フォルダを作成していなければスキップしてよい
+- エラー終了時は削除しない（デバッグ用に残す）
