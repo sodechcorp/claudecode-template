@@ -78,7 +78,7 @@
 種別が**バグかつ非自明**（タイポ修正・ラベル変更等の典型的自明ケース以外）の場合、以下が上記「迷ったら実行」より優先して適用される:
 
 - **原因特定系オプションは `auto-execute-when` ヒット有無に関わらず実行側へ倒す**: category A（常時実行寄り: option-symptom-reverification / option-multi-cause-hypothesis / option-counter-evidence-search / option-causal-chain-analysis / option-apex-debug-log / option-cross-record-comparison / option-error-message-reverse-lookup / option-assumption-listing）および option-reverse-grep は、明示的なキーワードシグナルがなくても実行する
-- **カタログに無い調査手段も自律的に実行**: 21 オプションは最低限の床。バグ非自明では、カタログ外の調査方法も investigator 自身が発想して実行してよい（実行ログに `[EXEC] adhoc-{名前}` で記録）
+- **カタログに無い調査手段も自律的に実行**: オプションは最低限の床。バグ非自明では、カタログ外の調査方法も investigator 自身が発想して実行してよい（実行ログに `[EXEC] adhoc-{名前}` で記録）
 - **コスト最適化の適用対象は「自明ケース・追加要望・その他」のみ**: `default-when-uncertain: skip` の軽量化バイアスはバグ非自明に適用しない（軽量課題・追加要望・その他は従来通り）
 
 ### 典型的自明ケース定義（共通参照）
@@ -459,7 +459,6 @@ light_mode: false
 | 調査・影響範囲 | 業務要件Q・回答 | Phase 1 / investigator | 一括生成 |
 | 調査・影響範囲 | 影響範囲テーブル（No/対象/問題ない根拠・対応内容） | Phase 3 / create_records.py | 一括生成 |
 | 対応内容 | 対応内容（言語記述）| Phase 4 / implementer | `cell --sheet 対応内容` |
-| 対応内容 | バックアップ情報 | Phase 4 開始時（実装着手前）/ implementer | `backup-info` |
 | 対応内容 | 変更ファイル一覧 | Phase 3 / create_records.py | 一括生成 |
 | 対応内容 | Before / After | Phase 4 / implementer | `before-after` |
 | テスト・検証 | テスト項目（タイミング=実装前・実行種別 != UI手動 行の実際の結果 H列） | Phase 3.5 / validator | Step 6（cell --col 8）|
