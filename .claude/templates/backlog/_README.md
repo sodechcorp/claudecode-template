@@ -430,16 +430,14 @@ light_mode: false
 
 ## §シート構成と意味性
 
-対応記録 xlsx は以下の 6 シートで構成される。各シートは「何の問いに答えるか」が明確に分かれている。
+対応記録 xlsx は以下の **2 シート**で構成される。各シートは「何の問いに答えるか」が明確に分かれている。
 
-| # | シート名 | 答える問い |
-|---|---|---|
-| 1 | サマリー・経緯 | この課題は何で・いつ誰が動いたか |
-| 2 | 対応方針 | なぜこの実装方針を選んだか |
-| 3 | 調査・影響範囲 | 業務要件は何で・どこに波及するか・問題ないと判断した根拠／影響があった場合の対応内容 |
-| 4 | 対応内容 | 実際にどのコンポーネントのどこをどう修正したか |
-| 5 | テスト・検証 | ClaudeCode が自動実行したテストの結果証跡（Apex Test / SOQL / CLI / メタデータ確認 / ファイル確認）。UI 手動確認はエビデンス.xlsx 側 |
-| 6 | 残対応・懸念・保留 | 現課題スコープで取り残したものは何か・なぜ取り残したか |
+| # | シート名 | 答える問い | 主なセクション |
+|---|---|---|---|
+| 1 | 課題と対応方針 | この課題は何で・なぜこの方針を選んだか・いつ誰が動いたか | 課題の整理 / 経緯・対応方針 / 対応経緯タイムライン |
+| 2 | 対応内容 | 実際にどのコンポーネントのどこをどう修正したか・テスト NG の経緯 | 実施した対応 / 変更を加えた資材一覧 / Before/After / NG対応履歴 |
+
+> **エビデンス.xlsx（別ファイル）**: ClaudeCode が自動実行したテストの結果証跡（SOQL / Apex Test / CLI / メタデータ確認）。UI 手動確認も含む期待/実際/判定の詳細を保持する。Phase 4 完了後に `/test {issueID}` が生成する。
 
 ---
 
@@ -447,29 +445,20 @@ light_mode: false
 
 各 Phase ・エージェントが対応記録 xlsx に書き込む内容の全体マップ。`update_records.py` コマンドは `{xlsx_folder}` が設定されている場合のみ実行する。
 
-| シート | セクション / セル | 担当 Phase / エージェント | コマンド |
+| シート | セクション | 担当 Phase / エージェント | コマンド |
 |---|---|---|---|
-| サマリー・経緯 | 課題ID/件名/優先度/種別/ステータス/背景 (B3-B8) | Phase 3 / create_records.py | 一括生成 |
-| サマリー・経緯 | 最終対応サマリー (B9) | Phase 6 / releaser | `cell --row 9 --col 2` |
-| サマリー・経緯 | 採用方針/主要変更/ロールバック手順 (B11-B13) | Phase 3 / create_records.py | 一括生成 |
-| サマリー・経緯 | 判断保留事項 | Phase 3 / create_records.py | 一括生成 |
-| サマリー・経緯 | タイムライン No1-3 | Phase 3 / create_records.py | 一括生成 |
-| サマリー・経緯 | タイムライン No4〜 | Phase 3.5/4/5/6 / 各エージェント | `timeline --phase X` |
-| 対応方針 | 方針比較テーブル / 採用方針 / 実施前確認事項 / 懸念事項 | Phase 3 / create_records.py | 一括生成 |
-| 調査・影響範囲 | 業務要件Q・回答 | Phase 1 / investigator | 一括生成 |
-| 調査・影響範囲 | 影響範囲テーブル（No/対象/問題ない根拠・対応内容） | Phase 3 / create_records.py | 一括生成 |
-| 対応内容 | 対応内容（言語記述）| Phase 4 / implementer | `cell --sheet 対応内容` |
-| 対応内容 | 変更ファイル一覧 | Phase 3 / create_records.py | 一括生成 |
-| 対応内容 | Before / After | Phase 4 / implementer | `before-after` |
-| テスト・検証 | テスト項目（タイミング=実装前・実行種別 != UI手動 行の実際の結果 H列） | Phase 3.5 / validator | Step 6（cell --col 8）|
-| テスト・検証 | テスト項目（タイミング=実装後・実行種別 != UI手動 行の実際の結果 H列） | Phase 5 / tester または /test 経路 judge_results.py | `cell --col 8`（実装後・自動行のみ） |
-| エビデンス.xlsx | 証跡（SOQL/スクショ）正本・期待/実際/判定の詳細 | /test が generate_evidence_xlsx.py で自動生成 | — |
-| 残対応・懸念・保留 | 懸念・許容影響・保留 Q の初期行 | Phase 3 / create_records.py | 一括生成 |
-| 残対応・懸念・保留 | 実装中に発生した残対応 | Phase 4 / implementer | `pending --kind 後回しの残対応` |
-| 残対応・懸念・保留 | テスト中に発見したスコープ外 | Phase 5 / tester | `pending --kind 懸念` |
-| 残対応・懸念・保留 | 最終確認（ステータス更新など） | Phase 6 / releaser | `pending --force` または手動確認 |
+| 課題と対応方針 | 課題の整理（ID/件名/優先度・期限/種別/ステータス/課題の内容・詳細/原因・現状） | Phase 3 / create_records.py | 一括生成 |
+| 課題と対応方針 | 経緯・対応方針（対応方針（結論）/方針決定の経緯・根拠） | Phase 3 / create_records.py | 一括生成 |
+| 課題と対応方針 | 対応経緯タイムライン No1-3 | Phase 3 / create_records.py | 一括生成 |
+| 課題と対応方針 | 対応経緯タイムライン No4〜 | Phase 3.5/4/5/6 / 各エージェント | `timeline --phase X` |
+| 課題と対応方針 | ステータス更新（完了） | Phase 6 / releaser | `cell --sheet "課題と対応方針" --label "ステータス" --col 2` |
+| 対応内容 | 実施した対応（言語記述） | Phase 4 / implementer | `cell --sheet "対応内容" --row 2 --col 1` |
+| 対応内容 | 変更を加えた資材一覧 | Phase 3 / create_records.py 一括生成 + Phase 4 / implementer 追記 | `content-list` |
+| 対応内容 | Before / After（任意・コード変更がある場合） | Phase 4 / implementer | `before-after` |
+| 対応内容 | NG対応履歴（/test NG 修正ループ記録） | Phase 5 / tester・/test judge_results.py | `ng-history` |
+| エビデンス.xlsx（別ファイル） | 証跡（SOQL/スクショ）正本・期待/実際/判定の詳細 | /test が generate_evidence_xlsx.py で自動生成、judge_results.py が実装後記入 | — |
 
-> **注**: リリース・ロールバックシートは patch_template_v8 でテンプレから削除済み（人間がデプロイ実施するため Claude 非関与）。影響確認チェックリストは patch_template_v9 で廃止済み（影響範囲テーブルの「問題ない根拠・対応内容」列に統一）。
+> **注**: 対応記録.xlsx のシート構成は **課題と対応方針 / 対応内容 の2シートのみ**。以下のシートは廃止済み: リリース・ロールバック（patch_template_v8 で削除。人間がデプロイ実施するため Claude 非関与）/ 残対応・懸念・保留（廃止。残対応はエビデンス.xlsx または MD での管理に集約）/ テスト・検証（廃止。証跡はエビデンス.xlsx に集約、実装後記入は judge_results.py が担当）/ 調査・影響範囲・サマリー・経緯・対応方針（廃止。課題と対応方針シートのセクションに統合）。影響確認チェックリストは patch_template_v9 で廃止済み（影響範囲テーブルの「問題ない根拠・対応内容」列に統一）。
 >
 > **注**: xlsx・MD 成果物の全ての値書き込み欄は §人が読む欄の日本語・表示ラベル規約に従うこと（ファイル名列等の例外を除く）。
 
