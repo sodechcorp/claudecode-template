@@ -37,7 +37,7 @@ tools:
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
-`docs/logs/{issueID}/investigation.md` の「課題サマリー」「要件理解」「関連コンポーネント一覧」を Read し、Task tool で `sf-context-loader` を起動する。
+`docs/logs/{issueID}/investigation.md` の「課題サマリー」「要件理解」「関連コンポーネント一覧」を Read する。次に `docs/logs/{issueID}/context-digest.md` の存在を確認する。存在する場合は Read してコンテキストを取得し、sf-context-loader の Task 起動を省略する（investigator が取得済みのコンテキストを再利用）。ダイジェストが存在しない場合のみ Task tool で `sf-context-loader` を起動する。
 
 ```
 task_description: 「{課題タイトル + 課題サマリー + 要件理解}」

@@ -38,6 +38,8 @@ tools:
 
 ### Step 0a: 知識ベース選択読込（sf-context-loader 経由）
 
+> **ダイジェスト優先（高速化）**: まず `docs/logs/{issueID}/context-digest.md` の存在を確認する。存在する場合は Read して知識ベース・設計層コンテキストを取得し、sf-context-loader の起動を省略する（investigator が取得済みのコンテキストを再利用）。ダイジェストが存在しない場合、またはダイジェストにこの課題で必要なコンテキストが含まれない場合のみ、以下の sf-context-loader を起動する。
+
 `sf-context-loader` を knowledge-only モードで呼び出す:
 
 ※ **knowledge-only モードの理由**: investigator と同様、planner 段階でも SF docs のフルロードは実施しない。docs の詳細読込は implementer 以降でタスク特化型のフルロードを行う設計。
@@ -365,6 +367,8 @@ Phase B の提示を行う**前に**、以下を実施する:
    **該当ディレクトリが存在しない・空の場合**: このエージェントは Bash ツールを持たないため CLI を直接実行できない。alias が未確認なら「Sandbox の alias を教えてください」とテキストで確認してから、「`sf sobject describe --sobject {ObjectName__c} --target-org <alias>` を実行して結果を貼り付けてください」とユーザに依頼して待機する
 
 3. **確認結果を判断ポイントの提示に反映させる**
+
+**B-1 の並列化**: 上記 1（類似実装 Read）と 2（field-meta.xml 確認）は互いに独立しているため、**1メッセージで並列実行**できる（類似実装の Read と field-meta.xml の確認を同時に発行する）。
 
 ### B-2. 判断ポイントの洗い出し
 
