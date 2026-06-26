@@ -126,12 +126,62 @@ mkdir -p "{evidence_dir}/before"
    - スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true})`
    - before DOM: `const beforeText = await page.locator('body').innerText()` → エージェントが `before/{No}_{観点サニタイズ}_before.txt` に Write する（状態遷移観点で判定に使用）
 2. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で遷移・表示を待つ。
-3. **after 撮影（分岐ごと）**:
+3. **after 撮影（分岐ごと）＋ 確認対象の赤枠ハイライト**:
+   - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。
    - スクショ: `fullPage: true` で全ページ撮影。分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`
    - after DOM: `await page.locator('body').innerText()` → `.txt` に Write（判定の主役）
+   - `target` 未記載・ロケータ解決失敗の場合は枠なしで**必ず撮影**（スキップしない）。
 4. **return**: `JSON.stringify({url: page.url(), beforeText, text: await page.locator('body').innerText()})` を返す。エージェントは `text` を `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write する。
 
 > **fullPage の理由**: Salesforce のレコード詳細・リスト画面は観点となる項目・セクションが viewport 下方に折り返すことが多い。`fullPage: true` で全ページを撮影することで、PNG 証跡に確認観点が必ず写るようにする。
+
+#### `highlightTarget` — 確認対象要素への赤枠注入
+
+after 撮影直前に以下のパターンを使って対象要素へ赤い outline を注入し、撮影後に解除する。`outline` はボックスを占有しないためレイアウト回帰がほぼ無い（`border` は使わない）。
+
+```javascript
+async function highlightTarget(page, targetLabel) {
+  // 解決順: getByText → getByRole(button) → getByLabel → CSS含む
+  const locators = [
+    page.getByText(targetLabel, { exact: false }),
+    page.getByRole('button', { name: targetLabel }),
+    page.getByLabel(targetLabel),
+  ];
+  for (const loc of locators) {
+    try {
+      const el = loc.first();
+      await el.waitFor({ state: 'visible', timeout: 3000 });
+      await el.evaluate(node => {
+        node.dataset._prevOutline = node.style.outline || '';
+        node.style.setProperty('outline', '4px solid red', 'important');
+        node.style.setProperty('outline-offset', '2px', 'important');
+        node.scrollIntoView({ block: 'center' });
+      });
+      return el; // 成功した locator を返す（解除時に使用）
+    } catch (_) { /* 次の locator を試す */ }
+  }
+  return null; // 解決失敗 → 枠なしで継続
+}
+
+async function clearHighlight(el) {
+  if (!el) return;
+  await el.first().evaluate(node => {
+    node.style.outline = node.dataset._prevOutline || '';
+    node.style.outlineOffset = '';
+  }).catch(() => {});
+}
+```
+
+**使い方（after 撮影のコードブロック内）**:
+```javascript
+// after 撮影直前
+const targetLabel = '申込できません'; // ui_cases の target= から取得
+const highlighted = await highlightTarget(page, targetLabel);
+await page.screenshot({path: '...after/screen/TC-001_xxx.png', fullPage: true});
+await clearHighlight(highlighted);
+```
+
+Lightning CSS が outline を上書きする場合は `!important` 付きで注入済み（上記に含む）。before 撮影は枠なし（差分強調のため）。
 
 **コードブロック例（プリチェック画面のラベル確認）**:
 ```javascript
@@ -142,6 +192,34 @@ async (page) => {
     await page.locator('.slds-spinner, lightning-spinner')
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
+  async function highlightTarget(page, targetLabel) {
+    const locators = [
+      page.getByText(targetLabel, { exact: false }),
+      page.getByRole('button', { name: targetLabel }),
+      page.getByLabel(targetLabel),
+    ];
+    for (const loc of locators) {
+      try {
+        const el = loc.first();
+        await el.waitFor({ state: 'visible', timeout: 3000 });
+        await el.evaluate(node => {
+          node.dataset._prevOutline = node.style.outline || '';
+          node.style.setProperty('outline', '4px solid red', 'important');
+          node.style.setProperty('outline-offset', '2px', 'important');
+          node.scrollIntoView({ block: 'center' });
+        });
+        return el;
+      } catch (_) {}
+    }
+    return null;
+  }
+  async function clearHighlight(el) {
+    if (!el) return;
+    await el.first().evaluate(node => {
+      node.style.outline = node.dataset._prevOutline || '';
+      node.style.outlineOffset = '';
+    }).catch(() => {});
+  }
   // 1件目のみ: await page.goto('FRONTDOOR_URL');
   // before 撮影（fullPage: true）+ before DOM 取得（状態遷移観点で使用）
   await page.screenshot({path: 'C:/path/evidence/before/TC-001_ラベル確認_before.png', fullPage: true});
@@ -149,8 +227,10 @@ async (page) => {
   // 画面遷移
   await page.getByText('プリチェック').click();
   await waitSfReady(page);
-  // after 撮影（fullPage: true）+ after DOM return
+  // after 撮影 + 確認対象に赤枠を注入（target= がある場合のみ）
+  const highlighted = await highlightTarget(page, 'プリチェック'); // target={label} を使用
   await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png', fullPage: true});
+  await clearHighlight(highlighted);
   const afterText = await page.locator('body').innerText();
   // エージェントは beforeText → before/TC-001_ラベル確認_before.txt に Write する
   return JSON.stringify({url: page.url(), beforeText, text: afterText});

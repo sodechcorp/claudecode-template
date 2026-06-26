@@ -61,6 +61,14 @@ try:
 except ImportError:
     _PIL_OK = False
 
+# openpyxl CellRichText（部分赤字に必要、バージョン依存）
+try:
+    from openpyxl.cell.rich_text import CellRichText, TextBlock
+    from openpyxl.cell.text import InlineFont
+    _RICHTEXT_OK = True
+except ImportError:
+    _RICHTEXT_OK = False
+
 # ── スタイル定数 ─────────────────────────────────────────────────────────────
 HDR_FILL    = PatternFill("solid", fgColor="1F3864")   # 濃紺ヘッダー
 HDR_FONT    = _font(fg="FFFFFF", bold=True, size=10)
@@ -223,14 +231,81 @@ def _read_text_safe(path: str) -> str:
     return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)
 
 
-def _append_text_block(ws, path: str, start_row: int) -> int:
-    """テキストファイルを ws の start_row から全行展開し、書いた行数を返す（打ち切りなし）。"""
+def _highlight_terms_from_tc(tc: dict) -> list:
+    """テストケースの期待結果から赤字化するトークン一覧を返す。
+    否定観点（含まない/非表示/なし確認）はトークンを返さない（誤誘導防止）。
+    """
+    hanteihoo = tc.get("判定方法", "")
+    neg_patterns = ["含まない", "非表示", "なし確認", "存在しない", "NG確認"]
+    if any(p in hanteihoo for p in neg_patterns):
+        return []
+    kitai = tc.get("期待結果", "").strip()
+    if not kitai:
+        return []
+    # before:X / after:Y 形式の状態遷移は after 部分を抽出
+    m = re.search(r'after[:：]\s*(.+?)(?:\s*/|$)', kitai)
+    if m:
+        kitai = m.group(1)
+    # 「...」 形式の引用句を優先抽出（句内にセパレータが含まれるケースに対応）
+    quoted = re.findall(r'[「『"]([^「『」』"]{1,40})[」』"]', kitai)
+    # 残テキストを一般セパレータで分割
+    remainder = re.sub(r'[「『"][^「『」』"]*[」』"]', '', kitai)
+    raw_tokens = re.split(r'[/,、\s]+', remainder)
+    tokens = list(quoted)
+    for t in raw_tokens:
+        t = t.strip().strip('「」『』"\'')
+        if not t or t in ('-', '—', '…') or len(t) <= 1:
+            continue
+        tokens.append(t)
+    # 「3件」→「3」も追加（SOQL件数ヘッダーの数値に一致させる）
+    extra = []
+    for t in tokens:
+        nm = re.match(r'^(\d+)\s*件', t)
+        if nm:
+            extra.append(nm.group(1))
+    tokens.extend(extra)
+    return list(dict.fromkeys(tokens))  # 重複除去・順序保持
+
+
+def _build_richtext_line(line: str, terms: list):
+    """1行を CellRichText に変換し、terms に一致する部分を赤太字にする。
+    未対応環境（_RICHTEXT_OK=False）または terms 空のときは文字列をそのまま返す。
+    """
+    if not _RICHTEXT_OK or not terms:
+        return line
+    if not any(t.lower() in line.lower() for t in terms):
+        return line
+    # 最長一致優先でトークンをソート
+    sorted_terms = sorted(terms, key=len, reverse=True)
+    pattern = re.compile(
+        "(" + "|".join(re.escape(t) for t in sorted_terms) + ")",
+        re.IGNORECASE,
+    )
+    parts = pattern.split(line)
+    if len(parts) <= 1:
+        return line
+    base_font  = InlineFont(rFont="Courier New", sz=9)
+    red_font   = InlineFont(rFont="Courier New", sz=9, color="CC0000", b=True)
+    blocks = []
+    for i, part in enumerate(parts):
+        if not part:
+            continue
+        font = red_font if (i % 2 == 1) else base_font
+        blocks.append(TextBlock(font, part))
+    return CellRichText(blocks)
+
+
+def _append_text_block(ws, path: str, start_row: int, highlight_terms: list = None) -> int:
+    """テキストファイルを ws の start_row から全行展開し、書いた行数を返す（打ち切りなし）。
+    highlight_terms が指定されると期待結果に一致する部分を赤太字にする（S2）。
+    """
     text = _read_text_safe(path)
     lines = text.splitlines()
     for i, line in enumerate(lines):
         # "=" 始まりの行は openpyxl が数式セルとして書き出し Excel 修復ダイアログが出る
         safe = (" " + line) if line.startswith("=") else line
-        c = ws.cell(row=start_row + i, column=2, value=safe)
+        cell_value = _build_richtext_line(safe, highlight_terms)
+        c = ws.cell(row=start_row + i, column=2, value=cell_value)
         c.font = Font(name="Courier New", size=9)
         c.border = THIN_BORDER
         c.alignment = _align("left", "top", wrap=True)
@@ -239,6 +314,89 @@ def _append_text_block(ws, path: str, start_row: int) -> int:
 
 def _count_lines(path: str) -> int:
     return len(_read_text_safe(path).splitlines())
+
+
+# ── エビデンス可読性ヘルパー ─────────────────────────────────────────────────
+
+def _derive_focus(tc: dict) -> str:
+    """「着眼点」列が無い場合に期待結果＋判定方法から確認ポイント導出文を生成する。"""
+    kitai   = tc.get("期待結果",  "").strip()
+    hantei  = tc.get("判定方法",  "").strip()
+    neg_patterns = ["含まない", "非表示", "なし確認", "存在しない"]
+    if any(p in hantei for p in neg_patterns):
+        return f"「{kitai}」が表示・存在しないことを確認（{hantei}）"
+    if kitai and hantei:
+        return f"「{kitai}」が {hantei} で確認できること"
+    if kitai:
+        return f"「{kitai}」であることを確認"
+    return ""
+
+
+def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
+                          result_ws_name: str = "テスト結果") -> int:
+    """証跡シートの TC セクション先頭に読み方ガイドブロックを書き、次の row_ptr を返す。
+
+    出力イメージ:
+        ■ TC-003  ②I-797「いいえ」で専用相談メッセージのみ表示（UI）
+          何を確認   : {観点}
+          期待結果   : {期待結果}
+          判定方法   : {判定方法}   ✅OK / ❌NG / ⬜要手動
+          確認ポイント: {着眼点 or 導出文}
+    """
+    no       = tc.get("No", "")
+    kanpoin  = tc.get("観点", "")
+    shubetsu = tc.get("種別", "")
+    kitai    = tc.get("期待結果", "")
+    hantei   = tc.get("判定方法", "")
+    focus    = tc.get("確認ポイント（着眼点）") or tc.get("着眼点") or _derive_focus(tc)
+
+    status = judgment_entry.get("status", "") if judgment_entry else ""
+    if status == "OK":
+        judge_icon = "✅ OK"
+        judge_fill = OK_FILL
+    elif status == "NG":
+        judge_icon = "❌ NG"
+        judge_fill = NG_FILL
+    else:
+        judge_icon = "⬜ 要手動"
+        judge_fill = MANUAL_FILL
+
+    # 行1: ■ No 観点（種別）
+    ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)
+    hdr = ws.cell(row=row_ptr, column=1,
+                  value=f"■ {no}: {kanpoin} （{shubetsu}）")
+    hdr.fill = PatternFill("solid", fgColor="1F3864")
+    hdr.font = _font(fg="FFFFFF", bold=True, size=10)
+    hdr.alignment = WRAP
+    hdr.border = THIN_BORDER
+    _set_row_height(ws, row_ptr, 20)
+    anchor_cell_addr = f"A{row_ptr}"
+    row_ptr += 1
+
+    # ガイド行の共通スタイル
+    GUIDE_FILL = PatternFill("solid", fgColor="EFF3FB")
+
+    def _guide_row(label: str, value: str, fill=None, bold_val: bool = False):
+        nonlocal row_ptr
+        lc = ws.cell(row=row_ptr, column=1, value=label)
+        lc.fill = fill or GUIDE_FILL
+        lc.font = _font(bold=True, size=9, fg="444444")
+        lc.alignment = _align("right", "top", wrap=False)
+        lc.border = THIN_BORDER
+        vc = ws.cell(row=row_ptr, column=2, value=value)
+        vc.fill = fill or GUIDE_FILL
+        vc.font = _font(bold=bold_val, size=9)
+        vc.alignment = WRAP
+        vc.border = THIN_BORDER
+        _set_row_height(ws, row_ptr, 15)
+        row_ptr += 1
+
+    _guide_row("何を確認", kanpoin)
+    _guide_row("期待結果", kitai)
+    _guide_row("判定方法", f"{hantei}    {judge_icon}", fill=judge_fill)
+    _guide_row("確認ポイント", focus, fill=LIGHT_BLUE, bold_val=True)
+
+    return row_ptr, anchor_cell_addr
 
 
 # ── 結果シートヘルパー ────────────────────────────────────────────────────────
@@ -525,17 +683,10 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
         # 複数証跡ファイルを全件取得（judgment 正本→再帰探索の二段構え）
         all_evidence = find_evidence_files(evidence_dir, no, shubetsu, judgment)
 
-        # TC セクションヘッダー
-        ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)
-        hdr = ws.cell(row=row_ptr, column=1,
-                      value=f"■ {no}: {tc.get('観点', '')} （{shubetsu}）")
-        hdr.fill = LIGHT_BLUE
-        hdr.font = _font(bold=True, size=10)
-        hdr.alignment = WRAP
-        hdr.border = THIN_BORDER
-        anchor_cell_addr = f"A{row_ptr}"
-        _set_row_height(ws, row_ptr, 20)
-        row_ptr += 1
+        # 読み方ガイドヘッダー（S1-a: 何を確認/期待結果/判定/確認ポイント）
+        judgment_entry = judgment.get(no, {})
+        hl_terms = _highlight_terms_from_tc(tc)  # S2: 期待結果トークン（否定観点は空）
+        row_ptr, anchor_cell_addr = _write_reading_header(ws, tc, judgment_entry, row_ptr)
 
         if is_manual:
             # 要手動: 貼付枠を残す
@@ -625,11 +776,11 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                         ws.cell(row_ptr, 1).border = THIN_BORDER
                         row_ptr += 2
 
-                    # 同名 DOM スナップショット (.txt) を連続して展開
+                    # 同名 DOM スナップショット (.txt) を連続して展開（S2: 期待値を赤字）
                     snap_path = re.sub(r'\.png$', '.txt', ep, flags=re.IGNORECASE)
                     if os.path.exists(snap_path) and snap_path not in processed:
                         processed.add(snap_path)
-                        _append_text_block(ws, snap_path, row_ptr)
+                        _append_text_block(ws, snap_path, row_ptr, highlight_terms=hl_terms)
                         row_ptr += _count_lines(snap_path) + 1
 
                 elif ep.lower().endswith(".png") and not _PIL_OK:
@@ -641,8 +792,8 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                     row_ptr += 2
 
                 else:
-                    # テキスト証跡: 全行展開（打ち切りなし）
-                    n = _append_text_block(ws, ep, row_ptr)
+                    # テキスト証跡: 全行展開（S2: 期待値を赤字）
+                    n = _append_text_block(ws, ep, row_ptr, highlight_terms=hl_terms)
                     ws.cell(row_ptr, 1).border = THIN_BORDER
                     row_ptr += n + 1
 
