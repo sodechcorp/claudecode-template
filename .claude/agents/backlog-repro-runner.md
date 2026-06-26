@@ -81,6 +81,11 @@ sandbox-alias-check.md の手順で取得した `SF_ALIAS` を以降の `sf data
   - 期待される結果
   - 実際に発生する結果（報告内容）
 
+**抽出完了後の確認（いずれかに該当したら中断し、Phase 1 差し戻しを返す）**:
+- `{調査レポート}` が Read できない / ファイルが存在しない → 「investigation.md が見つかりません。調査レポートのパスを確認してください（Phase 1 未完了の可能性）」
+- 「根本原因 / 要件の本質」セクションが存在しない → 「investigation.md に根本原因セクションがありません。Phase 1 を完了してから再実行してください」
+- 仮説リスト（H1〜Hn）が 0 件 → 「investigation.md に仮説が記載されていません。Phase 1 を完了してから再実行してください」
+
 ---
 
 ## Step 3: 証跡ディレクトリの作成
@@ -101,16 +106,20 @@ mkdir -p "{証跡保存先}/logs"
 
 ## Step 5: 各仮説の Sandbox 検証
 
-各仮説（H1〜Hn）を**独立した状態**で順次検証する。前の仮説の操作が次の検証に影響しないよう、仮説間でデータを元の状態に戻す。
+各仮説（H1〜Hn）を**独立した状態**で順次検証する。仮説間で状態が持ち越されないよう、以下の原則を守る:
+
+- **既存レコードは read-only 原則**: 既存レコードへの状態変更はできる限り避け、状態変更を伴う再現は REPRO_ 新規レコードで行う。
+- **やむを得ず既存レコードを更新する場合**: Step 5-1 で更新前の原値を記録し、Step 6 で原値に戻す。
 
 ### 5-1. 前提データの準備
 
 再現条件の「前提データ」に従い Sandbox を準備する:
 
-1. **既存レコード優先**: 名指しレコード（ID付き）があれば SOQL で存在確認してから使う
+1. **既存レコードは read-only 優先**: 名指しレコード（ID付き）があれば SOQL で存在確認してから使う。**状態変更を伴う再現はできる限り REPRO_ 新規レコードで行う**。やむを得ず既存レコードを更新する場合は、更新前に対象フィールドの原値を SOQL で取得し `{証跡保存先}/logs/restore_H{N}.txt` に記録する（Step 6 で原値に戻す）。
 2. **新規作成が必要な場合**:
    - Sandbox 限定
-   - 名称に `REPRO_{issueID}_H{仮説番号}_` プレフィックスを付与（後でクリーンアップできるようにする）
+   - 名称に `REPRO_{issueID}_H{仮説番号}_` プレフィックスを付与する
+   - 作成直後に `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名},{Id}` を追記する（Step 6 のクリーンアップに使う）
 3. **本番への INSERT / UPDATE / DELETE / Apex 実行は絶対禁止**（本番組織は Step 0 でブロック済み）
 
 ### 5-2. 操作ユーザのログイン
@@ -154,16 +163,41 @@ mkdir -p "{証跡保存先}/logs"
 
 ## Step 6: データクリーンアップ
 
-Step 5-1 で `REPRO_{issueID}_H{N}_` プレフィックスで作成したデータを SOQL で特定して削除する:
+### 6-1. REPRO_ 新規レコードの削除
+
+Step 5-1 で `{証跡保存先}/logs/created_records.txt` に記録したレコードを、種別ごとに **Id 指定**で削除する（Name 項目の有無に関わらず確実に削除できる）:
 
 ```bash
+# created_records.txt の各行 "SObjectAPI名,Id" を読んで Id 指定削除
+while IFS=',' read -r sobj rid; do
+  sf data delete record --target-org "$SF_ALIAS" --sobject "$sobj" --record-id "$rid"
+done < "{証跡保存先}/logs/created_records.txt"
+```
+
+記録漏れへの保険として、Name を持つオブジェクトには `Name LIKE` でも検索・削除を実施する:
+
+```bash
+# Name 項目を持つオブジェクトごとに実行（複数オブジェクトに作成した場合は繰り返す）
 sf data query --target-org "$SF_ALIAS" \
   -q "SELECT Id, Name FROM {SObject} WHERE Name LIKE 'REPRO_{issueID}_%'" --json
 ```
 
-削除は `sf data delete record` または `sf data delete bulk` で実施する。
 削除件数・失敗件数を `{証跡保存先}/logs/cleanup.txt` に記録する。
 クリーンアップ失敗時は `hypothesis-verification.md` に「削除失敗 {N} 件 — 手動削除が必要」を明記する。
+
+### 6-2. 既存レコードの原値復元（restore_H*.txt がある場合のみ）
+
+Step 5-1 で `{証跡保存先}/logs/restore_H{N}.txt` に原値を記録した場合は、`sf data update record` で元の値に戻す。ファイルが存在しない場合はこのステップをスキップする。
+
+```bash
+# restore_H{N}.txt の形式（1行1フィールド）:
+#   SObject={SObjectAPI名}
+#   Id={RecordId}
+#   {FieldAPIName}={OriginalValue}
+# 内容に従い sf data update record で原値に復元する
+```
+
+復元完了後、`{証跡保存先}/logs/cleanup.txt` に「原値復元: H{N} {件数} 件」を追記する。
 
 ---
 
