@@ -7,7 +7,9 @@
 | 作業の種類 | 実行エージェント | チェック担当 | チェック内容 |
 |---|---|---|---|
 | 設計書・要件定義書 | sf-architect | **reviewer** | 整合性・スコープ・受入基準の明確性・依頼との一致 |
-| Apex / LWC / Flow 実装（保守課題） | backlog-implementer | **reviewer** | コード品質・ガバナ制限・FLS・テストカバレッジ |
+| Apex / LWC / Flow 実装（保守課題） | backlog-implementer | **backlog-validator**（Phase 3.5）＋ blind系3種 | コード品質・ガバナ制限・FLS・テストカバレッジ／regression-guard で影響再走査 |
+
+> 上記以外の作業（/sf-design・/sf-doc・/sf-memory 等）は本ゲート対象外。各コマンド内部のセルフチェックが品質を担保する。
 
 ## ゲートの動作
 
