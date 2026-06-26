@@ -1,6 +1,6 @@
 # Phase 1 オプションインデックス（調査・理解・原因特定）
 
-backlog-investigator が Step 0b で参照する判定情報。21 オプション。
+backlog-investigator が Step 0b で参照する判定情報。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
 

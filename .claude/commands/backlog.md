@@ -212,6 +212,19 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 > **次に進む条件**: `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・「Phase 1.5 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
 
+#### Phase 1 再入（仮説補充）の起動方法
+
+「再現仮説 = 0 件」の場合、`backlog-investigator` を以下のプロンプトで再起動する（`検証結果:` キーが追加されることで investigator が再入モードで動作する）:
+
+```
+課題ID: {issueID}
+プロジェクトルート: {カレントディレクトリ}
+出力先: docs/logs/{issueID}/investigation.md
+検証結果: docs/logs/{issueID}/hypothesis-verification.md
+```
+
+investigator は `検証結果:` キーの有無で再入モードを自動判定する。再入モードでは hypothesis-verification.md を Read して反証済み仮説を除外し、新視点の仮説のみを investigation.md に追記する（通常フロー Step A〜H は実行しない）。通算ループカウントはこのコマンド側（discussion-log.md の改版履歴）が管理する。
+
 ---
 
 ### Phase 1.5: xlsx フォルダの確定（選択式）
