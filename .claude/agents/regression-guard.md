@@ -1,6 +1,6 @@
 ---
 name: regression-guard
-description: Phase 3.5 の regression 確認専用。backlog-validator から Task で委譲される。変更予定ファイルの依存先・既存テストカバレッジ・影響再走査・過去同ファイル修正履歴を一括確認して validator に返す。Write ツールを持たない（validation-report.md への記録は validator が行う）。直接呼び出し禁止。
+description: Phase 3.5 の regression 確認専用。backlog-validator から Task で委譲される。変更予定ファイルの依存先・既存テストカバレッジ・影響再走査・過去同ファイル修正履歴を一括確認して validator に返す。Write ツールを持たない（validation-report.md への記録は validator が行う）。直接呼び出し禁止。backlog-validator の Step 2-3（Phase 3.5）から委譲される。
 tools:
   - Read
   - Glob
@@ -63,10 +63,12 @@ tools:
 
 ### Step 1: 変更ファイルの依存先 grep
 
-変更予定ファイルの主要なクラス名・メソッド名・API 名を抽出し、プロジェクト全体で参照元を検索する:
+変更予定ファイルの主要なクラス名・メソッド名・API 名を抽出し、プロジェクト全体で参照元を検索する。**抽出対象は `public` / `global` 修飾子が付いたクラス名・メソッド名とする**（`private` / `protected` は呼び出し元が限定されるため原則スキップ）:
 ```bash
-grep -r "{クラス名/メソッド名}" {プロジェクトルート}/force-app/ --include="*.cls" --include="*.js" --include="*.html" -l
+grep -r "{クラス名/メソッド名}" {プロジェクトルート}/force-app/ --include="*.cls" --include="*.trigger" --include="*.page" --include="*.js" --include="*.html" -l
 ```
+
+> **exit code 注記**: grep が一致なし（exit 1）の場合はエラーではなく「該当なし」として扱い処理を続行する。
 
 ### Step 2: 既存テストのカバレッジ確認
 
@@ -75,7 +77,7 @@ grep -r "{クラス名/メソッド名}" {プロジェクトルート}/force-app
    ```bash
    grep -r "testMethod\|@IsTest" {プロジェクトルート}/force-app/ --include="*.cls" -l
    ```
-2. 変更クラスに対応するテストクラスを特定
+2. 変更クラスに対応するテストクラスを特定する。**テストクラス名の候補: `{ClassName}Test` / `{ClassName}_Test` / `Test{ClassName}` を grep で探す**（いずれかの命名規約が使われていることが多い）
 3. テストクラスの `@IsTest` メソッドと assert 内容を Read して確認
 
 ### Step 3: 影響範囲の再走査
@@ -91,6 +93,8 @@ grep -r "{変更対象の主要API名}" {プロジェクトルート}/force-app/
 ```bash
 git -C {プロジェクトルート} log --oneline -20 -- {変更対象ファイルパス}
 ```
+
+> **exit code 注記**: `{プロジェクトルート}` が git リポジトリでない場合（exit 128 等）は過去修正履歴を「git 未管理・確認不可」と返却フォーマットに記録して処理を続行する。
 
 ---
 
