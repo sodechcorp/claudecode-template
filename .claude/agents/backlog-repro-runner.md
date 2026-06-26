@@ -211,7 +211,7 @@ mcp__playwright__browser_close
 
 ## Step 8: hypothesis-verification.md の出力
 
-`{出力先}` に以下の形式で保存する（`option-sandbox-hypothesis-verification.md` の出力仕様に準拠）:
+`{出力先}` に以下の形式で保存する:
 
 ```markdown
 # Phase 1.6 Sandbox 仮説検証結果
