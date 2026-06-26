@@ -17,13 +17,14 @@
 1. `docs/design/apex/` に該当設計書があるか確認 → あれば設計に従う
 2. `docs/catalog/` で対象オブジェクトの項目・リレーションを確認
 3. `docs/requirements/requirements.md` で関連するビジネスルール（BR-XXX）を確認
-4. Quality Standards に従って実装（バルク対応・テストクラス付き）
+4. `.claude/CLAUDE.md` の Quality Standards に従って実装（バルク対応・テストクラス付き）
 5. 設計書がない場合は「設計書がありませんが実装しますか？先に `sf-architect` に設計書作成を依頼することも可能です」と提案
 
 ### 「フロー作って」
 1. `docs/design/flow/` に該当設計書があるか確認
 2. `docs/catalog/` で対象オブジェクトの入力規則・既存自動化を確認（競合リスク）
 3. 実装してメタデータファイルを作成
+4. 設計書がない場合は「設計書がありませんが実装しますか？先に `sf-architect` に設計書作成を依頼することも可能です」と提案
 
 ### 「バグ直して」「エラー出る」
 1. エラー内容を確認
@@ -36,6 +37,7 @@
 1. `docs/logs/changelog.md` で最近の変更を確認
 2. 対象のメタデータを確認
 3. デプロイコマンドを提示（**本番へのデプロイは必ずユーザー確認**）
+   - 本番判定の根拠（target-org の alias が `*prod*` / `*production*` に一致）は `.claude/spec/security-and-permissions.md` に記載
 
 ### スコープ外の依頼
 `docs/requirements/requirements.md` のスコープ定義と合致しない場合:

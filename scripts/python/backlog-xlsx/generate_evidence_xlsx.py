@@ -33,6 +33,7 @@ import os
 import re
 import sys
 from collections import Counter
+from io import BytesIO
 from pathlib import Path
 
 from _common import (
@@ -126,41 +127,6 @@ def load_judgment(judgment_path: str) -> dict:
     data = json.loads(Path(judgment_path).read_text(encoding="utf-8"))
     return {r["no"]: r for r in data.get("results", [])}
 
-
-def discover_rounds(judgment_path: str, evidence_dir: str) -> list:
-    """退避済み回次を自動発見し (round_label, judgment_path, evidence_dir) のリストを返す。
-
-    退避ファイルの命名規則:
-        過去回次: judgment-result.R{N}.json  /  evidence/after_R{N}/
-        現回次  : judgment-result.json        /  evidence/after/
-    返却例（2回目実行時）:
-        [("R1", ".../judgment-result.R1.json", ".../evidence/after_R1"),
-         ("R2", ".../judgment-result.json",    ".../evidence/after")]
-    初回（退避なし）:
-        [("R1", ".../judgment-result.json",    ".../evidence/after")]
-    """
-    rounds = []
-    if not judgment_path:
-        rounds.append(("R1", judgment_path, evidence_dir))
-        return rounds
-
-    j_dir      = os.path.dirname(os.path.abspath(judgment_path))
-    ev_parent  = os.path.dirname(os.path.abspath(evidence_dir)) if evidence_dir else j_dir
-
-    # 退避済み回次（R1, R2, ...）を番号順に収集
-    n = 1
-    while True:
-        r_jpath = os.path.join(j_dir, f"judgment-result.R{n}.json")
-        r_evdir = os.path.join(ev_parent, f"after_R{n}")
-        if os.path.exists(r_jpath):
-            rounds.append((f"R{n}", r_jpath, r_evdir))
-            n += 1
-        else:
-            break
-
-    # 現回次（常に最後尾）
-    rounds.append((f"R{n}", judgment_path, evidence_dir))
-    return rounds
 
 
 # ── 証跡ファイル探索 ─────────────────────────────────────────────────────────
@@ -749,9 +715,10 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                         if w > max_w:
                             ratio = max_w / w
                             pil_img = pil_img.resize((int(w * ratio), int(h * ratio)), PILImage.LANCZOS)
-                            resized_path = ep.replace(".png", "_resized.png")
-                            pil_img.save(resized_path)
-                            ep_use = resized_path
+                            buf = BytesIO()
+                            pil_img.save(buf, format="PNG")
+                            buf.seek(0)
+                            ep_use = buf   # BytesIO で渡し、_resized.png を証跡フォルダに残さない
                         else:
                             ep_use = ep
                         disp_w, disp_h = pil_img.size  # 実際に貼り付ける表示サイズ（px）
