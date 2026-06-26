@@ -35,7 +35,11 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / reviewe
 - `{project_dir}/docs/overview/org-profile.md`
 - `{project_dir}/docs/requirements/requirements.md`
 
-**すべて存在しない場合**: 即座に「該当コンテキストなし（docs/ 未整備）」を返して終了。
+**すべて存在しない場合**: 以下のメッセージを返して終了:
+```
+該当コンテキストなし（docs/ 未整備）
+⚠️ 知識ファイルが見当たりません。`/sf-memory` が未実行の可能性があります。`docs/` を充填してからもう一度お試しください。
+```
 
 > **設計メモ**: sf-context-loader は CMP・オブジェクト名等の構造化マッチングで直接 docs/ を辿る独立した入口設計。通常は `_README.md` を参照しないが、Phase 2 でキーワードマッチが無かった場合に限り、Phase 2.5 で `_README.md` をフォールバック Grep する（cat7 成果物や手動追記情報をエージェント経由タスクに流すため）。
 
@@ -167,7 +171,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / reviewe
 | SF標準仕様キーワード | `docs/knowledge/sf-standard.md`（該当セクションを Grep: `^## ` パターンで章を特定してセクション抽出） |
 | ドメイン固有知識キーワード | `docs/knowledge/domain/` 配下の存在するファイルに対してキーワード Grep → マッチしたファイルを最大2件 Read（「## 判明した仕様」「## ハマりポイント」「## 注意事項」セクション抽出。ファイル不存在はスキップ） |
 
-各ファイルの Read / Grep が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。
+各ファイルの Read / Grep が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。スキップしたファイルは **Phase 4 の出力末尾に列挙する**（親エージェントが知識欠落に気付けるようにする）。
 
 ---
 
@@ -210,6 +214,13 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / reviewe
 ```
 
 > **文字数オーバーの場合**: 「Salesforce 標準仕様」→「注意事項・落とし穴」→「過去の判断」→「要件・ビジネスルール」→「自動化・通知・連携」の順に省略して2000文字以内に収める。
+
+> **未参照ファイルの報告（必須）**: Read / Grep が失敗してスキップしたファイルがある場合、出力末尾に以下を追記する（文字数制限外）:
+> ```
+> ### ⚠️ 未参照ファイル（未生成または欠落）
+> - {ファイルパス}: {スキップ理由（存在しない・Read失敗 等）}
+> ```
+> スキップがない場合はこのセクションを省略する。
 
 ---
 
