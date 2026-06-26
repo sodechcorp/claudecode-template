@@ -39,6 +39,8 @@ def assert_sandbox(alias: str) -> str:
             alias = json.loads(result.stdout)["result"][0]["value"]
         except (json.JSONDecodeError, KeyError, IndexError):
             raise SystemExit("[FATAL] target-org が設定されていません。--alias を指定してください。")
+        if not alias:
+            raise SystemExit("[FATAL] target-org が設定されていません。--alias を指定してください。")
 
     result = subprocess.run(
         ["sf", "org", "display", "--target-org", alias, "--json"],
