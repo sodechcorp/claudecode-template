@@ -29,7 +29,7 @@ tools:
 | `xlsx_folder` | △ | /backlog / /test | 更新対象 xlsx のフォルダパス。省略時は Step 5 をスキップ |
 | `auto_fix_mode` | — | /test のみ | `true` の場合は `/test` F-2 自動修正ループから起動。既定 `false`。Step 5・完了の提示の動作が変わる（後述） |
 | `project_dir` / `log_dir` | — | /test のみ | プロジェクトルートとログディレクトリ。Step 0 の参照パスの補完に使用 |
-| `種別`（issue_type） | — | /backlog のみ | 課題の種別（バグ/機能等）。現状エージェント本文では未使用 |
+| `種別`（issue_type） | — | /backlog のみ | 課題の種別（バグ/機能等）。/backlog が全フェーズへ統一的に引き渡すコンテキスト変数（planner は default_stance・releaser は種別別リマインド/サインオフで消費）。本エージェントは判定に使わないが規約整合のため受領する（削除しない） |
 
 ---
 
