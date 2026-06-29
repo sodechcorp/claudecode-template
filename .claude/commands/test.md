@@ -102,12 +102,12 @@ print(issues.get('${ISSUE_ID}', {}).get('xlsx_folder', ''))
   fi
 fi
 
-# ③ フォールバック: LOG_DIR
+# ③ xlsx_folder 未設定 — 自動フォールバック禁止。ユーザー確認待ちマーカーを出力する
 if [ -z "$XLSX_FOLDER" ]; then
-  XLSX_FOLDER="$LOG_DIR"
-  echo "[INFO] xlsx_folder 未設定。${LOG_DIR} に保存します。"
+  echo "[XLSX_FOLDER_UNRESOLVED] investigation.md の xlsx_folder 欄が空で、.backlog_config.yml にも記録がありません。"
+  echo "  対応記録フォルダを特定できません。このまま続行するか、正しいパスを指定してください。"
 fi
-if [ -z "$EVIDENCE_DIR" ]; then
+if [ -n "$XLSX_FOLDER" ] && [ -z "$EVIDENCE_DIR" ]; then
   EVIDENCE_DIR="${XLSX_FOLDER}/evidence"
 fi
 SPEC_PATH="${LOG_DIR}/test-spec.md"
@@ -163,6 +163,13 @@ if [ -d "${EVIDENCE_DIR}/after" ]; then
   echo "[INFO] ${EVIDENCE_DIR}/after が既に存在します。差分再実行モードでは非対象 TC の既存証跡を維持します。"
 fi
 ```
+
+> **⚠️ `[XLSX_FOLDER_UNRESOLVED]` が出力された場合（xlsx_folder 未設定）**:  
+> 自動でフォールバックせず、以下をユーザーに確認してから続行する:  
+> 「対応記録フォルダが特定できませんでした（investigation.md の `xlsx_folder:` 欄が空）。  
+> `docs/logs/{issueID}/` に出力しますか？ または正しいパスを指定しますか？」  
+> - **「docs/logs/ に出力する」**: `XLSX_FOLDER = docs/logs/{issueID}/`、`EVIDENCE_DIR = docs/logs/{issueID}/evidence` として続行する  
+> - **パス入力**: そのパスを `XLSX_FOLDER`・`EVIDENCE_DIR = {パス}/evidence` として設定してから続行する
 
 **ユーザー確認プロトコル**（実行前に必ず提示する）:
 
