@@ -340,6 +340,52 @@ NG が 1 件以上ある場合:
 
 ---
 
+---
+
+## Step 8: テストデータレシピ・落とし穴の還流（write-after）— **Phase F のみ**
+
+> `{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。
+
+test-report.md 生成（Step 7）完了後、今回の実行で**新たに確立したテストデータレシピ**と**テスト環境固有の落とし穴**を `docs/knowledge/test-prerequisites.md` の § 2・§ 4 に還流する。
+
+### 実行条件（§ 2 レシピ還流）
+
+以下を**すべて**満たす場合のみ § 2 の還流を試みる:
+- 今回 AnonApex でテストデータを作成し、**成功（OK 判定）**したケースがある
+- 機密値（frontdoor URL・accessToken 等）が含まれていない
+
+### 実行条件（§ 4 落とし穴還流）
+
+- 今回のテスト実行中に**テストの動かし方に関する環境固有の落とし穴**（バリデーション誤検知・FLS 条件の Sandbox 差異・コミュニティ設定の注意事項等）が新たに判明した
+- 実装バグ（コードを直すべき問題）は pitfalls.md に書くべきであり § 4 の対象外
+
+### ファイル確保（create-if-absent）
+
+還流前に `{project_dir}/docs/knowledge/test-prerequisites.md` の存在を確認する:
+- **存在する**: そのまま次の還流手順へ
+- **存在しない**: `.claude/templates/docs-scaffold/knowledge/test-prerequisites.md` を Read し、`docs/knowledge/test-prerequisites.md` として Write して skeleton を生成してから次の還流手順へ
+
+### 還流手順（3分岐・Edit 方式）
+
+`.claude/templates/common/knowledge-reflux-formats.md` の `## test-prerequisites.md 追記フォーマット` の **3分岐ルール**に従い操作を決定する:
+
+1. `docs/knowledge/test-prerequisites.md` を Read する
+2. 各レシピ・落とし穴について Grep で第1列（オブジェクトAPI名 / 落とし穴先頭50字）を検索する
+3. 3分岐を適用する:
+   - **新規**: 未登録 → 表ヘッダー直後に **Edit で1行先頭挿入**
+   - **スキップ**: 登録済み・かつ非キー列も完全一致 → **何もしない**
+   - **マージ更新**: 登録済み・かつ追加情報あり → 既存行を **Edit で置換**・確認日を更新
+4. **§ 2・§ 4 合算で最大5行まで**（超過は次回以降）
+5. 返却テキスト（test-report.md の末尾の「後始末結果」セクション）に `[前提還流] § 2 に {N} 行・§ 4 に {M} 行追記/更新` を明記する
+
+### スキップ時の記録
+
+条件を満たさない場合は追記をスキップし、返却テキストに以下を明記する:
+- `[前提還流スキップ: 今回の手順はすべて既登録かつ変更なし]`
+- `[前提還流スキップ: 機密値検出のため除外]`
+
+---
+
 ## 完了条件（セルフチェック）
 
 **証跡採取モード（Phase C・`{judgment_path}` 未指定）の完了条件**: 証跡ファイルの存在確認（下記 ☑ 項目）まで。test-report.md 生成・後始末・tmp 削除は実施しない。

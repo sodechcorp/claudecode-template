@@ -61,6 +61,8 @@ tools:
 
 Sandbox 確認は呼び出し元（auto-evidence-runner の Step 0 または backlog-validator の Step 5）で完了済み前提。この段階で本番ガードを再実行する必要はない。
 
+**組織固有テスト前提の読込（read-before）**: `{project_dir}/docs/knowledge/test-prerequisites.md` が存在する場合は全文 Read する。§ 1（ログイン・画面アクセス手順）に対象画面の既知手順が記載されていれば、SOQL 動的取得の前に既知値を優先して使う（動的 SOQL はフォールバック）。不在の場合はスキップして従来どおり動的取得する。
+
 ---
 
 ## Before-only モード（mode: before-capture）
@@ -342,6 +344,47 @@ find "{evidence_dir}/after/screen" -name "*.txt" -size +0c
 
 1. **PNG**: 1KB 以上の `.png` が存在すること。0 バイト・不存在の場合は NG
 2. **after DOM テキスト（判定の主役）**: `after/screen/` 配下に各 TC 対応の `.txt` が存在し、非空（1バイト以上）であること。`find` の結果が 0 件、または特定 TC 分の `.txt` が欠落・0 バイトの場合は NG
+
+---
+
+---
+
+## Step 5: テスト前提手順の還流（write-after）
+
+> **テスト証跡モードのみ**。Before-only モードでは実行しない。
+
+Step 4（証跡存在確認）完了後、今回の実行で**新たに確定したログイン・アクセス手順**を `docs/knowledge/test-prerequisites.md` の § 1 に還流する。
+
+### 実行条件
+
+以下を**すべて**満たす場合のみ追記を試みる（1つでも欠ければスキップ）:
+- 今回実行した Login As / 遷移手順が Step 3 で**成功**している（NG・要手動降格の手順は書かない）
+- 機密値（frontdoor URL・accessToken・実 ContactId・パスワード）が含まれていない
+
+### ファイル確保（create-if-absent）
+
+追記前に `{project_dir}/docs/knowledge/test-prerequisites.md` の存在を確認する:
+- **存在する**: そのまま次の還流手順へ
+- **存在しない**: `.claude/templates/docs-scaffold/knowledge/test-prerequisites.md` を Read し、`docs/knowledge/test-prerequisites.md` として Write して skeleton を生成してから次の還流手順へ
+
+### 還流手順（3分岐・Edit 方式）
+
+`.claude/templates/common/knowledge-reflux-formats.md` の `## test-prerequisites.md 追記フォーマット` の **3分岐ルール**に従い操作を決定する:
+
+1. `docs/knowledge/test-prerequisites.md` を Read する
+2. 今回確定した手順ごとに Grep で「対象画面」列を検索する
+3. 3分岐を適用する:
+   - **新規**: 対象画面が § 1 未登録 → 表ヘッダー直後に **Edit で1行先頭挿入**（**最大5行まで**。超過は次回以降）
+   - **スキップ**: 対象画面が登録済み・かつ非キー列も完全一致 → **何もしない**
+   - **マージ更新**: 対象画面が登録済み・かつ追加情報あり → 既存行を **Edit で置換**・確認日を更新
+4. 返却テキストに `[前提還流] § 1 に {N} 行追記/更新（{対象画面名,…}）` を明記する
+
+### スキップ時の記録
+
+実行条件を満たさない場合は追記をスキップし、以下のいずれかを返却テキストに明記する:
+- `[前提還流スキップ: 今回の手順はすべて既登録かつ変更なし]`
+- `[前提還流スキップ: 機密値検出のため除外]`
+- `[前提還流スキップ: 今回の手順は成功せず]`
 
 ---
 

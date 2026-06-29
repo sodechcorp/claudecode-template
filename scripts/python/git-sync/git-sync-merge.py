@@ -243,6 +243,83 @@ def merge_global_pitfalls(local, remote):
     return "".join(pre) + "".join(merged.values())
 
 
+# ---- test-prerequisites.md ----
+# ## {番号}. {タイトル} 見出し単位でセクション分割。
+# § 1/§ 2/§ 4 はテーブル行の第1列（対象画面 / オブジェクトAPI名 / 落とし穴先頭）をキーに和集合。
+# § 3（散文）は local 優先で保持。
+def merge_test_prerequisites(local, remote):
+    if not local:
+        return remote
+    if not remote:
+        return local
+
+    def split_sections(text):
+        parts = re.split(r'(?=^## )', text, flags=re.MULTILINE)
+        pre = parts[0] if parts and not re.match(r'^## ', parts[0]) else ""
+        sections = {}
+        order = []
+        for p in parts:
+            m = re.match(r'^(## [^\n]+)', p)
+            if m:
+                key = m.group(1).strip()
+                sections[key] = p
+                if key not in order:
+                    order.append(key)
+        return pre, sections, order
+
+    def merge_table_section(local_sec, remote_sec):
+        """テーブル行の第1列をキーに和集合。local 優先"""
+        def parse(sec):
+            lines = sec.splitlines(keepends=True)
+            pre, rows, row_order = [], {}, []
+            for line in lines:
+                if line.startswith("|"):
+                    cols = [c.strip() for c in line.split("|")[1:-1]]
+                    key = cols[0] if cols else ""
+                    if key and not re.match(r'^[-:]+$', key):
+                        if key not in rows:
+                            row_order.append(key)
+                        rows[key] = line
+                    else:
+                        pre.append(line)
+                else:
+                    pre.append(line)
+            return pre, rows, row_order
+
+        l_pre, l_rows, l_order = parse(local_sec)
+        r_pre, r_rows, r_order = parse(remote_sec)
+        merged = {**r_rows, **l_rows}  # local 優先
+        new_keys = [k for k in r_order if k not in l_rows]
+        final_order = l_order + new_keys
+        new_count = len(new_keys)
+        pre = l_pre if l_pre else r_pre
+        return "".join(pre) + "".join(merged[k] for k in final_order if k in merged), new_count
+
+    local_pre, local_secs, local_order = split_sections(local)
+    remote_pre, remote_secs, remote_order = split_sections(remote)
+
+    merged = {}
+    total_new = 0
+    all_keys = local_order + [k for k in remote_order if k not in local_secs]
+
+    for key in all_keys:
+        l_sec = local_secs.get(key)
+        r_sec = remote_secs.get(key)
+        if l_sec is None:
+            merged[key] = r_sec
+        elif r_sec is None:
+            merged[key] = l_sec
+        elif re.match(r'^## 3\.', key):  # § 3 証跡ディレクトリ規約（散文）は local 優先
+            merged[key] = l_sec
+        else:
+            merged[key], new_count = merge_table_section(l_sec, r_sec)
+            total_new += new_count
+
+    pre = local_pre or remote_pre
+    print(f"  test-prerequisites.md: {total_new} 件新規マージ")
+    return pre + "".join(merged[k] for k in all_keys if k in merged)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="積み上げ同期型ファイルのマージ処理（git-sync Step 2）"
@@ -341,6 +418,17 @@ def main():
         write(path, remote); print(f"  {path}: 新規作成（remote 版）")
     else:
         write(path, merge_global_pitfalls(local, remote))
+
+    # ---- test-prerequisites.md ----
+    path = "docs/knowledge/test-prerequisites.md"
+    remote = git_show(branch, path)
+    local  = read_local(path)
+    if remote is None:
+        print(f"  {path}: remote 未存在、スキップ")
+    elif local is None:
+        write(path, remote); print(f"  {path}: 新規作成（remote 版）")
+    else:
+        write(path, merge_test_prerequisites(local, remote))
 
     print("\n✅ 積み上げ型マージ完了")
     sys.exit(0)

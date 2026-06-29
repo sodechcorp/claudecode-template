@@ -95,6 +95,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / reviewe
 | キーワード（データ統計系） | データ統計, レコード件数, レコード数, 件数, 活用率, 利用率, 入力率, 分布, 月次作成数, データ量, ボリューム, 統計 | `docs/data/data-statistics.md` |
 | キーワード（Salesforce標準仕様） | ガバナ制限, API制限, API上限, SOQL上限, SOQL制限, リストビュー上限, レポート上限, トリガ順序, トリガ実行順序, sharing, FLS評価, PermissionSet優先, 標準仕様, governor, 制限値, 何件まで, 何行まで | `docs/knowledge/sf-standard.md`（該当セクションのみ Grep） |
 | キーワード（ドメイン固有知識） | RevenueCloud, Revenue Cloud, SBQQ, blng, CPQ, Billing, AccountEngagement, Account Engagement, Pardot, `pi__`, ドメイン, 固有仕様, 初導入, サブスクリプション, 請求, インボイス | `docs/knowledge/domain/*.md`（存在するファイルに Grep、最大2件を詳細 Read） |
+| キーワード（テスト/動作確認系） | テスト, 動作確認, ログイン手順, Login As, テストデータ, 証跡, エビデンス, コミュニティURL, Experience Cloud ログイン, 画面確認, エビデンス取得 | `docs/knowledge/test-prerequisites.md`（全文 Read・存在する場合のみ） |
 
 `{project_dir}/docs/overview/org-profile.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（用語集・命名規則の共通参照として）。
 
@@ -146,6 +147,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / reviewe
 - case-index.md: 1ファイル（Grep による症状列マッチのみ）+ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md` を最大2ファイル Read（存在時のみ・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出。cases ファイルの2件は合計7の内数）
 - sf-standard.md: 1ファイル（Grep による該当セクション抽出のみ）
 - pitfalls.md: 1ファイル（全文 Read・小さいため）
+- test-prerequisites.md: 1ファイル（全文 Read・小さいため）
 - `_README.md` フォールバック由来: 最大 2 ファイル（Phase 2.5 経由のみ）
 → 上記の合算が7を超えた場合: CMP/オブジェクト → 過去課題 → 標準仕様 → `_README.md` 由来 の優先順で打ち切る
 
@@ -170,6 +172,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / reviewe
 | データ統計キーワード | `docs/data/data-statistics.md` |
 | SF標準仕様キーワード | `docs/knowledge/sf-standard.md`（該当セクションを Grep: `^## ` パターンで章を特定してセクション抽出） |
 | ドメイン固有知識キーワード | `docs/knowledge/domain/` 配下の存在するファイルに対してキーワード Grep → マッチしたファイルを最大2件 Read（「## 判明した仕様」「## ハマりポイント」「## 注意事項」セクション抽出。ファイル不存在はスキップ） |
+| テスト/動作確認キーワード | `docs/knowledge/test-prerequisites.md`（全文 Read。ファイル不存在はスキップ） |
 
 各ファイルの Read / Grep が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。スキップしたファイルは **Phase 4 の出力末尾に列挙する**（親エージェントが知識欠落に気付けるようにする）。
 
