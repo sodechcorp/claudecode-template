@@ -371,7 +371,34 @@ xlsx_folder: {xlsx_folder}
 - **詳細提示**: ロジック変更・public インターフェース変更・Apex/LWC/Flow のコード変更
 - **一覧省略可**: 設定ファイル・メタデータ（field-meta.xml / layout-meta.xml 等）・テストクラス以外の補助ファイル
 
-> xlsx 更新（timeline + バックアップ情報 + Before/After + 影響確認チェックリスト）は `backlog-implementer` が担当する（エージェント内 Step 7）。xlsx に反映されていることが Phase 5 への進行条件。
+**xlsx 一括記入（対応内容）**（`{xlsx_folder}` が設定されている場合のみ）
+
+> **実行主体**: implementer エージェントが `implementation-summary.md` を書き出した後、**本コマンド（ハーネス）が直接** 以下のスクリプトを実行する。create_records.py（Phase 3）と同型。
+
+```bash
+python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  content-from-md --summary docs/logs/{issueID}/implementation-summary.md --force
+```
+
+> スキップ判定: [xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) に従う（`{xlsx_folder}` null = 正規スキップ）。
+
+スクリプト失敗時の対処（エラー出力あり / 終了コード 非0）:
+1. エラー内容をユーザに提示する
+2. テキストで選択を確認する:「xlsx なしで続行」（xlsx_folder = null に変更して続行）/「修正して再試行」/「中止」
+
+**xlsx 充足確認（verify）**（`{xlsx_folder}` が設定されている場合のみ）
+
+```bash
+python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  verify --stage pre-release
+```
+
+verify 結果が **NG（exit 2）** の場合: 未充足枠を提示し、テキストで対処を確認する:
+- 「自動補完」: `content-from-md` を再実行する（implementation-summary.md が存在する場合のみ）
+- 「手動修正後続行」: ユーザが xlsx を手動で修正してから続行
+- 「xlsx なしで続行」: `{xlsx_folder}` = null として Phase 5 へ進む
 
 > **次に進む条件**: ユーザが実装内容を確認した後 — `_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 5 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
 >
@@ -415,12 +442,32 @@ xlsx_folder: {xlsx_folder}
 
 > `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 
-> xlsx 更新（最終対応サマリー + デプロイ手順 + リリース実施記録 + timeline）は `backlog-releaser` が担当する（エージェント内 Step 3.5）。
-
 **お客様確認サインの取得**
 
 > 種別別ルール・xlsx 更新: [.claude/templates/backlog/customer-signoff.md](../templates/backlog/customer-signoff.md)
 > ファイルが存在しない場合は「種別 {issue_type} のお客様確認内容は何ですか？」とテキストで確認し、ユーザの指示に従ってサインを取得する。
+
+**ステータスを「完了」に更新**（`{xlsx_folder}` が設定されている場合のみ）
+
+> **実行主体**: releaser の xlsx 更新はハーネスが直接実行する（Phase 3 と同型）。
+
+```bash
+python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  cell --sheet "課題と対応方針" --label "ステータス" --col 2 --value "完了" --force
+```
+
+> スキップ判定: [xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) に従う。
+
+**xlsx 最終充足確認（verify final）**（`{xlsx_folder}` が設定されている場合のみ）
+
+```bash
+python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  verify --stage final --status-expected 完了
+```
+
+verify 結果が **NG（exit 2）** の場合: 完了報告に「⚠ xlsx 未充足あり（詳細は上記 verify 出力を参照）」を付記する（リリース済みのためブロックしない・警告のみ）。
 
 完了報告を行う。
 
@@ -463,7 +510,19 @@ main スレッドが「この課題は Phase 6 に到達しない」と判断し
    - 工数列は `-` 固定で追記する
    - 既存行ありならスキップ（dup 防止）
 
-**実行しないもの**: deploy 系（Step 1・2a/2b）・お客様確認サイン取得（Step 3.7）・xlsx リリース記録（Step 3.5）・完了報告（Step 4）。
+**実行しないもの**: deploy 系（Step 1・2a/2b）・お客様確認サイン取得（Step 3.7）・xlsx リリース記録の全量（Step 3.5②タイムライン等）・完了報告（Step 4）。
+
+**ステータスを「中断中」に更新**（`{xlsx_folder}` が設定されている場合のみ）
+
+> Phase 6 未完了のまま終了するため、ステータスが「対応中」のまま放置されないよう更新する。
+
+```bash
+python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+  --folder "{xlsx_folder}" --issue-id "{issueID}" \
+  cell --sheet "課題と対応方針" --label "ステータス" --col 2 --value "中断中" --force
+```
+
+> スキップ判定: [xlsx-skip-guard.md](.claude/templates/backlog/_partials/xlsx-skip-guard.md) に従う（null = 正規スキップ）。
 
 ### 終了報告
 

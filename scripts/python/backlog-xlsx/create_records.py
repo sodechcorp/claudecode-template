@@ -12,10 +12,11 @@ Usage:
   （課題の内容・詳細 / 原因・現状 / 対応方針（結論）/ 方針決定の経緯・根拠）
   の内容を LLM が書いた人間向け日本語のまま ①シートに転記する。
 
-残りのセクションは各Phaseエージェントが update_records.py で直接記入する:
-  ② 対応内容: backlog-implementer が cell/content-list で記入
+残りのセクションはハーネスが update_records.py で記入する:
+  ② 対応内容: Phase 4 でハーネスが content-from-md で一括記入
+              （implementer が implementation-summary.md を書き出し後、ハーネスが直接実行）
   タイムライン: 各Phaseエージェントが timeline で追記
-  ステータス→完了: backlog-releaser が cell で更新
+  ステータス→完了: Phase 6 末でハーネスが cell で更新
 """
 
 import argparse
@@ -84,6 +85,23 @@ def extract_section(md, *headings):
             if stripped:
                 return stripped
     return ""
+
+
+def extract_section_fallback(approach_md, inv_md, primary, *inv_headings):
+    """approach-plan.md から一次抽出、なければ investigation.md から二次抽出する。
+
+    Args:
+        approach_md: approach-plan.md の本文（空文字 or None 可）
+        inv_md: investigation.md の本文
+        primary: approach-plan.md で検索する見出しキーワード
+        *inv_headings: investigation.md で検索するフォールバック見出し（複数可）
+    Returns:
+        見つかった本文（strip 済み）、どこにも無ければ空文字
+    """
+    text = extract_section(approach_md, primary) if approach_md else ""
+    if not text and inv_md and inv_headings:
+        text = extract_section(inv_md, *inv_headings)
+    return text
 
 
 def extract_metadata(md, key):
@@ -265,9 +283,14 @@ def fill_header(ws, args, inv_md, approach_md):
     埋めるセル:
       メタ情報: 課題ID / 件名 / 優先度・期限 / 種別 / ステータス=対応中
       4本文: 課題の内容・詳細 / 原因・現状 / 対応方針（結論）/ 方針決定の経緯・根拠
-             （approach-plan.md の同名 ## 見出しから直接転記）
+             一次: approach-plan.md の固定見出しから転記
+             二次: approach-plan.md が薄い/未生成なら investigation.md からフォールバック
+             どちらにも無い場合はプレースホルダを書く（黙った空欄を作らない）
 
-    残りは各Phaseエージェントが update_records.py で記入する。
+    Returns:
+        list[str]: プレースホルダになった枠のラベル一覧（空なら全枠記入済み）
+
+    残りはハーネスが update_records.py で記入する（Phase 4 content-from-md, Phase 6 cell）。
     """
     issue_id   = args.issue_id
     title      = extract_metadata(inv_md, "件名") or extract_metadata(inv_md, "タイトル") or ""
@@ -294,25 +317,30 @@ def fill_header(ws, args, inv_md, approach_md):
             wset(ws, row, 2, value)
             auto_fit_row(ws, row, max_height=40)
 
-    # 4本文: approach-plan.md の固定見出しから直接転記
-    # planner は A-3 規約により以下4見出しを必ず出力する
-    if approach_md:
-        text_sections = [
-            ("課題の内容・詳細",   "課題の内容・詳細"),
-            ("原因・現状",         "原因・現状"),
-            ("対応方針（結論）",   "対応方針（結論）"),
-            ("方針決定の経緯・根拠", "方針決定の経緯・根拠"),
-        ]
-        for label, heading in text_sections:
-            text = extract_section(approach_md, heading)
-            if text:
-                row = find_label_row(ws, label)
-                if row is not None:
-                    wset(ws, row, 2, text)
-                    auto_fit_row(ws, row, max_height=300)
-            else:
-                print(f"[WARN] approach-plan.md に見出し '{heading}' が見つかりませんでした。"
-                      f" backlog-planner に A-3 規約の4固定見出し出力を依頼してください。")
+    # 4本文: approach-plan.md から一次抽出、薄い/未生成なら investigation.md からフォールバック
+    # planner A-3 規約の4固定見出しを一次として探し、なければ investigation.md 相当セクションで補う。
+    # どちらにも無い場合はプレースホルダを書いて「黙った空欄」を作らない。
+    PLACEHOLDER = "（未記入：approach-plan.md 未生成のため要追記）"
+    # (ラベル, approach 見出し, inv フォールバック見出し...)
+    text_sections = [
+        ("課題の内容・詳細",     "課題の内容・詳細",     "課題の概要", "課題サマリー", "要件理解"),
+        ("原因・現状",           "原因・現状",           "原因仮説", "前提・背景"),
+        ("対応方針（結論）",     "対応方針（結論）"),
+        ("方針決定の経緯・根拠", "方針決定の経緯・根拠"),
+    ]
+    unfilled = []
+    for entry in text_sections:
+        label         = entry[0]
+        appr_heading  = entry[1]
+        inv_fallbacks = entry[2:]
+        text = extract_section_fallback(approach_md, inv_md, appr_heading, *inv_fallbacks)
+        if not text:
+            text = PLACEHOLDER
+            unfilled.append(label)
+        row = find_label_row(ws, label)
+        if row is not None:
+            wset(ws, row, 2, text)
+            auto_fit_row(ws, row, max_height=300)
 
     # 後処理: 全セル行高・枠線補完
     for r in range(1, ws.max_row + 1):
@@ -320,6 +348,8 @@ def fill_header(ws, args, inv_md, approach_md):
         has_content = any(ws.cell(r, c).value for c in range(1, ws.max_column + 1))
         if has_content and (h is None or h < 18):
             auto_fit_row(ws, r, min_height=20)
+
+    return unfilled
 
 
 # ── main ────────────────────────────────────────────────────────────────────
@@ -363,7 +393,7 @@ def main():
         print("       python build_template.py を実行してテンプレートを再生成してください。")
         sys.exit(1)
 
-    fill_header(wb[sheet_name], args, inv_md, approach_md)
+    unfilled = fill_header(wb[sheet_name], args, inv_md, approach_md)
 
     # 後処理: 枠線補完
     for ws in wb.worksheets:
@@ -377,8 +407,13 @@ def main():
         print(f"[ERROR] xlsx の保存に失敗しました（ファイルが開かれている可能性があります）: {path}\n{e}")
         sys.exit(1)
 
-    print(f"  シート ①「課題と対応方針」: メタ情報＋4本文{'（approach-plan.md あり）' if approach_md else '（approach-plan.md なし・4本文は未記入）'}")
-    print(f"  シート ②「対応内容」: テンプレのまま（implementer が update_records.py で記入）")
+    if unfilled:
+        print(f"  シート ①「課題と対応方針」: メタ情報＋4本文"
+              f"（プレースホルダ {len(unfilled)} 枠: {', '.join(unfilled)}）")
+        print(f"  ※ プレースホルダ枠は approach-plan.md 生成後に create_records.py を再実行するか、xlsx を直接更新してください。")
+    else:
+        print(f"  シート ①「課題と対応方針」: メタ情報＋4本文（全枠記入済み）")
+    print(f"  シート ②「対応内容」: implementation-summary.md 書き出し後に Phase 4 ハーネスが update_records.py で記入")
 
 
 if __name__ == "__main__":

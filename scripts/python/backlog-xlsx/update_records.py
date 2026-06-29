@@ -25,6 +25,15 @@ Usage (Before/After 追記):
 Usage (NG対応履歴に1行追加):
     python update_records.py --folder FOLDER --issue-id ID ng-history \\
       --round "R1" --tc "TC-003" --reason "件数NG: 期待3件だが1件" --fix "SOQL WHERE 条件を修正"
+Usage (対応内容シートを implementation-summary.md から一括記入):
+    python update_records.py --folder FOLDER --issue-id ID content-from-md \\
+      --summary docs/logs/{issueID}/implementation-summary.md
+
+Usage (xlsx 全枠充足確認):
+    python update_records.py --folder FOLDER --issue-id ID verify \\
+      --stage pre-release
+    python update_records.py --folder FOLDER --issue-id ID verify \\
+      --stage final --status-expected 完了
 """
 
 import argparse
@@ -33,6 +42,7 @@ import datetime
 import os
 import re
 import sys
+from pathlib import Path
 
 from _common import validate_folder, _stripe_fill
 
@@ -292,6 +302,242 @@ def cmd_ng_history(args, wb):
     print(f"[OK] NG対応履歴追加: 行{next_row} / {args.round} / {args.tc} / {args.reason[:30]}")
 
 
+def _read_md(path):
+    """MD ファイルを UTF-8 で読む。見つからなければ空文字。"""
+    p = Path(path)
+    if p.exists():
+        try:
+            return p.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            print(f"[ERROR] UTF-8 で読めません: {path}")
+            sys.exit(1)
+    return ""
+
+
+def _extract_section_md(md, *headings):
+    """## または ### 見出しのセクション本文を返す（最初にマッチしたもの）。"""
+    for h in headings:
+        parts = re.split(r" +", h)
+        kw = r"\s*".join(re.escape(p) for p in parts)
+        pat = (r"^#{1,3}[\s　]+"
+               r"(?:[■●▶◆]\s*)?" + kw +
+               r"(?:[・/／]\S+?)?(?:テーブル|一覧|[:：])?(?:\s*[（(][^)）]*[)）])?\s*$")
+        m = re.search(pat, md, re.MULTILINE)
+        if m:
+            start = m.end()
+            rest = md[start:]
+            level = len(re.match(r"^#+", md[m.start():]).group(0))
+            end_pat = rf"^#{{1,{level}}}\s"
+            end_m = re.search(end_pat, rest, re.MULTILINE)
+            body = rest[: end_m.start()] if end_m else rest
+            stripped = body.strip()
+            if stripped:
+                return stripped
+    return ""
+
+
+def _parse_md_table(md, heading):
+    """MD 中の指定見出しの直下にある Markdown テーブルを解析してリストを返す。
+
+    Returns:
+        list[dict]: 各行をヘッダ列名→値の dict で返す。テーブルなしなら空リスト。
+    """
+    body = _extract_section_md(md, heading)
+    if not body:
+        return []
+
+    rows = []
+    headers = None
+    for line in body.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if headers is None:
+            headers = cells
+            continue
+        # セパレータ行をスキップ（--- のみ）
+        if all(re.fullmatch(r":?-+:?", c) for c in cells if c):
+            continue
+        if len(cells) >= len(headers):
+            rows.append({headers[i]: cells[i] for i in range(len(headers))})
+    return rows
+
+
+def cmd_content_from_md(args, wb):
+    """対応内容シートを implementation-summary.md から一括記入する。
+
+    implementation-summary.md の固定見出し:
+      ## 実施した対応      → 対応内容シート 行2 col1 (実施した対応 大テキスト)
+      ## 変更を加えた資材一覧 → 対応内容シート 資材一覧テーブル (content-list 形式)
+      ## Before / After    → 対応内容シート Before/After セクション (before-after 形式)
+    """
+    md = _read_md(args.summary)
+    if not md:
+        print(f"[ERROR] implementation-summary.md が見つかりません: {args.summary}")
+        sys.exit(1)
+
+    sheet_name = "対応内容"
+    if sheet_name not in wb.sheetnames:
+        print(f"[ERROR] シート '{sheet_name}' が見つかりません。")
+        sys.exit(1)
+    ws = wb[sheet_name]
+
+    # ① 実施した対応（行2 col1 大テキスト）
+    text_content = _extract_section_md(md, "実施した対応")
+    if text_content:
+        cell = ws.cell(row=2, column=1)
+        if cell.value and not getattr(args, "force", False):
+            print("[SKIP] 実施した対応: 既存値あり（--force で上書き可）")
+        else:
+            cell.value = text_content
+            cell.alignment = WRAP
+            print(f"[OK] 実施した対応: 行2 に記入 ({len(text_content)}文字)")
+    else:
+        print("[WARN] implementation-summary.md に '## 実施した対応' が見つかりませんでした。")
+
+    # ② 変更を加えた資材一覧（テーブル行を content-list 形式で追記）
+    material_rows = _parse_md_table(md, "変更を加えた資材一覧")
+    if material_rows:
+        section_row = find_header_row(ws, ("■ 変更を加えた資材一覧",))
+        if section_row is None:
+            print("[ERROR] ■ 変更を加えた資材一覧 セクションが見つかりません。")
+            sys.exit(1)
+        col_header_row = section_row + 1
+        data_start = col_header_row + 1
+
+        max_no = 0
+        for r in range(data_start, ws.max_row + 2):
+            v = ws.cell(r, 1).value
+            if isinstance(v, int) and v > 0:
+                max_no = max(max_no, v)
+            elif isinstance(v, str) and str(v).strip().isdigit():
+                max_no = max(max_no, int(str(v).strip()))
+
+        for row_data in material_rows:
+            # ヘッダ名揺れを吸収（「資材名（表示名）」「資材名」等）
+            label  = next((v for k, v in row_data.items() if "資材名" in k), "")
+            kind   = row_data.get("変更種別", "")
+            detail = row_data.get("変更内容", "")
+            if not label:
+                continue
+            next_row = find_next_empty_row(ws, col=1, start_row=data_start)
+            max_no += 1
+            fill = _stripe_fill(max_no - 1)
+            for col, value in enumerate([max_no, label, kind, detail], start=1):
+                cell = ws.cell(row=next_row, column=col, value=value)
+                cell.alignment = WRAP
+                cell.fill = fill
+            print(f"[OK] 変更資材追加: No={max_no} / {label[:30]} / {kind}")
+    else:
+        print("[WARN] implementation-summary.md に '## 変更を加えた資材一覧' テーブルが見つかりませんでした。")
+
+    # ③ Before / After（テーブル行を before-after 形式で追記）
+    ba_rows = _parse_md_table(md, "Before / After")
+    if ba_rows:
+        ba_header = find_header_row(ws, ("■ Before / After", "Before / After"))
+        if ba_header is None:
+            print("[ERROR] ■ Before / After セクションが見つかりません。")
+            sys.exit(1)
+        next_row = find_next_empty_row(ws, col=1, start_row=ba_header + 1)
+        for row_data in ba_rows:
+            file_  = row_data.get("ファイル", "")
+            before = row_data.get("Before", "")
+            after  = row_data.get("After", "")
+            if not file_:
+                continue
+            from openpyxl.styles import Font as _Font
+            ws.cell(next_row,     1, value=f"【{file_}】").alignment = WRAP
+            ws.cell(next_row,     1).font = _Font(name="游ゴシック", size=10, bold=True)
+            ws.cell(next_row + 1, 1, value=f"Before: {before}").alignment = WRAP
+            ws.cell(next_row + 2, 1, value=f"After:  {after}").alignment = WRAP
+            print(f"[OK] Before/After 追記: {file_}")
+            next_row += 3
+    # Before/After は任意のため WARN なし
+
+
+def cmd_verify(args, wb):
+    """xlsx の全必須枠が充足されているか確認する（read-back 検証）。
+
+    --stage pre-release : Phase5 前の事前検証。対応内容の資材一覧1行以上を必須チェック。
+    --stage final       : Phase6 末の最終確認。ステータスが --status-expected と一致するか確認。
+
+    充足: exit 0 / 不足: NG 列挙して exit 2
+    """
+    PLACEHOLDER_PREFIX = "（未記入："
+    issues = []
+
+    # ─── シート①「課題と対応方針」検証 ──────────────────────────────────────
+    plan_sheet = "課題と対応方針"
+    if plan_sheet not in wb.sheetnames:
+        print(f"[ERROR] シート '{plan_sheet}' が見つかりません。")
+        sys.exit(1)
+    ws1 = wb[plan_sheet]
+
+    # メタ情報（B2–B6）
+    for label in ["課題ID", "件名", "ステータス"]:
+        row = find_label_row(ws1, label)
+        if row is None:
+            issues.append(f"①シート: ラベル '{label}' が見つかりません")
+            continue
+        val = ws1.cell(row, 2).value
+        if not val or str(val).strip() == "":
+            issues.append(f"①シート: '{label}' が空欄")
+
+    # 本文4枠（プレースホルダも NG 扱い）
+    for label in ["課題の内容・詳細", "原因・現状", "対応方針（結論）", "方針決定の経緯・根拠"]:
+        row = find_label_row(ws1, label)
+        if row is None:
+            issues.append(f"①シート: ラベル '{label}' が見つかりません")
+            continue
+        val = ws1.cell(row, 2).value
+        if not val or str(val).strip() == "":
+            issues.append(f"①シート: '{label}' が空欄")
+        elif str(val).startswith(PLACEHOLDER_PREFIX):
+            issues.append(f"①シート: '{label}' がプレースホルダのまま（要追記）")
+
+    # ステータス期待値チェック（--stage final のみ）
+    if getattr(args, "stage", "") == "final":
+        expected = getattr(args, "status_expected", None)
+        if expected:
+            row = find_label_row(ws1, "ステータス")
+            if row is not None:
+                val = str(ws1.cell(row, 2).value or "").strip()
+                if val != expected:
+                    issues.append(f"①シート: ステータスが '{val}' のまま（期待値: '{expected}'）")
+
+    # ─── シート②「対応内容」検証 ──────────────────────────────────────────
+    content_sheet = "対応内容"
+    if content_sheet not in wb.sheetnames:
+        print(f"[ERROR] シート '{content_sheet}' が見つかりません。")
+        sys.exit(1)
+    ws2 = wb[content_sheet]
+
+    # 実施した対応（行2 col1）
+    val = ws2.cell(2, 1).value
+    if not val or str(val).strip() == "":
+        issues.append("②シート: '実施した対応' が空欄（行2）")
+    elif str(val).startswith(PLACEHOLDER_PREFIX):
+        issues.append("②シート: '実施した対応' がプレースホルダのまま")
+
+    # 変更を加えた資材一覧（少なくとも1行）
+    section_row = find_header_row(ws2, ("■ 変更を加えた資材一覧",))
+    if section_row is not None:
+        data_start = section_row + 2  # ヘッダ行の次
+        has_data = any(ws2.cell(r, 1).value for r in range(data_start, data_start + 10))
+        if not has_data:
+            issues.append("②シート: '変更を加えた資材一覧' にデータ行がありません（最低1行必要）")
+
+    # ─── 結果出力 ─────────────────────────────────────────────────────────
+    if issues:
+        print(f"[VERIFY NG] {len(issues)} 件の未充足:")
+        for i, msg in enumerate(issues, 1):
+            print(f"  {i}. {msg}")
+        sys.exit(2)
+    else:
+        print("[VERIFY OK] 全必須枠が充足されています。")
+
+
 TIMELINE_PHASES = ["調査", "対応方針", "実装方針", "実装前検証", "実装", "テスト", "最終検証", "リリース", "お客様確認"]
 
 
@@ -346,6 +592,20 @@ def main():
     p_ng.add_argument("--fix",    required=True, help="修正内容（何をどう変えたか）")
     p_ng.add_argument("--force",  action="store_true", help="同一回次+TC が既にあっても上書きする")
 
+    # implementation-summary.md から対応内容シートを一括記入
+    p_cfm = sub.add_parser("content-from-md",
+                            help="対応内容シートを implementation-summary.md から一括記入する（Phase 4 ハーネス直実行）")
+    p_cfm.add_argument("--summary", required=True,
+                       help="docs/logs/{issueID}/implementation-summary.md のパス")
+    p_cfm.add_argument("--force", action="store_true", help="既存値があっても上書きする")
+
+    # xlsx 全枠充足確認（read-back 検証）
+    p_vfy = sub.add_parser("verify", help="xlsx の全必須枠が充足されているか確認する（exit 0=OK / exit 2=NG）")
+    p_vfy.add_argument("--stage", required=True, choices=["pre-release", "final"],
+                       help="pre-release: Phase5 前 / final: Phase6 末")
+    p_vfy.add_argument("--status-expected", default="", dest="status_expected",
+                       help="final ステージで期待するステータス値（例: 完了）")
+
     args = parser.parse_args()
     args.folder = validate_folder(args.folder)
 
@@ -370,6 +630,12 @@ def main():
         cmd_content_list(args, wb)
     elif args.command == "ng-history":
         cmd_ng_history(args, wb)
+    elif args.command == "content-from-md":
+        cmd_content_from_md(args, wb)
+    elif args.command == "verify":
+        # verify は wb を読み取るだけで保存不要。sys.exit は cmd_verify 内で行う
+        cmd_verify(args, wb)
+        return  # exit 0 相当（上で sys.exit(2) されなかった場合）
 
     try:
         wb.save(xlsx_path)

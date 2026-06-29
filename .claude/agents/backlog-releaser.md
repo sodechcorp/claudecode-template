@@ -188,12 +188,7 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 > **注**: リリース実施記録（デプロイ日時・対象環境・結果）は **人間がデプロイ後に手動で xlsx に記録する**。Claude Code は関与しない。
 
-**① ステータスを「完了」に更新**:
-```bash
-python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "課題と対応方針" --label "ステータス" --col 2 --value "完了" --force
-```
+> **注**: ステータスを「完了」に更新する処理（旧①）は、**コマンド（ハーネス）が Phase 6 完了後に直接実行する**。このエージェントは実行しない。
 
 **② タイムライン追記**（Phase 6 完了時に1回のみ）:
 ```bash

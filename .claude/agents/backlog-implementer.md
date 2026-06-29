@@ -197,39 +197,28 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 - [ ] API名・フィールド名が計画書通りか（誤字を含む）
 - [ ] ドキュメント更新（catalog/design/changelog.md）が完了しているか
 
-### 7. xlsx 対応記録の追記（`{xlsx_folder}` が設定されている場合のみ）
+### 7. implementation-summary.md の書き出し（Phase 4 完了後に必ず実行）
 
-> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
+> **xlsx 対応内容シートへの記入はハーネス（コマンド）が行う**。このエージェントは `implementation-summary.md` を以下の**固定見出し**で書き出すだけでよい。ハーネスが `update_records.py content-from-md` を直接実行して xlsx に反映する。
 
-**① 実施した対応 の記入**（実装完了後に1回だけ実行）:
-```bash
-python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "対応内容" --row 2 --col 1 --force \
-  --value "{何をどう実施したかを人間が読める日本語で記述。API名・技術用語不使用。3〜8行程度}"
+`docs/logs/{issueID}/implementation-summary.md` を以下の形式で Write する（見出し名を変えない・テーブル列名を変えない）:
+
+```markdown
+## 実施した対応
+何をどう実施したかを業務語彙で3〜8行。API名・技術用語は括弧補助に留め、人が読める日本語で書く。
+
+## 変更を加えた資材一覧
+| 資材名（表示名） | 変更種別 | 変更内容 |
+| --- | --- | --- |
+| {コンポーネント表示名（API名括弧補助）} | {新規追加 / 変更 / 削除} | {変更内容を業務語彙で1〜2行} |
+
+## Before / After
+| ファイル | Before | After |
+| --- | --- | --- |
+| {ファイルパス} | {変更前コード要約1〜3行} | {変更後コード要約1〜3行} |
 ```
 
-**② 変更を加えた資材一覧 への追記**（変更ファイルごとに1回ずつ実行）:
-```bash
-python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  content-list \
-  --label "{資材の表示名（API名は括弧補助）。例: 「preCheck 画面（preCheck）」}" \
-  --kind "{変更種別: 新規追加 / 変更 / 削除 のいずれか}" \
-  --detail "{変更内容を業務語彙で1〜2行。例: 「犯罪歴確認ラジオボタンを追加」}"
-# 変更ファイルが複数ある場合は変更ファイルごとに繰り返す
-```
-
-**③ Before/After 追記**（任意・コード変更があり前後比較を残したい場合のみ）:
-```bash
-python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  before-after \
-  --file "{ファイルパス}" \
-  --before "{変更前コード要約（1〜3行）}" \
-  --after "{変更後コード要約（1〜3行）}"
-# 変更ファイルが複数ある場合は変更ファイルごとに繰り返す（Before/Afterが不要なファイルはスキップ可）
-```
+> **Before / After は任意**。コード変更がない・比較不要な場合は `## Before / After` セクションごと省略してよい。変更ファイルが複数ある場合は変更ファイルごとに1行追加する。
 
 **④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
 ```bash

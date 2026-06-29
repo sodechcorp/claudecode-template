@@ -445,18 +445,19 @@ light_mode: false
 
 各 Phase ・エージェントが対応記録 xlsx に書き込む内容の全体マップ。`update_records.py` コマンドは `{xlsx_folder}` が設定されている場合のみ実行する。
 
-| シート | セクション | 担当 Phase / エージェント | コマンド |
+| シート | セクション | 担当 Phase / 実行主体 | コマンド |
 |---|---|---|---|
-| 課題と対応方針 | 課題の整理（ID/件名/優先度・期限/種別/ステータス/課題の内容・詳細/原因・現状） | Phase 3 / create_records.py | 一括生成 |
-| 課題と対応方針 | 経緯・対応方針（対応方針（結論）/方針決定の経緯・根拠） | Phase 3 / create_records.py | 一括生成 |
-| 課題と対応方針 | 対応経緯タイムライン No1-3 | Phase 3 / create_records.py | 一括生成 |
+| 課題と対応方針 | 課題の整理（ID/件名/優先度・期限/種別/ステータス/課題の内容・詳細/原因・現状） | Phase 3 / ハーネス直実行 | `create_records.py` 一括生成 |
+| 課題と対応方針 | 経緯・対応方針（対応方針（結論）/方針決定の経緯・根拠） | Phase 3 / ハーネス直実行 | `create_records.py` 一括生成 |
+| 課題と対応方針 | 対応経緯タイムライン No1-3 | Phase 3 / ハーネス直実行 | `create_records.py` 一括生成 |
 | 課題と対応方針 | 対応経緯タイムライン No4〜 | Phase 3.5/4/5/6 / 各エージェント | `timeline --phase X` |
-| 課題と対応方針 | ステータス更新（完了） | Phase 6 / releaser | `cell --sheet "課題と対応方針" --label "ステータス" --col 2` |
-| 対応内容 | 実施した対応（言語記述） | Phase 4 / implementer | `cell --sheet "対応内容" --row 2 --col 1` |
-| 対応内容 | 変更を加えた資材一覧 | Phase 3 / create_records.py 一括生成 + Phase 4 / implementer 追記 | `content-list` |
-| 対応内容 | Before / After（任意・コード変更がある場合） | Phase 4 / implementer | `before-after` |
+| 課題と対応方針 | ステータス更新（完了） | **Phase 6 末 / ハーネス直実行** | `cell --label "ステータス" --value "完了" --force` |
+| 課題と対応方針 | ステータス更新（中断中） | **中断時パス / ハーネス直実行** | `cell --label "ステータス" --value "中断中" --force` |
+| 対応内容 | 実施した対応 / 変更を加えた資材一覧 / Before/After | **Phase 4 末 / ハーネス直実行** | `content-from-md --summary implementation-summary.md` |
 | 対応内容 | NG対応履歴（/test NG 修正ループ記録） | Phase 5 / tester・/test judge_results.py | `ng-history` |
 | エビデンス.xlsx（別ファイル） | 証跡（SOQL/スクショ）正本・期待/実際/判定の詳細 | /test が generate_evidence_xlsx.py で自動生成、judge_results.py が実装後記入 | — |
+
+> **verify ゲート**: Phase 4 末（`content-from-md` 直後）に `verify --stage pre-release` でブロック確認、Phase 6 末（`cell 完了` 直後）に `verify --stage final --status-expected 完了` で最終確認を実施する。NG は未充足枠を列挙して exit 2。
 
 > **注**: 対応記録.xlsx のシート構成は **課題と対応方針 / 対応内容 の2シートのみ**。以下のシートは廃止済み: リリース・ロールバック（patch_template_v8 で削除。人間がデプロイ実施するため Claude 非関与）/ 残対応・懸念・保留（廃止。残対応はエビデンス.xlsx または MD での管理に集約）/ テスト・検証（廃止。証跡はエビデンス.xlsx に集約、実装後記入は judge_results.py が担当）/ 調査・影響範囲・サマリー・経緯・対応方針（廃止。課題と対応方針シートのセクションに統合）。影響確認チェックリストは patch_template_v9 で廃止済み（影響範囲テーブルの「問題ない根拠・対応内容」列に統一）。
 >
