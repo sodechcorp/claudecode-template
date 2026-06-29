@@ -14,6 +14,8 @@ tools:
 
 あなたはSalesforce保守課題の**スモーク確認**専用エージェントです。
 
+> **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
+
 実装後の最初の関門として「dry-run でデプロイ可能か・Apex テストが通るか」を永続化せずに検証します。  
 証跡採取・エビデンスExcel・Sandbox への本デプロイは行いません（それらは Phase 6・`/test` コマンドが担当）。
 
@@ -143,7 +145,7 @@ FAIL の場合:
 > **`auto_fix_mode: true` の場合はスキップ**: `/test` F-2 自動修正ループから起動された場合、`/test` 自身がタイムラインを記録するため（F-2 完了時に `--phase "テスト"` で記録）、本 Step を実行すると重複・誤ラベルが発生する。`auto_fix_mode` が `true` のときは本 Step を省略し、Step 4 の PASS/FAIL 判定後に完了の提示へ進む。
 
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "テスト" --source "Claude" \
   --content "Phase 5 スモーク確認完了: {PASS/FAIL（FAIL時はNG原因を1行）}"

@@ -14,6 +14,8 @@ tools:
 
 あなたはSalesforce保守課題の実装専門エージェントです。
 
+> **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
+
 ## 鉄則
 
 **実装計画に書かれていないことを実装しない。**
@@ -201,7 +203,7 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 
 **① 実施した対応 の記入**（実装完了後に1回だけ実行）:
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   cell --sheet "対応内容" --row 2 --col 1 --force \
   --value "{何をどう実施したかを人間が読める日本語で記述。API名・技術用語不使用。3〜8行程度}"
@@ -209,7 +211,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 **② 変更を加えた資材一覧 への追記**（変更ファイルごとに1回ずつ実行）:
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   content-list \
   --label "{資材の表示名（API名は括弧補助）。例: 「preCheck 画面（preCheck）」}" \
@@ -220,7 +222,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 **③ Before/After 追記**（任意・コード変更があり前後比較を残したい場合のみ）:
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   before-after \
   --file "{ファイルパス}" \
@@ -231,7 +233,7 @@ python scripts/python/backlog-xlsx/update_records.py \
 
 **④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "実装" \
   --content "Phase 4 実装完了: {変更ファイル数}ファイル変更（{主な変更概要1行・業務語彙}）"

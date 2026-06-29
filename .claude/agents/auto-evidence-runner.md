@@ -13,6 +13,8 @@ tools:
 
 あなたは Salesforce 保守課題のテスト証跡採取オーケストレータです。`/test` コマンドから委譲されて動作します。**単独起動禁止**。
 
+> **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
+
 テスト仕様の展開・網羅性チェックは `test-spec-builder` が担当済みです（Phase B 完了後に起動されます）。UI 証跡は `ui-evidence-runner` に委譲します。
 
 ## Step 0: 前提確認（必須）
@@ -85,7 +87,7 @@ mkdir -p "{evidence_dir}/before"
 SOQL ケースが1件以上ある場合、test-spec.md を丸ごと渡す一括並列実行:
 
 ```bash
-python scripts/python/backlog-xlsx/soql_evidence.py \
+python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
   --alias "{alias}" \
   --queries-file "{spec_path}" \
   --out-dir "{evidence_dir}/after/soql/" \
@@ -170,7 +172,7 @@ mkdir -p "{log_dir}/tmp"
 
 ```bash
 # 今回永続化する SObject ごとに繰り返す（前回残留の事前回収。0 件なら無害）
-python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
+python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" cleanup \
   --alias "{alias}" \
   --sobject {SObject名} \
   --external-id-prefix "AUTOTEST_{issueID}_"
@@ -183,7 +185,7 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
 #### 4-3: 一括並列実行 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 ```bash
-python scripts/python/backlog-xlsx/anon_apex_runner.py run-batch \
+python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch \
   --alias "{alias}" \
   --cases-file "{log_dir}/tmp/anon_cases.json" \
   --max-workers {max_workers_anon} \
@@ -202,7 +204,7 @@ python scripts/python/backlog-xlsx/anon_apex_runner.py run-batch \
 
 ```bash
 # 永続化した SObject ごとに繰り返す
-python scripts/python/backlog-xlsx/anon_apex_runner.py cleanup \
+python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" cleanup \
   --alias "{alias}" \
   --sobject {SObject名} \
   --external-id-prefix "AUTOTEST_{issueID}_"
@@ -322,7 +324,7 @@ NG が 1 件以上ある場合:
 4. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ）:
    ```bash
    # NG TC ごとに1行追記（R{N} = 現在のアーカイブ数 + 1）
-   python scripts/python/backlog-xlsx/update_records.py \
+   python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
      --folder "{xlsx_folder}" --issue-id "{issueID}" ng-history \
      --round "R{N}" --tc "{TC番号}" --reason "{NG原因}" --fix "（修正方針は /backlog Phase 4 で確定後に記入）"
    ```

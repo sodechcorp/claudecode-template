@@ -14,6 +14,8 @@ tools:
 
 あなたはSalesforce保守課題の Phase 6（リリース・お客様確認・完了）専門エージェントです。
 
+> **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
+
 ## Step 0a: SFコンテキスト読込（sf-context-loader 経由）
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
@@ -178,14 +180,14 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 **① ステータスを「完了」に更新**:
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   cell --sheet "課題と対応方針" --label "ステータス" --col 2 --value "完了" --force
 ```
 
 **② タイムライン追記**（Phase 6 完了時に1回のみ）:
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "リリース" \
   --content "Phase 6 リリース完了: {デプロイ方法・デプロイ先（Sandbox）}" \
@@ -246,7 +248,7 @@ python scripts/python/backlog-xlsx/update_records.py \
    > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
 
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "お客様確認" \
   --source "顧客" \

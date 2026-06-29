@@ -299,7 +299,7 @@ default_stance: {Phase 2 と同じ値を引き継ぐ}
 全 MD ファイルが揃ったこのタイミングで xlsx を一括生成する:
 
 ```bash
-python scripts/python/backlog-xlsx/create_records.py \
+python "$(pwd)/scripts/python/backlog-xlsx/create_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   --investigation docs/logs/{issueID}/investigation.md \
   --approach-plan docs/logs/{issueID}/approach-plan.md
@@ -342,7 +342,7 @@ python scripts/python/backlog-xlsx/create_records.py \
 **xlsx 更新（実装前検証）**（`{xlsx_folder}` が設定されている場合のみ）
 
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "実装前検証" \
   --content "実装前検証完了: {ドライラン/テスト/影響範囲/クロスレビュー/エビデンスの結果サマリーを1行で}"

@@ -23,7 +23,7 @@
 ユーザーから「サイン取得済み」報告を受けた後、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が未設定でなく `{issueID}` も変数名のまま展開されていない場合のみ実行（いずれかがリテラルのままならスキップ）:
 
 ```bash
-python scripts/python/backlog-xlsx/update_records.py \
+python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "お客様確認" \
   --source "顧客" \

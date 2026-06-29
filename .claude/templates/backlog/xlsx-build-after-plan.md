@@ -22,7 +22,7 @@ Phase 3（実装方針確定）後に対応記録.xlsx を一括生成する。
 > - `再生成しない` — 既存ファイルを保持してこの Step をスキップし Phase 3.5 へ進む
 
 ```bash
-python scripts/python/backlog-xlsx/create_records.py \
+python "$(pwd)/scripts/python/backlog-xlsx/create_records.py" \
   --folder "{xlsx_folder}" \
   --issue-id "{issueID}" \
   --investigation docs/logs/{issueID}/investigation.md \
