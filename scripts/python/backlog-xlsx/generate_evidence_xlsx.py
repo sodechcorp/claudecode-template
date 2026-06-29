@@ -796,12 +796,13 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                         ws.cell(row_ptr, 1).border = THIN_BORDER
                         row_ptr += 2
 
-                    # 同名 DOM スナップショット (.txt) を連続して展開（S2: 期待値を赤字）
+                    # 同名 DOM スナップショット (.txt) を期待値一致行だけ抜粋して展開（S2）
+                    # .txt ファイル自体は judge_results.py の DOM 照合判定に使うためディスクに残す
                     snap_path = re.sub(r'\.png$', '.txt', ep, flags=re.IGNORECASE)
                     if os.path.exists(snap_path) and snap_path not in processed:
                         processed.add(snap_path)
-                        _append_text_block(ws, snap_path, row_ptr, highlight_terms=hl_terms)
-                        row_ptr += _count_lines(snap_path) + 1
+                        n_dom = _append_dom_excerpt(ws, snap_path, row_ptr, highlight_terms=hl_terms)
+                        row_ptr += n_dom + 1
 
                 elif ep.lower().endswith(".png") and not _PIL_OK:
                     c = ws.cell(row_ptr, 2, f"[PNG] {fname} — Pillow 未インストールのため未貼付")

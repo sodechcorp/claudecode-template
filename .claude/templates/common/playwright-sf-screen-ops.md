@@ -245,6 +245,101 @@ async (page) => {
 
 ---
 
+## Login As（コミュニティ / Experience Cloud ユーザー）
+
+お客様ユーザー（Experience Cloud／コミュニティライセンス）は**内部の ManageUsers 経由 Login As と操作が異なる**。  
+コミュニティ / お客様ユーザーへの Login As は**必ず `自動`**で実施する（`要手動` 扱い禁止）。
+
+### 前提確認（コミュニティ Login As の可否）
+
+```bash
+# コミュニティ Contact（外部ユーザー）を SOQL で確認する
+sf data query --target-org "$SF_ALIAS" \
+  -q "SELECT Id, Username, Name, Profile.Name, ContactId, IsActive FROM User
+      WHERE Profile.Name LIKE '%Customer%'
+         OR Profile.Name LIKE '%コミュニティ%'
+         OR Profile.Name LIKE '%Community%'
+         OR Profile.Name LIKE '%Partner%'
+         OR Profile.Name LIKE '%Portal%'
+      AND IsActive = true LIMIT 10"
+```
+
+`ContactId` が存在するユーザーはコミュニティ外部ユーザー。
+
+### コミュニティ Login As 操作手順
+
+```javascript
+async (page) => {
+  page.setDefaultTimeout(20000);
+  async function waitSfReady(page) {
+    await page.waitForLoadState('domcontentloaded');
+    await page.locator('.slds-spinner, lightning-spinner')
+      .first().waitFor({ state: 'hidden', timeout: 20000 }).catch(() => {});
+  }
+
+  // ─── ステップ1: 対象コミュニティユーザーの Contact ページへ遷移 ───
+  // 事前 SOQL で取得した ContactId を使う
+  await page.goto('/lightning/r/Contact/{ContactId}/view');
+  await waitSfReady(page);
+
+  // ─── ステップ2: 「Experience Cloud ユーザー」または「ユーザーとしてログイン」ボタンをクリック ───
+  // 表示されるボタン名は SF 組織設定・言語により異なる
+  const loginAsBtn = page.getByRole('button', {name: 'ユーザーとしてログイン'})
+    .or(page.getByRole('button', {name: 'Log in to Experience as User'}))
+    .or(page.getByRole('button', {name: 'Experience でユーザーとしてログイン'}));
+  // ボタンが直接見えない場合は Actions メニュー経由
+  if (!(await loginAsBtn.isVisible().catch(() => false))) {
+    await page.locator('.actionsMenu, [title="Show 1 more action"], button:has-text("...")').first().click().catch(() => {});
+    await page.waitForTimeout(500);
+  }
+  await loginAsBtn.first().click();
+  await waitSfReady(page);
+
+  // ─── ステップ3: コミュニティ画面（お客様ユーザー視点）での TC 操作 ───
+  // ログイン後は Lightning ではなくコミュニティサイト URL に遷移する
+  // 対象フロー（例: CopyQuoteByCustomer）はコミュニティのホームから起動する
+  const currentUrl = page.url();
+  // TC-XXX: {観点}
+  // 例: CopyQuoteByCustomer フローを起動する場合
+  //   await page.goto(currentUrl.replace('/s/', '/s/') + '?flowName=CopyQuoteByCustomer');
+  await page.screenshot({path: '/絶対パス/evidence/before/{No}_before.png', fullPage: true});
+  const beforeText = await page.locator('body').innerText();
+  // （フロー操作）
+  await page.screenshot({path: '/絶対パス/evidence/after/screen/{No}_xxx.png', fullPage: true});
+  const afterText = await page.locator('body').innerText();
+
+  // ─── ステップ4: コミュニティセッション終了 → 管理者に戻る ───
+  // コミュニティ上で管理者に戻るには以下のいずれかを使う
+  // 方法A: SF 管理者 URL に直接移動（セッションが管理者に戻る）
+  await page.goto('/lightning/setup/home');
+  await waitSfReady(page);
+  // 方法B: コミュニティヘッダーに「管理者に戻る」リンクがある場合はクリック
+  // await page.getByText('管理者として戻る').or(page.getByText('Return to Admin')).click().catch(() => {});
+
+  return JSON.stringify({no: '{No}', beforeText, text: afterText});
+}
+```
+
+**コミュニティ Login As 特有の注意点**:
+- ログイン後の遷移先は **Lightning ではなくコミュニティサイトの URL**（例: `https://xxx.force.com/s/`）
+- 内部ユーザー向け `/secur/logout.jsp` での管理者復帰はコミュニティセッションでは効かない場合あり → `/lightning/setup/home` への直接遷移で管理者セッションに戻る
+- 「ユーザーとしてログイン」ボタンが Contact ページに表示されない場合は、組織の「Experience Cloud サイト管理」で「ユーザーとしてログイン」を有効化する必要がある（Settings → Digital Experiences → Settings）
+- 判定は必要なければボタンを探さず `mcp__playwright__browser_snapshot` で DOM を先に確認してから操作コードを組む
+
+### ユーザー種別の判定フロー
+
+```
+対象ユーザーのプロファイルを確認
+│
+├─ 社内プロファイル（標準 / システム管理者 / カスタム内部）
+│  → 通常 Login As（ManageUsers → ユーザに代わってログイン）
+│
+└─ 外部プロファイル（Customer Community / Partner / コミュニティ / Portal 系）
+   → コミュニティ Login As（Contact ページ → ユーザーとしてログイン）
+```
+
+---
+
 ## 並列 UI 証跡（複数コンテキスト）
 
 **読み取り専用かつユーザ切替なし**の TC のみが対象。データ作成/更新を伴うケースと Login As ケースは逐次を維持する。

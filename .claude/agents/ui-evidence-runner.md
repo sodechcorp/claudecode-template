@@ -251,7 +251,7 @@ async (page) => {
 
 **バッチ化の原則**: `ui_cases` を対象ユーザ単位でグルーピングし、ユーザごとに `Login As 1回 → 当該ユーザの全 TC を連続撮影 → logout 1回` に収める。TC ごとに Login As/logout を往復しない。
 
-Login As 前提チェック・実ユーザ名の解決・Login As バッチ操作手順は `playwright-sf-screen-ops.md` の「Login As」セクションに従う。
+Login As 前提チェック・実ユーザ名の解決・Login As バッチ操作手順は `playwright-sf-screen-ops.md` の「Login As」セクション（内部ユーザー）および「Login As（コミュニティ / Experience Cloud ユーザー）」セクション（外部ユーザー）に従う。**コミュニティ / お客様ユーザーも自動化対象**（コミュニティ Login As 手順を使う）。
 
 ### 実ユーザ名の解決（TC 固有）
 
@@ -270,7 +270,14 @@ Login As での証跡はユーザ名を含む命名にする:
 - after: `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.png`
 - DOM テキスト: `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.txt`
 
-Login As 不可の場合は全対象 TC を `要手動（Login As 不可）` に降格して記録し Step 3 を終了する。
+**Login As が実行時に失敗した場合の手順**:
+1. まず `playwright-sf-screen-ops.md` のコミュニティ Login As 手順（Contact ページ → ユーザーとしてログイン）を試みる
+2. 内部ユーザーの場合は ManageUsers 経由の通常 Login As を試みる
+3. 上記すべての手順を試みても真に不可能だった場合のみ `要手動（Login As 不可）` に降格する。**無言降格禁止** — 降格する際は必ず以下を返却テキストに明記する:
+   - 試みた手順とそのステップ
+   - 失敗した具体的な操作（例: 「Contact ページに『ユーザーとしてログイン』ボタンが存在しない」）
+   - 考えられる原因（例: 「Experience Cloud 設定でログインが無効化されている可能性」）
+   この情報は test-report.md の「要手動確認」欄にも残す。
 全ユーザ確認後に `mcp__playwright__browser_close` でセッションを閉じる。
 
 ---
