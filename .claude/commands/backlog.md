@@ -380,7 +380,7 @@ xlsx_folder: {xlsx_folder}
 
 ### Phase 5: スモーク確認（backlog-tester）
 
-> **目的**: dry-run デプロイでコンパイル可能か・Apex テストが通るかを永続化せずに検証する。証跡採取・エビデンス xlsx 生成・Sandbox への本デプロイは行わない。PASS で Phase 6 へ進む。
+> **目的**: dry-run デプロイでコンパイル可能か・Apex テストが通るかを永続化せずに検証する。証跡採取・エビデンス xlsx 生成・Sandbox への本デプロイは行わない。PASS で Phase 6 へ進む。Phase 5 の dry-run PASS 記録は Phase 6 の dry-run 省略判定に使われる（force-app 無変更なら Phase 6 は dry-run をスキップして本デプロイへ直行）。
 
 `backlog-tester` エージェントを起動する:
 
@@ -402,6 +402,8 @@ xlsx_folder: {xlsx_folder}
 ---
 
 ### Phase 6: Sandbox リリース・お客様確認・完了（backlog-releaser）
+
+> **dry-run 重複排除**: Phase 5 で dry-run PASS 済みかつ force-app に変更がない場合、Phase 6 は dry-run をスキップして本デプロイへ直行する。Phase 5 以降にコード変更がある場合のみ再 dry-run を実行する。
 
 `backlog-releaser` エージェントを起動する:
 

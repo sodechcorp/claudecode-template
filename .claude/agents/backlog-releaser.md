@@ -107,15 +107,25 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    - **base が取得できた場合**: `git diff --name-only {base} -- 'force-app/**'`（コミット済み・未コミットの両方を網羅）
    - **base が取得できない場合**（標準フロー＝コミットなし・段階コミット一覧なし）: `git diff --name-only HEAD -- 'force-app/**'`（未コミットの作業ツリー差分）
    - 上記いずれも差分が空の場合は「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する。`Glob` での全量フォールバックは行わない
-2. dry-run 検証:
-   ```bash
-   sf project deploy start --dry-run --source-dir force-app
-   ```
+2. dry-run 検証（スキップ判定あり）:
+
+   **スキップ判定**（本デプロイ前に以下を確認する）:
+   1. `docs/logs/{issueID}/test-report.md` の「## スモーク確認結果」を Read し、`dry-run: PASS` の記録があるか確認する
+   2. PASS の記録がある場合、Phase 5 以降に force-app が変更されていないかを確認する:
+      ```bash
+      find force-app -type f -newer docs/logs/{issueID}/test-report.md
+      ```
+   3. **出力なし（無変更）かつ PASS 記録あり** → dry-run を省略し「Phase 5 で dry-run PASS 済み・force-app 無変更のため dry-run を省略して本デプロイへ進む」と 1 行通知して Step 3 へ
+   4. **出力あり（変更あり）または PASS 記録なし** → 以下の dry-run を実行する:
+      ```bash
+      sf project deploy start --dry-run --source-dir force-app
+      ```
+
 3. ユーザにデプロイ確認を取る（必須）:
-   - 「dry-run 結果を確認しました。デプロイを実行してよいですか？（デプロイ実行 / 内容を確認してから実行 / 中止）」とテキストで質問する
+   - 「（dry-run 結果を確認しました / Phase 5 PASS 済み・dry-run 省略）。デプロイを実行してよいですか？（デプロイ実行 / 内容を確認してから実行 / 中止）」とテキストで質問する
    - 「中止」が返答された場合は中止理由を `docs/decisions.md` または `docs/logs/{issueID}/` 配下のメモにテキストで記録し、ユーザに通知する（Backlog コメント反映が必要ならユーザーが手動で投稿）。デプロイは行わない
-   
-   **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、上記 dry-run が 0 errors であることを確認した上でデプロイ確認を省略して 4 へ直接進む。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。（前提: /test Phase F-2 で backlog-tester による dry-run PASS が確認済み。本ステップの dry-run は二重確認として機能する）
+
+   **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、上記スキップ判定に従い無変更なら dry-run 省略・確認省略で 4 へ直接進む。変更検知時のみ dry-run を実行し 0 errors を確認してから 4 へ進む。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。
 4. デプロイ実行
 5. デプロイ後の動作確認（Phase 5 と二重チェック）:
 
