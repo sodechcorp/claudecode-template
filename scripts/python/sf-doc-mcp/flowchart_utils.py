@@ -22,7 +22,7 @@ try:
 except ImportError:
     HAS_MPL = False
 
-_JP_FONT_PATH = "C:/Windows/Fonts/YuGothR.ttc"
+_JP_FONT_PATH = _os.environ.get("JAPANESE_FONT_PATH", "C:/Windows/Fonts/YuGothR.ttc")
 JP_FONT_PROP = None
 if _os.path.exists(_JP_FONT_PATH) and HAS_MPL:
     JP_FONT_PROP = fm.FontProperties(fname=_JP_FONT_PATH)

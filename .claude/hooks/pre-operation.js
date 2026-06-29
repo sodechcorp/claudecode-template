@@ -120,7 +120,7 @@ process.stdin.on('end', () => {
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
           permissionDecision: 'deny',
-          permissionDecisionReason: '[HARD-BLOCK] スクラッチパッド絶対パスが壊れた形式です。C:\\c や文字化けファイルの生成を防ぐためブロックしました。forward-slash 形式（例: C:/Users/sodech/AppData/Local/Temp/claude/.../scratchpad/...）で渡し直してください。\n対象コマンド: ' + command
+          permissionDecisionReason: '[HARD-BLOCK] スクラッチパッド絶対パスが壊れた形式です。C:\\c や文字化けファイルの生成を防ぐためブロックしました。forward-slash 形式（例: C:/Users/{user}/AppData/Local/Temp/claude/.../scratchpad/...）で渡し直してください。\n対象コマンド: ' + command
         }
       }));
       return;

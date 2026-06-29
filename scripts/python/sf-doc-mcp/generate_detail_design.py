@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import tempfile
@@ -572,16 +573,26 @@ def fill_related_components(ws, data: dict, changed_comp_keys: set,
 import re as _re
 
 # ── SFプロジェクト → メタデータパス マッピング ───────────────────────────
-# flows/classes は greenfield、フィールドラベル翻訳は両方から取得（GF_UATが補完）
-_SF_PROJECT_PATHS: dict[str, str] = {
-    # キーは小文字で統一。data.get('project_name') は .lower() して照合する
-    "greenfield": "C:/workspace/16_グリーンフィールド/greenfield",
-    "link_prod":  "C:/workspace/21_リンク/link_prod",
-    "link":       "C:/workspace/21_リンク/link_prod",
-}
-_SF_EXTRA_LABEL_PATHS: list[str] = [
-    "C:/workspace/16_グリーンフィールド/GF_UAT",
-]
+# 環境変数で設定。未設定時は --project-dir 経由のメタデータのみ使用（空辞書）。
+# SF_PROJECT_PATHS: JSON 文字列 {"greenfield": "C:/path/to/proj", "link_prod": "C:/..."}
+#   キーは小文字で統一（照合時に .lower() する）
+# SF_EXTRA_LABEL_PATHS: os.pathsep 区切りパス（Windows: ";", POSIX: ":"）
+#   例: "C:/path/to/GF_UAT;C:/path/to/other"
+_SF_PROJECT_PATHS: dict[str, str] = {}
+try:
+    _env_spp = os.environ.get("SF_PROJECT_PATHS", "")
+    if _env_spp:
+        _SF_PROJECT_PATHS = {k.lower(): v for k, v in json.loads(_env_spp).items()}
+except Exception:
+    pass
+
+_SF_EXTRA_LABEL_PATHS: list[str] = []
+try:
+    _env_selp = os.environ.get("SF_EXTRA_LABEL_PATHS", "")
+    if _env_selp:
+        _SF_EXTRA_LABEL_PATHS = [p for p in _env_selp.split(os.pathsep) if p]
+except Exception:
+    pass
 # メタデータから構築するフィールドラベルマップ {obj_api: {field_api: ja_label}}
 _SF_FIELD_LABELS: dict[str, dict[str, str]] = {}
 # オブジェクトラベルマップ {obj_api: ja_label}
