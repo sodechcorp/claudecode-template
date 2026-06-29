@@ -184,8 +184,8 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
   Phase A: 前提検証・接続確認（Sandbox 判定）
   Phase B: テスト仕様の展開（test-spec.md 生成・網羅性チェック）
   Phase C: SOQL / Apex テスト / 匿名 Apex / Playwright UI の自動実行（分岐網羅・before/after）
-  Phase D: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
-  Phase E: OK/NG 判定・対応記録.xlsx 更新
+  Phase D: OK/NG 判定・対応記録.xlsx 更新
+  Phase E: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
   Phase F: test-report.md 生成・テストデータ後始末
 
 続行しますか？（テスト実行・データ操作が発生します）
@@ -279,27 +279,7 @@ ls -lhR "{evidence_dir}/after/" 2>/dev/null | grep -E "\.(txt|png)$"
 
 ---
 
-### Phase D: エビデンス Excel 生成・証跡自動貼付
-
-> **[ハーネス直接実行]**
-
-```bash
-python "$(pwd)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
-  --folder "{xlsx_folder}" \
-  --issue-id "{issueID}" \
-  --spec "{spec_path}" \
-  --evidence-dir "{evidence_dir}/after" \
-  --judgment "{judgment_path}"
-```
-
-生成された `{xlsx_folder}/{issueID}_エビデンス.xlsx` を確認:
-- 「テスト結果」シートが存在するか
-- 「証跡」シートが存在するか
-- ケース数が test-spec.md と一致するか
-
----
-
-### Phase E: OK/NG 判定・結果記入
+### Phase D: OK/NG 判定・結果記入
 
 > **[ハーネス直接実行]**
 
@@ -330,6 +310,26 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
 
 ---
 
+### Phase E: エビデンス Excel 生成・証跡自動貼付
+
+> **[ハーネス直接実行]**
+
+```bash
+python "$(pwd)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
+  --folder "{xlsx_folder}" \
+  --issue-id "{issueID}" \
+  --spec "{spec_path}" \
+  --evidence-dir "{evidence_dir}/after" \
+  --judgment "{judgment_path}"
+```
+
+生成された `{xlsx_folder}/{issueID}_エビデンス.xlsx` を確認:
+- 「テスト結果」シートが存在するか
+- 「証跡」シートが存在するか
+- ケース数が test-spec.md と一致するか
+
+---
+
 ### Phase F: test-report.md 生成・後始末
 
 > **[auto-evidence-runner（レポート・後始末モード）へ委譲]**
@@ -342,7 +342,7 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
 - `evidence_dir`: `{EVIDENCE_DIR}`
 - `xlsx_folder`: `{XLSX_FOLDER}`
 - `spec_path`: `{SPEC_PATH}`
-- `judgment_path`: `{JUDGMENT_PATH}`（**必須**・Phase E の `judge_results.py` が生成した JSON）
+- `judgment_path`: `{JUDGMENT_PATH}`（**必須**・Phase D の `judge_results.py` が生成した JSON）
 - ※ `target_tc_list` / `max_workers_*` / `serial` は不要（証跡採取を再実行しないため）
 
 `{judgment_path}` が指定されているため auto-evidence-runner は**レポート・後始末モード**で起動する:
