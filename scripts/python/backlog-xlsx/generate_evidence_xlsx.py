@@ -63,10 +63,13 @@ except ImportError:
     _PIL_OK = False
 
 # openpyxl CellRichText（部分赤字に必要、バージョン依存）
+# lxml ライター経由のときだけ有効化する。lxml 非導入時は純Python etree ライターの
+# TextBlock 書き出しバグ（Excel「修復が必要」ダイアログ）を回避するため無効化する。
 try:
+    from openpyxl import LXML as _OPENPYXL_LXML
     from openpyxl.cell.rich_text import CellRichText, TextBlock
     from openpyxl.cell.text import InlineFont
-    _RICHTEXT_OK = True
+    _RICHTEXT_OK = bool(_OPENPYXL_LXML)
 except ImportError:
     _RICHTEXT_OK = False
 
@@ -85,7 +88,7 @@ WRAP        = _align("left", "top", wrap=True)
 CENTER_MID  = _align("center", "center", wrap=False)
 
 # 列幅初期値（auto-fit の下限として機能）
-_MIN_COL_WIDTHS_RESULT   = [8, 8, 18, 12, 18, 18, 10, 24, 14]   # No/対応要求/観点/種別/期待/実際/判定/NG原因/証跡リンク
+_MIN_COL_WIDTHS_RESULT   = [8, 8, 18, 12, 20, 18, 18, 10, 24, 14]   # No/対応要求/観点/種別/テスト手順/期待/実際/判定/NG原因/証跡リンク
 _MIN_COL_WIDTHS_EVIDENCE = [8, 58]
 
 # 印刷設定
@@ -251,7 +254,7 @@ def _build_richtext_line(line: str, terms: list):
     if len(parts) <= 1:
         return line
     base_font  = InlineFont(rFont="Courier New", sz=9)
-    red_font   = InlineFont(rFont="Courier New", sz=9, color="CC0000", b=True)
+    red_font   = InlineFont(rFont="Courier New", sz=9, color="FFCC0000", b=True)
     blocks = []
     for i, part in enumerate(parts):
         if not part:
@@ -278,6 +281,51 @@ def _append_text_block(ws, path: str, start_row: int, highlight_terms: list = No
     return len(lines)
 
 
+def _append_dom_excerpt(ws, path: str, start_row: int, highlight_terms: list = None) -> int:
+    """DOM テキストから期待値一致行だけ抜粋して ws の start_row から展開し、書いた行数を返す。
+
+    highlight_terms が空（否定観点）の場合は確認ノート1行のみ書く。
+    一致行がある場合は一致行のみ赤字抜粋（証跡の主役はスクショ・DOMは補助）。
+    SOQL/Apex の .txt 全文展開（_append_text_block）とは別物。
+    """
+    if not highlight_terms:
+        # 否定観点: 期待文字列なしを確認（スクショ参照）
+        note = "DOM照合: 期待文字列なしを確認（スクショ参照）"
+        c = ws.cell(row=start_row, column=2, value=note)
+        c.font = _font(fg="888888", italic=True, size=9)
+        c.alignment = _align("left", "top", wrap=True)
+        c.border = THIN_BORDER
+        ws.cell(start_row, 1).border = THIN_BORDER
+        _set_row_height(ws, start_row, 15)
+        return 1
+
+    text = _read_text_safe(path)
+    lines = text.splitlines()
+    matched = [ln for ln in lines
+               if any(t.lower() in ln.lower() for t in highlight_terms)]
+
+    if not matched:
+        note = "DOM照合: 期待値一致行なし（スクショ参照）"
+        c = ws.cell(row=start_row, column=2, value=note)
+        c.font = _font(fg="888888", italic=True, size=9)
+        c.alignment = _align("left", "top", wrap=True)
+        c.border = THIN_BORDER
+        ws.cell(start_row, 1).border = THIN_BORDER
+        _set_row_height(ws, start_row, 15)
+        return 1
+
+    for i, line in enumerate(matched):
+        safe = (" " + line) if line.startswith("=") else line
+        cell_value = _build_richtext_line(safe, highlight_terms)
+        c = ws.cell(row=start_row + i, column=2, value=cell_value)
+        c.font = Font(name="Courier New", size=9)
+        c.border = THIN_BORDER
+        c.alignment = _align("left", "top", wrap=True)
+        ws.cell(start_row + i, 1).border = THIN_BORDER
+        _set_row_height(ws, start_row + i, 15)
+    return len(matched)
+
+
 def _count_lines(path: str) -> int:
     return len(_read_text_safe(path).splitlines())
 
@@ -302,17 +350,16 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
                           result_ws_name: str = "テスト結果") -> int:
     """証跡シートの TC セクション先頭に読み方ガイドブロックを書き、次の row_ptr を返す。
 
-    出力イメージ:
-        ■ TC-003  ②I-797「いいえ」で専用相談メッセージのみ表示（UI）
-          何を確認   : {観点}
-          期待結果   : {期待結果}
-          判定方法   : {判定方法}   ✅OK / ❌NG / ⬜要手動
-          確認ポイント: {着眼点 or 導出文}
+    出力イメージ（簡素化版・全行動的行高）:
+        ■ TC-003: ②I-797「いいえ」で専用相談メッセージのみ表示（UI）
+          確認観点: {確認ポイント（着眼点）or 導出文}
+          判定   : {判定方法}  ✅OK / ❌NG / ⬜要手動
+
+    重複排除: 期待結果・判定方法の独立行は廃止（テスト結果シートと test-spec.md に既出のため）。
     """
     no       = tc.get("No", "")
     kanpoin  = tc.get("観点", "")
     shubetsu = tc.get("種別", "")
-    kitai    = tc.get("期待結果", "")
     hantei   = tc.get("判定方法", "")
     focus    = tc.get("確認ポイント（着眼点）") or tc.get("着眼点") or _derive_focus(tc)
 
@@ -327,20 +374,21 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
         judge_icon = "⬜ 要手動"
         judge_fill = MANUAL_FILL
 
-    # 行1: ■ No 観点（種別）
+    GUIDE_FILL = PatternFill("solid", fgColor="EFF3FB")
+    # 証跡シートの B 列幅（≒58文字）から動的行高を計算するための近似値
+    _EV_COL_W = 55
+
+    # 行1: ■ No: 観点（種別）— 濃紺ヘッダー・折り返し対応・動的行高
     ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)
-    hdr = ws.cell(row=row_ptr, column=1,
-                  value=f"■ {no}: {kanpoin} （{shubetsu}）")
+    hdr_text = f"■ {no}: {kanpoin} （{shubetsu}）"
+    hdr = ws.cell(row=row_ptr, column=1, value=hdr_text)
     hdr.fill = PatternFill("solid", fgColor="1F3864")
     hdr.font = _font(fg="FFFFFF", bold=True, size=10)
     hdr.alignment = WRAP
     hdr.border = THIN_BORDER
-    _set_row_height(ws, row_ptr, 20)
+    _set_row_height(ws, row_ptr, max(20, _row_height_by_lines(hdr_text, col_width=60, base_pt=14)))
     anchor_cell_addr = f"A{row_ptr}"
     row_ptr += 1
-
-    # ガイド行の共通スタイル
-    GUIDE_FILL = PatternFill("solid", fgColor="EFF3FB")
 
     def _guide_row(label: str, value: str, fill=None, bold_val: bool = False):
         nonlocal row_ptr
@@ -354,13 +402,15 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
         vc.font = _font(bold=bold_val, size=9)
         vc.alignment = WRAP
         vc.border = THIN_BORDER
-        _set_row_height(ws, row_ptr, 15)
+        # 動的行高: 折り返した日本語が切れないよう内容量に応じて伸ばす
+        h = max(15, _row_height_by_lines(str(value), col_width=_EV_COL_W, base_pt=13))
+        _set_row_height(ws, row_ptr, h)
         row_ptr += 1
 
-    _guide_row("何を確認", kanpoin)
-    _guide_row("期待結果", kitai)
-    _guide_row("判定方法", f"{hantei}    {judge_icon}", fill=judge_fill)
-    _guide_row("確認ポイント", focus, fill=LIGHT_BLUE, bold_val=True)
+    # 行2: 確認観点（着眼点または導出文）— 水色背景
+    _guide_row("確認観点", focus, fill=LIGHT_BLUE, bold_val=True)
+    # 行3: 判定（判定方法 + 判定アイコン）— 判定色背景
+    _guide_row("判定", f"{hantei}  {judge_icon}", fill=judge_fill)
 
     return row_ptr, anchor_cell_addr
 
@@ -438,12 +488,12 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
     is_multi = all_rounds is not None and len(all_rounds) > 1
 
     # ── 動的列定義 ────────────────────────────────────────────────────────────
-    base_left  = ["No", "対応要求", "確認観点", "種別", "期待結果"]
+    base_left  = ["No", "対応要求", "確認観点", "種別", "テスト手順", "期待結果"]
     round_cols = [lbl for lbl, _ in all_rounds] if is_multi else []
     base_right = ["実際の結果", "判定", "NG原因/次アクション", "証跡"]
     headers    = base_left + round_cols + base_right
 
-    n_left  = len(base_left)                        # 5
+    n_left  = len(base_left)                        # 6
     n_round = len(round_cols)                       # 0 or ≥2
     col_actual = n_left + n_round + 1               # 実際の結果
     col_judge  = col_actual + 1                     # 判定
@@ -479,6 +529,7 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
         no = tc.get("No", "")
         shubetsu = tc.get("種別", "")
         kanpoin = tc.get("観点", "")
+        tesuji = tc.get("テスト手順", "")
         kiki = tc.get("期待結果", "")
         auto = tc.get("自動化可否", "自動").strip()
         is_manual = "要手動" in auto
@@ -512,7 +563,7 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
                 round_statuses.append(r_res.get("status", ""))
 
         # vals: base_left + round_cols（判定アイコン）+ base_right
-        left_vals  = [no, req_label, kanpoin, shubetsu, kiki]
+        left_vals  = [no, req_label, kanpoin, shubetsu, tesuji, kiki]
         round_vals = []
         for rs in round_statuses:
             if rs == "OK":
@@ -560,14 +611,16 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
                 c.font = _font()
                 c.fill = fill
 
-        # 行高: 実際の結果が長い場合に折り返し分を確保（下限 30pt）
-        h = max(30.0, _row_height_by_lines(actual, col_width=18))
+        # 行高: テスト手順・実際の結果のどちらか長い方に合わせて確保（下限 30pt）
+        h = max(30.0,
+                _row_height_by_lines(actual, col_width=18),
+                _row_height_by_lines(tesuji, col_width=20))
         _set_row_height(ws, row, h)
         tc_to_row[no] = row
 
     # 観点・期待結果・実際の結果列は内容に応じて幅を自動調整
     # col_actual は回次列挿入でシフト済みの絶対列番号
-    for col_idx in [3, 5, col_actual]:  # 確認観点, 期待結果, 実際の結果
+    for col_idx in [3, 5, 6, col_actual]:  # 確認観点, テスト手順, 期待結果, 実際の結果
         # _MIN_COL_WIDTHS_RESULT の元のインデックスに戻してから参照
         orig_idx = col_idx if col_idx <= n_left else col_idx - n_round
         _auto_col_width(ws, col_idx, min_w=_MIN_COL_WIDTHS_RESULT[orig_idx - 1], max_w=40)
