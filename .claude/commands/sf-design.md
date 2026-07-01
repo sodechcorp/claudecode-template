@@ -11,6 +11,12 @@ Salesforce プロジェクトの設計書を生成します。
 **テンプレート置換ルール（厳守）:** [共通ルール参照](../CLAUDE.md#テンプレート置換ルール厳守) — 加えて以下の固有規則を適用する:
 - **列挙値** (`{version_increment}`): `minor` / `major` 以外が指定された場合は `minor` にフォールバックし、ユーザーに「未知の値のためminorに置換」と警告する。
 
+## 品質ゲート（任意起動）
+
+$ARGUMENTS
+
+引数に「レビュー」「reviewer」「review」等のレビュー要求が含まれる場合、生成したプログラム設計 JSON を reviewer にクロスチェックさせる（`run_reviewer = true`）。含まれない場合は `run_reviewer = false`（既定・追加コストなし）。対象は「プログラム設計」を含む選択時のみ（詳細設計単独・機能一覧単独では使用しない）。新規 AskUserQuestion は追加しない。
+
 ---
 
 ## 2層設計の概要
@@ -553,6 +559,7 @@ version_increment: {version_increment}
 selected_steps: {選択した種別のリスト。例: ["詳細設計", "プログラム設計"]}
 target_group_ids: {Step 0-3 で確定したリスト。「詳細設計」が含まれない場合は []}
 sf_alias: {Step 0-4 で確定。「プログラム設計」が含まれない場合は ""}
+run_reviewer: {品質ゲート（任意起動）で確定した値。既定 false。「プログラム設計」が selected_steps に含まれない場合は無視される}
 ```
 
 > sf-design-step1 はグループ確定済みパラメータを受け取り、詳細設計の実行・必要に応じた連鎖呼び出し（step2/step3）を全て担う。コマンドは step1 の完了を待つだけでよい。
@@ -569,6 +576,7 @@ target_group_ids: []
 step0_3_done: false
 sf_alias: {Step 0-4 で確定}
 target_ids: {Step 0-5 で確定。空リスト = 全件}
+run_reviewer: {品質ゲート（任意起動）で確定した値。既定 false}
 ```
 
 > **パラメータ補足**:
@@ -576,6 +584,7 @@ target_ids: {Step 0-5 で確定。空リスト = 全件}
 > - `step0_3_done`: `true` なら step1 からの連鎖呼び出し（グループ→機能ID変換済み）、`false` なら単独実行（orchestrator 確定済みの target_ids をそのまま使う）。
 > - `sf_alias`: Salesforce 組織エイリアス（orchestrator の Step 0-4 で確定済み）。
 > - `target_ids`: 対象機能IDリスト（orchestrator の Step 0-5 で確定済み）。空リストは全件対象。
+> - `run_reviewer`: 任意 reviewer ゲートの起動フラグ（$ARGUMENTS のレビュー要求判定結果）。既定 false。
 
 ### 機能一覧のみが選択された場合（詳細設計・プログラム設計が含まれない） → sf-design-step3 エージェント
 
@@ -592,6 +601,8 @@ version_increment: {version_increment}
 ## Step 3: 完了報告
 
 sf-design-step1（または直接呼ばれた sf-design-step2 / sf-design-step3）から返された完了報告をそのまま assistant message に転記する。フォーマット定義は各エージェント側に集約済み。
+
+> `run_reviewer=true` の場合、sf-design-step2 の完了報告に reviewer の指摘事項が含まれる。そのまま転記する（指摘の修正はここでは行わない。反映するには `/sf-design` の再実行が必要な旨をあわせて伝える）。
 
 ---
 

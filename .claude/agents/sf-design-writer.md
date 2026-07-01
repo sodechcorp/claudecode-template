@@ -42,7 +42,7 @@ tools:
 | `feature_list_dir` | 機能一覧の出力先フォルダ（`{output_dir}/../01_基本設計` 相当のパス。sf-design コマンドが明示的に渡す） |
 | `version_increment` | `"minor"` または `"major"`（初回生成時は `"minor"`・スクリプト側が v1.0 から開始） |
 | `generate_feature_list` | `true`（デフォルト）/ `false`。`false` の場合は Phase 3（機能一覧 Excel 生成）をスキップする。バッチ処理の中間バッチで sf-design-step2 が指定する |
-| `skip_cleanup` | `false`（デフォルト）/ `true`。`true` の場合は Phase 4 の tmp_dir 削除をスキップして完了報告のみ行う。後続バッチが同じ tmp_dir を使用するため中間バッチで指定される |
+| `skip_cleanup` | `false`（デフォルト）/ `true`。`true` の場合は Phase 4 の tmp_dir 削除をスキップして完了報告のみ行う。後続バッチが同じ tmp_dir を使用するため中間バッチで指定される。**最終バッチでも `true` になる場合がある**（sf-design-step2 の任意 reviewer ゲート `run_reviewer=true` 時。この場合は reviewer 起動後に step2 自身が削除する） |
 
 ---
 
