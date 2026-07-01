@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"systemMessage\":\"[SAVE-BEFORE-COMPACT] 圧縮前に知見を保存せよ。保存先と対象: (1) docs/logs/dev-notes.md — 技術知見・発見した制約（スクリプト設計・外部ツール連携等）を追記 (2) docs/knowledge/pitfalls.md — 落とし穴・ハマりポイント・注意事項 (3) docs/decisions.md — 方針判断・設計決定（最上部に降順追記） (4) .claude/agents/ — 設計判断・スキーマ変更・エージェントへの制約追加が必要なものを該当agentファイルに追記。すべてプロジェクト相対パス。Write/Editで今すぐ実行してから圧縮を続行。変更不要なら何もしない。(5) /backlog コマンド実行中の場合は、compact 前に docs/logs/{issueID}/investigation.md のフロントマター（issue_type / xlsx_folder / evidence_dir / light_mode）が最新の状態で保存されているか確認してください。compact 後の再開には /backlog コマンドの再起動が必要です。\"}'",
+            "command": "echo '{\"systemMessage\":\"[SAVE-BEFORE-COMPACT] 圧縮前に知見を保存せよ。保存先と対象: (1) docs/logs/dev-notes.md — 技術知見・発見した制約（スクリプト設計・外部ツール連携等）を追記 (2) docs/knowledge/pitfalls.md — 落とし穴・ハマりポイント・注意事項 (3) docs/decisions.md — 方針判断・設計決定（最上部に降順追記） (4) .claude/agents/ — 設計判断・スキーマ変更・エージェントへの制約追加が必要なものを該当agentファイルに追記。すべてプロジェクト相対パス。Write/Editで今すぐ実行してから圧縮を続行。変更不要なら何もしない。(5) /backlog コマンド実行中の場合は、compact 前に docs/logs/{issueID}/investigation.md のフロントマター（issue_type / xlsx_folder / evidence_dir / light_mode）が最新の状態で保存されているか確認してください。compact 後に /backlog を再開する場合は、最初に /backlog {課題ID}（対応中の課題ID）を打ち直してください。Phase 0d が investigation.md のフロントマターからコンテキストを復元します。\"}'",
             "timeout": 10
           }
         ]
