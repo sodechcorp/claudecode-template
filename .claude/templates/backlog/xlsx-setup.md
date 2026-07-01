@@ -47,7 +47,9 @@ python -c "import yaml,pathlib; p=pathlib.Path('docs/.backlog_config.yml'); d=ya
 ```
 
 - **初回（出力が空）**: 保存先フォルダパスをテキストで入力してもらう（絶対パスで指定。例: `C:/work/backlog_records`）
-- **2回目以降（出力に前回パスあり）**: AskUserQuestion でフォルダを選択する:
+- **2回目以降（出力に前回パスあり）かつ `--reconfigure` 未指定**: AskUserQuestion を出さず前回パスを silent に再利用する（`{確定したパス}` = 出力値）。チャットに1行通知する:
+  > report_dir: `{前回のパス}`（プロジェクト設定により自動継続。再指定は `--reconfigure`）
+- **2回目以降かつ `--reconfigure` 指定時**: AskUserQuestion でフォルダを選択する:
   - label: `{前回のパス} を使う`、description: "前回と同じフォルダに保存する"
   - label: `別のパスを指定する`、description: "新しいフォルダパスを絶対パスで入力する"
   - 「別のパスを指定する」が選ばれた場合はチャットで絶対パスを入力してもらう
