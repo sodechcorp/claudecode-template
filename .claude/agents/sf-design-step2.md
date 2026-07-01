@@ -127,7 +127,7 @@ python -c "
 import json
 with open(r'{tmp_dir}/feature_list.json', encoding='utf-8') as f:
     fl = json.load(f)
-apex_types = {'Apex', 'Batch', 'Integration', 'Trigger'}
+apex_types = {'Apex', 'Batch', 'Integration', 'Trigger', 'Flow'}
 screen_types = {'LWC', '画面フロー', 'Visualforce', 'Aura'}
 apex_list = [f for f in fl if f.get('type') in apex_types]
 screen_list = [f for f in fl if f.get('type') in screen_types]
@@ -148,16 +148,19 @@ print(f'画面系（sf-screen-writer対象）: {len(screen_list)}件')
 >     tids = set(json.loads(raw_ids)) if raw_ids.strip() and raw_ids.strip() != '[]' else set()
 > except Exception:
 >     tids = set(x.strip() for x in raw_ids.split(',') if x.strip())
-> apex_types   = {'Apex', 'Batch', 'Integration', 'Trigger'}
+> apex_types   = {'Apex', 'Batch', 'Integration', 'Trigger', 'Flow'}
 > screen_types = {'LWC', '画面フロー', 'Visualforce', 'Aura'}
 > targets     = [f for f in fl if not tids or f['id'] in tids]
 > apex_list   = [f for f in targets if f.get('type') in apex_types]
 > screen_list = [f for f in targets if f.get('type') in screen_types]
-> total = len(apex_list) + len(screen_list)
+> all_ids = [f['id'] for f in targets]
+> total = len(all_ids)
 > BATCH_SIZE = 50
 > n_batches = max(1, math.ceil(total / BATCH_SIZE))
-> all_ids = [f['id'] for f in targets]
 > batches = [all_ids[i:i+BATCH_SIZE] for i in range(0, len(all_ids), BATCH_SIZE)]
+> unclassified = sorted({f.get('type') for f in targets if f.get('type') not in apex_types | screen_types})
+> if unclassified:
+>     print(f'warn:未分類type {unclassified} はdelegation判定を要確認')
 > print(f'total:{total}')
 > print(f'apex:{len(apex_list)}')
 > print(f'screen:{len(screen_list)}')
