@@ -146,12 +146,42 @@ def find_evidence_file(evidence_dir: str, tc_no: str, shubetsu: str, judgment: d
     return files[0] if files else ""
 
 
-def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: dict = None) -> list:
+def build_evidence_index(evidence_dir: str) -> dict:
+    """evidence_dir を1回だけ os.walk し、TC番号 → ファイルパス一覧の索引を返す。
+
+    find_evidence_files を TC 件数ぶん繰り返し呼ぶと同じディレクトリを毎回
+    再帰走査してしまう（O(TC × ファイル数)）ため、TC ループの外で1回だけ
+    構築し find_evidence_files(..., index=...) に渡す。走査順・除外条件は
+    find_evidence_files の os.walk 版と同一（証跡順序・正確性は不変）。
+    """
+    index: dict = {}
+    if not os.path.isdir(evidence_dir):
+        return index
+    for dirpath, _dirs, filenames in os.walk(evidence_dir):
+        for fname in sorted(filenames):
+            # before / リサイズ済みサムネイルは対象外
+            if "_before." in fname or "_resized." in fname:
+                continue
+            # ファイル名先頭の "TC-NNN" 部分を抽出して TC番号を索引キーにする
+            fname_prefix = fname.split("_")[0]  # "TC-001" / "TC-04" / "tc-4"
+            tc_num = _tc_normalize(fname_prefix)
+            if tc_num < 0:
+                continue
+            index.setdefault(tc_num, []).append(os.path.join(dirpath, fname))
+    return index
+
+
+def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: dict = None,
+                        index: dict = None) -> list:
     """証跡ディレクトリから TC 番号に対応する全ファイルを返す。
     優先順:
       ① judgment-result.json の evidence パス（検証済み正本・絶対パスで直参照）
-      ② os.walk 再帰探索（複合種別・before/after サブディレクトリ・桁差 TC-04 vs TC-004 対応）
+      ② index 索引引き（build_evidence_index 済みの場合）または os.walk 再帰探索
+         （複合種別・before/after サブディレクトリ・桁差 TC-04 vs TC-004 対応）
     before ファイル（"_before." を含む）は除外。
+
+    index: build_evidence_index(evidence_dir) の返り値。TC ループの外で1回構築して
+           渡すと os.walk の重複走査を避けられる。None の場合は従来どおり毎回 os.walk する。
     """
     found = []
     seen = set()
@@ -163,9 +193,19 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: 
             seen.add(ev_path)
             found.append(ev_path)
 
-    # ② os.walk 再帰探索（TC番号正規化で桁差・複合種別・サブディレクトリを吸収）
     tc_num = _tc_normalize(tc_no)
-    if tc_num >= 0 and os.path.isdir(evidence_dir):
+    if tc_num < 0:
+        return found
+
+    if index is not None:
+        # ② index 索引引き（build_evidence_index で1回だけ os.walk 済み）
+        for fpath in index.get(tc_num, []):
+            if fpath in seen:
+                continue
+            seen.add(fpath)
+            found.append(fpath)
+    elif os.path.isdir(evidence_dir):
+        # ② os.walk 再帰探索（TC番号正規化で桁差・複合種別・サブディレクトリを吸収）
         for dirpath, _dirs, filenames in os.walk(evidence_dir):
             for fname in sorted(filenames):
                 # before / リサイズ済みサムネイルは対象外
@@ -693,14 +733,17 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
     row_ptr = 2
     result_ws_name = "テスト結果"
 
+    # evidence_dir の os.walk は TC 件数ぶん繰り返さず1回だけ実行し索引化する
+    evidence_index = build_evidence_index(evidence_dir)
+
     for tc in test_cases:
         no = tc.get("No", "")
         shubetsu = tc.get("種別", "")
         auto = tc.get("自動化可否", "自動").strip()
         is_manual = "要手動" in auto
 
-        # 複数証跡ファイルを全件取得（judgment 正本→再帰探索の二段構え）
-        all_evidence = find_evidence_files(evidence_dir, no, shubetsu, judgment)
+        # 複数証跡ファイルを全件取得（judgment 正本→索引引きの二段構え）
+        all_evidence = find_evidence_files(evidence_dir, no, shubetsu, judgment, index=evidence_index)
 
         # 読み方ガイドヘッダー（S1-a: 何を確認/期待結果/判定/確認ポイント）
         judgment_entry = judgment.get(no, {})
