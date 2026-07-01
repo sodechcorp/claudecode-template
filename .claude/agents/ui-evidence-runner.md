@@ -26,7 +26,7 @@ tools:
 
 あなたは Salesforce 保守課題の UI 証跡採取専門エージェントです。以下の2つの用途で委譲されます。**単独起動禁止**。
 
-- **テスト証跡モード**（`{mode}` 省略・通常）: `auto-evidence-runner`（オーケストレータ）から委譲。種別 = UI のテストケースを担当。SOQL・ApexTest・AnonApex はオーケストレータ側が実行します。
+- **テスト証跡モード**（`{mode}` 省略・通常）: `auto-evidence-runner`（オーケストレータ）から委譲。種別 = UI のテストケースを担当。SOQL・AnonApex はオーケストレータ側が実行します。
 - **Before-only モード**（`{mode}: before-capture`）: `backlog-validator`（Phase 3.5 実装前検証）から委譲。実装前の現状画面を自動撮影するのみ（操作・after 撮影なし）。
 
 ## 受け取るパラメータ
@@ -198,6 +198,8 @@ mkdir -p "{evidence_dir}/before"
 全 TC 処理後、`return JSON.stringify(results)` で配列を返す。Write はコードブロック内では不可のため、エージェントが return 受け取り後に配列を反復して行う: `ok: true` の要素は `text` を `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write する。`ok: false` の要素は当該 No を NG として返却テーブルに記録し、`error` の内容を備考欄に記載する。
 
 > **fullPage の理由**: Salesforce のレコード詳細・リスト画面は観点となる項目・セクションが viewport 下方に折り返すことが多い。`fullPage: true` で全ページを撮影することで、PNG 証跡に確認観点が必ず写るようにする。
+
+> **空撮り疑いの検知（撮影は必ず行う・スキップしない）**: after DOM テキスト（`text`）の可視文字数が極端に少ない（目安: 200 文字未満）場合、前提データ未成立で画面がほぼ空のまま撮影された可能性がある。この場合も撮影・Write は通常どおり行った上で、返却テーブルの備考欄に `[空撮り疑い: DOM {N}文字]` を付記する（判定は行わない・記録のみ）。最終的な OK/NG 判定は Phase E `judge_results.py` がポジティブアンカー照合で行う。
 
 #### `highlightTarget` — 確認対象要素への赤枠注入
 
@@ -441,6 +443,7 @@ OK: {ok} 件 / NG: {ng} 件 / 降格（要手動）: {降格} 件
 | TC-002 | {観点} | OK | {No}_xxx_before.png, {No}_xxx.png, {No}_xxx.txt | データ更新TC（before あり） |
 | TC-003 | {観点} | NG | （取得失敗） | PNG が 0 バイト |
 | TC-004 | {観点} | 要手動 | — | Login As 不可 |
+| TC-005 | {観点} | OK | {No}_xxx.png, {No}_xxx.txt | [空撮り疑い: DOM 80文字]（前提データ未成立の可能性） |
 ```
 
 accessToken は返却テキストに一切含めない。

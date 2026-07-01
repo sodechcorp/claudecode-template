@@ -1,6 +1,6 @@
 ---
 name: auto-evidence-runner
-description: Salesforce保守課題のテスト証跡採取オーケストレータ。test-spec.md を読み、種別ごとに SOQL（並列）/ ApexTest / AnonApex（コード生成＋並列実行）/ UI（ui-evidence-runner に委譲）を実行し証跡採取、テストデータ後始末、test-report.md を生成する。/test コマンドから委譲される（単独起動禁止）。
+description: Salesforce保守課題のテスト証跡採取オーケストレータ。test-spec.md を読み、種別ごとに SOQL（並列）/ AnonApex（コード生成＋並列実行）/ UI（ui-evidence-runner に委譲）を実行し証跡採取、テストデータ後始末、test-report.md を生成する。/test コマンドから委譲される（単独起動禁止）。
 model: sonnet
 tools:
   - Read
@@ -36,7 +36,7 @@ tools:
 - `{max_workers_anon}` — AnonApex 並列 worker 数（デフォルト 3）
 - `{max_workers_ui}` — UI 並列コンテキスト数（デフォルト 3。`{serial}`=true 時は 1 で委譲）
 - `{serial}` — true の場合は全種別を強制逐次実行（ガバナ競合時のフォールバック）
-- `{judgment_path}` — `{log_dir}/judgment-result.json` のパス（**Phase F 再委譲時のみ指定**。空/未指定の場合は証跡採取モードで動作し、Step 4-4/6/7 は実行しない）
+- `{judgment_path}` — `{log_dir}/judgment-result.json` のパス（**Phase F 再委譲時のみ指定**。空/未指定の場合は証跡採取モードで動作し、Step 3-4/5/6 は実行しない）
 
 ---
 
@@ -46,8 +46,8 @@ tools:
 
 | 委譲元フェーズ | `{judgment_path}` | 実行 Step | スキップ |
 |---|---|---|---|
-| **Phase C**（証跡採取） | 空/未指定 | Step 1〜5 ＋ Step 4-2.5（事前 cleanup）＋ 完了セルフチェック | Step 4-4・Step 6・Step 7 |
-| **Phase F**（レポート・後始末） | 指定あり | Step 4-4 → Step 6 → Step 7 | Step 1〜5（証跡採取を再実行しない） |
+| **Phase C**（証跡採取） | 空/未指定 | Step 1〜4 ＋ Step 3-2.5（事前 cleanup）＋ 完了セルフチェック | Step 3-4・Step 5・Step 6 |
+| **Phase F**（レポート・後始末） | 指定あり | Step 3-4 → Step 5 → Step 6 | Step 1〜4（証跡採取を再実行しない） |
 
 **OK/NG の権威判定は `/test` Phase E の `judge_results.py` が担当**する（`judgment-result.json` に保存）。
 - **証跡採取モード（Phase C）**: 証跡ファイルの存在・内容を確認するが、最終的な OK/NG の確定はしない
@@ -62,13 +62,13 @@ tools:
 | No | 観点 | 種別 | 前提・データ準備 | 実行アクション | 期待結果 | 判定方法 | 証跡取得 | 自動化可否 |
 
 自動化可否ごとに仕分け:
-- `自動` → Step 2〜5 で自動実行
+- `自動` → Step 2〜4 で自動実行
 - `要手動（理由）` → 証跡取得をスキップし、test-report.md の「要手動確認」欄に記録
 
-**差分再実行モード**: `{target_tc_list}` が指定されている場合、リストに含まれない TC は Step 2〜6 をスキップし、既存の証跡ファイルをそのまま再利用する。空の場合は全件実行する。
+**差分再実行モード**: `{target_tc_list}` が指定されている場合、リストに含まれない TC は Step 2〜5 をスキップし、既存の証跡ファイルをそのまま再利用する。空の場合は全件実行する。
 
 > 課題種別ごとの推奨テストパターン: [`.claude/templates/backlog/test-pattern-map.md`](../templates/backlog/test-pattern-map.md) を Read して参照する。  
-> **テストの主眼**: AnonApex / UI を最優先実行し「データ準備→処理起動→結果確認（SOQL＋UI）」で実処理の挙動を確認すること。カバレッジはおまけ。
+> **テストの主眼**: 「データ準備→処理起動→結果確認（SOQL＋UI）」で実処理の挙動を確認すること。人が見て分かる画面・データの動きのみを証跡化する（Apex テストクラスの回帰確認は `/backlog` Phase 5/6 で完結済み）。種別ごとの役割は `test-pattern-map.md` の「種別の選び方」を参照（見た目・フロー・表示有無は UI、データ値のみは SOQL/AnonApex）。
 
 > **網羅性チェックは `test-spec-builder`（Phase B）が一次責任**。このエージェントは実施不要。チェック結果は test-report.md の「## 網羅性チェック」欄に「Phase B 完了時に確認済み」と記録するだけでよい。
 
@@ -101,48 +101,9 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 
 ---
 
-## Step 3: Apex テスト実行（種別 = ApexTest）— 一括実行
+## Step 3: 匿名 Apex 実行（種別 = AnonApex）— 並列実行
 
-> Sandbox 判定済みであることを前提として実行する（二重確認不要）。
-
-#### 3-1: cases ファイル生成 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
-
-ApexTest 種別の各 TC について「実行アクション」列からテストクラス名を読み取る（1 TC が複数クラスに跨る場合はカンマ区切りで列挙）。全 TC を JSON にまとめて `{log_dir}/tmp/apextest_cases.json` に Write する:
-```json
-[
-  {
-    "no": "TC-005",
-    "label": "受注バリデーション",
-    "class_names": "OrderTest",
-    "out": "{evidence_dir}/after/apex/TC-005_受注バリデーション.txt"
-  }
-]
-```
-
-#### 3-2: 一括実行
-
-全 TC のテストクラス名を **1コマンドに集約**して実行する（`--class-names` に全クラスの和集合をカンマ区切りで渡し、プロセス起動＋サーバ側テスト実行の往復を1回に減らす）。証跡は内部で TC（クラス）ごとに自動分離される（他クラスの失敗が無関係な TC の判定を巻き込まない）:
-
-```bash
-python "{project_dir}/scripts/python/backlog-xlsx/apextest_runner.py" run-batch \
-  --alias "{alias}" \
-  --cases-file "{log_dir}/tmp/apextest_cases.json"
-```
-
-`{serial}` が true の場合は `--serial` を追加する（最初からクラス単位の逐次実行にする）。一括実行がコンパイルエラー等で構造的に失敗した場合は、runner が自動でクラス単位の逐次実行にフォールバックする。
-
-確認の主眼: **全テスト PASS**（実処理が正しく動いたことの確認）。カバレッジは補助指標（75% 以上は Salesforce デプロイ要件として参考確認）。
-
-**権限差分テスト（FLS / CRUD / 共有ロジック）を ApexTest に含める場合**:
-- `System.runAs(user)` で対象プロファイルのユーザを指定して実行
-- 追加認証不要（管理者 alias 1つで動く）
-- 参考: `.claude/templates/backlog/test-pattern-map.md` §権限・ユーザ切り替えテストのアーキテクチャ
-
----
-
-## Step 4: 匿名 Apex 実行（種別 = AnonApex）— 並列実行
-
-#### 4-1: 匿名 Apex コードの一括生成（全 TC を 1 パスで生成・LLM 判断・このエージェントが担当）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
+#### 3-1: 匿名 Apex コードの一括生成（全 TC を 1 パスで生成・LLM 判断・このエージェントが担当）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 全 AnonApex 種別 TC の「前提・データ準備」と「実行アクション」を一度にまとめて読み、**1 回の LLM 生成で全 TC 分の匿名 Apex コードを一括出力する**（TC ごとに往復しない）。
 
@@ -161,7 +122,7 @@ mkdir -p "{log_dir}/tmp"
 
 **データ競合の確認**: 同一既存レコードを複数 TC が UPDATE/参照する場合は、該当 TC 番号を `serial_nos` に列挙して逐次化する。判定困難なら `--serial` を使う。
 
-#### 4-2: cases ファイル生成 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
+#### 3-2: cases ファイル生成 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 全 AnonApex ケースを JSON にまとめて `{log_dir}/tmp/anon_cases.json` に Write する:
 ```json
@@ -175,11 +136,11 @@ mkdir -p "{log_dir}/tmp"
 ]
 ```
 
-#### 4-2.5: 事前 cleanup（前回異常終了の残留回収）— **Phase C（証跡採取モード）でのみ実行**
+#### 3-2.5: 事前 cleanup（前回異常終了の残留回収）— **Phase C（証跡採取モード）でのみ実行**
 
 `{judgment_path}` が指定されている（Phase F）の場合はこのサブステップをスキップする。
 
-4-1 で生成した匿名 Apex のうち **永続化（Savepoint/rollback を使わない）ケースの挿入先 SObject** を対象に、
+3-1 で生成した匿名 Apex のうち **永続化（Savepoint/rollback を使わない）ケースの挿入先 SObject** を対象に、
 前回の `/test` 実行が Phase C〜F の途中で中断・異常終了した場合に残留しているデータを事前に回収する。
 
 `anon_apex_runner.py cleanup` はプレフィックス一致の冪等回収（0件マッチでも正常終了・無害）なので、
@@ -193,11 +154,11 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" cleanup \
   --external-id-prefix "AUTOTEST_{issueID}_"
 ```
 
-> **対象 SObject の判断**: 4-1 で生成した匿名 Apex コードのうち `Database.setSavepoint()` → `rollback()` パターン **以外** を使うケースの insert 対象 SObject を列挙する。Savepoint/rollback ケースはデータが永続化されないためスキップしてよい。
+> **対象 SObject の判断**: 3-1 で生成した匿名 Apex コードのうち `Database.setSavepoint()` → `rollback()` パターン **以外** を使うケースの insert 対象 SObject を列挙する。Savepoint/rollback ケースはデータが永続化されないためスキップしてよい。
 >
 > **差分再実行時の注意**: `{target_tc_list}` 指定の差分再実行では「今回実行する TC の SObject」のみ対象となる。前回と異なる SObject に残留がある場合は `/test {issueID} --full`（全量再実行）を使うと全 SObject 分の残留を回収できる。
 
-#### 4-3: 一括並列実行 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
+#### 3-3: 一括並列実行 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 ```bash
 python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch \
@@ -209,11 +170,11 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 
 `{serial}` が true の場合は `--serial` を追加する。
 
-#### 4-4: 後始末（Savepoint/rollback 以外の場合）— **Phase F（レポート・後始末モード）でのみ実行**
+#### 3-4: 後始末（Savepoint/rollback 以外の場合）— **Phase F（レポート・後始末モード）でのみ実行**
 
 `{judgment_path}` が空/未指定（Phase C）の場合はこのサブステップをスキップする。
 
-> Step 4-2.5（Phase C）が「前回残留の事前回収」を担うため、4-4 は「今回 run-batch で作成したデータの正規後始末」に集中する。cleanup コマンドはプレフィックス一致の冪等回収なので、4-2.5 と 4-4 の二重実行になっても副作用はない（0件マッチで正常終了）。
+> Step 3-2.5（Phase C）が「前回残留の事前回収」を担うため、3-4 は「今回 run-batch で作成したデータの正規後始末」に集中する。cleanup コマンドはプレフィックス一致の冪等回収なので、3-2.5 と 3-4 の二重実行になっても副作用はない（0件マッチで正常終了）。
 
 永続化したテストデータを削除する。**課題単位プレフィックス `AUTOTEST_{issueID}_` を使い、永続化した SObject ごとに cleanup を繰り返す**（このプレフィックスは生成名 `AUTOTEST_{issueID}_{TC_No}_…` の先頭一致なので、SObject 1 つにつき 1 回で全 TC 分のテストデータを回収できる）:
 
@@ -225,13 +186,15 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" cleanup \
   --external-id-prefix "AUTOTEST_{issueID}_"
 ```
 
-> **対象 SObject の判断（Phase F）**: Phase C（4-1）は別 invocation のため生成コンテキストがない。`{log_dir}/tmp/anon_cases.json` の各 `apex_file` が示す `*.apex` ファイルを Read し、`Database.setSavepoint()` → `rollback()` パターン **以外** で insert している SObject を列挙する（tmp は Phase C で生成され Step 6 まで保持される）。
+> **対象 SObject の判断（Phase F）**: Phase C（3-1）は別 invocation のため生成コンテキストがない。`{log_dir}/tmp/anon_cases.json` の各 `apex_file` が示す `*.apex` ファイルを Read し、`Database.setSavepoint()` → `rollback()` パターン **以外** で insert している SObject を列挙する（tmp は Phase C で生成され Step 5 まで保持される）。
 
 ---
 
-## Step 5: UI 証跡（種別 = UI）— ui-evidence-runner に委譲
+## Step 4: UI 証跡（種別 = UI）— ui-evidence-runner に委譲
 
 種別 = UI のケースが1件以上ある場合のみ、`ui-evidence-runner` に委譲する（0件なら起動しない）。
+
+**実行順序（空撮り防止）**: UI TC が AnonApex TC の作成データに依存する場合（前提・データ準備が同一 No 系統の AnonApex 生成データを参照している等）、必ず Step 3（AnonApex）完了後に Step 4 を実行する（本エージェントは元々 Step 3 → Step 4 の順で進行するためこの順序は自然に満たされるが、`{target_tc_list}` を使った差分再実行で UI TC のみを指定した場合は前提データが未作成の可能性があるため、その旨を ui-evidence-runner への委譲メモに含める）。
 
 `ui-evidence-runner` への委譲パラメータ:
 - `issueID`: `{issueID}`
@@ -241,11 +204,11 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" cleanup \
 - `max_workers_ui`: `{serial}` が true の場合は `1`、それ以外は `{max_workers_ui}`（デフォルト 3）
 - `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル）
 
-`ui-evidence-runner` の返却（各 TC の証跡ファイル名・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 生成は Phase F（Step 7）が `{judgment_path}` JSON から行う。
+`ui-evidence-runner` の返却（各 TC の証跡ファイル名・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 生成は Phase F（Step 6）が `{judgment_path}` JSON から行う。
 
 ---
 
-## Step 6: 一時ファイルの後始末 — **Phase F（レポート・後始末モード）でのみ実行**
+## Step 5: 一時ファイルの後始末 — **Phase F（レポート・後始末モード）でのみ実行**
 
 `{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。
 
@@ -255,7 +218,7 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 
 ---
 
-## Step 7: test-report.md の生成 — **Phase F（レポート・後始末モード）でのみ実行**
+## Step 6: test-report.md の生成 — **Phase F（レポート・後始末モード）でのみ実行**
 
 `{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。
 
@@ -286,7 +249,7 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 |---|---|---|---|---|
 | TC-001 | ... | SOQL | 3 件 | ✅ OK |
 | TC-002 | ... | UI | スクショ取得済 | ✅ OK |
-| TC-003 | ... | ApexTest | テスト FAIL | ❌ NG |
+| TC-003 | ... | AnonApex | デバッグログに期待値なし | ❌ NG |
 
 ### NG 一覧
 
@@ -357,11 +320,11 @@ NG が 1 件以上ある場合:
 
 ---
 
-## Step 8: テストデータレシピ・落とし穴の還流（write-after）— **Phase F のみ**
+## Step 7: テストデータレシピ・落とし穴の還流（write-after）— **Phase F のみ**
 
 > `{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。
 
-test-report.md 生成（Step 7）完了後、今回の実行で**新たに確立したテストデータレシピ**と**テスト環境固有の落とし穴**を `docs/knowledge/test-prerequisites.md` の § 2・§ 4 に還流する。
+test-report.md 生成（Step 6）完了後、今回の実行で**新たに確立したテストデータレシピ**と**テスト環境固有の落とし穴**を `docs/knowledge/test-prerequisites.md` の § 2・§ 4 に還流する。
 
 ### 実行条件（§ 2 レシピ還流）
 
@@ -411,7 +374,6 @@ ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/aft
 ```
 
 - [ ] SOQL ケース: 全件 txt 出力あり
-- [ ] ApexTest ケース: 全件 txt 出力あり
 - [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む）
 - [ ] （Phase F のみ）テストデータ削除（cleanup）完了
 - [ ] UI ケース: ui-evidence-runner の返却で全件 OK（PNG 各 1KB 以上・DOM スナップショット txt あり）

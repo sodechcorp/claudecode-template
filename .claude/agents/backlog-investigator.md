@@ -666,7 +666,7 @@ Sandbox で再現できる場合は使わない（最終手段）。
 ## テストシナリオ
 
 > 採番は `TC-001` 形式で統一する。backlog-planner はこの TC番号を引き継ぎ、`/test` の test-spec.md まで一貫して使う（再採番しない）。
-> 種別 = `SOQL` / `ApexTest` / `AnonApex` / `UI` / `メタ確認` / `ファイル確認`（課題種別ごとの推奨テストパターン: `.claude/templates/backlog/test-pattern-map.md` 参照）
+> 種別 = `SOQL` / `AnonApex` / `UI` / `メタ確認` / `ファイル確認`（`ApexTest` は使用禁止。テストクラスの回帰確認は `/backlog` Phase 5/6 で実施済みのため `/test` では扱わない。課題種別ごとの推奨テストパターン: `.claude/templates/backlog/test-pattern-map.md` 参照）
 
 **網羅性ゲート（必須）**: 以下を全て満たすこと:
 - `## 課題原文` の各要求・各変更点・各条件分岐に対し、最低1 TC を割り当てる

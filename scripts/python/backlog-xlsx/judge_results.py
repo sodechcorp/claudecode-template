@@ -65,7 +65,6 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
     # 種別別サブディレクトリ（複合種別 "AnonApex + SOQL" 等にも対応）
     subdir_map = {
         "SOQL": "soql",
-        "ApexTest": "apex",
         "AnonApex": "apex",
         "UI": "screen",
         "メタ確認": "meta",
@@ -251,21 +250,6 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         actual_str = f"「{kiki[:30]}」{'あり' if ok else 'なし'}"
         return {"ok": ok, "actual": actual_str, "reason": "" if ok else f"「{kiki[:30]}」が証跡に含まれない"}
 
-    # ApexTest 成功確認: "Pass Rate" / "Outcome: Passed" を正として "FAIL" の誤ヒットを避ける
-    if re.search(r"Pass\s+Rate\s*[:\|]\s*100%", content) or re.search(r"Outcome\s*:\s*Passed", content):
-        return {"ok": True, "actual": "Apex テスト PASS", "reason": ""}
-    if re.search(r"Pass\s+Rate\s*[:\|]\s*0%", content) or re.search(r"Outcome\s*:\s*Failed", content):
-        m_fail = re.search(r"(Failures:.+)", content)
-        reason = m_fail.group(1) if m_fail else "Apex テスト FAIL"
-        return {"ok": False, "actual": "Apex テスト FAIL", "reason": reason}
-    # sf apex run test の表形式（TEST NAME / OUTCOME 列）: 全件 Pass 判定
-    if re.search(r"\bTEST\s+NAME\b", content) and re.search(r"\bOUTCOME\b", content):
-        outcomes = re.findall(r'\.\w+\s+(Pass|Fail|Error|Skip)\b', content, re.IGNORECASE)
-        if outcomes and all(o.lower() == "pass" for o in outcomes):
-            return {"ok": True, "actual": f"Apex テスト PASS ({len(outcomes)} 件全件)", "reason": ""}
-        if outcomes and any(o.lower() in ("fail", "error") for o in outcomes):
-            fail_n = sum(1 for o in outcomes if o.lower() in ("fail", "error"))
-            return {"ok": False, "actual": f"Apex テスト FAIL ({fail_n}/{len(outcomes)} 件)", "reason": "テスト失敗あり"}
     # auto-evidence-runner 独自フォーマット（成功: True + NG項目数=0 形式）
     if re.search(r"^成功\s*:\s*True", content, re.MULTILINE):
         if re.search(r"(FATAL_ERROR|System\.\w+Exception)", content):
@@ -290,13 +274,6 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", content)
         reason = m_err.group(1)[:80] if m_err else "AnonApex 実行エラー"
         return {"ok": False, "actual": "AnonApex 実行エラー", "reason": reason}
-    # Fallback: 旧パターン（sf CLI raw 出力等）
-    if "success" in content.lower() and re.search(r"\bPASS\b|\bPassed\b", content):
-        return {"ok": True, "actual": "Apex テスト PASS", "reason": ""}
-    if re.search(r"\bFailed\b", content) or re.search(r"Fail\s+Rate\s*[:\|]\s*(?!0%)\d", content):
-        m_fail = re.search(r"(Failures:.+)", content)
-        reason = m_fail.group(1) if m_fail else "Apex テスト FAIL"
-        return {"ok": False, "actual": "Apex テスト FAIL", "reason": reason}
 
     # デフォルト: 判定パターン未一致は「要確認」（NG扱い）— 証跡があるだけで OK にしない
     return {"ok": False, "actual": "証跡あり（判定パターン未一致）",

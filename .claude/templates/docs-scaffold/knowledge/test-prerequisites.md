@@ -28,7 +28,7 @@ evidence/
 ├── before/               # 実行前スクショ・DOM
 └── after/
     ├── soql/             # SOQL 結果 .txt
-    ├── apex/             # ApexTest / AnonApex デバッグログ .txt
+    ├── apex/             # AnonApex デバッグログ .txt
     └── screen/           # UI スクショ .png / DOM .txt
 ```
 

@@ -183,7 +183,7 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 実行内容:
   Phase A: 前提検証・接続確認（Sandbox 判定）
   Phase B: テスト仕様の展開（test-spec.md 生成・網羅性チェック）
-  Phase C: SOQL / Apex テスト / 匿名 Apex / Playwright UI の自動実行（分岐網羅・before/after）
+  Phase C: SOQL / 匿名 Apex / Playwright UI の自動実行（分岐網羅・before/after）
   Phase D: OK/NG 判定・対応記録.xlsx 更新
   Phase E: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
   Phase F: test-report.md 生成・テストデータ後始末
@@ -269,9 +269,8 @@ python -c "import PIL" 2>/dev/null || {
 1. 種別仕分け＋差分対象 TC の絞り込み
 2. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列）
 3. AnonApex → コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列）
-4. ApexTest → `apextest_runner.py run-batch`（全クラスを `--class-names` で1コマンドに集約。証跡はクラス単位で分離）
-5. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）。読み取り専用ケースは複数コンテキスト並列（max_workers_ui=3）、データ更新/Login As ケースは逐次
-6. 証跡存在確認（後始末・test-report.md 生成は Phase F が担当）
+4. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）。読み取り専用ケースは複数コンテキスト並列（max_workers_ui=3）、データ更新/Login As ケースは逐次
+5. 証跡存在確認（後始末・test-report.md 生成は Phase F が担当）
 
 実行後に証跡ファイルの存在確認:
 ```bash
