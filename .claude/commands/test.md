@@ -105,6 +105,8 @@ fi
 # ③ xlsx_folder 未設定 — 自動フォールバック禁止。ユーザー確認待ちマーカーを出力する
 if [ -z "$XLSX_FOLDER" ]; then
   echo "[XLSX_FOLDER_UNRESOLVED] investigation.md の xlsx_folder 欄が空で、.backlog_config.yml にも記録がありません。"
+  echo "  【診断】原因の可能性: /backlog の Phase 1.5（xlsx_folder 確定ステップ）が未実行、または compact 再開時に investigation.md のフロントマターへ xlsx_folder が書き戻されていない可能性があります。"
+  echo "  → investigation.md の frontmatter に 'xlsx_folder:' 行があり値が入っているか確認してください。空なら /backlog を再開してフォルダを確定させると解消します。"
   echo "  対応記録フォルダを特定できません。このまま続行するか、正しいパスを指定してください。"
 fi
 if [ -n "$XLSX_FOLDER" ] && [ -z "$EVIDENCE_DIR" ]; then
