@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 """backlog-xlsx 共通ユーティリティ"""
+import os
+import re
+import zipfile
 from pathlib import Path
 
 try:
@@ -102,6 +105,52 @@ def _row_height_by_lines(text: str, col_width: float = 30, base_pt: float = 15) 
         wrapped = max(1, (line_width + int(col_width) - 1) // int(col_width))
         total += wrapped
     return max(base_pt * 1.5, base_pt * total)
+
+
+# ── xlsx 保存後パッチ（openpyxl CellRichText の xml:space 欠落バグ対策） ──────
+# openpyxl 3.1.5 は CellRichText の run を書き出す際、run のテキストが
+# 空白のみ／先頭or末尾が空白の場合に xml:space="preserve" を付け忘れる
+# （lxml ライター経由でも純Python etree ライターでも発生）。
+# Excel は XML の仕様どおり両端の空白を除去して解釈するため「文字列が変更
+# された」と判定し、開いた瞬間に "修復が必要" ダイアログを出す。
+# 保存後の xlsx を ZIP として開き、該当する <t> 要素へ属性を注入して是正する。
+_T_TAG_RE = re.compile(r'<t((?:\s+[^<>]*)?)>([^<]*)</t>')
+
+
+def _t_needs_preserve(attrs: str, inner: str) -> bool:
+    return bool(inner) and (inner[0] in " \t\r\n" or inner[-1] in " \t\r\n") and "xml:space" not in attrs
+
+
+def patch_preserve_space(xlsx_path: str) -> int:
+    """保存済み xlsx 内の worksheet / sharedStrings パーツを走査し、
+    先頭・末尾が空白なのに xml:space="preserve" が無い <t> 要素を修正して
+    ファイルを書き戻す。戻り値は修正した <t> 要素数（0 なら無修正）。
+    """
+    fixed_total = 0
+
+    def _fix(m: "re.Match") -> str:
+        nonlocal fixed_total
+        attrs, inner = m.group(1), m.group(2)
+        if _t_needs_preserve(attrs, inner):
+            fixed_total += 1
+            return f'<t{attrs} xml:space="preserve">{inner}</t>'
+        return m.group(0)
+
+    tmp_path = xlsx_path + ".tmp"
+    with zipfile.ZipFile(xlsx_path) as zin, \
+         zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            is_target = (
+                (item.filename.startswith("xl/worksheets/") and item.filename.endswith(".xml"))
+                or item.filename == "xl/sharedStrings.xml"
+            )
+            if is_target:
+                text = _T_TAG_RE.sub(_fix, data.decode("utf-8"))
+                data = text.encode("utf-8")
+            zout.writestr(item, data)
+    os.replace(tmp_path, xlsx_path)
+    return fixed_total
 
 
 def validate_folder(value: str) -> str:

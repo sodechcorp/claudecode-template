@@ -41,6 +41,7 @@ from _common import (
     _font, _align, _thin_border, _thin_side,
     _set_row_height, _set_col_width, _freeze,
     _auto_col_width, _row_height_by_lines,
+    patch_preserve_space,
 )
 
 try:
@@ -63,13 +64,15 @@ except ImportError:
     _PIL_OK = False
 
 # openpyxl CellRichText（部分赤字に必要、バージョン依存）
-# lxml ライター経由のときだけ有効化する。lxml 非導入時は純Python etree ライターの
-# TextBlock 書き出しバグ（Excel「修復が必要」ダイアログ）を回避するため無効化する。
+# 旧コメント「lxml 経由なら安全」は誤りと判明: 空白のみ／edge-空白の run は
+# lxml ライターでも xml:space="preserve" 無しで出力され Excel の
+# 「修復が必要」ダイアログを引き起こす（openpyxl 3.1.5 で確認）。
+# リッチテキスト自体は import 可否のみで有効化し、xml:space 欠落は
+# 保存後に _common.patch_preserve_space() でパッチして是正する。
 try:
-    from openpyxl import LXML as _OPENPYXL_LXML
     from openpyxl.cell.rich_text import CellRichText, TextBlock
     from openpyxl.cell.text import InlineFont
-    _RICHTEXT_OK = bool(_OPENPYXL_LXML)
+    _RICHTEXT_OK = True
 except ImportError:
     _RICHTEXT_OK = False
 
@@ -974,6 +977,11 @@ def main():
     except PermissionError as e:
         print(f"[ERROR] xlsx の保存失敗（ファイルが開かれている可能性）: {out_path}\n{e}")
         sys.exit(1)
+
+    # CellRichText の xml:space 欠落バグ対策（Excel 修復ダイアログ回避）
+    n_patched = patch_preserve_space(out_path)
+    if n_patched:
+        print(f"[INFO] xml:space=\"preserve\" 補正: {n_patched} 箇所")
 
     ok_count   = sum(1 for r in latest_judgment.values() if r.get("status") == "OK")
     ng_count   = sum(1 for r in latest_judgment.values() if r.get("status") == "NG")
