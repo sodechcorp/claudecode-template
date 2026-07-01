@@ -243,15 +243,29 @@ def _read_text_safe(path: str) -> str:
     return re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)
 
 
+def _parse_positive_anchor(kitai: str) -> str:
+    """期待結果からポジティブアンカー（judge_results.py の _parse_positive_anchor 準拠）を抽出する。
+    形式: "画面描画確認: {アンカー} が表示 / 非表示確認: {対象} が非表示"
+    見つからなければ "" を返す（アンカー未指定の旧形式 spec）。
+    """
+    m = re.search(r"画面描画確認\s*[:：]\s*(.+?)\s*が表示", kitai or "")
+    return m.group(1).strip() if m else ""
+
+
 def _highlight_terms_from_tc(tc: dict) -> list:
     """テストケースの期待結果から赤字化するトークン一覧を返す。
-    否定観点（含まない/非表示/なし確認）はトークンを返さない（誤誘導防止）。
+    否定観点（含まない/非表示/なし確認）は「表示されてはいけない文字列」自体は誤誘導防止のため
+    赤字化しないが、期待結果にポジティブアンカー（画面描画確認: {アンカー} が表示）が併記されて
+    いれば、そのアンカー語（＝画面が正常に描画された証拠）を赤字化する。これにより否定観点でも
+    「どこを見てOKと判断したか」が証跡上で分かるようにする。
     """
     hanteihoo = tc.get("判定方法", "")
+    kitai_raw = tc.get("期待結果", "").strip()
     neg_patterns = ["含まない", "非表示", "なし確認", "存在しない", "NG確認"]
     if any(p in hanteihoo for p in neg_patterns):
-        return []
-    kitai = tc.get("期待結果", "").strip()
+        anchor = _parse_positive_anchor(kitai_raw)
+        return [anchor] if anchor else []
+    kitai = kitai_raw
     if not kitai:
         return []
     # before:X / after:Y 形式の状態遷移は after 部分を抽出
@@ -396,9 +410,12 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
     出力イメージ（簡素化版・全行動的行高）:
         ■ TC-003: ②I-797「いいえ」で専用相談メッセージのみ表示（UI）
           確認観点: {確認ポイント（着眼点）or 導出文}
+          確認箇所: {スクショの赤枠／テキストの赤字部分のどちらを見ればよいか}
           判定   : {判定方法}  ✅OK / ❌NG / ⬜要手動
 
     重複排除: 期待結果・判定方法の独立行は廃止（テスト結果シートと test-spec.md に既出のため）。
+    「確認箇所」行は、何のテスト・何のためのエビデンスかを示す「確認観点」に対し、
+    証跡のどこがその確認結果に直結するか（赤枠・赤字の場所）を読み手へ明示するために追加。
     """
     no       = tc.get("No", "")
     kanpoin  = tc.get("観点", "")
@@ -452,7 +469,14 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
 
     # 行2: 確認観点（着眼点または導出文）— 水色背景
     _guide_row("確認観点", focus, fill=LIGHT_BLUE, bold_val=True)
-    # 行3: 判定（判定方法 + 判定アイコン）— 判定色背景
+    # 行3: 確認箇所（赤枠・赤字がどこに付くかを明示し、証跡内の該当箇所へ読み手を誘導する）
+    terms = _highlight_terms_from_tc(tc)
+    if "UI" in shubetsu:
+        loc = "スクショの赤枠 ＋ 下記テキストの赤字部分" if terms else "スクショの赤枠部分"
+    else:
+        loc = "下記テキストの赤字部分" if terms else "下記テキスト全文（該当箇所は赤字なし）"
+    _guide_row("確認箇所", loc, fill=GUIDE_FILL)
+    # 行4: 判定（判定方法 + 判定アイコン）— 判定色背景
     _guide_row("判定", f"{hantei}  {judge_icon}", fill=judge_fill)
 
     return row_ptr, anchor_cell_addr

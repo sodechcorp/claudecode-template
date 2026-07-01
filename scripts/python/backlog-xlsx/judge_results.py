@@ -169,6 +169,37 @@ def _is_blank_dom(text: str) -> bool:
     return len(re.sub(r"\s+", "", text or "")) < _BLANK_DOM_CHAR_THRESHOLD
 
 
+# Salesforce 標準エラー画面のシグネチャ（日英）。撮っただけで中身を見ずに OK にするのを防ぐ最終ガード。
+_SF_ERROR_SIGNATURES = [
+    "問題が発生しました",
+    "問題が発生しているようです",
+    "is malformed",
+    "関連リストはレイアウトにありません",
+    "権限が不十分です",
+    "Insufficient Privileges",
+    "このページには到達できません",
+    "URL No Longer Exists",
+    "予期しないエラーが発生しました",
+    "Unexpected Error",
+]
+
+
+def _detect_sf_error(text: str, kiki: str) -> str:
+    """DOM/証跡テキストに Salesforce 標準エラー画面のシグネチャが含まれるか検知する。
+    期待結果(kiki)自体にそのシグネチャが含まれる場合は、エラーメッセージの表示を
+    検証する正当なテスト（バリデーション/権限エラー確認等）とみなし検知しない。
+    見つからなければ "" を返す。"""
+    if not text:
+        return ""
+    kiki_l = (kiki or "").lower()
+    for sig in _SF_ERROR_SIGNATURES:
+        if sig.lower() in kiki_l:
+            continue
+        if sig.lower() in text.lower():
+            return sig
+    return ""
+
+
 def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: str) -> dict:
     """1証跡ファイルを判定し {"ok": bool|None, "actual": str, "reason": str} を返す。"""
 
@@ -181,6 +212,14 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         snap_path = re.sub(r'\.png$', '.txt', evidence_path, flags=re.IGNORECASE)
         if os.path.exists(snap_path):
             snap = _read_text_evidence(snap_path)
+            # Salesforce エラー画面検知（最優先・最終ガード）: 採取側の「判定: OK」や
+            # 期待文字列の照合結果に関わらず、エラー画面は撮れているだけで強制 NG にする。
+            sf_err = _detect_sf_error(snap, kiki)
+            if sf_err:
+                return {"ok": False, "actual": f"画面エラー検出（{sf_err}）",
+                        "reason": f"Salesforce のエラー画面が撮影されています（「{sf_err}」を検出）。"
+                                   "操作手順・前提データを見直してください",
+                        "ng_type": "画面エラー"}
             # 構造化証跡「判定: OK/NG」を最優先で参照
             m_verdict = re.search(r"^判定\s*:\s*(OK|NG)", snap, re.MULTILINE)
             if m_verdict:
@@ -234,6 +273,15 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
 
     # テキスト証跡（SOQL/Apex ログ / DOM スナップショット .txt）
     content = _read_text_evidence(evidence_path)
+
+    # Salesforce エラー画面検知（最終ガード）。UI の DOM スナップショット .txt が
+    # PNG を介さず単独で判定対象になるケース（PNG なし・txt のみ）を含めてここでも検知する。
+    sf_err = _detect_sf_error(content, kiki)
+    if sf_err:
+        return {"ok": False, "actual": f"画面エラー検出（{sf_err}）",
+                "reason": f"Salesforce のエラー画面が撮影されています（「{sf_err}」を検出）。"
+                           "操作手順・前提データを見直してください",
+                "ng_type": "画面エラー"}
 
     # JSON SOQL 証跡（sf data query --json の出力）: 件数判定
     if content.strip().startswith("{"):
