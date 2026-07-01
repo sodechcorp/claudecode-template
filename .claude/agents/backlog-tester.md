@@ -87,7 +87,7 @@ sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
   --test-level RunSpecifiedTests --tests <テストクラス名> --concise
 ```
 
-> **対応テストクラス不在の場合**: 変更 Apex に対応するテストクラスが存在せず `<テストクラス名>` が空になるときは `RunSpecifiedTests` ではなく `NoTestRun`（コンパイル検証のみ）にフォールバックする。Step 4 の報告に「対応テストクラス未整備（カバレッジ未検証・要テスト追加）」を明記する。
+> **対応テストクラス不在の場合**: 変更 Apex に対応するテストクラスが存在せず `<テストクラス名>` が空になるときは `RunSpecifiedTests` ではなく `NoTestRun`（コンパイル検証のみ）にフォールバックする。Step 4 の報告に「対応テストクラス未整備（カバレッジ未検証・要テスト追加）」を明記する。この場合 Step 4 で必ず「NoTestRun フォールバック: 発生」フラグを立て、総合判定を自動 PASS にせず「条件付きPASS（ユーザー判断要）」とする。
 
 **Apex 変更なし**（コンパイル検証のみ）:
 ```bash
@@ -129,9 +129,12 @@ dry-run のためコードは Sandbox に届いていない。変更の反映を
 dry-run: PASS（0 errors） / FAIL
 Apex テスト: PASS / FAIL / 対象なし（Apex 変更なし）
 変更クラスカバレッジ: XX% / 対象なし
+NoTestRun フォールバック: なし / 発生（対応テストクラス未整備・カバレッジ未検証）
 
 ### 総合判定
-PASS（Phase 6 へ進む） / FAIL（Phase 4 に差し戻す）
+PASS（Phase 6 へ進む） / 条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要） / FAIL（Phase 4 に差し戻す）
+
+> NoTestRun フォールバック発生時は dry-run が 0 errors でも自動 PASS にしない。「条件付きPASS」固定とし、ユーザー判断（テスト追加 or 明示スキップ承認）を待つ。
 
 FAIL の場合:
 - NG 原因: {1行で記述}
@@ -160,11 +163,15 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 > **`auto_fix_mode: true` の場合**: `/test` F-2 自動修正ループから起動されているため、`/backlog` 向けの次工程案内（「Phase 6 へ進んでください」「/backlog Phase 4 で修正後」）は**出力しない**。PASS/FAIL と dry-run 結果のみ返し、次工程の判断は `/test` コマンド側が行う。
 
 ```
-スモーク確認: {PASS / FAIL}
+スモーク確認: {PASS / 条件付きPASS（NoTestRun フォールバック） / FAIL}
 
 {PASSの場合}
 dry-run デプロイ・Apex テストともに問題なし。
 → Phase 6（Sandbox リリース）へ進んでください。ユーザーの確認後 backlog-releaser を起動します。
+
+{条件付きPASS（NoTestRun フォールバック）の場合}
+dry-run はコンパイル成功だが、対応テストクラス未整備のため NoTestRun にフォールバックしカバレッジ未検証。自動で Phase 6 には進めません。
+→ (a) テストクラスを追加して Phase 4 に戻り再度スモーク確認を実行する、または (b) カバレッジ未検証を承知の上で本デプロイを明示承認する、のどちらかをご判断ください。
 
 {FAILの場合}
 NG: {原因を1行で}
