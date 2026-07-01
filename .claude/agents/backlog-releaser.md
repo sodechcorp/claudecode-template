@@ -125,7 +125,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    - 「（dry-run 結果を確認しました / Phase 5 PASS 済み・dry-run 省略）。デプロイを実行してよいですか？（デプロイ実行 / 内容を確認してから実行 / 中止）」とテキストで質問する
    - 「中止」が返答された場合は中止理由を `docs/decisions.md` または `docs/logs/{issueID}/` 配下のメモにテキストで記録し、ユーザに通知する（Backlog コメント反映が必要ならユーザーが手動で投稿）。デプロイは行わない
 
-   **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、上記スキップ判定に従い無変更なら dry-run 省略・確認省略で 4 へ直接進む。変更検知時のみ dry-run を実行し 0 errors を確認してから 4 へ進む。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。
+   **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、直前の F-2 Step 2（backlog-tester）で現 force-app に対する dry-run PASS が保証されている（FAIL なら Step 3 は起動されない）。この保証を根拠に上記スキップ判定を**必ず適用**し、`find` の出力が無変更なら再 dry-run を省略して確認省略で 4 へ直接進む。`find` が変更を検知した場合のみ dry-run を実行し 0 errors を確認してから 4 へ進む。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。
 4. デプロイ実行
 5. デプロイ後の動作確認（Phase 5 と二重チェック）:
 
