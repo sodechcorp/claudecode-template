@@ -143,6 +143,17 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 
 適用範囲: backlog-investigator / backlog-planner / backlog-validator / backlog-implementer / backlog-tester / backlog-releaser（全 6 エージェント必須）。詳細ロジック: `.claude/templates/backlog/_README.md` §Step 0 参照。
 
+### 中間成果物の分割読込（全下流エージェント共通）
+
+対象成果物: `investigation.md` / `approach-plan.md` / `implementation-plan.md` / `validation-report.md` / `test-report.md`（いずれも `docs/logs/{issueID}/` 配下）。同一ファイルを複数エージェントが別コンテキストでフル Read すると遅いため、用途に応じて以下いずれかの分割読込を適用する:
+
+- **方式A（コンテキスト復元・補助読込）**: 冒頭 80 行 + 末尾 30 行を読む（ファイルが 110 行未満の場合は全文）。過去ログの要約把握・副作用チェック用の grep 対象取得など、本文全体を精読する必要がない読み手に適用
+- **方式B（特定セクションを消費する読み手）**: 必要なセクション見出しを Grep で先に検索し、該当箇所のみ Read する。3 ファイル以上を対象にする場合は Grep を 1 メッセージで並列発行する。対応方針・実装内容を組み立てるために本文（原因・調査結果等）を確実に読む必要がある読み手に適用
+
+**例外**: 実装フェーズ（`backlog-implementer`）は成果物の記載漏れが実装ミスに直結するため、フル Read を維持する。
+
+各エージェントは自身の用途（コンテキスト復元か・本文を消費するか）に応じて方式A/Bを選び、Phase 0d（`backlog.md`）はじめ各所からこのルールを参照する。
+
 ---
 
 ## Quality Standards

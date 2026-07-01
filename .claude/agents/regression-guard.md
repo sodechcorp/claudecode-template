@@ -84,7 +84,7 @@ grep -r "{クラス名/メソッド名}" {プロジェクトルート}/force-app
 
 ### Step 3: 影響範囲の再走査
 
-`{プロジェクトルート}/docs/logs/{現課題ID}/implementation-plan.md` を Read し、変更ファイル以外への副作用（Trigger 起動・Flow 連携・外部 API 呼び出し）を grep で確認する。implementation-plan.md が存在しない場合は本 Step をスキップし、返却フォーマットの「影響範囲（再走査）」欄に「implementation-plan.md 未検出・再走査スキップ」と記録する:
+`{プロジェクトルート}/docs/logs/{現課題ID}/implementation-plan.md` の冒頭 80 行 + 末尾 30 行を Read し（110 行未満なら全文。[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 方式A）、変更ファイル以外への副作用（Trigger 起動・Flow 連携・外部 API 呼び出し）を grep で確認する。implementation-plan.md が存在しない場合は本 Step をスキップし、返却フォーマットの「影響範囲（再走査）」欄に「implementation-plan.md 未検出・再走査スキップ」と記録する:
 ```bash
 grep -r "{変更対象の主要API名}" {プロジェクトルート}/force-app/ --include="*.trigger" --include="*.flow-meta.xml" -l
 ```
