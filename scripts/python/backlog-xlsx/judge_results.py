@@ -119,6 +119,18 @@ def find_evidence_file(evidence_dir: str, tc_no: str, shubetsu: str) -> str:
     return files[0] if files else ""
 
 
+def evidence_fingerprint(evidence_dir: str, tc_no: str, shubetsu: str):
+    """TC に対応する全証跡ファイルの最終更新時刻の最大値を返す（差分再実行の stale reuse 検出用）。
+    証跡ファイルが1つも無い場合は None を返す。"""
+    files = find_evidence_files(evidence_dir, tc_no, shubetsu)
+    if not files:
+        return None
+    try:
+        return max(os.path.getmtime(f) for f in files)
+    except OSError:
+        return None
+
+
 # ── 判定ロジック ─────────────────────────────────────────────────────────────
 
 def _read_text_evidence(path: str) -> str:
@@ -133,6 +145,28 @@ def _read_text_evidence(path: str) -> str:
             return raw.decode("utf-8", errors="replace")
     except Exception:
         return ""
+
+
+# 空撮り検出のしきい値（DOM 可視文字数）。Lightning シェルのメニュー等を含んでもこの程度は残るため、
+# これを下回る場合は「画面がほぼ空白のまま撮影された」疑いとして扱う。
+_BLANK_DOM_CHAR_THRESHOLD = 300
+
+
+def _parse_positive_anchor(kiki: str):
+    """期待結果からポジティブアンカー形式（test-pattern-map.md 準拠）を抽出する。
+    形式: "画面描画確認: {アンカー} が表示 / 非表示確認: {対象} が非表示"
+    見つからない場合は (None, None) を返す（アンカー未指定の旧形式 spec）。
+    """
+    m_anchor = re.search(r"画面描画確認\s*[:：]\s*(.+?)\s*が表示", kiki)
+    m_target = re.search(r"非表示確認\s*[:：]\s*(.+?)\s*が非表示", kiki)
+    if m_anchor and m_target:
+        return m_anchor.group(1).strip(), m_target.group(1).strip()
+    return None, None
+
+
+def _is_blank_dom(text: str) -> bool:
+    """DOM スナップショットが空撮り（前提データ未成立等で画面がほぼ空白）の疑いがあるかを判定する。"""
+    return len(re.sub(r"\s+", "", text or "")) < _BLANK_DOM_CHAR_THRESHOLD
 
 
 def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: str) -> dict:
@@ -165,11 +199,29 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
             if kiki or "含まない" in judge_method or "非表示" in judge_method or "なし確認" in judge_method:
                 m_snap_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", snap, re.DOTALL)
                 search_scope = m_snap_section.group(1) if m_snap_section else snap
-                # F-3: 否定確認（PNG+DOM の場合も適用）
+                # F-3: 否定確認（PNG+DOM の場合も適用）。空撮り（前提データ未成立で画面が空白のまま撮影）による
+                # 誤 OK を防ぐため、ポジティブアンカー（test-pattern-map.md 準拠）があればアンカー未検出時に NG、
+                # アンカー未指定の旧形式 spec では DOM がほぼ空白なら SKIP（要目視）に降格する。
                 if "含まない" in judge_method or "非表示" in judge_method or "なし確認" in judge_method:
-                    ok = kiki.lower() not in search_scope.lower() if kiki else True
-                    actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）— 「{kiki[:20]}」{'なし(OK)' if ok else 'あり(NG)'}"
-                    reason = "" if ok else f"「{kiki[:30]}」が DOM に残存（非表示のはずが表示されている）"
+                    anchor, neg_target = _parse_positive_anchor(kiki)
+                    target_str = neg_target if neg_target else kiki
+                    if anchor:
+                        anchor_present = anchor.lower() in search_scope.lower()
+                        if not anchor_present:
+                            return {"ok": False,
+                                    "actual": "画面表示NG（DOM照合済）— アンカー未検出のため非表示確認は判定不能",
+                                    "reason": f"画面描画確認NG: アンカー「{anchor[:30]}」が DOM に見つからず、画面が未描画/空白の疑い"}
+                        ok = target_str.lower() not in search_scope.lower() if target_str else True
+                        actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済・アンカー確認済）— 「{target_str[:20]}」{'なし(OK)' if ok else 'あり(NG)'}"
+                        reason = "" if ok else f"「{target_str[:30]}」が DOM に残存（非表示のはずが表示されている）"
+                        return {"ok": ok, "actual": actual_str, "reason": reason}
+                    if _is_blank_dom(search_scope):
+                        visible_len = len(re.sub(r"\s+", "", search_scope))
+                        return {"ok": None, "actual": f"要目視確認（DOM {visible_len}文字・空白疑い）",
+                                "reason": "DOM がほぼ空白でありポジティブアンカー未指定のため非表示確認の自動判定は信頼できません（要目視）。test-spec の期待結果にポジティブアンカーを追記してください"}
+                    ok = target_str.lower() not in search_scope.lower() if target_str else True
+                    actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）— 「{target_str[:20]}」{'なし(OK)' if ok else 'あり(NG)'}"
+                    reason = "" if ok else f"「{target_str[:30]}」が DOM に残存（非表示のはずが表示されている）"
                     return {"ok": ok, "actual": actual_str, "reason": reason}
                 ok = kiki.lower() in search_scope.lower() if kiki else True
                 actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）— 「{kiki[:20]}」{'あり' if ok else 'なし'}"
@@ -233,14 +285,30 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         reason = "" if ok else f"期待 {exp} 件 / 実際 {act} 件"
         return {"ok": ok, "actual": actual_str, "reason": reason}
 
-    # F-3: 否定確認（含まない/非表示/なし確認）: 期待文字列が証跡に存在しないことを確認
+    # F-3: 否定確認（含まない/非表示/なし確認）: 期待文字列が証跡に存在しないことを確認。
+    # 証跡（実際の値セクション）自体がほぼ空（=処理が動いていない・結果が採れていない）だと
+    # 対象文字列も自明に「なし」になり誤 OK になるため、アンカーまたは空白ガードで防ぐ。
     if "含まない" in judge_method or "非表示" in judge_method or "なし確認" in judge_method:
         m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
         search_scope = m_actual_section.group(1) if m_actual_section else content
-        ok = kiki.lower() not in search_scope.lower() if kiki else True
-        actual_str = f"「{kiki[:30]}」{'あり（NG）' if not ok else 'なし（OK）'}"
+        anchor, neg_target = _parse_positive_anchor(kiki)
+        target_str = neg_target if neg_target else kiki
+        if anchor:
+            if anchor.lower() not in search_scope.lower():
+                return {"ok": False, "actual": "アンカー未検出のため非表示確認は判定不能",
+                        "reason": f"アンカー「{anchor[:30]}」が証跡に見つからず、結果が採れていない疑い"}
+            ok = target_str.lower() not in search_scope.lower() if target_str else True
+            actual_str = f"（アンカー確認済）「{target_str[:30]}」{'あり（NG）' if not ok else 'なし（OK）'}"
+            return {"ok": ok, "actual": actual_str,
+                    "reason": "" if ok else f"「{target_str[:30]}」が証跡に残存（非表示のはずが表示されている）"}
+        if _is_blank_dom(search_scope):
+            visible_len = len(re.sub(r"\s+", "", search_scope))
+            return {"ok": None, "actual": f"要目視確認（証跡 {visible_len}文字・空白疑い）",
+                    "reason": "証跡がほぼ空でありポジティブアンカー未指定のため非表示確認の自動判定は信頼できません（要目視）"}
+        ok = target_str.lower() not in search_scope.lower() if target_str else True
+        actual_str = f"「{target_str[:30]}」{'あり（NG）' if not ok else 'なし（OK）'}"
         return {"ok": ok, "actual": actual_str,
-                "reason": "" if ok else f"「{kiki[:30]}」が証跡に残存（非表示のはずが表示されている）"}
+                "reason": "" if ok else f"「{target_str[:30]}」が証跡に残存（非表示のはずが表示されている）"}
 
     # 含む判定 (期待結果に含まれるべき文字列): 「実際の値:」行以降のみを検索し期待値行の誤ヒットを防ぐ
     if "含む" in judge_method or "存在" in judge_method:
@@ -456,13 +524,19 @@ def main():
     for tc in test_cases:
         no = tc.get("No", "")
         shubetsu = tc.get("種別", tc.get("実行種別", "")).strip()
+        current_fp = evidence_fingerprint(args.evidence_dir, no, shubetsu)
 
-        # 差分再実行: 前回 OK の TC は流用
+        # 差分再実行: 前回 OK の TC は流用。ただし証跡ファイルが前回判定後に更新されている場合は
+        # NG → OK の化け（stale reuse）を防ぐため流用せず再判定する。
         if no in prev_results:
             prev = prev_results[no]
-            results.append(prev)
-            print(f"[REUSE] {no}: {tc.get('観点', '')} → 前回OK流用 ({prev.get('actual', '')})")
-            continue
+            prev_fp = prev.get("evidence_mtime")
+            if prev_fp is not None and current_fp is not None and current_fp <= prev_fp:
+                results.append(prev)
+                print(f"[REUSE] {no}: {tc.get('観点', '')} → 前回OK流用 ({prev.get('actual', '')})")
+                continue
+            else:
+                print(f"[RE-JUDGE] {no}: {tc.get('観点', '')} → 証跡ファイルが前回判定後に更新されているため再判定します")
 
         evidence_path = find_evidence_file(args.evidence_dir, no, shubetsu)
         judgment = judge_case(tc, evidence_path, evidence_dir=args.evidence_dir)
@@ -492,6 +566,7 @@ def main():
             "reason": reason,
             "ng_type": ng_type if status == "NG" else "",
             "evidence": evidence_path,
+            "evidence_mtime": current_fp,
         })
 
         # xlsx H 列更新: テスト・検証シートは廃止済みのため行わない（エビデンスはエビデンス.xlsx に集約）
