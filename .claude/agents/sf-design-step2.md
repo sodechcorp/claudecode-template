@@ -199,7 +199,7 @@ version_increment: {version_increment}
 
 sf-screen-writer の完了を確認してから次へ進む。
 
-**② Apex系 → sf-design-writer（current_batch_ids に Apex系が1件以上ある場合のみ実行）:**
+**② Apex系 → sf-design-writer（current_batch_ids に Apex系が1件以上ある場合、または最終バッチ（i == n_batches-1）の場合は必ず実行）:**
 ```
 project_dir:           {project_dir}
 output_dir:            {output_dir}/03_プログラム設計
@@ -218,10 +218,11 @@ skip_cleanup:          {run_reviewer が true の場合は常に true（reviewer
 sf-design-writer の完了を確認してから次のバッチへ進む。
 
 > **current_batch_ids に画面系のみ含まれる場合**: sf-screen-writer のみ実行。sf-design-writer はスキップ。
+> **ただし最終バッチ（i == n_batches-1）は例外**: 機能一覧生成（`generate_feature_list=true`）と tmp_dir クリーンアップは sf-design-writer の責務のため、Apex系が0件でも sf-design-writer を必ず起動する（writer は Apex0件のとき Phase 1/2 を実質スキップし、Phase 3 で tmp_dir 内の全 design JSON から機能一覧を生成、Phase 4 でクリーンアップする）。
 > **current_batch_ids に Apex系のみ含まれる場合**: sf-screen-writer をスキップ。sf-design-writer のみ実行。
 > **どちらも0件のバッチ**: スキップして次のバッチへ。
 
-> **ループ完了後**: `run_reviewer=false`（既定）の場合、最終バッチの sf-design-writer が `generate_feature_list=true` で機能一覧 Excel を生成し `tmp_dir` を削除する。このエージェントでは追加クリーンアップ不要。`run_reviewer=true` の場合は全バッチで `skip_cleanup=true` のため writer は削除しない。Phase 5.5 で reviewer 起動後に step2 自身が削除する。
+> **ループ完了後**: `run_reviewer=false`（既定）の場合、最終バッチの sf-design-writer が `generate_feature_list=true` で機能一覧 Excel を生成し `tmp_dir` を削除する（最終バッチが画面系のみでも上記②の例外規定により sf-design-writer は必ず起動されるため、この前提は常に成立する）。このエージェントでは追加クリーンアップ不要。`run_reviewer=true` の場合は全バッチで `skip_cleanup=true` のため writer は削除しない。Phase 5.5 で reviewer 起動後に step2 自身が削除する。
 
 テンプレートパス（sf-design-writer / sf-screen-writer に参考として伝える）:
 - Apex/Flow/Batch/Integration: `{project_dir}/scripts/python/sf-doc-mcp/プログラム設計書テンプレート.xlsx`
