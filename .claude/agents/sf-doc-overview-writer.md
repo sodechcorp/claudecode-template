@@ -68,6 +68,16 @@ for k, p in paths.items():
 
 ---
 
+## Phase 1.5: 生成前セルフレビュー（スクリプト実行前に必ず実施）
+
+```
+Read: {project_dir}/.claude/templates/sf-doc/self-review-checklist.md
+```
+
+上記ファイルのチェックリスト（共通チェック + 概要書固有チェック）を全件確認する。問題があれば修正してから Phase 2 へ進む。
+
+---
+
 ## Phase 2: 生成
 
 出力先フォルダを作成してから実行:

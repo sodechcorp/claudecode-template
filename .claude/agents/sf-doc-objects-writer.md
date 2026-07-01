@@ -345,6 +345,16 @@ sf-doc-overview-writer の完了を待ってから Phase 7 に進む。
 
 「キャンセル」が選ばれた場合は 7-3（alias cleanup）を実行してから終了する。
 
+### 7-1.5. 生成前セルフレビュー
+
+```
+Read: {project_dir}/.claude/templates/sf-doc/self-review-checklist.md
+```
+
+上記ファイルのチェックリスト（共通チェック + オブジェクト定義書固有チェック）を全件確認する。問題があれば修正してから 7-2 へ進む。
+
+> 概要書含む場合（Phase 6 で sf-doc-overview-writer を連鎖呼び出しする場合）、概要書固有チェックは呼び出し先の sf-doc-overview-writer 側 Phase 1.5 が担う。ここでは共通チェック + オブジェクト定義書固有チェックに注力してよい。
+
 ### 7-2. 生成
 
 ```bash
