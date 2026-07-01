@@ -101,20 +101,35 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 
 ---
 
-## Step 3: Apex テスト実行（種別 = ApexTest）
+## Step 3: Apex テスト実行（種別 = ApexTest）— 一括実行
 
 > Sandbox 判定済みであることを前提として実行する（二重確認不要）。
 
-ApexTest ケースがある場合。**複数 TC がある場合は TC ごとに繰り返す**（または複数テストクラスを `--class-names` にカンマ区切りで1回指定し、出力は TC ごとに `{No}_apextest.txt` へリダイレクト）:
+#### 3-1: cases ファイル生成 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
+
+ApexTest 種別の各 TC について「実行アクション」列からテストクラス名を読み取る（1 TC が複数クラスに跨る場合はカンマ区切りで列挙）。全 TC を JSON にまとめて `{log_dir}/tmp/apextest_cases.json` に Write する:
+```json
+[
+  {
+    "no": "TC-005",
+    "label": "受注バリデーション",
+    "class_names": "OrderTest",
+    "out": "{evidence_dir}/after/apex/TC-005_受注バリデーション.txt"
+  }
+]
+```
+
+#### 3-2: 一括実行
+
+全 TC のテストクラス名を **1コマンドに集約**して実行する（`--class-names` に全クラスの和集合をカンマ区切りで渡し、プロセス起動＋サーバ側テスト実行の往復を1回に減らす）。証跡は内部で TC（クラス）ごとに自動分離される（他クラスの失敗が無関係な TC の判定を巻き込まない）:
 
 ```bash
-sf apex run test \
-  --target-org "{alias}" \
-  --class-names {テストクラス名} \
-  --result-format human \
-  --code-coverage \
-  > "{evidence_dir}/after/apex/{No}_apextest.txt" 2>&1
+python "{project_dir}/scripts/python/backlog-xlsx/apextest_runner.py" run-batch \
+  --alias "{alias}" \
+  --cases-file "{log_dir}/tmp/apextest_cases.json"
 ```
+
+`{serial}` が true の場合は `--serial` を追加する（最初からクラス単位の逐次実行にする）。一括実行がコンパイルエラー等で構造的に失敗した場合は、runner が自動でクラス単位の逐次実行にフォールバックする。
 
 確認の主眼: **全テスト PASS**（実処理が正しく動いたことの確認）。カバレッジは補助指標（75% 以上は Salesforce デプロイ要件として参考確認）。
 
