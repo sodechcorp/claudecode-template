@@ -1,6 +1,6 @@
 # Phase 2 オプションインデックス（対応方針策定）
 
-backlog-planner が Phase A（対応方針）の Step 0b で参照する判定情報。7 オプション。
+backlog-planner が Phase A（対応方針）の Step 0b で参照する判定情報。8 オプション。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
 
@@ -107,4 +107,17 @@ options:
     ask-user-prompt: |
       この修正は抜本対応の選択肢が無さそうです。保守的 vs 抜本案の比較は省略してもよさそうですか？
     estimated-cost: 中
+
+  - name: option-customer-questions
+    description: Phase A の業務要件の確認事項を業務語彙に変換した対外向「顧客確認事項ドラフト」を生成（明示依頼時のみ・未送信）
+    category: D
+    auto-execute-when:
+      - ユーザーが「顧客確認事項をドラフト」「顧客向け質問リスト」「お客様に確認する内容を文章化」等、対外向確認文面の作成を明示的に依頼した場合のみ
+    auto-skip-when:
+      - 上記の明示依頼がない（デフォルト。内部判断用 Q1./Q2. のみで完結する通常フロー）
+      - 業務要件の確認事項（Q）が 0 件
+    ask-user-prompt: |
+      顧客向けの確認事項ドラフト生成は明示依頼時のみです。今回は生成不要でよろしいですか？
+    estimated-cost: 軽
+    default-when-uncertain: skip
 ```
