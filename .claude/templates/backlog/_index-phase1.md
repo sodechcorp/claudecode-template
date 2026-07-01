@@ -22,15 +22,17 @@ backlog-investigator が Step 0b で参照する判定情報。
 options:
 
   - name: option-reverse-grep
-    description: 変更対象の API 名・関数名・フィールド名を force-app/ 全体から逆参照 grep
+    description: 逆参照 grep。変更対象名で全参照を洗う（通常モード）／根本原因が共有・再利用コンポーネントの場合は「共有元名」をアンカーに全呼び出し元を洗い、各入口が報告症状を再現するか判定して兄弟入口(A)/派生(B)に振り分ける（root-cause-anchor モード。詳細は backlog-investigator.md Step C-2）
     category: B
     auto-execute-when:
       - 変更対象が Apex メソッド・LWC 関数・カスタムフィールド API 名
       - 課題が「ロジック修正」「項目追加・削除」「リネーム」を含む
       - 種別がバグ
+      - 根本原因（最有力仮説）が共有・再利用コンポーネント（共有クエリメソッド・共通ユーティリティ・共有サービスクラス・共通コンポーネント）に帰着する（← この場合 root-cause-anchor モードで実行し、全呼び出し元の症状再現判定＝兄弟入口チェックを必須とする）
     auto-skip-when:
       - 変更対象がコメント文字列のみ
       - 変更対象がラベル・表示文字列のみ（API 名・コードロジック非該当）
+      - （※ 根本原因が共有コンポーネントの場合は skip しない — 上記 auto-execute-when が優先）
     ask-user-prompt: |
       この修正はコード実体に影響しない変更（コメント・ラベル等）のようです。
       変更対象を呼んでいる他のコードがないか確認する手順は省略してもよさそうですか？

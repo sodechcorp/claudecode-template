@@ -233,12 +233,14 @@ python -c "import PIL" 2>/dev/null || {
 - `spec_path`: `{SPEC_PATH}`（出力先）
 - `pattern_map_path`: `.claude/templates/backlog/test-pattern-map.md`
 - `force`: `${FORCE_SPEC:-false}`（`--force` 指定時は true）
+- `validation_report_path`: `{LOG_DIR}/validation-report.md`（Phase 3.5 regression-guard の逆参照結果。軸3消費者リスト source・省略可）
 
 `test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。
 
 > **仕様スキーマ（参考）**: 9 列 — No / 観点 / 種別 / 前提・データ準備 / 実行アクション / 期待結果 / 判定方法 / 証跡取得 / 自動化可否。  
 > 詳細な展開ルール・種別選択肢・自動化可否判断基準・網羅性チェック手順は `test-spec-builder.md` に定義されている。  
-> **「観点」列はエビデンス Excel・判定ログ・対応記録に verbatim 転記される**: 自然文1文・ラベル（日本語表示名）優先・接頭ラベル（要求充足=①②…、回帰=`回帰`）必須。詳細と良い例・悪い例は `test-spec-builder.md` §「観点」列の記述ルールを参照。
+> **「観点」列はエビデンス Excel・判定ログ・対応記録に verbatim 転記される**: 自然文1文・ラベル（日本語表示名）優先・接頭ラベル（要求充足=①②…、回帰=`回帰`、共有コンポーネント consumer fan-out=`横展開`）必須。詳細と良い例・悪い例は `test-spec-builder.md` §「観点」列の記述ルールを参照。  
+> **網羅性は三軸**（軸1 要求充足／軸2 変更点回帰／軸3 共有コンポーネント consumer fan-out）。軸3は共有データ取得メソッド／共通ユーティリティを変更した場合、その全呼び出し元（入口／画面／フロー）で報告症状が再発しないかを各入口 1 TC で検証する。起動ゲートは `test-spec-builder.md` §軸3 を参照。
 
 既に `test-spec.md` が存在する場合はスキップ（`--force` 指定時は再生成）。
 
@@ -267,7 +269,7 @@ python -c "import PIL" 2>/dev/null || {
 1. 種別仕分け＋差分対象 TC の絞り込み
 2. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列）
 3. AnonApex → コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列）
-4. ApexTest → 直列実行
+4. ApexTest → `apextest_runner.py run-batch`（全クラスを `--class-names` で1コマンドに集約。証跡はクラス単位で分離）
 5. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）。読み取り専用ケースは複数コンテキスト並列（max_workers_ui=3）、データ更新/Login As ケースは逐次
 6. 証跡存在確認（後始末・test-report.md 生成は Phase F が担当）
 
@@ -585,3 +587,4 @@ NG 一覧:
 - accessToken は一切ファイルに保存しない（`sf org open --url-only` のワンタイム URL のみ使用）。
 - テストデータは必ず後始末する。削除失敗件数は test-report.md に明記してユーザーに手動対応を依頼。
 - `/backlog` Phase 6（Sandbox デプロイ）完了後の後続工程。デプロイ済み Sandbox を前提として網羅的テストを実施する（本コマンドはデプロイしない）。
+- **`/test` は共有コンポーネント修正漏れの二次防御（バックストップ）**: 同一根本原因が複数入口に fan-out するケースは、修正が共有メソッド自体に入った場合のみ軸3（consumer fan-out）で検出できる。修正が呼び出し元側だけに入った場合は /test では検出できない。一次防御は `/backlog` 調査段階（backlog-investigator の根本原因特定＋ option-reverse-grep / regression-guard の逆参照で全消費者を修正スコープに含める判断。Step C-2 参照）である。
