@@ -178,17 +178,24 @@ mkdir -p "{evidence_dir}/before"
 
 1件目の TC のみ `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用しアプリ内遷移のみ。
 
-コードブロック構成（1 TC = 1 コードブロック）:
+コードブロック構成（同一セッションの連続 TC を1コードブロックにまとめる）:
+
+**バッチ化の原則**: 同一セッションのグループ② TC は可能な限り1コードブロックにまとめて実行する（1件目のみ goto ログイン、以降はブロック内でアプリ内遷移を続ける）。TC が増えても同じブロックに追記するだけにし、TC ごとに `browser_run_code_unsafe` を往復しない。ロケータの事前 snapshot 確認が必要な TC や、フォーム状態を戻せない TC のみ別ブロックに分割する。
+
+各 TC はブロック内で以下 1〜4 を行い、結果を配列 `results` へ push する。TC ごとに `try/catch` で囲み、失敗した TC が後続 TC の証跡採取を止めないようにする:
+
 1. **before 撮影 + DOM取得（F-6/F-7）**:
    - スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true})`
-   - before DOM: `const beforeText = await page.locator('body').innerText()` を取得して return 値に含める（`beforeText` フィールド）。Write は item 4 の return 受け取り後に行う（コードブロック内では Write 不可のため）
+   - before DOM: `const beforeText = await page.locator('body').innerText()` を取得
 2. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で遷移・表示を待つ。
 3. **after 撮影（分岐ごと）＋ 確認対象の赤枠ハイライト**:
    - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。
    - スクショ: `fullPage: true` で全ページ撮影。分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`
-   - after DOM: `await page.locator('body').innerText()` → `.txt` に Write（判定の主役）
-   - `target` 未記載・ロケータ解決失敗の場合は枠なしで**必ず撮影**（スキップしない）。
-4. **return**: `JSON.stringify({url: page.url(), beforeText, text: await page.locator('body').innerText()})` を返す。エージェントは `text` を `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write する。
+   - after DOM: `await page.locator('body').innerText()` を取得（判定の主役）
+4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText()})`。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
+   - `target` 未記載・ロケータ解決失敗の場合は枠なしで**必ず撮影**（スキップしない。これはロケータ失敗ではなく catch 対象外）。
+
+全 TC 処理後、`return JSON.stringify(results)` で配列を返す。Write はコードブロック内では不可のため、エージェントが return 受け取り後に配列を反復して行う: `ok: true` の要素は `text` を `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write する。`ok: false` の要素は当該 No を NG として返却テーブルに記録し、`error` の内容を備考欄に記載する。
 
 > **fullPage の理由**: Salesforce のレコード詳細・リスト画面は観点となる項目・セクションが viewport 下方に折り返すことが多い。`fullPage: true` で全ページを撮影することで、PNG 証跡に確認観点が必ず写るようにする。
 
@@ -240,7 +247,7 @@ await clearHighlight(highlighted);
 
 Lightning CSS が outline を上書きする場合は `!important` 付きで注入済み（上記に含む）。before 撮影は枠なし（差分強調のため）。
 
-**コードブロック例（プリチェック画面のラベル確認）**:
+**コードブロック例（同一セッションの2 TC をバッチ実行）**:
 ```javascript
 async (page) => {
   page.setDefaultTimeout(15000);
@@ -277,24 +284,52 @@ async (page) => {
       node.style.outlineOffset = '';
     }).catch(() => {});
   }
+  const results = [];
+
   // 1件目のみ: await page.goto('FRONTDOOR_URL');
-  // before 撮影（fullPage: true）+ before DOM 取得（状態遷移観点で使用）
-  await page.screenshot({path: 'C:/path/evidence/before/TC-001_ラベル確認_before.png', fullPage: true});
-  const beforeText = await page.locator('body').innerText();
-  // 画面遷移
-  await page.getByText('プリチェック').click();
-  await waitSfReady(page);
-  // after 撮影 + 確認対象に赤枠を注入（target= がある場合のみ）
-  const highlighted = await highlightTarget(page, 'プリチェック'); // target={label} を使用
-  await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png', fullPage: true});
-  await clearHighlight(highlighted);
-  const afterText = await page.locator('body').innerText();
-  // エージェントは beforeText → before/TC-001_ラベル確認_before.txt に Write する
-  return JSON.stringify({url: page.url(), beforeText, text: afterText});
+
+  // ── TC-001: プリチェック画面のラベル確認 ──
+  try {
+    // before 撮影（fullPage: true）+ before DOM 取得（状態遷移観点で使用）
+    await page.screenshot({path: 'C:/path/evidence/before/TC-001_ラベル確認_before.png', fullPage: true});
+    const beforeText = await page.locator('body').innerText();
+    // 画面遷移
+    await page.getByText('プリチェック').click();
+    await waitSfReady(page);
+    // after 撮影 + 確認対象に赤枠を注入（target= がある場合のみ）
+    const highlighted = await highlightTarget(page, 'プリチェック'); // target={label} を使用
+    await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png', fullPage: true});
+    await clearHighlight(highlighted);
+    results.push({no: 'TC-001', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText()});
+  } catch (e) {
+    results.push({no: 'TC-001', ok: false, error: String(e)});
+  }
+
+  // ── TC-002: 次の画面での確認 — 同セッションの次 TC は再ログイン不要でそのまま続ける ──
+  try {
+    // 画面遷移（アプリ内リンク・goto どちらでも可）
+    await page.getByText('別画面').click();
+    await waitSfReady(page);
+    await page.screenshot({path: 'C:/path/evidence/before/TC-002_別画面確認_before.png', fullPage: true});
+    const beforeText = await page.locator('body').innerText();
+    // 操作
+    await page.getByText('対象ボタン').click();
+    await waitSfReady(page);
+    // after 撮影
+    const highlighted = await highlightTarget(page, '対象ボタン');
+    await page.screenshot({path: 'C:/path/evidence/after/screen/TC-002_別画面確認.png', fullPage: true});
+    await clearHighlight(highlighted);
+    results.push({no: 'TC-002', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText()});
+  } catch (e) {
+    results.push({no: 'TC-002', ok: false, error: String(e)});
+  }
+
+  // エージェントは results を反復し、ok:true の要素は before/after .txt を Write、ok:false は NG 記録
+  return JSON.stringify(results);
 }
 ```
 
-**条件分岐がある場合**: 1ブロック内で全分岐を順に実行し、分岐ごとに after 撮影する。各分岐の前後で操作を戻す（デフォルト選択に戻す・フォームリセット等）ことで1フローに収める。
+**条件分岐がある場合**: 分岐がある TC は該当 TC の `try` 内で全分岐を順に実行し、分岐ごとに after 撮影する。各分岐の前後で操作を戻す（デフォルト選択に戻す・フォームリセット等）ことで1フローに収める。
 
 グループ①②の全 TC 完了後に `mcp__playwright__browser_close` でセッションを閉じる。
 
