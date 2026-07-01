@@ -15,9 +15,10 @@ options:
     auto-execute-when:
       - 種別がバグまたは追加要望（常時実行）
     auto-skip-when:
-      - typo 修正・ラベル変更のみ（期待結果と実挙動の比較概念が無関係）
+      - 典型的自明ケース（_README.md §典型的自明ケース定義 を参照）
+      - 影響が単一画面・単一処理に完全に閉じている最小修正
     ask-user-prompt: |
-      この修正は typo 修正・ラベル変更のみのようです。blind 解決判定（subagent）は省略してもよさそうですか？
+      この修正は典型的自明ケース、または単一画面・単一処理に閉じた最小修正のようです。blind 解決判定（subagent）は省略してもよさそうですか？
     estimated-cost: 重
     prerequisites:
       - test-report.md にエビデンスマッピング表が存在し、全項目「✅ 取得済」
