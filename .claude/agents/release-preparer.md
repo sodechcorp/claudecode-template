@@ -1,6 +1,6 @@
 ---
 name: release-preparer
-description: /release {issueID} 専門。本番リリース準備（資材確定・影響範囲・チケット競合・本番環境ドリフト検知）を read-only で行い、人間が実行する本番リリース手順書（release-plan.md）を生成する。本番へのデプロイ・dry-run・書き込みは一切行わない。
+description: /release {issueID} 専門。本番リリース準備（資材確定・影響範囲・チケット競合・本番環境ドリフト検知）を read-only で行い、リリース前→実行→リリース後の順で資材種別別チェックを含む本番リリース手順書（release-plan.md）を生成する。本番へのデプロイ・dry-run・書き込みは一切行わない。
 model: opus
 tools:
   - Read
@@ -101,7 +101,13 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 
 ## Phase 5: リリース手順書の生成
 
-`docs/logs/{issueID}/release-plan.md` を新規作成する。構成:
+> チェックリスト正本: [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md)
+
+まず [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) を Read する。これは「**リリース前 → リリース実行 → リリース後**」の順に整理した共通チェックと、資材種別別の検証方法・注意点を束ねた正本。手順書はこのマトリクスに沿って組み立てる。
+
+**資材種別に応じた組み立て（重要）**: Phase 1 で確定した資材マニフェストに**実際に含まれる種別のみ**を §D 資材種別別チェックから転記する（含まれない種別の行は書かない）。マトリクスにない種別が出た場合はマトリクス §E に従い `[要確認]` 付きで検証方法を起案する（推測で断定しない）。「前・実行・後」の3段構成は資材の有無によらず必ず全て記載する。
+
+`docs/logs/{issueID}/release-plan.md` を新規作成する。構成（リリース前 → 実行 → 後の順を厳守）:
 
 ```markdown
 # 本番リリース手順書
@@ -129,30 +135,51 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 ## 本番環境ドリフト確認
 {Phase 4 の結果}
 
-## 事前確認チェックリスト
-- [ ] Sandbox でのテスト完了（test-report.md 確認済み）
-- [ ] 関連トリガー・フロー・権限セットへの影響確認済み
-- [ ] チケット競合チェック: 問題なし（または承知の上で続行）
-- [ ] 本番環境ドリフト確認: 問題なし（または承知の上で続行）
-- [ ] お客様確認サイン取得済み（該当する場合）
+---
+
+# ① リリース前チェック（pre-release）
+
+{matrix §A の共通チェック。release-preparer が read-only で確認できたものは状態を埋める}
+
+## 資材種別別・リリース前確認
+{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「リリース前」を転記}
 
 ## 事前記録: ロールバック用コミットハッシュ
 **デプロイ直前**に `git log -1 --pretty=format:'%H'` を実行し、出力結果を以下に記録する。
-
 ROLLBACK_COMMIT_HASH: （未記録—デプロイ直前に記録する）
 
-## デプロイコマンド（人間が実行する。エージェントは実行しない）
+---
+
+# ② リリース実行（execution・人間が実行する。エージェントは実行しない）
+
+{matrix §B の実行手順}
 
 ```bash
-# Step 1: dry-run で事前確認（必須）
+# Step 1: 直前記録
+git log -1 --pretty=format:'%H'    # ← ROLLBACK_COMMIT_HASH に記録
+
+# Step 2: dry-run で事前確認（必須）
 sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level RunLocalTests
 
-# Step 2: 本番デプロイ（dry-run 確認後に実行）
+# Step 3: 本番デプロイ（dry-run 0 errors 確認後に実行）
 sf project deploy start --source-dir force-app --target-org <本番エイリアス> --test-level RunLocalTests
 
-# Step 3: デプロイ結果確認
+# Step 4: デプロイ結果確認
 sf project deploy report --target-org <本番エイリアス>
 ```
+
+{デプロイ順序が分割要の場合は Phase 1 の順序をここに明記。管理画面手動操作がある場合は操作手順を記載}
+
+---
+
+# ③ リリース後チェック（post-release・本番で人間が実施する）
+
+{matrix §C の共通チェック}
+
+## 資材種別別・リリース後検証
+{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「リリース後検証方法」「注意点」を転記}
+
+---
 
 ## ロールバック手順
 {option-rollback-strategy.md（approach-plan.md 記載があれば転記）+ option-rollback-readiness.md による最終確認}
@@ -165,6 +192,7 @@ sf project deploy report --target-org <本番エイリアス>
 ```
 
 手順書生成時に以下を実施:
+- [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) を参照し、①/③ の資材種別別セクションを Phase 1 資材マニフェストの含有種別に合わせて組み立てる
 - [option-rollback-strategy.md](../templates/backlog/options/option-rollback-strategy.md) / [option-rollback-readiness.md](../templates/backlog/options/option-rollback-readiness.md) の内容を統合してロールバック手順セクションを埋める
 - [option-release-note-generation.md](../templates/backlog/options/option-release-note-generation.md) に従い `docs/logs/{issueID}/release-note.md` を生成する
 
@@ -182,11 +210,12 @@ sf project deploy report --target-org <本番エイリアス>
 - 本番環境ドリフト: なし / あり（{詳細}） / 未実施（接続情報なし）
 
 ### 引き渡し
-本番リリース手順書: docs/logs/{issueID}/release-plan.md
+本番リリース手順書: docs/logs/{issueID}/release-plan.md（① リリース前 → ② 実行 → ③ リリース後 の順・資材種別別チェック込み）
 リリースノート: docs/logs/{issueID}/release-note.md
 
 ### 重要
 - 本番デプロイは人間が手順書の CLI コマンドを実行してください。このエージェントは本番へ read-only 操作のみ行い、デプロイ・書き込みは一切行っていません
+- リリース後チェック（③）は本番で人間が実施する検証です。資材種別ごとに検証方法が異なるため手順書の該当セクションに従ってください
 - {競合・ドリフトの警告があればここに再掲}
 ```
 
