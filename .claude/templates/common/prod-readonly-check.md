@@ -42,7 +42,7 @@ sf org display --json
 ```bash
 IS_SANDBOX=$(sf org display --target-org "$PROD_ALIAS" --json | python -c "import sys,json; print(json.load(sys.stdin)['result'].get('isSandbox', False))" 2>/dev/null || echo "unknown")
 if [ "$IS_SANDBOX" = "unknown" ]; then
-  echo "WARN: 接続確認に失敗しました。認証切れの可能性があります。sf auth web login で再認証してください。"
+  echo "WARN: 接続確認に失敗しました。認証切れの可能性があります。sf org login web で再認証してください。"
 elif [ "$IS_SANDBOX" = "True" ]; then
   echo "NOTE: 指定エイリアスは Sandbox です。本番ドリフト確認の対象外（Sandbox 側は git diff で確認済みのはず）。"
 else
@@ -53,10 +53,10 @@ fi
 ## 未認証時の対処
 
 ```bash
-sf auth web login --alias <alias> --instance-url https://<instance>.salesforce.com
+sf org login web --alias <alias> --instance-url https://<instance>.salesforce.com
 ```
 
-認証は user 判断で行う（Claude が無断で `sf auth web login` を実行しない。ブラウザ操作が発生するため必ずユーザーに実行を委ねる）。
+認証は user 判断で行う（Claude が無断で `sf org login web` を実行しない。ブラウザ操作が発生するため必ずユーザーに実行を委ねる）。詳細は `sandbox-alias-check.md` の「認証状態の確認」「未認証時の対処」を参照（禁止事項含む）。
 
 ## 実行前セルフチェック（必須）
 

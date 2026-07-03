@@ -14,6 +14,8 @@ Sandbox 接続確認は `.claude/templates/common/sandbox-alias-check.md` を Re
 
 ## frontdoor 認証
 
+**前提**: 対象エイリアスが sf CLI に有効な状態で認証済みであること。未確認の場合は `sandbox-alias-check.md` の「認証状態の確認」を先に実施する（未認証・期限切れのまま実行すると本コマンドが失敗する）。
+
 ```bash
 sf org open --target-org "$SF_ALIAS" --url-only --json
 ```
@@ -442,3 +444,4 @@ mcp__playwright__browser_network_requests
 - `browser_run_code_unsafe` は RCE 相当のため **Sandbox セッション限定**で使う
 - accessToken はいかなる形でもファイル・ログ・証跡・return 値に出力しない
 - 操作完了後は必ず `mcp__playwright__browser_close` でセッションを閉じる
+- **Salesforce のログイン画面へ Playwright でユーザー名・パスワードを直接入力する方式は使わない**。認証は必ず sf CLI 認証済みセッション経由の frontdoor（上記）のみを正規経路とする。別ユーザーでの確認が必要な場合は「Login As」（パスワード不要）を使う。対象ユーザーが sf CLI 未認証で Login As も使えない場合は、パスワードを聞き出さず `sandbox-alias-check.md` の「未認証時の対処」（ユーザー本人による `sf org login web`）に従う
