@@ -1,6 +1,6 @@
 ---
 name: regression-guard
-description: Phase 3.5 の regression 確認専用。backlog-validator から Task で委譲される。変更予定ファイルの依存先・既存テストカバレッジ・影響再走査・過去同ファイル修正履歴を一括確認して validator に返す。Write ツールを持たない（validation-report.md への記録は validator が行う）。直接呼び出し禁止。backlog-validator の Step 2-3（Phase 3.5）から委譲される。
+description: Phase 3.5 の regression 確認専用。backlog.md（本体）から Task で委譲される（サブエージェント間の二段ネスト起動を避けるため、backlog-validator 経由ではなくメインスレッドが直接起動する）。変更ファイルの依存先・既存テストカバレッジ・影響再走査・過去修正履歴を一括確認して結果を返す。Write ツールを持たない（validation-report.md への記録は backlog-validator が行う）。直接呼び出し禁止。
 tools:
   - Read
   - Glob
@@ -22,24 +22,23 @@ tools:
 
 ## 役割
 
-`backlog-validator` の Phase 3.5 から委譲される確認エージェント。以下の4確認を統合して実行する:
+`backlog.md`（Phase 3.5・本体）から直接委譲される確認エージェント。以下の4確認を統合して実行する:
 - 変更ファイルの依存先把握（`option-impact-rescan` 相当）
 - 既存テストのカバレッジ確認（`option-existing-test-baseline` 相当）
 - 影響範囲の再走査
 - 過去修正履歴の確認（`option-git-blame-history` 相当）
 
-**Write ツールを持たない**（validation-report.md への記録は validator が行う）。
+**Write ツールを持たない**（validation-report.md への記録は backlog-validator が行う）。
 
 ---
 
 ## 起動プリチェック
 
-起動プロンプトに以下の 3 キーが揃っているか確認する:
-- `変更予定ファイル:` — implementation-plan.md から validator が抽出して渡す
+起動プロンプトに以下の 2 キーが揃っているか確認する:
 - `現課題ID:` — docs/logs/ 読込に使用
 - `プロジェクトルート:` — プロジェクトルートパス
 
-いずれかが欠けている場合は処理せず、欠損キーを列挙して即時中断する。
+いずれかが欠けている場合は処理せず、欠損キーを列挙して即時中断する。変更対象ファイルの一覧は自分で `implementation-plan.md` から抽出する（Step 0 参照。呼び出し元に抽出させない）。
 
 ---
 
@@ -63,9 +62,13 @@ tools:
 
 > **パス基準（必須）**: 以下の全 Bash コマンドは `プロジェクトルート:` で渡されたパスを基準に実行する。各コマンドで `{プロジェクトルート}/force-app/`・`git -C {プロジェクトルート} log ...` のようにルートを明示すること。CWD 依存の相対パスは、CWD≠ルート時にエラーなく 0 件を返す（偽の「依存先なし」を招く）ため禁止。
 
+### Step 0: 変更対象ファイルの特定
+
+`{プロジェクトルート}/docs/logs/{現課題ID}/implementation-plan.md` を Read し（冒頭 80 行 + 末尾 30 行。110 行未満なら全文。[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 方式A）、「変更対象ファイル」または「関連コンポーネント一覧」セクションからファイルパス・クラス名一覧を抽出して `{変更対象ファイル一覧}` として保持する。implementation-plan.md が存在しない場合は処理せず「implementation-plan.md 未検出」と返却して中断する。この読込結果は Step 3 でも再利用する（二重 Read しない）。
+
 ### Step 1: 変更ファイルの依存先 grep
 
-変更予定ファイルの主要なクラス名・メソッド名・API 名を抽出し、プロジェクト全体で参照元を検索する。**抽出対象は `public` / `global` 修飾子が付いたクラス名・メソッド名とする**（`private` / `protected` は呼び出し元が限定されるため原則スキップ）:
+`{変更対象ファイル一覧}` の主要なクラス名・メソッド名・API 名を抽出し、プロジェクト全体で参照元を検索する。**抽出対象は `public` / `global` 修飾子が付いたクラス名・メソッド名とする**（`private` / `protected` は呼び出し元が限定されるため原則スキップ）:
 ```bash
 grep -r "{クラス名/メソッド名}" {プロジェクトルート}/force-app/ --include="*.cls" --include="*.trigger" --include="*.page" --include="*.js" --include="*.html" -l
 ```
@@ -84,7 +87,7 @@ grep -r "{クラス名/メソッド名}" {プロジェクトルート}/force-app
 
 ### Step 3: 影響範囲の再走査
 
-`{プロジェクトルート}/docs/logs/{現課題ID}/implementation-plan.md` の冒頭 80 行 + 末尾 30 行を Read し（110 行未満なら全文。[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 方式A）、変更ファイル以外への副作用（Trigger 起動・Flow 連携・外部 API 呼び出し）を grep で確認する。implementation-plan.md が存在しない場合は本 Step をスキップし、返却フォーマットの「影響範囲（再走査）」欄に「implementation-plan.md 未検出・再走査スキップ」と記録する:
+Step 0 で読込済みの implementation-plan.md の内容から、変更ファイル以外への副作用（Trigger 起動・Flow 連携・外部 API 呼び出し）を grep で確認する:
 ```bash
 grep -r "{変更対象の主要API名}" {プロジェクトルート}/force-app/ --include="*.trigger" --include="*.flow-meta.xml" -l
 ```
@@ -102,7 +105,7 @@ git -C {プロジェクトルート} log --oneline -20 -- {変更対象ファイ
 
 ## 返却フォーマット
 
-以下のフォーマットで validator に返却する（本筋セクションのみ必須・おまけは任意）。
+以下のフォーマットで呼び出し元（backlog.md）に返却する（本筋セクションのみ必須・おまけは任意）。呼び出し元はこの内容をそのまま `backlog-validator` の起動パラメータ `regression-guard確認結果:` として引き渡す。
 
 > **出典必須**: 依存先・影響範囲（再走査）の各項目は、発見元のファイルパスと行番号を `（{ファイルパス}:{行番号}）` の形で末尾に添えること。
 

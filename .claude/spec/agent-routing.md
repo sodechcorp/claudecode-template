@@ -30,7 +30,8 @@ sf-architect / reviewer / assistant（SF条件付き）/ backlog-investigator / 
 | 起動経路 | エージェント | 役割 |
 |---|---|---|
 | Phase 1 / option-similar-past-issue → investigator から Task 委譲 | `pattern-curator` | 過去完了課題の症状・対応実績を Backlog 全文検索して要約。Write 持たない |
-| Phase 3.5 → validator から Task 委譲 | `regression-guard` | 変更ファイルの依存先・テストカバレッジ・影響再走査・過去修正履歴を一括確認。Write 持たない |
+| Phase 3.5 → backlog.md（本体）から直接 Task 委譲（二段ネスト回避のため validator 経由にしない） | `regression-guard` | 変更ファイルの依存先・テストカバレッジ・影響再走査・過去修正履歴を一括確認。Write 持たない |
+| Phase 3.5（UI 影響時のみ）→ backlog.md（本体）から直接 Task 委譲 | `ui-evidence-runner`（`mode: before-capture`） | 実装前の現状画面を自動撮影 |
 
 ## コマンド専用エージェント（内部処理からのみ起動・ユーザーの直接指示不可）
 

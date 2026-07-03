@@ -44,7 +44,8 @@
 
 **Step 0a を持つエージェント**:
 - backlog-investigator / backlog-planner — **knowledge-only モード**（sf-context-loader を `focus_hints: ["knowledge-only"]` で呼び出し、knowledge/ ファイルの選択的読込のみを行う。docs/ 全件読みは別途 Step C / Phase B で実施するため重複しない）
-- backlog-validator / backlog-implementer / backlog-tester / backlog-releaser — **通常モード**（sf-context-loader を標準 focus_hints で呼び出す）
+- backlog-implementer / backlog-tester / backlog-releaser — **通常モード**（sf-context-loader を標準 focus_hints で呼び出す）
+- backlog-validator — **ダイジェスト限定モード**（sf-context-loader は起動しない。二段ネスト回避のため leaf agent 化しており、`context-digest.md` の再利用と直接 Read のみで完結させる。詳細は backlog-validator.md Step 0a 参照）
 
 ### Step 0b: 関連オプションの判定（全エージェント必須）
 
