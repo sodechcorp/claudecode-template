@@ -6,9 +6,9 @@ implementation-plan を見ずに別の実装案を独立に生成して比較す
 
 ## 実行手順（subagent 化必須）
 
-**このオプションは必ず `backlog-blind-validator` subagent を Task ツールで起動して実行する。parent 内で直接実行してはならない（blind 性が崩れる）。**
+**このオプションは必ず `backlog-blind-validator` subagent を Task ツールで起動して実行する。parent（backlog-planner）内で直接実行してはならない（blind 性が崩れる）。二段ネストを避けるため、起動自体も backlog-planner ではなく backlog.md（本体）が Phase 3（implementation-plan.md 保存直後）に行う。**
 
-subagent への引き渡し情報:
+backlog.md（本体）が用意する引き渡し情報（investigation.md・approach-plan.md は既に disk 上にあるため Read で取得する）:
 1. 課題 ID（Backlog issue key）
 2. 課題本文の全文
 3. 全コメントのテキスト

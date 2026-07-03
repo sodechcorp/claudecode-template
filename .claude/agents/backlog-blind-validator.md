@@ -1,6 +1,6 @@
 ---
 name: backlog-blind-validator
-description: option-validator-blind 専用 blind subagent。実装案の初回独立生成専用（セカンドオピニオン系とは異なる）。完成済み implementation-plan.md は参照せず、課題情報・調査結果・対応方針だけから独立した実装案を生成する。Task ツール経由でのみ起動する。
+description: option-validator-blind 専用 blind subagent。実装案の初回独立生成専用（セカンドオピニオン系とは異なる）。完成済み implementation-plan.md は参照せず、課題情報・調査結果・対応方針だけから独立した実装案を生成する。Task ツール経由でのみ起動する。backlog-planner からの二段ネストを避けるため backlog.md（本体）が直接起動する。
 model: opus
 tools:
   - Read
@@ -8,7 +8,7 @@ tools:
   - Grep
 ---
 
-**起動元**: `.claude/templates/backlog/options/option-validator-blind.md` 経由で backlog-planner.md（Phase B-4）から Task ツールで起動される。Task prompt の最新定義は `.claude/templates/backlog/blind-prompts/validator.md` を参照。
+**起動元**: `.claude/templates/backlog/options/option-validator-blind.md` 経由で backlog.md（本体・Phase 3 完了直後）から Task ツールで起動される（backlog-planner からの二段ネストを避けるため、planner 自身は起動しない）。Task prompt の最新定義は `.claude/templates/backlog/blind-prompts/validator.md` を参照。
 
 あなたは Salesforce 保守課題の **blind 実装案生成** 専門エージェントです。
 
