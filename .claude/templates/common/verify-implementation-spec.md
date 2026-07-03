@@ -43,3 +43,4 @@ Read `.claude/templates/common/verify-implementation-spec.md`（backlog 固有 e
 - [2026-06-02] CLAUDE.md §実装裏付け に穴A（承認・整形バイパス）・穴B（環境スコープ未確認）を追記。「確認して」「整えて」も検証タスク。repo/UAT ≠ 本番で断定不可（GF課題報告書の承認ミス・Flow 本番反映未確認断定を受けて）
 - [2026-06-02] 組織のランタイム状態（インストール済みパッケージ・バージョン／組織設定／機能有効化／ライセンス）はコード・コメント・VF タグから推論せず、Setup / Tooling API（InstalledSubscriberPackage 等）で組織に直接問い合わせて確認する。確認対象ごとに正本が変わる＝コードに書いてある≠正本（OPROARTS Connector のバージョンをコードから推論して迷走したミスを受けて）
 - [2026-06-12] 「〜すればわかる/断言できない」と書きそうになったら推論で締めず、該当手段（SOQL・WebSearch・Grep・retrieve）を実行してから答える。マーカー（`[推定]`/`[要確認]`）・「断言できません」は全調査手段を尽くした後のみ許可（Magarigawa ユビレジ税率の連携根拠を `sf data query`・WebSearch 未実行のまま推論で締めたミスを受けて）
+- [2026-07-03] 「自動化の有無」（Flow/Apex 未実装）はコード grep で確定してよいが、その根拠として Sandbox のレコード件数・分布（例: 「N件中0件しか入っていない」）を業務実態の証拠として添えてはならない。Sandbox はテストデータのみで本番の入力実態を表さない。業務実態の主張は本番 SELECT 参照が必須（option-data-volume-analysis・option-user-impact-survey を強化済み）。実施できなければ `[要確認: 本番データ未確認]` を付ける（配送-商談参照の入力率調査で Sandbox 18件中0件を業務実態の根拠に使ったミスを受けて）

@@ -9,10 +9,11 @@
 1. 変更対象の機能・オブジェクトを使用しているユーザーの属性を特定する:
    - どのプロファイル・権限セットを持つユーザーが対象か
    - `docs/overview/` の組織概要・ユーザー構成を参照
-2. Sandbox でユーザー数を確認する（可能な場合）:
+2. **影響ユーザー数は本番で確認する（Sandbox のユーザーはテストデータ・代替不可）**: Sandbox のユーザーマスタは検証用アカウントのみで本番の実在ユーザー数を表さない。`option-prod-select-reference` 準拠でユーザー許可を得たうえで本番に対して実行する:
    ```bash
-   sf data query --query "SELECT COUNT() FROM User WHERE Profile.Name = '{プロファイル名}' AND IsActive = true" --target-org {sandbox-alias} --json
+   sf data query --query "SELECT COUNT() FROM User WHERE Profile.Name = '{プロファイル名}' AND IsActive = true" --target-org {prod-alias} --json
    ```
+   本番参照が実施できない場合は Sandbox 件数を**参考値として補足するのみ**とし、推定影響ユーザー数は `[要確認: 本番データ未確認]` を付けて断定しない。
 3. 影響部署・担当者を特定する:
    - 変更が業務フローの特定ステップに影響する場合、その担当者
    - 課題の依頼者・コメント者の所属部署
@@ -28,7 +29,7 @@ investigation.md に追記:
 ## 影響ユーザー調査
 
 - 対象プロファイル: {プロファイル名}
-- 推定影響ユーザー数: {N} 人（{Sandbox 件数 / 推定}）
+- 推定影響ユーザー数: {N} 人（{本番 SELECT 参照で確認した値} / `[要確認: 本番データ未確認]`）
 - 影響部署: {部署名}
 - 影響規模: 限定的 / 部署内 / 全社
 - 周知必要性: 低 / 中 / 高
