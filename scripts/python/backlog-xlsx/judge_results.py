@@ -119,6 +119,23 @@ def find_evidence_file(evidence_dir: str, tc_no: str, shubetsu: str) -> str:
     return files[0] if files else ""
 
 
+def find_prefix_mismatch_files(evidence_dir: str, tc_no: str) -> list:
+    """通常の prefix 一致で証跡が見つからない場合の診断用: TC- 接頭辞の有無違いで
+    一致しそうなファイル（証跡採取エージェントが命名規約からズレて出力した疑い）を探す。
+    tc_no='TC-001' なら '001' 始まりを、tc_no='001' なら 'TC-001' 始まりを探す。"""
+    alt_prefix = tc_no[3:] if tc_no.startswith("TC-") else f"TC-{tc_no}"
+    if not alt_prefix:
+        return []
+    found = []
+    for root, _dirs, files in os.walk(evidence_dir):
+        for fname in sorted(files):
+            if "_before." in fname or "_resized." in fname:
+                continue
+            if fname.startswith(alt_prefix):
+                found.append(os.path.join(root, fname))
+    return found
+
+
 def evidence_fingerprint(evidence_dir: str, tc_no: str, shubetsu: str):
     """TC に対応する全証跡ファイルの最終更新時刻の最大値を返す（差分再実行の stale reuse 検出用）。
     証跡ファイルが1つも無い場合は None を返す。"""
@@ -489,6 +506,13 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     # .txt DOMスナップショットは PNG 判定の補助として使うため、単独では PNG のサブ証跡扱い
     # PNG の判定内で snap.txt を読むため、ここでは PNG のみを判定対象とし txt 単独は除外しない
     if not all_files:
+        mismatch = find_prefix_mismatch_files(evidence_dir, no) if evidence_dir else []
+        if mismatch:
+            sample = os.path.basename(mismatch[0])
+            return {"ok": False, "actual": "",
+                    "reason": f"証跡ファイルの命名が No 列（{no}）とプレフィックス不一致の疑い（例: {sample}）。"
+                               "証跡採取エージェントの命名規約（{No}_接頭辞、TC- を剥がしたり付け足したりしない）を確認してください",
+                    "ng_type": "命名不一致"}
         return {"ok": False, "actual": "", "reason": f"証跡ファイルが見つかりません (No: {no})", "ng_type": "未実行"}
 
     # F-7: 状態遷移前後比較（before/after DOM テキストを突き合わせる）
