@@ -129,29 +129,18 @@ if [ ! -f "$SPEC_PATH" ]; then
   echo "[INFO] test-spec.md が見つかりません。Phase B でテスト仕様を展開します。"
 fi
 
-# 7. 回次退避 + 差分再実行モードの判定
+# 7. 差分再実行モードの判定
+# 回次退避（前回データのアーカイブ）はここでは行わない。/test がコマンドの入口（本 Phase A）から
+# 新規に再実行された場合にしかここを通らないため、会話の流れで証跡採取・判定だけを直接再実行する
+# ショートカットを踏むと退避が効かず履歴が失われる（2026-07-06 DFA-198 で確認された実害）。
+# 退避の実体は実際にデータを上書きする箇所に移設済み:
+#   - 証跡（evidence/after）: auto-evidence-runner.md Step 0.5（証跡採取モードのみ・自己防衛）
+#   - 判定（judgment-result.json）: judge_results.py の _archive_previous_round（--out 書込み直前）
+# どちらも「まだ退避されていなければ」実行する冪等な自己防衛のため、経路によらず必ず履歴が残る。
 TARGET_TC_LIST=""
 if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
   echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
-
-  # ── 回次退避（今回の実行前に前回データをアーカイブする）──────────────────
-  # 退避済み R{N}.json の本数 + 1 が今回の回次番号
-  PREV_ROUND=$(python -c "
-import glob, re, os
-base = r'$JUDGMENT_PATH'.replace('.json','')
-files = glob.glob(base + '.R*.json')
-nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]
-print(max(nums) if nums else 0)
-" 2>/dev/null || echo "0")
-  ARCHIVE_N=$((PREV_ROUND + 1))
-  ARCHIVED_J="${JUDGMENT_PATH%.json}.R${ARCHIVE_N}.json"
-  ARCHIVED_EV="${EVIDENCE_DIR}/after_R${ARCHIVE_N}"
-  cp "$JUDGMENT_PATH" "$ARCHIVED_J" 2>/dev/null && echo "[INFO] 回次退避: $ARCHIVED_J"
-  if [ -d "${EVIDENCE_DIR}/after" ]; then
-    cp -r "${EVIDENCE_DIR}/after" "$ARCHIVED_EV" 2>/dev/null && echo "[INFO] 証跡退避: $ARCHIVED_EV"
-  fi
-  # ─────────────────────────────────────────────────────────────────────────
 
   TARGET_TC_LIST=$(python -c "
 import json, sys

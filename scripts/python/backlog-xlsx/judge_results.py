@@ -13,13 +13,41 @@ Usage:
 """
 
 import argparse
+import glob
 import json
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
 from _common import validate_folder
+
+
+def _next_archive_round(out_path: str) -> int:
+    """out_path（judgment-result.json）に対応する既存の .R{N}.json 本数から次の回次番号を返す。"""
+    base = os.path.splitext(out_path)[0]
+    files = glob.glob(base + ".R*.json")
+    nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]
+    return (max(nums) if nums else 0) + 1
+
+
+def _archive_previous_round(out_path: str) -> None:
+    """判定結果を上書きする前に、まだ退避されていない前回の judgment-result.json を
+    R{N}.json として退避する（自己防衛）。
+
+    `/test` コマンド Phase A の回次退避は「/test がコマンドの入口から新規に再実行された場合」
+    にのみ発動するため、会話の流れで判定だけを直接再実行するショートカットを踏むと発動しない。
+    ここで自己防衛することで、どの経路で呼ばれても判定履歴を保護する
+    （証跡ディレクトリの退避は auto-evidence-runner 側が証跡採取開始前に行う）。
+    """
+    if not os.path.isfile(out_path):
+        return
+    archive_n = _next_archive_round(out_path)
+    archived_json = f"{os.path.splitext(out_path)[0]}.R{archive_n}.json"
+    if not os.path.isfile(archived_json):
+        shutil.copy2(out_path, archived_json)
+        print(f"[INFO] 回次退避（自己防衛）: {archived_json}")
 
 
 # ── test-spec.md パーサ ───────────────────────────────────────────────────────
@@ -663,6 +691,7 @@ def main():
     }
 
     if args.out:
+        _archive_previous_round(args.out)
         os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
         Path(args.out).write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[OK] 判定結果を保存: {args.out}")

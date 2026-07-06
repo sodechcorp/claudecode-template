@@ -58,6 +58,34 @@ tools:
 
 ---
 
+## Step 0.5: 証跡ディレクトリの回次退避（証跡採取モードのみ・自己防衛）
+
+`{judgment_path}` が指定されているレポート・後始末モード（Phase F）ではスキップする（証跡採取を再実行しないため）。
+
+`/test` コマンド Phase A の回次退避（`.claude/commands/test.md`）は「`/test` がコマンドの入口から新規に再実行された場合」にのみ発動する。会話の流れで証跡採取・判定だけを直接再実行するショートカットを踏むとこれが発動せず、前回の証跡が新しい証跡でそのまま上書きされる。証跡採取を開始する前に本ステップで自己防衛の退避を行う（`after_R{N}` が既に存在すれば何もしないため、Phase A 側の退避と重複しても安全）:
+
+```bash
+JUDGMENT_PATH="{log_dir}/judgment-result.json"
+if [ -f "$JUDGMENT_PATH" ]; then
+  PREV_ROUND=$(python -c "
+import glob, re
+base = r'$JUDGMENT_PATH'.replace('.json', '')
+files = glob.glob(base + '.R*.json')
+nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]
+print(max(nums) if nums else 0)
+" 2>/dev/null || echo "0")
+  ARCHIVE_N=$((PREV_ROUND + 1))
+  ARCHIVED_EV="{evidence_dir}/after_R${ARCHIVE_N}"
+  if [ -d "{evidence_dir}/after" ] && [ ! -d "$ARCHIVED_EV" ]; then
+    cp -r "{evidence_dir}/after" "$ARCHIVED_EV" && echo "[INFO] 証跡退避（自己防衛）: $ARCHIVED_EV"
+  fi
+fi
+```
+
+回次番号（R{N}）は `judgment-result.R*.json` の本数を基準に算出しており、判定結果側の自己防衛退避（`judge_results.py` の `_archive_previous_round`）と同じ基準を使うため番号がずれない。
+
+---
+
 ## Step 1: テスト仕様の確認と種別ルーティング
 
 `{spec_path}` を Read し、9 列テーブルを解析する:
