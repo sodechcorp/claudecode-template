@@ -119,7 +119,7 @@ mkdir -p "{証跡保存先}/logs"
 2. **新規作成が必要な場合**:
    - Sandbox 限定
    - 名称に `REPRO_{issueID}_H{仮説番号}_` プレフィックスを付与する
-   - 作成直後に `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名},{Id}` を追記する（Step 6 のクリーンアップに使う）
+   - 作成直後に `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名},{Id}` を追記する（作成物の記録用。削除はしない）
 3. **本番への INSERT / UPDATE / DELETE / Apex 実行は絶対禁止**（本番組織は Step 0 でブロック済み）
 
 ### 5-2. 操作ユーザのログイン
@@ -161,29 +161,12 @@ mkdir -p "{証跡保存先}/logs"
 
 ---
 
-## Step 6: データクリーンアップ
+## Step 6: データ後始末
 
-### 6-1. REPRO_ 新規レコードの削除
+### 6-1. REPRO_ 新規レコードは削除しない
 
-Step 5-1 で `{証跡保存先}/logs/created_records.txt` に記録したレコードを、種別ごとに **Id 指定**で削除する（Name 項目の有無に関わらず確実に削除できる）:
-
-```bash
-# created_records.txt の各行 "SObjectAPI名,Id" を読んで Id 指定削除
-while IFS=',' read -r sobj rid; do
-  sf data delete record --target-org "$SF_ALIAS" --sobject "$sobj" --record-id "$rid"
-done < "{証跡保存先}/logs/created_records.txt"
-```
-
-記録漏れへの保険として、Name を持つオブジェクトには `Name LIKE` でも検索・削除を実施する:
-
-```bash
-# Name 項目を持つオブジェクトごとに実行（複数オブジェクトに作成した場合は繰り返す）
-sf data query --target-org "$SF_ALIAS" \
-  -q "SELECT Id, Name FROM {SObject} WHERE Name LIKE 'REPRO_{issueID}_%'" --json
-```
-
-削除件数・失敗件数を `{証跡保存先}/logs/cleanup.txt` に記録する。
-クリーンアップ失敗時は `hypothesis-verification.md` に「削除失敗 {N} 件 — 手動削除が必要」を明記する。
+Step 5-1 で作成した REPRO_ プレフィックスの新規レコードは削除しない。Sandbox に蓄積させ、ユーザーが目視で確認できるようにする。
+`{証跡保存先}/logs/created_records.txt` は「何を作成したか」の記録として残す（クリーンアップ用途では使わない）。
 
 ### 6-2. 既存レコードの原値復元（restore_H*.txt がある場合のみ）
 
@@ -259,10 +242,9 @@ mcp__playwright__browser_close
 - 検証不可: なし
 - 次フェーズ: Phase 2 で H1 の対応方針を策定する
 
-## データクリーンアップ
-- 作成レコード: {件数} 件（プレフィックス: REPRO_{issueID}_）
-- 削除完了: {件数} 件 / 削除失敗: {件数} 件
-  - ※ 失敗分は手動削除が必要（対象 SObject、SOQL条件: Name LIKE 'REPRO_{issueID}_%'）
+## テストデータ
+- 作成レコード: {件数} 件（プレフィックス: REPRO_{issueID}_、削除せず Sandbox に保持）
+{restore_H*.txt がある場合のみ: - 既存レコードの原値復元: {件数} 件}
 ```
 
 ---

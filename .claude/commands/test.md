@@ -192,7 +192,7 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
   Phase C: SOQL / 匿名 Apex / Playwright UI の自動実行（分岐網羅・before/after）
   Phase D: OK/NG 判定・対応記録.xlsx 更新
   Phase E: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
-  Phase F: test-report.md 生成・テストデータ後始末
+  Phase F: test-report.md 生成・一時ファイル後始末（テストデータは削除せず Sandbox に保持）
 
 続行しますか？（テスト実行・データ操作が発生します）
 ```
@@ -352,9 +352,10 @@ python "$(pwd)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
 - ※ `target_tc_list` / `max_workers_*` / `serial` は不要（証跡採取を再実行しないため）
 
 `{judgment_path}` が指定されているため auto-evidence-runner は**レポート・後始末モード**で起動する:
-1. `{judgment_path}` JSON を読み、test-report.md を `{log_dir}` に生成する（Step 7）
-2. 匿名 Apex で作成したテストデータを削除する（cleanup・Step 4-4）
-3. 一時ファイル（`{log_dir}/tmp/`）を削除する（Step 6）
+1. `{judgment_path}` JSON を読み、test-report.md を `{log_dir}` に生成する（Step 6）
+2. 一時ファイル（`{log_dir}/tmp/`）を削除する（Step 5）
+
+匿名 Apex で作成したテストデータ（`AUTOTEST_{issueID}_` プレフィックス）は削除しない。Sandbox に蓄積させ、目視確認にも使う方針。
 
 ---
 
@@ -544,7 +545,6 @@ python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
 | エビデンス.xlsx の存在 | `ls -lh "{xlsx_folder}/{issueID}_エビデンス.xlsx"` |
 | test-report.md の存在 | `ls -lh "{log_dir}/test-report.md"` |
 | 証跡ファイルの件数 | `find "{evidence_dir}/after" -type f \| wc -l` |
-| テストデータ後始末 | anon_apex_runner.py cleanup の結果を確認 |
 | tmp/ 削除済み | `ls "{log_dir}/tmp/" 2>/dev/null \| wc -l` が 0 |
 
 ---
@@ -591,6 +591,6 @@ NG 一覧:
 
 - **本番組織への操作は Phase A で物理ブロック**。Sandbox alias でのみ実行可。
 - accessToken は一切ファイルに保存しない（`sf org open --url-only` のワンタイム URL のみ使用）。
-- テストデータは必ず後始末する。削除失敗件数は test-report.md に明記してユーザーに手動対応を依頼。
+- テストデータ（`AUTOTEST_{issueID}_` プレフィックス）は削除しない。Sandbox に蓄積させ、ユーザーが目視で確認できるようにする。
 - `/backlog` Phase 6（Sandbox デプロイ）完了後の後続工程。デプロイ済み Sandbox を前提として網羅的テストを実施する（本コマンドはデプロイしない）。
 - **`/test` は共有コンポーネント修正漏れの二次防御（バックストップ）**: 同一根本原因が複数入口に fan-out するケースは、修正が共有メソッド自体に入った場合のみ軸3（consumer fan-out）で検出できる。修正が呼び出し元側だけに入った場合は /test では検出できない。一次防御は `/backlog` 調査段階（backlog-investigator の根本原因特定＋ option-reverse-grep / regression-guard の逆参照で全消費者を修正スコープに含める判断。Step C-2 参照）である。

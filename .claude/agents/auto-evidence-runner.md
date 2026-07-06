@@ -1,6 +1,6 @@
 ---
 name: auto-evidence-runner
-description: Salesforce保守課題のテスト証跡採取オーケストレータ。test-spec.md を読み、種別ごとに SOQL（並列）/ AnonApex（コード生成＋並列実行）/ UI（ui-evidence-runner に委譲）を実行し証跡採取、テストデータ後始末、test-report.md を生成する。/test コマンドから委譲される（単独起動禁止）。
+description: Salesforce保守課題のテスト証跡採取オーケストレータ。test-spec.md を読み、種別ごとに SOQL（並列）/ AnonApex（コード生成＋並列実行）/ UI（ui-evidence-runner に委譲）を実行し証跡採取、test-report.md を生成する。/test コマンドから委譲される（単独起動禁止）。
 model: sonnet
 tools:
   - Read
@@ -36,7 +36,7 @@ tools:
 - `{max_workers_anon}` — AnonApex 並列 worker 数（デフォルト 3）
 - `{max_workers_ui}` — UI 並列コンテキスト数（デフォルト 3。`{serial}`=true 時は 1 で委譲）
 - `{serial}` — true の場合は全種別を強制逐次実行（ガバナ競合時のフォールバック）
-- `{judgment_path}` — `{log_dir}/judgment-result.json` のパス（**Phase F 再委譲時のみ指定**。空/未指定の場合は証跡採取モードで動作し、Step 3-4/5/6 は実行しない）
+- `{judgment_path}` — `{log_dir}/judgment-result.json` のパス（**Phase F 再委譲時のみ指定**。空/未指定の場合は証跡採取モードで動作し、Step 5/6 は実行しない）
 
 ---
 
@@ -46,8 +46,10 @@ tools:
 
 | 委譲元フェーズ | `{judgment_path}` | 実行 Step | スキップ |
 |---|---|---|---|
-| **Phase C**（証跡採取） | 空/未指定 | Step 1〜4 ＋ Step 3-2.5（事前 cleanup）＋ 完了セルフチェック | Step 3-4・Step 5・Step 6 |
-| **Phase F**（レポート・後始末） | 指定あり | Step 3-4 → Step 5 → Step 6 | Step 1〜4（証跡採取を再実行しない） |
+| **Phase C**（証跡採取） | 空/未指定 | Step 1〜4 ＋ 完了セルフチェック | Step 5・Step 6 |
+| **Phase F**（レポート・後始末） | 指定あり | Step 5 → Step 6 | Step 1〜4（証跡採取を再実行しない） |
+
+> **テストデータは削除しない**: AnonApex で永続化したテストデータ（`AUTOTEST_{issueID}_` プレフィックス）は Sandbox に蓄積させる方針。Sandbox は積み上げてよく、ユーザーが目視で確認する用途にも使うため、自動 cleanup は行わない（旧 Step 3-2.5・3-4 は廃止）。
 
 **OK/NG の権威判定は `/test` Phase E の `judge_results.py` が担当**する（`judgment-result.json` に保存）。
 - **証跡採取モード（Phase C）**: 証跡ファイルの存在・内容を確認するが、最終的な OK/NG の確定はしない
@@ -109,7 +111,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 
 **生成指針**:
 - **各 TC のコードは独立生成する**（TC 間でロジックを混ぜない。1 ファイル = 1 TC に完結させる）。
-- テストデータ insert には必ず `Name` 列に `AUTOTEST_{issueID}_{TC_No}_` プレフィックスを付ける（後始末用）。
+- テストデータ insert には必ず `Name` 列に `AUTOTEST_{issueID}_{TC_No}_` プレフィックスを付ける（Sandbox 上での識別・目視確認用。削除はしない）。
 - 永続化確認が不要な場合は `Database.setSavepoint()` → ロジック/Flow 起動 → 結果確認 → `Database.rollback()` のパターンを優先する（並列安全）。
 - `System.debug()` で結果・件数・フィールド値を出力し証跡に残す。**必ず「入力値→処理経路→結果値」を全て debug する**。
 - Flow 起動は `Flow.Interview.{Flow_API名}` または `Database.executeBatch` を使う。
@@ -136,28 +138,6 @@ mkdir -p "{log_dir}/tmp"
 ]
 ```
 
-#### 3-2.5: 事前 cleanup（前回異常終了の残留回収）— **Phase C（証跡採取モード）でのみ実行**
-
-`{judgment_path}` が指定されている（Phase F）の場合はこのサブステップをスキップする。
-
-3-1 で生成した匿名 Apex のうち **永続化（Savepoint/rollback を使わない）ケースの挿入先 SObject** を対象に、
-前回の `/test` 実行が Phase C〜F の途中で中断・異常終了した場合に残留しているデータを事前に回収する。
-
-`anon_apex_runner.py cleanup` はプレフィックス一致の冪等回収（0件マッチでも正常終了・無害）なので、
-残留がない正常時に走らせても副作用はない。
-
-```bash
-# 今回永続化する SObject ごとに繰り返す（前回残留の事前回収。0 件なら無害）
-python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" cleanup \
-  --alias "{alias}" \
-  --sobject {SObject名} \
-  --external-id-prefix "AUTOTEST_{issueID}_"
-```
-
-> **対象 SObject の判断**: 3-1 で生成した匿名 Apex コードのうち `Database.setSavepoint()` → `rollback()` パターン **以外** を使うケースの insert 対象 SObject を列挙する。Savepoint/rollback ケースはデータが永続化されないためスキップしてよい。
->
-> **差分再実行時の注意**: `{target_tc_list}` 指定の差分再実行では「今回実行する TC の SObject」のみ対象となる。前回と異なる SObject に残留がある場合は `/test {issueID} --full`（全量再実行）を使うと全 SObject 分の残留を回収できる。
-
 #### 3-3: 一括並列実行 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 ```bash
@@ -169,24 +149,6 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 ```
 
 `{serial}` が true の場合は `--serial` を追加する。
-
-#### 3-4: 後始末（Savepoint/rollback 以外の場合）— **Phase F（レポート・後始末モード）でのみ実行**
-
-`{judgment_path}` が空/未指定（Phase C）の場合はこのサブステップをスキップする。
-
-> Step 3-2.5（Phase C）が「前回残留の事前回収」を担うため、3-4 は「今回 run-batch で作成したデータの正規後始末」に集中する。cleanup コマンドはプレフィックス一致の冪等回収なので、3-2.5 と 3-4 の二重実行になっても副作用はない（0件マッチで正常終了）。
-
-永続化したテストデータを削除する。**課題単位プレフィックス `AUTOTEST_{issueID}_` を使い、永続化した SObject ごとに cleanup を繰り返す**（このプレフィックスは生成名 `AUTOTEST_{issueID}_{TC_No}_…` の先頭一致なので、SObject 1 つにつき 1 回で全 TC 分のテストデータを回収できる）:
-
-```bash
-# 永続化した SObject ごとに繰り返す
-python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" cleanup \
-  --alias "{alias}" \
-  --sobject {SObject名} \
-  --external-id-prefix "AUTOTEST_{issueID}_"
-```
-
-> **対象 SObject の判断（Phase F）**: Phase C（3-1）は別 invocation のため生成コンテキストがない。`{log_dir}/tmp/anon_cases.json` の各 `apex_file` が示す `*.apex` ファイルを Read し、`Database.setSavepoint()` → `rollback()` パターン **以外** で insert している SObject を列挙する（tmp は Phase C で生成され Step 5 まで保持される）。
 
 ---
 
@@ -271,9 +233,8 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 
 Phase B（test-spec-builder）で確認済み。
 
-### 後始末結果
-- テストデータ削除: {deleted} 件完了
-{失敗がある場合: - 削除失敗（手動対応要）: {failed_ids}}
+### テストデータ
+- 削除は行わず Sandbox に保持（プレフィックス: `AUTOTEST_{issueID}_`）。目視確認が必要な場合は Sandbox 上で当該プレフィックスを検索する。
 
 ### 総合判定
 {NG が 0 件なら「PASS — Phase 6 リリース準備へ進めます」、NG がある場合は「FAIL — Phase 4/3/2 に差し戻し」}
@@ -354,7 +315,7 @@ test-report.md 生成（Step 6）完了後、今回の実行で**新たに確立
    - **スキップ**: 登録済み・かつ非キー列も完全一致 → **何もしない**
    - **マージ更新**: 登録済み・かつ追加情報あり → 既存行を **Edit で置換**・確認日を更新
 4. **§ 2・§ 4 合算で最大5行まで**（超過は次回以降）
-5. 返却テキスト（test-report.md の末尾の「後始末結果」セクション）に `[前提還流] § 2 に {N} 行・§ 4 に {M} 行追記/更新` を明記する
+5. 返却テキスト（test-report.md の末尾の「テストデータ」セクション）に `[前提還流] § 2 に {N} 行・§ 4 に {M} 行追記/更新` を明記する
 
 ### スキップ時の記録
 
@@ -366,8 +327,8 @@ test-report.md 生成（Step 6）完了後、今回の実行で**新たに確立
 
 ## 完了条件（セルフチェック）
 
-**証跡採取モード（Phase C・`{judgment_path}` 未指定）の完了条件**: 証跡ファイルの存在確認（下記 ☑ 項目）まで。test-report.md 生成・後始末・tmp 削除は実施しない。
-**レポート・後始末モード（Phase F・`{judgment_path}` 指定あり）の完了条件**: test-report.md 生成・cleanup・tmp 削除まで（証跡採取は再実行しない）。
+**証跡採取モード（Phase C・`{judgment_path}` 未指定）の完了条件**: 証跡ファイルの存在確認（下記 ☑ 項目）まで。test-report.md 生成・tmp 削除は実施しない。
+**レポート・後始末モード（Phase F・`{judgment_path}` 指定あり）の完了条件**: test-report.md 生成・tmp 削除まで（証跡採取は再実行しない）。テストデータの cleanup は行わない。
 
 ```bash
 ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/after/screen/" 2>/dev/null
@@ -375,7 +336,6 @@ ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/aft
 
 - [ ] SOQL ケース: 全件 txt 出力あり
 - [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む）
-- [ ] （Phase F のみ）テストデータ削除（cleanup）完了
 - [ ] UI ケース: ui-evidence-runner の返却で全件 OK（PNG 各 1KB 以上・DOM スナップショット txt あり）
 - [ ] （Phase F のみ）test-report.md が `{log_dir}` に存在すること
 - [ ] （Phase F のみ）tmp/ 一時ファイルが削除済み
