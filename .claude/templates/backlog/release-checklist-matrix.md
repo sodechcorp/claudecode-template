@@ -15,6 +15,7 @@
 - [ ] Sandbox でのテスト完了（`test-report.md` の総合判定が PASS）
 - [ ] `/test` の詳細証跡取得済み（`evidence/` に before/after が揃っている）
 - [ ] デプロイ対象資材の確定（Phase 1 資材マニフェストと git diff が一致）
+- [ ] デプロイ元が `force-app` 本体であることの確認（バックアップ/マージ用フォルダを `--source-dir` に指定していない）
 - [ ] デプロイ順序の確認（Phase 1 の依存関係判定。分割要ならその順序）
 - [ ] 影響範囲の確認（Phase 2 の各 option 結果にリリースを止める要素がない）
 - [ ] チケット競合チェック: 問題なし（Phase 3。競合ありなら承知の上か）
@@ -27,6 +28,8 @@
 ## B. リリース実行手順（execution・全資材共通）
 
 **この手順は人間が実行する。release-preparer は実行しない。**
+
+> **注意**: コマンドは常に1行で実行する（bash の `\` 行継続は PowerShell では動作しない）。`--source-dir` は必ず `force-app` 本体を指す。競合解消用のバックアップ/マージ用フォルダをそのままデプロイ元に指定しない。
 
 1. **直前記録**: `git log -1 --pretty=format:'%H'` でロールバック用コミットハッシュを記録する
 2. **dry-run（必須）**: `sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level RunLocalTests` で 0 errors を確認
