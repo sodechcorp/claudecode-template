@@ -56,7 +56,8 @@ fi
 
 # 4. sandbox-alias-check（本番保護）
 SF_ALIAS=$(sf config get target-org --json | python -c "import sys,json; print(json.load(sys.stdin)['result'][0]['value'])" 2>/dev/null || echo "")
-IS_SANDBOX=$(sf org display --target-org "$SF_ALIAS" --json | python -c "
+SF_ORG_JSON=$(sf org display --target-org "$SF_ALIAS" --json 2>/dev/null)
+IS_SANDBOX=$(echo "$SF_ORG_JSON" | python -c "
 import sys,json
 d=json.load(sys.stdin)['result']
 print(d.get('isSandbox')==True or 'sandbox.my.salesforce.com' in d.get('instanceUrl',''))
@@ -66,6 +67,10 @@ if [ "$IS_SANDBOX" != "True" ]; then
   exit 1
 fi
 echo "OK: Sandbox 接続確認済み ($SF_ALIAS)"
+
+# 4.5. instanceUrl の取得（目視ハンドオフのレコードURL組み立て用。accessToken を含まないため出力可）
+INSTANCE_URL=$(echo "$SF_ORG_JSON" | python -c "import sys,json; print(json.load(sys.stdin)['result'].get('instanceUrl',''))" 2>/dev/null || echo "")
+echo "INSTANCE_URL=$INSTANCE_URL"
 
 # 5. xlsx_folder の確定（優先: investigation.md フロントマター → .backlog_config.yml → LOG_DIR）
 XLSX_FOLDER=""
@@ -259,6 +264,7 @@ python -c "import PIL" 2>/dev/null || {
 `auto-evidence-runner` への委譲パラメータ:
 - `issueID`: `{issueID}`
 - `alias`: `{alias}`
+- `instance_url`: `{INSTANCE_URL}`（Phase A で取得済み。目視ハンドオフのレコードURL組み立て用）
 - `project_dir`: `{project_dir}`
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
@@ -343,6 +349,7 @@ python "$(pwd)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
 `auto-evidence-runner` への委譲パラメータ:
 - `issueID`: `{issueID}`
 - `alias`: `{alias}`
+- `instance_url`: `{INSTANCE_URL}`（Phase A で取得済み。test-report.md の目視ハンドオフブロック生成に使う）
 - `project_dir`: `{project_dir}`
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
@@ -583,7 +590,11 @@ NG 一覧:
 {要手動がある場合}
 要手動確認:
   - TC-00X: {観点} — エビデンス.xlsx「証跡」シートに手動でスクショを貼り付けてください。
+    確認対象: {ラベル（日本語表示名）} / URL: {instance_url}/lightning/r/{SObject}/{Id}/view または {画面URL（クエリ除去済み）} / 操作手順: {test-spec.mdの「テスト手順」列 or 要約}
+    ※ 対象レコード・URLが特定できない TC は URL 行を省略する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）
 ```
+
+test-report.md の「🔎 目視確認のご案内」に全対象の一覧（レコードURL・操作手順つき）がまとまっている。要手動・NG（画面エラー含む）ともにここから直接開いて確認できる。
 
 ---
 

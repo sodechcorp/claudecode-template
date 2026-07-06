@@ -161,7 +161,7 @@ mkdir -p "{evidence_dir}/before"
 
 - 各コンテキストが自前で `goto(FRONTDOOR_URL)` ログイン → TC 撮影 → コンテキストを閉じる
 - return 値は `JSON.stringify([{no, ok, text, url}, ...])` の配列（失敗要素は `{no, ok:false, error}`）。エージェントは各要素を以下の通り処理する:
-  - `ok:true` の要素: `text` を `after/screen/{No}_{観点サニタイズ}.txt` に Write する（読み取り専用 TC は before/after で画面状態が変わらないため before は採取しない）
+  - `ok:true` の要素: `text` を `after/screen/{No}_{観点サニタイズ}.txt` に Write する（読み取り専用 TC は before/after で画面状態が変わらないため before は採取しない）。`url` は `.split('?')[0]` でクエリを除去した上で返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3。ユーザーの目視ハンドオフに使うため破棄しない）
   - `ok:false` の要素: 当該 `no` を NG として返却テーブルに記録する（`error` の内容を備考欄に記載）
 - **newContext 不可時**: 単一セッションの逐次（Step 2B と同じ方式）にフォールバックする。先にプローブコードで確認することを推奨:
   ```javascript
@@ -195,7 +195,7 @@ mkdir -p "{evidence_dir}/before"
 4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText()})`。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
    - `target` 未記載・ロケータ解決失敗の場合は枠なしで**必ず撮影**（スキップしない。これはロケータ失敗ではなく catch 対象外）。
 
-全 TC 処理後、`return JSON.stringify(results)` で配列を返す。Write はコードブロック内では不可のため、エージェントが return 受け取り後に配列を反復して行う: `ok: true` の要素は `text` を `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write する。`ok: false` の要素は当該 No を NG として返却テーブルに記録し、`error` の内容を備考欄に記載する。
+全 TC 処理後、`return JSON.stringify(results)` で配列を返す。Write はコードブロック内では不可のため、エージェントが return 受け取り後に配列を反復して行う: `ok: true` の要素は `text` を `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write し、`url` は `.split('?')[0]` でクエリを除去して返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。`ok: false` の要素は当該 No を NG として返却テーブルに記録し、`error` の内容を備考欄に記載する。
 
 > **画面エラー検知（Write 前に必ず実施）**: `text`（after DOM）を Write する前に、以下のシグネチャが含まれていないか確認する: `問題が発生しました` / `問題が発生しているようです` / `is malformed` / `関連リストはレイアウトにありません` / `権限が不十分です` / `Insufficient Privileges` / `このページには到達できません` / `URL No Longer Exists` / `予期しないエラーが発生しました` / `Unexpected Error`。該当した場合、`ok: true` であっても Write 自体は通常どおり行うが、**返却テーブルには当該 No を NG として記録し備考欄に `[画面エラー検出: {検出文言}]` を付記する**（期待結果がそのエラー文言自体を検証する意図の TC は対象外）。**画面が開けてスクショが撮れたことと、画面の中身が正しいことは別**。「操作手順どおりに画面を開いてスクショを撮った」だけで OK として報告しない。最終的な機械判定は Phase E `judge_results.py` 側でも同じシグネチャを検知して強制 NG にするため、ここでの検知漏れは自動的な最終防波堤があるが、採取時点で気づいたものはこの場で NG として報告すること。
 
@@ -366,6 +366,8 @@ Login As での証跡はユーザ名を含む命名にする:
 - after: `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.png`
 - DOM テキスト: `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.txt`
 
+Step 2B と同様に `results.push` へ `url: page.url()` を含め、返却テーブルの「画面URL」列に `.split('?')[0]` でクエリを除去した値を記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。
+
 **Login As が実行時に失敗した場合の手順**:
 1. まず `playwright-sf-screen-ops.md` のコミュニティ Login As 手順（Contact ページ → ユーザーとしてログイン）を試みる
 2. 内部ユーザーの場合は ManageUsers 経由の通常 Login As を試みる
@@ -441,13 +443,13 @@ Step 4（証跡存在確認）完了後、今回の実行で**新たに確定し
 UI 証跡採取完了: {total} TC
 OK: {ok} 件 / NG: {ng} 件 / 降格（要手動）: {降格} 件
 
-| No | 観点 | 結果 | 証跡ファイル | 備考 |
-|---|---|---|---|---|
-| TC-001 | {観点} | OK | {No}_xxx.png, {No}_xxx.txt | 読み取り専用TC（before なし） |
-| TC-002 | {観点} | OK | {No}_xxx_before.png, {No}_xxx.png, {No}_xxx.txt | データ更新TC（before あり） |
-| TC-003 | {観点} | NG | （取得失敗） | PNG が 0 バイト |
-| TC-004 | {観点} | 要手動 | — | Login As 不可 |
-| TC-005 | {観点} | OK | {No}_xxx.png, {No}_xxx.txt | [空撮り疑い: DOM 80文字]（前提データ未成立の可能性） |
+| No | 観点 | 結果 | 証跡ファイル | 画面URL | 備考 |
+|---|---|---|---|---|---|
+| TC-001 | {観点} | OK | {No}_xxx.png, {No}_xxx.txt | {url（クエリ除去済み）} | 読み取り専用TC（before なし） |
+| TC-002 | {観点} | OK | {No}_xxx_before.png, {No}_xxx.png, {No}_xxx.txt | {url（クエリ除去済み）} | データ更新TC（before あり） |
+| TC-003 | {観点} | NG | （取得失敗） | — | PNG が 0 バイト |
+| TC-004 | {観点} | 要手動 | — | — | Login As 不可 |
+| TC-005 | {観点} | OK | {No}_xxx.png, {No}_xxx.txt | {url（クエリ除去済み）} | [空撮り疑い: DOM 80文字]（前提データ未成立の可能性） |
 ```
 
-accessToken は返却テキストに一切含めない。
+accessToken は返却テキストに一切含めない。「画面URL」列は `page.url()` から `.split('?')[0]` でクエリを除去した値のみ（accessToken を含む FRONTDOOR_URL とは別物・出力可）。オーケストレータ（auto-evidence-runner）はこの列を [visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) の標準ハンドオフブロック生成に使う。

@@ -26,6 +26,7 @@ tools:
 呼び出し元から以下を受け取っていること:
 - `{issueID}` — 課題 ID（例: GF-350）
 - `{alias}` — Sandbox org alias
+- `{instance_url}` — Sandbox の instanceUrl（accessToken を含まない組織ベースURL。`/test` Phase A が取得済み）。目視ハンドオフのレコードURL組み立てに使う（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 参照）
 - `{project_dir}` — プロジェクトルートパス
 - `{log_dir}` — `{project_dir}/docs/logs/{issueID}/`
 - `{evidence_dir}` — 証跡保存先ルート（before/after はサブディレクトリで分ける）
@@ -113,6 +114,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 - **各 TC のコードは独立生成する**（TC 間でロジックを混ぜない。1 ファイル = 1 TC に完結させる）。
 - テストデータ insert には必ず `Name` 列に `AUTOTEST_{issueID}_{TC_No}_` プレフィックスを付ける（Sandbox 上での識別・目視確認用。削除はしない）。
 - 永続化確認が不要な場合は `Database.setSavepoint()` → ロジック/Flow 起動 → 結果確認 → `Database.rollback()` のパターンを優先する（並列安全）。
+- **永続化するレコード（rollback しないもの）は必ず `System.debug('CREATED_RECORD|' + record.getSObjectType() + '|' + record.Id + '|' + record.Name + '|{No}');` 形式で1レコード1行 debug する**（末尾の `{No}` は生成中の当該 TC 番号をリテラルとして埋め込む。[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 の統一フォーマットに合わせるためのマーカー。3-4 で集約する。`rollback` する一時データは目視不可のため出力しない＝正しい挙動）。
 - `System.debug()` で結果・件数・フィールド値を出力し証跡に残す。**必ず「入力値→処理経路→結果値」を全て debug する**。
 - Flow 起動は `Flow.Interview.{Flow_API名}` または `Database.executeBatch` を使う。
 - **条件分岐の網羅（各 TC に適用・省略禁止）**: 「実行アクション」が分岐を持つ場合、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**。1 ファイル内で全分岐をカバーする。
@@ -150,6 +152,17 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 
 `{serial}` が true の場合は `--serial` を追加する。
 
+#### 3-4: 作成レコードの目視URL集約 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
+
+3-3 で書き出された `{evidence_dir}/after/apex/*.txt` から `CREATED_RECORD|{SObject}|{Id}|{Name}|{No}` 行を収集し、`{log_dir}/created_records.txt` に追記する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 のフォーマット。`|` 区切り）:
+
+```bash
+grep -h "^CREATED_RECORD|" "{evidence_dir}"/after/apex/*.txt 2>/dev/null \
+  | sed 's/^CREATED_RECORD|//' >> "{log_dir}/created_records.txt"
+```
+
+マーカーが1件も無い場合（全 TC が rollback のみ）はファイルを作成しない。既に `created_records.txt` が存在する場合（Phase 1.6 の backlog-repro-runner が作成済み等）は追記する。
+
 ---
 
 ## Step 4: UI 証跡（種別 = UI）— ui-evidence-runner に委譲
@@ -166,7 +179,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 - `max_workers_ui`: `{serial}` が true の場合は `1`、それ以外は `{max_workers_ui}`（デフォルト 3）
 - `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル）
 
-`ui-evidence-runner` の返却（各 TC の証跡ファイル名・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 生成は Phase F（Step 6）が `{judgment_path}` JSON から行う。
+`ui-evidence-runner` の返却（各 TC の証跡ファイル名・**画面URL**・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。**画面URL 列（`ok: true` の行のみ）は `{log_dir}/ui_screen_urls.txt` に `{No}|{観点}|{画面URL}` 形式で追記する**（Phase F の Step 6 が目視ハンドオフブロック生成に使う）。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 生成は Phase F（Step 6）が `{judgment_path}` JSON から行う。
 
 ---
 
@@ -192,6 +205,12 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 - `ng_list[].reason` → NG 一覧の理由
 - `skip_list` → 要手動確認テーブル（test-spec.md の観点・理由を補完）
 - `ok`/`ng`/`skip`/`total` → テスト実行サマリー
+
+**目視ハンドオフブロックの組み立て**（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）:
+1. `{log_dir}/created_records.txt`（存在する場合）を Read し、各行 `{SObject}|{Id}|{Name}|{TC/仮説番号}` の `{SObject}`・`{Id}` を `{instance_url}/lightning/r/{SObject}/{Id}/view` に変換する（`{Name}`・`{TC/仮説番号}` は表の「確認対象」「対象TC」列にそのまま使う）
+2. `{log_dir}/ui_screen_urls.txt`（存在する場合）を Read し、`{No}|{観点}|{画面URL}` の行をそのまま行に使う
+3. 「操作手順」列は `{spec_path}` の「テスト手順」列（該当 No）から転記。空なら「前提・データ準備」＋「実行アクション」から要約
+4. 該当ファイルが両方とも存在しない、または中身が空の場合は「目視確認のご案内」節ごと省略する（空リンクの表を出さない）
 
 `{log_dir}/test-report.md` に以下のフォーマットで保存する:
 
@@ -227,14 +246,25 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 |---|---|---|
 | TC-005 | ... | ... |
 
-エビデンス.xlsx「証跡」シートの該当ケース枠にスクリーンショットを貼り付けてください。
+エビデンス.xlsx「証跡」シートの該当ケース枠にスクリーンショットを貼り付けてください。操作手順は `{spec_path}` の該当 No「テスト手順」列（無ければ「前提・データ準備」＋「実行アクション」）を参照。要手動ケースは Claude がレコードを作成していない（外部サービス通信・本番限定データ・実時刻起動が理由のため）ので、下記「🔎 目視確認のご案内」には通常含まれない。
 
 ### 網羅性チェック
 
 Phase B（test-spec-builder）で確認済み。
 
 ### テストデータ
-- 削除は行わず Sandbox に保持（プレフィックス: `AUTOTEST_{issueID}_`）。目視確認が必要な場合は Sandbox 上で当該プレフィックスを検索する。
+- 削除は行わず Sandbox に保持（プレフィックス: `AUTOTEST_{issueID}_`）。対象レコードの直接URLは下記「🔎 目視確認のご案内」を参照。
+
+## 🔎 目視確認のご案内
+
+Sandbox（{alias}）に未ログインの場合は、リンククリック後にログイン画面が出ます。ログイン後に対象が表示されます。
+
+| 確認対象 | 画面/レコードURL | レコードID | 対象TC | 操作手順 |
+|---|---|---|---|---|
+| {ラベル（日本語表示名）} | {instance_url}/lightning/r/{SObject}/{Id}/view | {Id} | TC-00X | ①…→②… |
+| {画面ラベル} | {画面URL（クエリ除去済み）} | — | TC-00Y | ①…→②… |
+
+> `created_records.txt` / `ui_screen_urls.txt` が無い、または中身が空の場合は本節を省略する。
 
 ### 総合判定
 {NG が 0 件なら「PASS — Phase 6 リリース準備へ進めます」、NG がある場合は「FAIL — Phase 4/3/2 に差し戻し」}

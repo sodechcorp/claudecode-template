@@ -14,12 +14,18 @@ fi
 ## Sandbox 判定
 
 ```bash
-IS_SANDBOX=$(sf org display --target-org "$SF_ALIAS" --json | python -c "import sys,json; print(json.load(sys.stdin)['result'].get('isSandbox', False))" 2>/dev/null || echo "false")
+SF_ORG_JSON=$(sf org display --target-org "$SF_ALIAS" --json 2>/dev/null)
+IS_SANDBOX=$(echo "$SF_ORG_JSON" | python -c "import sys,json; print(json.load(sys.stdin)['result'].get('isSandbox', False))" 2>/dev/null || echo "false")
 if [ "$IS_SANDBOX" != "True" ]; then
   echo "FATAL: 接続先が Sandbox ではありません ($SF_ALIAS). 本番への操作は禁止されています。"
   exit 1
 fi
 echo "OK: Sandbox 接続確認済み ($SF_ALIAS)"
+
+# instanceUrl（accessToken を含まない組織ベースURL）も同じ JSON から取得しておく。
+# 目視確認ハンドオフ（レコードURL組み立て）に使う。詳細: visual-confirmation-handoff.md
+INSTANCE_URL=$(echo "$SF_ORG_JSON" | python -c "import sys,json; print(json.load(sys.stdin)['result'].get('instanceUrl',''))" 2>/dev/null || echo "")
+echo "INSTANCE_URL=$INSTANCE_URL"
 ```
 
 ## 認証状態の確認（frontdoor 認証の前提）
@@ -55,3 +61,5 @@ sf org login web --alias <alias> --instance-url https://<instance>.salesforce.co
 Sandbox 操作（sf apex run test / sf project deploy / SOQL 等）の直前に本テンプレートを参照してチェックを実施する。チェックが失敗した場合は操作を中断してユーザーに確認を取る。
 
 > このテンプレートを参照するエージェント: `backlog-tester.md` / `backlog-releaser.md` / `backlog-validator.md`（SOQL dryrun 時）/ `backlog-repro-runner.md`（バグ再現・仮説検証）/ `auto-evidence-runner.md`（テスト証跡採取）
+
+**`INSTANCE_URL` の再利用**: ユーザーへの目視確認ハンドオフ（レコードURL・画面URLの提示）が必要なエージェントは、ここで取得済みの `INSTANCE_URL` をそのまま使う（再取得しない）。組み立て方・出力フォーマットは [visual-confirmation-handoff.md](visual-confirmation-handoff.md) を参照。

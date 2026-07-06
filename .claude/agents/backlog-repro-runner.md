@@ -58,7 +58,7 @@ tools:
 sf config set target-org <sandbox-alias> で Sandbox に切り替えてください。
 ```
 
-sandbox-alias-check.md の手順で取得した `SF_ALIAS` を以降の `sf data query`・`sf org open` で使う。
+sandbox-alias-check.md の手順で取得した `SF_ALIAS` を以降の `sf data query`・`sf org open` で使う。同手順で取得した `INSTANCE_URL` は Step 8・フェーズ完了の提示の目視確認ハンドオフ（レコードURL組み立て）に使う。
 
 ---
 
@@ -119,7 +119,7 @@ mkdir -p "{証跡保存先}/logs"
 2. **新規作成が必要な場合**:
    - Sandbox 限定
    - 名称に `REPRO_{issueID}_H{仮説番号}_` プレフィックスを付与する
-   - 作成直後に `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名},{Id}` を追記する（作成物の記録用。削除はしない）
+   - 作成直後に `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名}|{Id}|{Name}|H{仮説番号}` を追記する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 のフォーマット。作成物の記録用・削除はしない。目視確認ハンドオフのレコードURL組み立てに使う）
 3. **本番への INSERT / UPDATE / DELETE / Apex 実行は絶対禁止**（本番組織は Step 0 でブロック済み）
 
 ### 5-2. 操作ユーザのログイン
@@ -245,6 +245,16 @@ mcp__playwright__browser_close
 ## テストデータ
 - 作成レコード: {件数} 件（プレフィックス: REPRO_{issueID}_、削除せず Sandbox に保持）
 {restore_H*.txt がある場合のみ: - 既存レコードの原値復元: {件数} 件}
+
+## 🔎 目視確認のご案内
+
+Sandbox（{SF_ALIAS}）に未ログインの場合は、リンククリック後にログイン画面が出ます。ログイン後に対象が表示されます。
+
+| 確認対象 | レコードURL | レコードID | 対象仮説 | 操作手順 |
+|---|---|---|---|---|
+| {ラベル（日本語表示名）} | {INSTANCE_URL}/lightning/r/{SObject}/{Id}/view | {Id} | H1 | ①…→②…→③… |
+
+> `{証跡保存先}/logs/created_records.txt` の全行を変換して列挙する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）。操作手順は Step 2 で抽出した各仮説の「操作手順」を転記する。created_records.txt が無い・空の場合（既存レコードのみで再現した等）は本節を省略する。
 ```
 
 ---
@@ -256,3 +266,4 @@ mcp__playwright__browser_close
 1. 検証結果の 2〜3 行サマリー（再現仮説 N 件・除外仮説 N 件・検証不可 N 件）
 2. 確認事項（検証不可の仮説がある場合はデータ準備の依頼事項を明記。なければ「特に確認事項はありません」）
 3. 証跡保存先のパスを 1 行で通知する
+4. **目視確認のご案内**: hypothesis-verification.md の「🔎 目視確認のご案内」節が生成されている場合はチャットにもそのまま転記する（レコードURL・操作手順つきでクリックするだけで確認できる状態にする。「Sandbox で REPRO_ を検索してください」のような丸投げをしない）
