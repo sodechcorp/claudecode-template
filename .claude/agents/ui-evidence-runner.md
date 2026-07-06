@@ -189,13 +189,16 @@ mkdir -p "{evidence_dir}/before"
    - before DOM: `const beforeText = await page.locator('body').innerText()` を取得
 2. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で遷移・表示を待つ。
 3. **after 撮影（分岐ごと）＋ 確認対象の赤枠ハイライト**:
-   - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。
+   - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。`target` 未記載の TC は `const highlightEl = null;` として明示する（ハイライトを試みない）。
    - スクショ: `fullPage: true` で全ページ撮影。分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`
    - after DOM: `await page.locator('body').innerText()` を取得（判定の主役）
-4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText()})`。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
+4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText(), highlighted: !!highlightEl})`。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
+   - `highlighted`: `target=` 指定ありかつ要素解決に成功した場合のみ `true`。`target=` 未記載、または解決失敗で枠なし撮影した場合は `false`。この実績値は下流の証跡シート生成（`generate_evidence_xlsx.py`）が「赤枠あり/なし」の説明文を実態に合わせて出し分けるために使う（種別だけを見て機械的に「赤枠あり」と書いてしまう不整合を防ぐ）。
    - `target` 未記載・ロケータ解決失敗の場合は枠なしで**必ず撮影**（スキップしない。これはロケータ失敗ではなく catch 対象外）。
 
 全 TC 処理後、`return JSON.stringify(results)` で配列を返す。Write はコードブロック内では不可のため、エージェントが return 受け取り後に配列を反復して行う: `ok: true` の要素は `text` を `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write し、`url` は `.split('?')[0]` でクエリを除去して返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。`ok: false` の要素は当該 No を NG として返却テーブルに記録し、`error` の内容を備考欄に記載する。
+
+**ハイライト実績の記録（全 TC 処理後に1回だけ）**: `results` を反復し `{no: highlighted}` のマッピング（`ok: false` の TC は含めない）を組み立て、`{evidence_dir}/after/screen/_highlight_status.json` に Write する。ファイル名が `_` で始まるため証跡ファイルの TC 番号索引（`fname.split("_")[0]`）とは衝突しない。
 
 > **画面エラー検知（Write 前に必ず実施）**: `text`（after DOM）を Write する前に、以下のシグネチャが含まれていないか確認する: `問題が発生しました` / `問題が発生しているようです` / `is malformed` / `関連リストはレイアウトにありません` / `権限が不十分です` / `Insufficient Privileges` / `このページには到達できません` / `URL No Longer Exists` / `予期しないエラーが発生しました` / `Unexpected Error`。該当した場合、`ok: true` であっても Write 自体は通常どおり行うが、**返却テーブルには当該 No を NG として記録し備考欄に `[画面エラー検出: {検出文言}]` を付記する**（期待結果がそのエラー文言自体を検証する意図の TC は対象外）。**画面が開けてスクショが撮れたことと、画面の中身が正しいことは別**。「操作手順どおりに画面を開いてスクショを撮った」だけで OK として報告しない。最終的な機械判定は Phase E `judge_results.py` 側でも同じシグネチャを検知して強制 NG にするため、ここでの検知漏れは自動的な最終防波堤があるが、採取時点で気づいたものはこの場で NG として報告すること。
 
@@ -246,9 +249,10 @@ async function clearHighlight(el) {
 ```javascript
 // after 撮影直前
 const targetLabel = '申込できません'; // ui_cases の target= から取得
-const highlighted = await highlightTarget(page, targetLabel);
+const highlightEl = await highlightTarget(page, targetLabel);
 await page.screenshot({path: '...after/screen/TC-001_xxx.png', fullPage: true});
-await clearHighlight(highlighted);
+await clearHighlight(highlightEl);
+// results.push 時に highlighted: !!highlightEl を含める（成否を実績として記録）
 ```
 
 Lightning CSS が outline を上書きする場合は `!important` 付きで注入済み（上記に含む）。before 撮影は枠なし（差分強調のため）。
@@ -303,10 +307,10 @@ async (page) => {
     await page.getByText('プリチェック').click();
     await waitSfReady(page);
     // after 撮影 + 確認対象に赤枠を注入（target= がある場合のみ）
-    const highlighted = await highlightTarget(page, 'プリチェック'); // target={label} を使用
+    const highlightEl = await highlightTarget(page, 'プリチェック'); // target={label} を使用
     await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png', fullPage: true});
-    await clearHighlight(highlighted);
-    results.push({no: 'TC-001', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText()});
+    await clearHighlight(highlightEl);
+    results.push({no: 'TC-001', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText(), highlighted: !!highlightEl});
   } catch (e) {
     results.push({no: 'TC-001', ok: false, error: String(e)});
   }
@@ -322,15 +326,16 @@ async (page) => {
     await page.getByText('対象ボタン').click();
     await waitSfReady(page);
     // after 撮影
-    const highlighted = await highlightTarget(page, '対象ボタン');
+    const highlightEl = await highlightTarget(page, '対象ボタン');
     await page.screenshot({path: 'C:/path/evidence/after/screen/TC-002_別画面確認.png', fullPage: true});
-    await clearHighlight(highlighted);
-    results.push({no: 'TC-002', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText()});
+    await clearHighlight(highlightEl);
+    results.push({no: 'TC-002', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText(), highlighted: !!highlightEl});
   } catch (e) {
     results.push({no: 'TC-002', ok: false, error: String(e)});
   }
 
   // エージェントは results を反復し、ok:true の要素は before/after .txt を Write、ok:false は NG 記録
+  // さらに {no: highlighted} マッピングを _highlight_status.json として after/screen/ に Write する
   return JSON.stringify(results);
 }
 ```
@@ -450,6 +455,9 @@ OK: {ok} 件 / NG: {ng} 件 / 降格（要手動）: {降格} 件
 | TC-003 | {観点} | NG | （取得失敗） | — | PNG が 0 バイト |
 | TC-004 | {観点} | 要手動 | — | — | Login As 不可 |
 | TC-005 | {観点} | OK | {No}_xxx.png, {No}_xxx.txt | {url（クエリ除去済み）} | [空撮り疑い: DOM 80文字]（前提データ未成立の可能性） |
+| TC-006 | {観点} | OK | {No}_xxx.png, {No}_xxx.txt | {url（クエリ除去済み）} | [赤枠なし: ハイライト対象未解決]（target 未記載、またはロケータ解決失敗） |
 ```
 
 accessToken は返却テキストに一切含めない。「画面URL」列は `page.url()` から `.split('?')[0]` でクエリを除去した値のみ（accessToken を含む FRONTDOOR_URL とは別物・出力可）。オーケストレータ（auto-evidence-runner）はこの列を [visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) の標準ハンドオフブロック生成に使う。
+
+`{evidence_dir}/after/screen/_highlight_status.json`（Step 2B で Write 済み）はハイライト実績の正本であり、`generate_evidence_xlsx.py` が証跡シート生成時に直接読む。返却テキストの備考欄はレビュアー向けの要約であり、実績データの重複記録ではない。

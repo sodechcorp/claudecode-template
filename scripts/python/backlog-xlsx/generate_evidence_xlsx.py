@@ -389,6 +389,19 @@ def _count_lines(path: str) -> int:
 
 # ── エビデンス可読性ヘルパー ─────────────────────────────────────────────────
 
+def _format_before_after(kitai: str) -> str:
+    """期待結果が before:X / after:Y 形式（状態遷移観点・前後比較）の場合、
+    「実装前後比較」との混同を避けるため操作前後の日本語文に変換する。
+    この before/after は同一操作の実行直前→直後を指し、実装前後比較ではない。
+    マッチしなければ元の文字列をそのまま返す。
+    """
+    m = re.match(r'before[:：]\s*(.+?)\s*/\s*after[:：]\s*(.+)', kitai, re.IGNORECASE)
+    if not m:
+        return kitai
+    before_val, after_val = m.group(1).strip(), m.group(2).strip()
+    return f"操作前は「{before_val}」、操作後は「{after_val}」に変わる"
+
+
 def _derive_focus(tc: dict) -> str:
     """「着眼点」列が無い場合に期待結果＋判定方法から確認ポイント導出文を生成する。"""
     kitai   = tc.get("期待結果",  "").strip()
@@ -396,6 +409,8 @@ def _derive_focus(tc: dict) -> str:
     neg_patterns = ["含まない", "非表示", "なし確認", "存在しない"]
     if any(p in hantei for p in neg_patterns):
         return f"「{kitai}」が表示・存在しないことを確認（{hantei}）"
+    if "前後比較" in hantei:
+        return f"{_format_before_after(kitai)}ことを確認（操作直前→直後の状態遷移。実装前後の比較ではない）"
     if kitai and hantei:
         return f"「{kitai}」が {hantei} で確認できること"
     if kitai:
@@ -403,8 +418,25 @@ def _derive_focus(tc: dict) -> str:
     return ""
 
 
+def _load_highlight_status(evidence_dir: str) -> dict:
+    """ui-evidence-runner が after/screen/_highlight_status.json に書き出した
+    TC番号 → 赤枠ハイライト成否(bool) のマッピングを読む。
+
+    キー無し（旧バージョンの証跡・UI以外の種別等）は「実績不明」として扱い、
+    _write_reading_header 側で従来どおりの推定表示にフォールバックする。
+    ファイル不在・パース失敗時は空辞書を返す。
+    """
+    path = os.path.join(evidence_dir, "screen", "_highlight_status.json")
+    if not os.path.isfile(path):
+        return {}
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
-                          result_ws_name: str = "テスト結果") -> int:
+                          result_ws_name: str = "テスト結果", highlight_status: dict = None) -> int:
     """証跡シートの TC セクション先頭に読み方ガイドブロックを書き、次の row_ptr を返す。
 
     出力イメージ（簡素化版・全行動的行高）:
@@ -471,8 +503,14 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
     _guide_row("確認観点", focus, fill=LIGHT_BLUE, bold_val=True)
     # 行3: 確認箇所（赤枠・赤字がどこに付くかを明示し、証跡内の該当箇所へ読み手を誘導する）
     terms = _highlight_terms_from_tc(tc)
+    hl_actual = (highlight_status or {}).get(no)
     if "UI" in shubetsu:
-        loc = "スクショの赤枠 ＋ 下記テキストの赤字部分" if terms else "スクショの赤枠部分"
+        if hl_actual is False:
+            # ui-evidence-runner が実際にハイライト対象を解決できず枠なしで撮影した実績あり
+            loc = "スクショ全体（赤枠対象が見つからず枠なし撮影）＋ 下記テキストの赤字部分" if terms else "スクショ全体（赤枠対象が見つからず枠なし撮影）"
+        else:
+            # True（実際にハイライト成功）または実績不明（旧証跡・target未記載等）は従来どおりの表示
+            loc = "スクショの赤枠 ＋ 下記テキストの赤字部分" if terms else "スクショの赤枠部分"
     else:
         loc = "下記テキストの赤字部分" if terms else "下記テキスト全文（該当箇所は赤字なし）"
     _guide_row("確認箇所", loc, fill=GUIDE_FILL)
@@ -762,6 +800,8 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
 
     # evidence_dir の os.walk は TC 件数ぶん繰り返さず1回だけ実行し索引化する
     evidence_index = build_evidence_index(evidence_dir)
+    # ui-evidence-runner が実際に赤枠ハイライトできたかの実績（TC番号→bool）
+    highlight_status = _load_highlight_status(evidence_dir)
 
     for tc in test_cases:
         no = tc.get("No", "")
@@ -775,13 +815,14 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
         # 読み方ガイドヘッダー（S1-a: 何を確認/期待結果/判定/確認ポイント）
         judgment_entry = judgment.get(no, {})
         hl_terms = _highlight_terms_from_tc(tc)  # S2: 期待結果トークン（否定観点は空）
-        row_ptr, anchor_cell_addr = _write_reading_header(ws, tc, judgment_entry, row_ptr)
+        row_ptr, anchor_cell_addr = _write_reading_header(ws, tc, judgment_entry, row_ptr,
+                                                           highlight_status=highlight_status)
 
         if is_manual:
             # 要手動: 貼付枠を残す
             ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)
             c = ws.cell(row=row_ptr, column=1,
-                        value="⬜ 要手動確認 — ユーザーがここにスクリーンショットを貼り付けてください")
+                        value="⬜ 要手動確認 — 実装後の現在の画面のスクリーンショットをここに貼り付けてください")
             c.fill = EVIDENCE_BG
             c.font = _font()
             c.alignment = WRAP
