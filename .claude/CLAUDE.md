@@ -133,6 +133,12 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 
 **実行直前の自己点検**: Bash / AskUserQuestion / Write に渡す直前、`{...}` リテラルが残っていないか確認。残っていたら置換ルール違反 → 該当 Phase に戻る。
 
+### スクリプト実行ルール（`python -c` 等・厳守）
+
+Bash ツール引数に改行・インデント付きの多行スクリプトを埋め込むと tool-call の JSON 生成/パースが壊れて処理が停止する。`python -c "..."` は単一物理行に限定し、ループ・try-except 等の多行ロジックは `.py` を Write して実行する。`jq` は使用しない。
+
+詳細・判定表: `.claude/templates/common/inline-script-hygiene.md` 参照
+
 ### backlog 系 À la carte オプション判定（Step 0b）
 
 ```markdown
@@ -142,6 +148,12 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 ```
 
 適用範囲: backlog-investigator / backlog-planner / backlog-validator / backlog-implementer / backlog-tester / backlog-releaser（全 6 エージェント必須）。詳細ロジック: `.claude/templates/backlog/_README.md` §Step 0 参照。
+
+### Backlog MCP 利用ルール（レスポンス肥大化対策）
+
+`get_issue_comments` / `get_issues` は実データに対し数倍のメタデータノイズを返すため、`count` を必ず指定しページングで刻む。要約・記録に転記するのは `content` / `created` / `createdUser.name` / `changeLog` 等の実データのみ。
+
+詳細・適用対象: `.claude/templates/common/backlog-mcp-hygiene.md` 参照
 
 ### 中間成果物の分割読込（全下流エージェント共通）
 

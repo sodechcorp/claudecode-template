@@ -39,6 +39,8 @@ sf org display --json
 
 ## 本番判定
 
+> **※単一行限定**: 以下の `python -c` は改行・インデントを含まない単一物理行。多行ロジックへ拡張しない（詳細: [inline-script-hygiene.md](inline-script-hygiene.md)）。
+
 ```bash
 IS_SANDBOX=$(sf org display --target-org "$PROD_ALIAS" --json | python -c "import sys,json; print(json.load(sys.stdin)['result'].get('isSandbox', False))" 2>/dev/null || echo "unknown")
 if [ "$IS_SANDBOX" = "unknown" ]; then

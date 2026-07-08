@@ -53,7 +53,9 @@ tools:
 
 ### Step 1: Backlog 過去課題検索
 
-1. `mcp__backlog__get_issues` でキーワード検索（完了済み含む）
+> [共通ルール: Backlog MCP 利用ルール](../CLAUDE.md#backlog-mcp-利用ルールレスポンス肥大化対策) — `get_issues` / `get_issue_comments` は `count` を指定する。詳細: [backlog-mcp-hygiene.md](../templates/common/backlog-mcp-hygiene.md)
+
+1. `mcp__backlog__get_issues` で `count` を指定してキーワード検索（完了済み含む）。ヒット件数が多い場合は `offset` でページングする
    - 受け取ったキーワード（3〜5個）は **1語ずつ個別に** `keyword` へ設定して検索し、ヒット課題IDを和集合で統合する（重複除外）。全語を1コールにまとめると過度に絞り込まれ0件になりうるため必ず1語ずつ回す
    - 現課題 ID は結果から除外する
    - `mcp__backlog__get_issues` が API エラー（認証・通信失敗）を返した場合は「Backlog 検索失敗（エラー内容）」を investigator に返して即時中断する
@@ -68,7 +70,7 @@ tools:
 
 見出しがヒットしない場合（過去課題のフォーマットが古い等）は該当ファイルを通常 Read にフォールバックする。
 
-`docs/logs/` にファイルがない課題は Backlog コメント（`mcp__backlog__get_issue_comments`）から対応内容を補完する。
+`docs/logs/` にファイルがない課題は Backlog コメント（`mcp__backlog__get_issue_comments`。`count` 指定必須）から対応内容を補完する。
 
 ### Step 3: git log で同一ファイルへの繰り返し修正を確認（任意）
 
