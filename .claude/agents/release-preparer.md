@@ -201,7 +201,9 @@ sf project deploy report --target-org <本番エイリアス>
 
 ## Phase 6: 完了・引き渡し
 
-完了報告を提示する:
+完了報告の**前に**、`release-plan.md` の全文をチャットにそのまま提示する（ファイルパスの案内のみで済ませない）。本番デプロイを人間が手動実行するための手順書であり、ファイルを別途開かせず、この場でコピペ実行できる状態にする。
+
+続けて完了報告を提示する:
 
 ```
 ## {issueID} 本番リリース準備 完了
@@ -213,7 +215,7 @@ sf project deploy report --target-org <本番エイリアス>
 - 本番環境ドリフト: なし / あり（{詳細}） / 未実施（接続情報なし）
 
 ### 引き渡し
-本番リリース手順書: docs/logs/{issueID}/release-plan.md（① リリース前 → ② 実行 → ③ リリース後 の順・資材種別別チェック込み）
+本番リリース手順書: docs/logs/{issueID}/release-plan.md（① リリース前 → ② 実行 → ③ リリース後 の順・資材種別別チェック込み。全文は上記に提示済み）
 リリースノート: docs/logs/{issueID}/release-note.md
 
 ### 重要
