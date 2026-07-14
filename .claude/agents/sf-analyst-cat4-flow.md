@@ -35,8 +35,9 @@ tools:
 
 Phase 0 の `scan_features.py` 実行後に続けて、全フローの操作オブジェクト・参照関係をインデックス化して `_flow_index.json` にキャッシュする。既存キャッシュが **5分以内** の場合はスキップ。
 
-```bash
-python -c "
+以下の内容で `{output_dir}/.tmp/build_flow_index.py` を Write する:
+
+```python
 import datetime, json, pathlib, re, sys
 proj = pathlib.Path(r'{project_dir}')
 cache_path = proj / 'docs' / '.sf' / '_flow_index.json'
@@ -61,7 +62,10 @@ index['cached_at'] = datetime.datetime.utcnow().isoformat() + 'Z'
 cache_path.parent.mkdir(parents=True, exist_ok=True)
 cache_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding='utf-8')
 print(f'[flow_index] {len(index) - 1} flows → {cache_path}')
-"
+```
+
+```bash
+python {output_dir}/.tmp/build_flow_index.py
 ```
 
 Phase 2 の設計書生成では `_flow_index.json` の `objects` を「担当オブジェクト」欄の確定に使う。
@@ -83,8 +87,9 @@ sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefin
 
 **Pass 1（骨格把握）**: Grep で主要タグの name 属性を抽出してノード一覧と接続関係を把握。
 
-```bash
-python -c "
+以下の内容で `{output_dir}/.tmp/extract_flow_skeleton.py` を Write する:
+
+```python
 import re, pathlib
 text = pathlib.Path(r'{project_dir}/force-app/main/default/flows/{api_name}.flow-meta.xml').read_text(encoding='utf-8', errors='replace')
 tags = ['screens','decisions','actionCalls','recordLookups','recordUpdates','recordCreates','recordDeletes','assignments','apexPluginCalls','waits','subflows','loops','scheduleStart']
@@ -92,7 +97,10 @@ for tag in tags:
     names = re.findall(rf'<{tag}[^>]*>.*?<name>([^<]+)</name>', text, re.DOTALL)
     if names:
         print(f'{tag}: {names}')
-"
+```
+
+```bash
+python {output_dir}/.tmp/extract_flow_skeleton.py
 ```
 
 **Pass 2（DML・Apex・バージョンの確定）**: 以下を Grep で全件抽出し設計書に確定値を記録する（`[要確認]` にしない）。

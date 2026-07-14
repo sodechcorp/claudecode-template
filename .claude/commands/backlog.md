@@ -318,13 +318,7 @@ AskUserQuestion で作成有無を選択する:
 選択結果を `{xlsx_create}` に格納し、`docs/.backlog_config.yml` の `xlsx_default` に永続化する（既存エントリを保持してマージ。次回以降のデフォルト値になる）:
 
 ```bash
-python -c "
-import yaml, pathlib
-p = pathlib.Path('docs/.backlog_config.yml')
-d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}
-d['xlsx_default'] = {選択結果が「作成する」なら True、「作成しない」なら False}
-p.write_text(yaml.dump(d, allow_unicode=True), encoding='utf-8')
-"
+python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; d['xlsx_default'] = {選択結果が「作成する」なら True、「作成しない」なら False}; p.write_text(yaml.dump(d, allow_unicode=True), encoding='utf-8')"
 ```
 
 > **[共通ルール①]** 各フェーズの `timeline` 呼び出しで判断・選択の根拠がある場合は `--reason "{根拠}"` を追加する（記録の追跡性を高めるため積極的に使用すること）。

@@ -105,15 +105,7 @@ mkdir -p "{tmp_dir}"
 
 画面設計書テンプレートの存在を確認する:
 ```bash
-python -c "
-import pathlib, sys
-p = pathlib.Path(r'{project_dir}') / 'scripts' / 'python' / 'sf-doc-mcp' / 'プログラム設計書（画面）テンプレート.xlsx'
-if not p.exists():
-    print(f'ERROR: プログラム設計書（画面）テンプレート.xlsx が見つかりません: {p}')
-    print('  /upgrade を実行してテンプレートを取得してください。')
-    sys.exit(1)
-print('テンプレート確認OK: プログラム設計書（画面）テンプレート.xlsx')
-"
+python -c "import pathlib, sys; p = pathlib.Path(r'{project_dir}') / 'scripts' / 'python' / 'sf-doc-mcp' / 'プログラム設計書（画面）テンプレート.xlsx'; (print(f'ERROR: プログラム設計書（画面）テンプレート.xlsx が見つかりません: {p}'), print('  /upgrade を実行してテンプレートを取得してください。'), sys.exit(1)) if not p.exists() else None; print('テンプレート確認OK: プログラム設計書（画面）テンプレート.xlsx')"
 ```
 
 スクリプトが非ゼロ終了した場合（テンプレートが見つからない）: 呼び出し元（sf-design-step2）に失敗を報告し処理を中断する。
@@ -121,16 +113,7 @@ print('テンプレート確認OK: プログラム設計書（画面）テンプ
 **上位設計 JSON の確認（存在する場合は参照する）**:
 
 ```bash
-python -c "
-import pathlib
-ddt = r'{detail_design_tmp}'
-if ddt and ddt.strip():
-    detail_dir = pathlib.Path(ddt)
-else:
-    detail_dir = pathlib.Path(r'{output_dir}').parent / '02_詳細設計' / '.tmp'
-for p in sorted(detail_dir.glob('*_detail.json')) if detail_dir.exists() else []:
-    print(f'detail_json:{p}')
-"
+python -c "import pathlib; ddt = r'{detail_design_tmp}'; detail_dir = pathlib.Path(ddt) if (ddt and ddt.strip()) else pathlib.Path(r'{output_dir}').parent / '02_詳細設計' / '.tmp'; [print(f'detail_json:{p}') for p in (sorted(detail_dir.glob('*_detail.json')) if detail_dir.exists() else [])]"
 ```
 
 対象コンポーネントが属するグループの JSON が見つかった場合は Read ツールで読む。

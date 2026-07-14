@@ -57,13 +57,7 @@ python -c "import yaml,pathlib; p=pathlib.Path('docs/.backlog_config.yml'); d=ya
 確定したパスを `docs/.backlog_config.yml` の `report_dir` に保存する（既存エントリを保持してマージ）:
 
 ```bash
-python -c "
-import yaml, pathlib
-p = pathlib.Path('docs/.backlog_config.yml')
-d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}
-d['report_dir'] = '{確定したパス}'
-p.write_text(yaml.dump(d, allow_unicode=True), encoding='utf-8')
-"
+python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; d['report_dir'] = '{確定したパス}'; p.write_text(yaml.dump(d, allow_unicode=True), encoding='utf-8')"
 ```
 
 `{件名}` から Windows 禁則文字を除去した `{件名_sanitized}` を生成する（出力値を変数として保持すること）:
@@ -135,15 +129,7 @@ PYEOF
 `.backlog_config.yml` に課題固有エントリを追記する（`/test` ② ルートの後方互換用）:
 
 ```bash
-python -c "
-import yaml, pathlib
-p = pathlib.Path('docs/.backlog_config.yml')
-d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}
-issues = d.setdefault('issues', {})
-issues.setdefault('{issueID}', {}).update({'xlsx_folder': '{xlsx_folder}', 'evidence_dir': '{evidence_dir}'})
-p.write_text(yaml.dump(d, allow_unicode=True), encoding='utf-8')
-print('[OK] .backlog_config.yml 課題固有エントリ更新完了')
-"
+python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; issues = d.setdefault('issues', {}); issues.setdefault('{issueID}', {}).update({'xlsx_folder': '{xlsx_folder}', 'evidence_dir': '{evidence_dir}'}); p.write_text(yaml.dump(d, allow_unicode=True), encoding='utf-8'); print('[OK] .backlog_config.yml 課題固有エントリ更新完了')"
 ```
 
 ---

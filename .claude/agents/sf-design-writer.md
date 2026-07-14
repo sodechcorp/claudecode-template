@@ -82,8 +82,9 @@ mkdir -p "{tmp_dir}"
 ```
 
 両方が存在することを確認する（どちらかがなければエラー）:
-```bash
-python -c "
+
+以下の内容で `{tmp_dir}/check_templates.py` を Write する:
+```python
 import pathlib, sys
 base = pathlib.Path(r'{project_dir}') / 'scripts' / 'python' / 'sf-doc-mcp'
 missing = []
@@ -96,7 +97,9 @@ if missing:
     print('  /upgrade を実行してテンプレートを取得してください。')
     sys.exit(1)
 print('テンプレート確認OK: プログラム設計書テンプレート.xlsx / プログラム設計書（画面）テンプレート.xlsx')
-"
+```
+```bash
+python {tmp_dir}/check_templates.py
 ```
 
 `docs/design/` 配下の既存設計書 MD を一覧取得しておく（差分更新時の参照用）。
@@ -113,16 +116,7 @@ Read: {project_dir}/.claude/templates/sf-design-writer/quality-rules.md
 基本設計・詳細設計が先に実行されている場合、その JSON を読み込んで設計の文脈として活用する。
 
 ```bash
-python -c "
-import pathlib, sys
-root = pathlib.Path(r'{output_dir}').parent
-basic_dir = root / '01_基本設計' / '.tmp'
-detail_dir = root / '02_詳細設計' / '.tmp'
-for p in sorted(basic_dir.glob('*_basic.json')) if basic_dir.exists() else []:
-    print(f'basic_json:{p}')
-for p in sorted(detail_dir.glob('*_detail.json')) if detail_dir.exists() else []:
-    print(f'detail_json:{p}')
-"
+python -c "import pathlib; root = pathlib.Path(r'{output_dir}').parent; basic_dir = root / '01_基本設計' / '.tmp'; detail_dir = root / '02_詳細設計' / '.tmp'; [print(f'basic_json:{p}') for p in sorted(basic_dir.glob('*_basic.json'))] if basic_dir.exists() else None; [print(f'detail_json:{p}') for p in sorted(detail_dir.glob('*_detail.json'))] if detail_dir.exists() else None"
 ```
 
 対象コンポーネントが属するグループの JSON が見つかった場合は Read ツールで読む（グループ→コンポーネントの対応は feature_ids.yml で確認）。
@@ -238,8 +232,8 @@ Read: {project_dir}/.claude/templates/sf-design-writer/json-checklist.md
 
 **スケルトン残存チェック（Phase 2 進行前に必ず実施）**:
 
-```bash
-python -c "
+以下の内容で `{tmp_dir}/check_skeleton_remaining.py` を Write する:
+```python
 import json, pathlib, sys
 tmp = pathlib.Path(r'{tmp_dir}')
 skeleton_remaining = [
@@ -252,7 +246,9 @@ if skeleton_remaining:
         print('  - ' + f)
     sys.exit(1)
 print('OK: スケルトン残存なし（本文補完済み）')
-"
+```
+```bash
+python {tmp_dir}/check_skeleton_remaining.py
 ```
 
 `_parser_meta` が残っている JSON が 1件でも検出された場合は Phase 1 に戻って補完する。全件 OK になってから Phase 2 へ進む。
@@ -301,8 +297,8 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate_feature_design.py" \
 
 まず `{tmp_dir}` 内の `*_design.json` 件数を確認する（sf-design-writer 分 + sf-screen-writer 分の合計）:
 
-```bash
-python -c "
+以下の内容で `{tmp_dir}/check_design_json_count.py` を Write する:
+```python
 import pathlib, sys, json as _json
 jsons = list(pathlib.Path(r'{tmp_dir}').glob('*_design.json'))
 if not jsons:
@@ -322,7 +318,9 @@ if screen_jsons:
     print(f'{len(jsons)} 件の設計 JSON を検出（うち sf-screen-writer 分: {len(screen_jsons)} 件）。機能一覧を生成します。')
 else:
     print(f'{len(jsons)} 件の設計 JSON を検出（sf-screen-writer 分なし）。機能一覧を生成します。')
-"
+```
+```bash
+python {tmp_dir}/check_design_json_count.py
 ```
 
 - 0 件の場合: 「設計 JSON が生成されていません。Phase 1/2 のエラーを確認してください。」と報告する。**Phase 3 はスキップして Phase 4（クリーンアップ）へ進む**。

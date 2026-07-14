@@ -87,8 +87,9 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 ## Phase 1.5: ハッシュチェック（変更なしスキップ）
 
-```bash
-python -c "
+以下の内容で `{output_dir}/.tmp/check_cat4_hash.py` を Write する:
+
+```python
 import hashlib, json, pathlib
 proj = pathlib.Path(r'{project_dir}')
 cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'
@@ -105,20 +106,16 @@ else:
             h.update(path.read_bytes())
     current_hash = h.hexdigest()
     print('SKIP' if cache.get(api_name) == current_hash else f'UPDATE:{current_hash}')
-"
+```
+
+```bash
+python {output_dir}/.tmp/check_cat4_hash.py
 ```
 
 `SKIP` → Phase 2 をスキップ。`UPDATE:{hash}` → Phase 2 で設計書を生成/更新後にキャッシュを更新:
 
 ```bash
-python -c "
-import json, pathlib
-proj = pathlib.Path(r'{project_dir}')
-cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'
-cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}
-cache['{api_name}'] = '{new_hash}'
-cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding='utf-8')
-"
+python -c "import json, pathlib; proj = pathlib.Path(r'{project_dir}'); cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'; cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}; cache['{api_name}'] = '{new_hash}'; cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding='utf-8')"
 ```
 
 ---
@@ -138,14 +135,18 @@ cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding=
 
 **既存 【TBD】ファイルの処理**:
 
-```bash
-python -c "
+以下の内容で `{output_dir}/.tmp/remove_tbd_design.py` を Write する:
+
+```python
 import pathlib
 design_dir = pathlib.Path(r'{project_dir}/docs/design')
 for tbd in design_dir.rglob('【TBD】{kebab_name}.md'):
     tbd.unlink()
     print(f'削除: {tbd}')
-"
+```
+
+```bash
+python {output_dir}/.tmp/remove_tbd_design.py
 ```
 
 テンプレートは `{project_dir}/docs/templates/component-design-template.md` を Read して使用する。
@@ -173,8 +174,9 @@ python {project_dir}/scripts/python/sf-doc-mcp/mark_design_deprecated.py \
 
 > VF ページ（ApexPage）の設計書は `design/vf/` が正規格納先。過去のセッションで `design/apex/` に生成された旧VF集約設計書が残存すると二重管理になるため、本ステップで検出・ガード付き除去する。
 
-```bash
-python -c "
+以下の内容で `{output_dir}/.tmp/find_vf_residual_candidates.py` を Write する:
+
+```python
 import json, pathlib, re, sys
 proj = pathlib.Path(r'{project_dir}')
 cache_path = proj / 'docs' / '.sf' / '_metadata_cache.json'
@@ -210,7 +212,10 @@ for md in sorted(apex_dir.rglob('*.md')) if apex_dir.exists() else []:
     print(f'CANDIDATE: {md.as_posix()} | vf_exists={vf_doc is not None} | has_comment={has_comment} | is_aggregate={is_aggregate}')
 if not found:
     print('NO_CANDIDATES')
-"
+```
+
+```bash
+python {output_dir}/.tmp/find_vf_residual_candidates.py
 ```
 
 出力を1件ずつ確認し、以下の判定で処理する:

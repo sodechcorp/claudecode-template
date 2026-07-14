@@ -44,8 +44,9 @@ tools:
 
 Phase 0 の `scan_features.py` 実行後に続けて、全 Apex クラスのスケルトンを生成して `_apex_skeletons.json` にキャッシュする。既存キャッシュが **5分以内** の場合はスキップ。
 
-```bash
-python -c "
+以下の内容で `{output_dir}/.tmp/build_apex_skeletons.py` を Write する:
+
+```python
 import datetime, json, pathlib, subprocess, sys
 proj = pathlib.Path(r'{project_dir}')
 cache_path = proj / 'docs' / '.sf' / '_apex_skeletons.json'
@@ -74,7 +75,10 @@ skeletons['cached_at'] = datetime.datetime.utcnow().isoformat() + 'Z'
 cache_path.parent.mkdir(parents=True, exist_ok=True)
 cache_path.write_text(json.dumps(skeletons, ensure_ascii=False, indent=2), encoding='utf-8')
 print(f'[apex_skeletons] {len(skeletons) - 1} classes → {cache_path}')
-"
+```
+
+```bash
+python {output_dir}/.tmp/build_apex_skeletons.py
 ```
 
 Phase 2 の設計書生成では `_apex_skeletons.json` の当該クラスエントリを LLM への入力として使う（ソース全文読みの補完・SOQL/DML 件数確定に使用）。

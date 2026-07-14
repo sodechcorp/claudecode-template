@@ -8,17 +8,7 @@
 
 ```bash
 # 既存 Excel の自動検出（feature_id = feat_id フィールド）
-python -c "
-import pathlib, sys
-feat_id = '{feat_id}'
-out = pathlib.Path(r'{output_dir}')
-for sub in out.iterdir():
-    if sub.is_dir():
-        for f in sub.glob(f'【{feat_id}】*.xlsx'):
-            print(f)
-            sys.exit()
-print('')
-"
+python -c "import pathlib; feat_id = '{feat_id}'; out = pathlib.Path(r'{output_dir}'); print(next((f for sub in out.iterdir() if sub.is_dir() for f in sub.glob(f'【{feat_id}】*.xlsx')), ''))"
 ```
 
 ```bash

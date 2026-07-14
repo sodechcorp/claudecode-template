@@ -57,11 +57,7 @@ fi
 # 4. sandbox-alias-check（本番保護）
 SF_ALIAS=$(sf config get target-org --json | python -c "import sys,json; print(json.load(sys.stdin)['result'][0]['value'])" 2>/dev/null || echo "")
 SF_ORG_JSON=$(sf org display --target-org "$SF_ALIAS" --json 2>/dev/null)
-IS_SANDBOX=$(echo "$SF_ORG_JSON" | python -c "
-import sys,json
-d=json.load(sys.stdin)['result']
-print(d.get('isSandbox')==True or 'sandbox.my.salesforce.com' in d.get('instanceUrl',''))
-" 2>/dev/null || echo "false")
+IS_SANDBOX=$(echo "$SF_ORG_JSON" | python -c "import sys,json; d=json.load(sys.stdin)['result']; print(d.get('isSandbox')==True or 'sandbox.my.salesforce.com' in d.get('instanceUrl',''))" 2>/dev/null || echo "false")
 if [ "$IS_SANDBOX" != "True" ]; then
   echo "[FATAL] 接続先が Sandbox ではありません ($SF_ALIAS). 本番への操作は禁止されています。"
   exit 1
@@ -79,31 +75,15 @@ EVIDENCE_DIR=""
 # ① investigation.md フロントマターから読む（/backlog と同じ一次ソース）
 INVEST_FILE="${LOG_DIR}/investigation.md"
 if [ -f "$INVEST_FILE" ]; then
-  XLSX_FOLDER=$(python -c "
-import sys, re
-text = open(r'${INVEST_FILE}', encoding='utf-8').read()
-m = re.search(r'^xlsx_folder:\s*(.+)$', text, re.MULTILINE)
-print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')
-" 2>/dev/null || echo "")
-  EVIDENCE_DIR=$(python -c "
-import sys, re
-text = open(r'${INVEST_FILE}', encoding='utf-8').read()
-m = re.search(r'^evidence_dir:\s*(.+)$', text, re.MULTILINE)
-print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')
-" 2>/dev/null || echo "")
+  XLSX_FOLDER=$(python -c "import re; text = open(r'${INVEST_FILE}', encoding='utf-8').read(); m = re.search(r'^xlsx_folder:\s*(.+)$', text, re.MULTILINE); print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')" 2>/dev/null || echo "")
+  EVIDENCE_DIR=$(python -c "import re; text = open(r'${INVEST_FILE}', encoding='utf-8').read(); m = re.search(r'^evidence_dir:\s*(.+)$', text, re.MULTILINE); print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')" 2>/dev/null || echo "")
 fi
 
 # ② .backlog_config.yml から読む（後方互換）
 if [ -z "$XLSX_FOLDER" ]; then
   CONFIG_FILE="${PROJECT_DIR}/docs/.backlog_config.yml"
   if [ -f "$CONFIG_FILE" ]; then
-    XLSX_FOLDER=$(python -c "
-import yaml, sys
-with open(r'${CONFIG_FILE}', encoding='utf-8') as f:
-    d = yaml.safe_load(f) or {}
-issues = d.get('issues', {})
-print(issues.get('${ISSUE_ID}', {}).get('xlsx_folder', ''))
-" 2>/dev/null || echo "")
+    XLSX_FOLDER=$(python -c "import yaml; d = yaml.safe_load(open(r'${CONFIG_FILE}', encoding='utf-8')) or {}; issues = d.get('issues', {}); print(issues.get('${ISSUE_ID}', {}).get('xlsx_folder', ''))" 2>/dev/null || echo "")
   fi
 fi
 
@@ -142,12 +122,7 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
   echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
 
-  TARGET_TC_LIST=$(python -c "
-import json, sys
-with open(r'$JUDGMENT_PATH') as f: d = json.load(f)
-ng = [r['no'] for r in d.get('results', []) if r.get('status') == 'NG']
-print(','.join(ng))
-" 2>/dev/null || echo "")
+  TARGET_TC_LIST=$(python -c "import json; d = json.load(open(r'$JUDGMENT_PATH')); ng = [r['no'] for r in d.get('results', []) if r.get('status') == 'NG']; print(','.join(ng))" 2>/dev/null || echo "")
   if [ -z "$TARGET_TC_LIST" ]; then
     echo "[INFO] 前回 NG なし。差分対象なし（全件スキップ）。"
   else
@@ -196,11 +171,7 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 ```bash
 # SF_ALIAS の再導出（Bash ツールは毎回新シェル。A-1 の変数を引き継げないため再取得）
 SF_ALIAS=$(sf config get target-org --json | python -c "import sys,json; print(json.load(sys.stdin)['result'][0]['value'])" 2>/dev/null || echo "")
-IS_SANDBOX=$(sf org display --target-org "$SF_ALIAS" --json | python -c "
-import sys,json
-d=json.load(sys.stdin)['result']
-print(d.get('isSandbox')==True or 'sandbox.my.salesforce.com' in d.get('instanceUrl',''))
-" 2>/dev/null || echo "false")
+IS_SANDBOX=$(sf org display --target-org "$SF_ALIAS" --json | python -c "import sys,json; d=json.load(sys.stdin)['result']; print(d.get('isSandbox')==True or 'sandbox.my.salesforce.com' in d.get('instanceUrl',''))" 2>/dev/null || echo "false")
 if [ "$IS_SANDBOX" != "True" ]; then
   echo "[FATAL] 接続先が Sandbox ではありません ($SF_ALIAS). 本番への操作は禁止されています。"
   exit 1
@@ -363,18 +334,10 @@ python "$(pwd)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
 
 ```bash
 # 実装バグ TC（ng_type が空文字 = 証跡あり・実装が期待値と不一致）
-AUTO_FIX_TCS=$(python -c "
-import json
-d=json.load(open(r'{judgment_path}', encoding='utf-8'))
-print(','.join(r['no'] for r in d.get('ng_list',[]) if (r.get('ng_type','') or '')==''))
-" 2>/dev/null || echo "")
+AUTO_FIX_TCS=$(python -c "import json; d=json.load(open(r'{judgment_path}', encoding='utf-8')); print(','.join(r['no'] for r in d.get('ng_list',[]) if (r.get('ng_type','') or '')==''))" 2>/dev/null || echo "")
 
 # その他のNG（要確認/未実行）— 後続の手動案内で対応
-OTHER_NG=$(python -c "
-import json
-d=json.load(open(r'{judgment_path}', encoding='utf-8'))
-print(','.join(r['no'] for r in d.get('ng_list',[]) if (r.get('ng_type','') or '') in ('要確認','未実行')))
-" 2>/dev/null || echo "")
+OTHER_NG=$(python -c "import json; d=json.load(open(r'{judgment_path}', encoding='utf-8')); print(','.join(r['no'] for r in d.get('ng_list',[]) if (r.get('ng_type','') or '') in ('要確認','未実行')))" 2>/dev/null || echo "")
 
 echo "実装バグ（自動修正候補）: ${AUTO_FIX_TCS:-なし}"
 echo "その他のNG（要確認/未実行）: ${OTHER_NG:-なし}"
@@ -386,13 +349,7 @@ echo "その他のNG（要確認/未実行）: ${OTHER_NG:-なし}"
 
 ```bash
 # ループ上限チェック（退避済み R{N}.json 本数で通算カウント。退避自体は次回 /test Phase A が実施・ここでは読むだけ）
-PREV_ROUND_F2=$(python -c "
-import glob, re
-base = r'{judgment_path}'.replace('.json','')
-files = glob.glob(base + '.R*.json')
-nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]
-print(max(nums) if nums else 0)
-" 2>/dev/null || echo "0")
+PREV_ROUND_F2=$(python -c "import glob, re; base = r'{judgment_path}'.replace('.json',''); files = glob.glob(base + '.R*.json'); nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]; print(max(nums) if nums else 0)" 2>/dev/null || echo "0")
 echo "これまでの NG 修正回数（退避済み R{N} 本数）: ${PREV_ROUND_F2} 回"
 
 # 前提ファイルの存在確認（backlog-implementer が必須とするファイル）

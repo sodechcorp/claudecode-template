@@ -58,21 +58,15 @@ mkdir -p "{tmp_dir}"
 
 テンプレートを確認する:
 ```bash
-python -c "
-import pathlib, sys
-tpl = pathlib.Path(r'{project_dir}') / 'scripts' / 'python' / 'sf-doc-mcp' / '詳細設計書テンプレート.xlsx'
-if not tpl.exists():
-    print(f'ERROR: 詳細設計書テンプレート.xlsx が見つかりません: {tpl}')
-    sys.exit(1)
-print(f'テンプレート確認OK: {tpl}')
-"
+python -c "import pathlib, sys; tpl = pathlib.Path(r'{project_dir}') / 'scripts' / 'python' / 'sf-doc-mcp' / '詳細設計書テンプレート.xlsx'; (print(f'ERROR: 詳細設計書テンプレート.xlsx が見つかりません: {tpl}'), sys.exit(1)) if not tpl.exists() else None; print(f'テンプレート確認OK: {tpl}')"
 ```
 
 > テンプレートが見つからない場合（終了コード 1）は処理を中断し、「`詳細設計書テンプレート.xlsx` が見つかりません。`{project_dir}/scripts/python/sf-doc-mcp/` に配置してから再実行してください。」とユーザーに報告して終了すること。
 
-feature_groups.yml を読む:
-```bash
-python -c "
+feature_groups.yml を読む。
+
+以下の内容で `{tmp_dir}/read-feature-groups.py` を Write する:
+```python
 import yaml, json, sys, pathlib
 p = pathlib.Path(r'{project_dir}/docs/.sf/feature_groups.yml')
 if not p.exists():
@@ -81,7 +75,9 @@ if not p.exists():
 with p.open(encoding='utf-8') as f:
     data = yaml.safe_load(f)
 print(json.dumps(data, ensure_ascii=False, indent=2))
-"
+```
+```bash
+python {tmp_dir}/read-feature-groups.py
 ```
 
 > **注意**: `feature_groups.yml` は `sf-memory`（sf-analyst-cat5）が生成する正本で、手動整理された業務機能グループ定義を含む。無ければ `/sf-memory` を先に実行すること。自動生成で上書きしない。
@@ -115,27 +111,20 @@ print(json.dumps(data, ensure_ascii=False, indent=2))
 ### docs/flow/usecases.md の参照（処理フロー記述の正解情報）
 
 ```bash
-python -c "
-import pathlib
-docs_uc = pathlib.Path(r'{project_dir}') / 'docs' / 'flow' / 'usecases.md'
-if docs_uc.exists():
-    print(docs_uc.read_text(encoding='utf-8'))
-else:
-    print('usecases.md なし')
-"
+python -c "import pathlib; docs_uc = pathlib.Path(r'{project_dir}') / 'docs' / 'flow' / 'usecases.md'; print(docs_uc.read_text(encoding='utf-8')) if docs_uc.exists() else print('usecases.md なし')"
 ```
 
 見つかった場合は `{target_group_ids}` に対応するユースケース（UC-xx）セクションを読み、「処理フロー」の番号付き記述を `components[].responsibility` の基礎情報として使う。
 - usecases.md の処理フロー記述が最も信頼できる業務日本語なので、コンポーネント単位の responsibility はここから導く
 - コード上の API 名は usecases.md 記述に現れる形でのみ使い、クラス名はそのまま書かない
 
-```bash
-python -c "
+以下の内容で `{tmp_dir}/list-upper-layer-json.py` を Write する:
+```python
 import pathlib, json
 root = pathlib.Path(r'{output_dir}').parent
 
 # 基本設計 JSON（グループ単位）
-# {target_group_ids} は JSON 配列文字列で渡すこと（例: '[\"FG-001\", \"FG-002\"]'）
+# {target_group_ids} は JSON 配列文字列で渡すこと（例: '["FG-001", "FG-002"]'）
 basic_dir = root / '01_基本設計' / '.tmp'
 for group_id in json.loads(r'{target_group_ids}'):
     p = basic_dir / f'{group_id}_basic.json'
@@ -146,8 +135,10 @@ for group_id in json.loads(r'{target_group_ids}'):
 prog_dir = root / '03_プログラム設計' / '.tmp'
 if prog_dir.exists():
     for p in sorted(prog_dir.glob('*_design.json')):
-        print(f'prog_json:{p.stem.replace(\"_design\", \"\")}:{p}')
-"
+        print(f'prog_json:{p.stem.replace("_design", "")}:{p}')
+```
+```bash
+python {tmp_dir}/list-upper-layer-json.py
 ```
 
 見つかった JSON は Read ツールで読み、以下の目的で活用する:
@@ -167,10 +158,10 @@ if prog_dir.exists():
 
 各グループの処理前に以下を実行する。
 
-```bash
-# グループのソースファイル一覧を取得し、source_paths 変数に格納する
-# {group_id} には処理対象グループの ID（例: FG-001）を代入してから実行すること
-source_paths=$(python -c "
+グループのソースファイル一覧を取得し、source_paths 変数に格納する。`{group_id}` には処理対象グループの ID（例: FG-001）を代入してから実行すること。
+
+以下の内容で `{tmp_dir}/get-source-paths.py` を Write する:
+```python
 import yaml, pathlib, sys
 proj = pathlib.Path(r'{project_dir}')
 with open(proj / 'docs' / '.sf' / 'feature_groups.yml', encoding='utf-8') as f:
@@ -205,18 +196,15 @@ for fid in group.get('feature_ids', []):
     if p.exists():
         paths.append(str(p))
 print(','.join(paths))
-")
+```
+```bash
+source_paths=$(python {tmp_dir}/get-source-paths.py)
 ```
 
 ```bash
 # 既存 Excel の自動検出し、detected_excel_or_empty 変数に格納する
 # {group_id} には処理対象グループの ID（例: FG-001）を代入してから実行すること
-detected_excel_or_empty=$(python -c "
-import pathlib
-p = pathlib.Path(r'{output_dir}')
-matches = list(p.glob('【{group_id}】*.xlsx'))
-print(matches[0] if matches else '')
-")
+detected_excel_or_empty=$(python -c "import pathlib; p = pathlib.Path(r'{output_dir}'); matches = list(p.glob('【{group_id}】*.xlsx')); print(matches[0] if matches else '')")
 ```
 
 ```bash

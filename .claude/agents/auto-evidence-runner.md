@@ -67,13 +67,7 @@ tools:
 ```bash
 JUDGMENT_PATH="{log_dir}/judgment-result.json"
 if [ -f "$JUDGMENT_PATH" ]; then
-  PREV_ROUND=$(python -c "
-import glob, re
-base = r'$JUDGMENT_PATH'.replace('.json', '')
-files = glob.glob(base + '.R*.json')
-nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]
-print(max(nums) if nums else 0)
-" 2>/dev/null || echo "0")
+  PREV_ROUND=$(python -c "import glob, re; base = r'$JUDGMENT_PATH'.replace('.json', ''); files = glob.glob(base + '.R*.json'); nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]; print(max(nums) if nums else 0)" 2>/dev/null || echo "0")
   ARCHIVE_N=$((PREV_ROUND + 1))
   ARCHIVED_EV="{evidence_dir}/after_R${ARCHIVE_N}"
   if [ -d "{evidence_dir}/after" ] && [ ! -d "$ARCHIVED_EV" ]; then

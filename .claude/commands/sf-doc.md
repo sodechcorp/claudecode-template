@@ -50,12 +50,7 @@ python -c "import os; print(os.getcwd())"
 ```
 出力されたパスを `{project_dir}` として保持する。続いて `sfdx-project.json` の存在を確認する（存在しない場合は Salesforce プロジェクトルートで再実行するよう案内して終了）:
 ```bash
-python -c "
-import pathlib, sys
-if not pathlib.Path(r'{project_dir}/sfdx-project.json').exists():
-    print('ERROR: sfdx-project.json が見つかりません。Salesforce プロジェクトルート（sfdx-project.json があるフォルダ）で実行してください。', file=sys.stderr)
-    sys.exit(1)
-"
+python -c "import pathlib, sys; (print('ERROR: sfdx-project.json が見つかりません。Salesforce プロジェクトルート（sfdx-project.json があるフォルダ）で実行してください。', file=sys.stderr), sys.exit(1)) if not pathlib.Path(r'{project_dir}/sfdx-project.json').exists() else None"
 ```
 
 > **テキスト入力の必須ルール**: チャットでの入力を求めたら、ユーザーが返答するまで次の処理・質問には進まない。
@@ -70,36 +65,32 @@ Read tool で `{project_dir}/docs/.sf/sf_config.yml` を読み取る。
 
 > **重要（文字化けリスクと対策）**: Read `.claude/templates/common/sf-config-charmap-note.md` — 以降の作成者名・出力先取得フローで適用する。
 
-**前回値がある場合:** まず以下を実行して前回値を表示する（stdout = IDE terminal 直接描画なので LLM 生成を経由せず文字化けしない）:
-```bash
-python -c "
+**前回値がある場合:** まず以下を実行して前回値を表示する（stdout = IDE terminal 直接描画なので LLM 生成を経由せず文字化けしない）。
+
+以下の内容で `{output_dir}/.tmp/show-prev-config.py` を Write する:
+```python
 import yaml, pathlib
+
 p = pathlib.Path(r'{project_dir}/docs/.sf/sf_config.yml')
 if p.exists():
     d = yaml.safe_load(p.read_text(encoding='utf-8')) or {}
     if d:
         print('━━ 前回の設定値（sf_config.yml）━━')
-        if d.get('author'): print('  作成者名       :', d['author'])
-        if d.get('output_dir'): print('  出力先フォルダ  :', d['output_dir'])
+        if d.get('author'):
+            print('  作成者名       :', d['author'])
+        if d.get('output_dir'):
+            print('  出力先フォルダ  :', d['output_dir'])
         print('↑ 各項目で「前回値を使用」を選ぶと上記の値が引き継がれます')
-"
+```
+```bash
+python {output_dir}/.tmp/show-prev-config.py
 ```
 
 ### 作成者名
 
 **前回値がある場合:** まず以下を実行して作成者名を Bash 印字する（LLM 生成を経由しないため 100% 正確）:
 ```bash
-python -c "
-import yaml, pathlib
-p = pathlib.Path(r'{project_dir}/docs/.sf/sf_config.yml')
-if p.exists():
-    d = yaml.safe_load(p.read_text(encoding='utf-8')) or {}
-    v = d.get('author', '')
-    if v:
-        print('━━ 前回の作成者名 ━━')
-        print(' ', v)
-        print('━━━━━━━━━━━━━')
-"
+python -c "import yaml, pathlib; p = pathlib.Path(r'{project_dir}/docs/.sf/sf_config.yml'); v = ((yaml.safe_load(p.read_text(encoding='utf-8')) or {}).get('author', '') if p.exists() else ''); print('━━ 前回の作成者名 ━━\n  ' + v + '\n━━━━━━━━━━━━━') if v else None"
 ```
 
 その直後に AskUserQuestion で提示（2択+Other自動）:
@@ -151,10 +142,12 @@ python -c "import pathlib; p=pathlib.Path(r'{project_dir}/docs/.sf'); p.mkdir(pa
 
 ### 設定の保存
 
-確定した値を保存する（次回のデフォルト値として使用）:
-```bash
-python -c "
+確定した値を保存する（次回のデフォルト値として使用）。
+
+以下の内容で `{output_dir}/.tmp/save-config.py` を Write する:
+```python
 import pathlib, sys
+
 author_f = pathlib.Path(r'{project_dir}/docs/.sf/.author_tmp')
 outdir_f = pathlib.Path(r'{project_dir}/docs/.sf/.output_dir_tmp')
 try:
@@ -172,7 +165,9 @@ finally:
     # 成功・失敗にかかわらず一時ファイルは必ず削除する
     for f in [author_f, outdir_f]:
         f.unlink(missing_ok=True)
-"
+```
+```bash
+python {output_dir}/.tmp/save-config.py
 ```
 
 **警告通知**: 上記スクリプトの出力（stdout / stderr）に `warning:` を含む場合は、assistant message に「⚠️ 設定保存に失敗しました（次回起動時の前回値復元なし）」を 1 行通知する。
@@ -245,12 +240,7 @@ Step 1 完了後、`selected_steps` に応じて以下のエージェントを s
 
 既存ファイルの有無を確認してバージョン種別を決定する:
 ```bash
-python -c "
-import pathlib
-p = pathlib.Path(r'{output_dir}/01_基本設計/プロジェクト概要書.xlsx')
-print('EXISTS:', p.exists())
-print('PATH:', str(p))
-"
+python -c "import pathlib; p = pathlib.Path(r'{output_dir}/01_基本設計/プロジェクト概要書.xlsx'); print('EXISTS:', p.exists()); print('PATH:', str(p))"
 ```
 
 **既存ファイルがある場合:** ファイル名を表示したあと、AskUserQuestion でバージョン種別を選択:

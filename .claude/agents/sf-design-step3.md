@@ -43,8 +43,8 @@ mkdir -p "{output_dir}/01_基本設計"
 
 ## Phase 2: feature_list.json の読み込み
 
-```bash
-python -c "
+以下の内容で `{output_dir}/.tmp/load_feature_list.py` を Write する:
+```python
 import pathlib, sys, json
 src = pathlib.Path(r'{project_dir}/docs/.sf/feature_list.json')
 if not src.exists():
@@ -55,7 +55,9 @@ print(f'読み込み完了: {len(fl)} 件')
 from collections import Counter
 cnt = Counter(f.get('type','?') for f in fl)
 for t, n in sorted(cnt.items()): print(f'  {t}: {n}件')
-"
+```
+```bash
+python {output_dir}/.tmp/load_feature_list.py
 ```
 
 ---
@@ -88,14 +90,7 @@ fi
 完了後、xlsx の存在を確認してからこのエージェントを終了する:
 
 ```bash
-python -c "
-import pathlib, sys
-p = pathlib.Path(r'{output_dir}/01_基本設計/機能一覧.xlsx')
-if not p.exists():
-    print(f'ERROR: {p} が生成されませんでした', file=sys.stderr)
-    sys.exit(1)
-print(f'OK: {p}')
-"
+python -c "import pathlib, sys; p = pathlib.Path(r'{output_dir}/01_基本設計/機能一覧.xlsx'); sys.exit(print(f'ERROR: {p} が生成されませんでした', file=sys.stderr) or 1) if not p.exists() else print(f'OK: {p}')"
 ```
 
 ---

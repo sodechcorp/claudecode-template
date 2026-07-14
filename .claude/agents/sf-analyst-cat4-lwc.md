@@ -45,8 +45,9 @@ tools:
 
 Phase 0 の `scan_features.py` 実行後に続けて、全 LWC の JS スケルトンを生成して `_lwc_skeletons.json` にキャッシュする。既存キャッシュが **5分以内** の場合はスキップ。
 
-```bash
-python -c "
+以下の内容で `{output_dir}/.tmp/build_lwc_skeletons.py` を Write する:
+
+```python
 import datetime, json, pathlib, subprocess, sys
 proj = pathlib.Path(r'{project_dir}')
 cache_path = proj / 'docs' / '.sf' / '_lwc_skeletons.json'
@@ -76,7 +77,10 @@ skeletons['cached_at'] = datetime.datetime.utcnow().isoformat() + 'Z'
 cache_path.parent.mkdir(parents=True, exist_ok=True)
 cache_path.write_text(json.dumps(skeletons, ensure_ascii=False, indent=2), encoding='utf-8')
 print(f'[lwc_skeletons] {len(skeletons) - 1} components → {cache_path}')
-"
+```
+
+```bash
+python {output_dir}/.tmp/build_lwc_skeletons.py
 ```
 
 Phase 2 の設計書生成では `_lwc_skeletons.json` の当該コンポーネントエントリを LLM への入力として使う（`@wire` / `@salesforce/apex` 呼び出し先・`@api` プロパティの確定に使用）。
@@ -117,8 +121,9 @@ sf data query -q "SELECT DeveloperName FROM AuraDefinitionBundle WHERE Namespace
 
 共通 Phase 3.5（`verify_cat4_completeness.py --kind lwc`）完了後、`design/apex/` に旧VF集約設計書が残っていないことを確認する。
 
-```bash
-python -c "
+以下の内容で `{output_dir}/.tmp/check_vf_residual_in_apex.py` を Write する:
+
+```python
 import json, pathlib, re, sys
 proj = pathlib.Path(r'{project_dir}')
 cache_path = proj / 'docs' / '.sf' / '_metadata_cache.json'
@@ -148,7 +153,10 @@ if residuals:
     sys.exit(1)
 else:
     print('OK: apex/ に VF 設計書残存なし')
-"
+```
+
+```bash
+python {output_dir}/.tmp/check_vf_residual_in_apex.py
 ```
 
 - **exit 0**（`OK`）: 残存なし。Phase 3.5 完了

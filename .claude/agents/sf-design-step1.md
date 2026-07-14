@@ -45,11 +45,7 @@ mkdir -p "{output_dir}/02_詳細設計"
 
 一時フォルダはローカルドライブに生成する（共有ドライブへの書き込み・自動削除を避けるため）:
 ```bash
-python -c "
-import tempfile, pathlib
-tmp = pathlib.Path(tempfile.mkdtemp(prefix='sf-design-step1-'))
-print('tmp_dir:' + str(tmp).replace(chr(92), '/'))
-"
+python -c "import tempfile, pathlib; tmp = pathlib.Path(tempfile.mkdtemp(prefix='sf-design-step1-')); print('tmp_dir:' + str(tmp).replace(chr(92), '/'))"
 ```
 
 出力の `tmp_dir:` 以降の値を **`tmp_dir`** として保持する。
