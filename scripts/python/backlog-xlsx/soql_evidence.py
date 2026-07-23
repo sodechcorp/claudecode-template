@@ -22,8 +22,15 @@ import json
 import os
 import re
 import subprocess
+import shutil
 import sys
 from pathlib import Path
+
+
+# sf CLI のフルパス解決（Windows で "sf" が .CMD の場合、shell=False の
+# subprocess.run は PATHEXT を自動解決せず FileNotFoundError になるため、
+# shutil.which で解決したフルパスを使う（クロスプラットフォームで安全）。
+SF_BIN = shutil.which("sf") or "sf"
 
 
 # ── sandbox 判定 ─────────────────────────────────────────────────────────────
@@ -32,8 +39,8 @@ def assert_sandbox(alias: str) -> str:
     """alias が Sandbox であることを確認する。本番なら SystemExit。接続済み alias を返す。"""
     if not alias:
         result = subprocess.run(
-            ["sf", "config", "get", "target-org", "--json"],
-            capture_output=True, text=True
+            [SF_BIN, "config", "get", "target-org", "--json"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         try:
             alias = json.loads(result.stdout)["result"][0]["value"]
@@ -43,13 +50,25 @@ def assert_sandbox(alias: str) -> str:
             raise SystemExit("[FATAL] target-org が設定されていません。--alias を指定してください。")
 
     result = subprocess.run(
-        ["sf", "org", "display", "--target-org", alias, "--json"],
-        capture_output=True, text=True
+        [SF_BIN, "org", "display", "--target-org", alias, "--json"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     try:
         org_info = json.loads(result.stdout)["result"]
-        is_sandbox = org_info.get("isSandbox", False)
-    except (json.JSONDecodeError, KeyError):
+        if "isSandbox" in org_info:
+            is_sandbox = org_info.get("isSandbox", False)
+        else:
+            # 一部の sf CLI バージョンは org display の JSON に isSandbox を
+            # 含めない。その場合は Organization.IsSandbox を直接 SOQL で確認する
+            # （本番誤操作防止のフォールバック。記憶・楽観判定はしない）。
+            q = subprocess.run(
+                [SF_BIN, "data", "query", "--target-org", alias,
+                 "--query", "SELECT IsSandbox FROM Organization", "--result-format", "json"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
+            q_data = json.loads(q.stdout)
+            is_sandbox = q_data["result"]["records"][0]["IsSandbox"]
+    except (json.JSONDecodeError, KeyError, IndexError):
         raise SystemExit(f"[FATAL] org display 失敗 ({alias}). Sandbox 接続確認ができません。")
 
     if not is_sandbox:
@@ -65,9 +84,9 @@ def assert_sandbox(alias: str) -> str:
 def run_soql(alias: str, query: str) -> dict:
     """sf data query を実行して JSON 結果を返す。エラー時は SystemExit。"""
     result = subprocess.run(
-        ["sf", "data", "query", "--target-org", alias, "--query", query,
+        [SF_BIN, "data", "query", "--target-org", alias, "--query", query,
          "--result-format", "json"],
-        capture_output=True, text=True
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     try:
         data = json.loads(result.stdout)

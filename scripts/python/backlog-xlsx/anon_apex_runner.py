@@ -23,9 +23,16 @@ import json
 import os
 import re
 import subprocess
+import shutil
 import sys
 import tempfile
 from pathlib import Path
+
+
+# sf CLI のフルパス解決（Windows で "sf" が .CMD の場合、shell=False の
+# subprocess.run は PATHEXT を自動解決せず FileNotFoundError になるため、
+# shutil.which で解決したフルパスを使う（クロスプラットフォームで安全）。
+SF_BIN = shutil.which("sf") or "sf"
 
 
 # ── sandbox 判定（soql_evidence.py と同一ロジック） ────────────────────────
@@ -34,8 +41,8 @@ def assert_sandbox(alias: str) -> str:
     """alias が Sandbox であることを確認する。本番なら SystemExit。確定した alias を返す。"""
     if not alias:
         result = subprocess.run(
-            ["sf", "config", "get", "target-org", "--json"],
-            capture_output=True, text=True
+            [SF_BIN, "config", "get", "target-org", "--json"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         try:
             alias = json.loads(result.stdout)["result"][0]["value"]
@@ -45,13 +52,25 @@ def assert_sandbox(alias: str) -> str:
             raise SystemExit("[FATAL] target-org が設定されていません。--alias を指定してください。")
 
     result = subprocess.run(
-        ["sf", "org", "display", "--target-org", alias, "--json"],
-        capture_output=True, text=True
+        [SF_BIN, "org", "display", "--target-org", alias, "--json"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     try:
         org_info = json.loads(result.stdout)["result"]
-        is_sandbox = org_info.get("isSandbox", False)
-    except (json.JSONDecodeError, KeyError):
+        if "isSandbox" in org_info:
+            is_sandbox = org_info.get("isSandbox", False)
+        else:
+            # 一部の sf CLI バージョンは org display の JSON に isSandbox を
+            # 含めない。その場合は Organization.IsSandbox を直接 SOQL で確認する
+            # （本番誤操作防止のフォールバック。記憶・楽観判定はしない）。
+            q = subprocess.run(
+                [SF_BIN, "data", "query", "--target-org", alias,
+                 "--query", "SELECT IsSandbox FROM Organization", "--result-format", "json"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
+            q_data = json.loads(q.stdout)
+            is_sandbox = q_data["result"]["records"][0]["IsSandbox"]
+    except (json.JSONDecodeError, KeyError, IndexError):
         raise SystemExit(f"[FATAL] org display 失敗 ({alias}). Sandbox 確認ができません。")
 
     if not is_sandbox:
@@ -67,8 +86,8 @@ def assert_sandbox(alias: str) -> str:
 def run_anonymous(alias: str, apex_file: str) -> dict:
     """sf apex run --file を実行し JSON 結果を返す。失敗時は SystemExit。"""
     result = subprocess.run(
-        ["sf", "apex", "run", "--target-org", alias, "--file", apex_file, "--json"],
-        capture_output=True, text=True
+        [SF_BIN, "apex", "run", "--target-org", alias, "--file", apex_file, "--json"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     try:
         data = json.loads(result.stdout)
@@ -76,6 +95,12 @@ def run_anonymous(alias: str, apex_file: str) -> dict:
         raise SystemExit(
             f"[FATAL] Apex run レスポンスの JSON パース失敗:\n{result.stdout[:500]}"
         )
+
+    # sf CLI は成功時 {"status":0,"result":{...}} だが、実行時例外・コンパイルエラー時は
+    # {"name":...,"exitCode":1,"data":{...}} という別形状の JSON を返すことがある。
+    # 両方を正規化して同じ dict 構造（{"result": {...}}）に揃える。
+    if "result" not in data and "data" in data:
+        data = {"result": data["data"]}
 
     # status 非 0 またはコンパイルエラー
     apex_result = data.get("result", {})
@@ -143,9 +168,9 @@ def collect_created_ids(alias: str, sobject: str, external_id_prefix: str) -> li
         f"SELECT Id FROM {sobject} WHERE Name LIKE '{external_id_prefix}%' LIMIT 200"
     )
     result = subprocess.run(
-        ["sf", "data", "query", "--target-org", alias, "--query", query,
+        [SF_BIN, "data", "query", "--target-org", alias, "--query", query,
          "--result-format", "json"],
-        capture_output=True, text=True
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     try:
         data = json.loads(result.stdout)
@@ -187,8 +212,8 @@ def cleanup_records(alias: str, sobject: str, ids: list) -> dict:
             apex_path = f.name
 
         result = subprocess.run(
-            ["sf", "apex", "run", "--target-org", alias, "--file", apex_path, "--json"],
-            capture_output=True, text=True
+            [SF_BIN, "apex", "run", "--target-org", alias, "--file", apex_path, "--json"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         data = json.loads(result.stdout)
         apex_result = data.get("result", {})
