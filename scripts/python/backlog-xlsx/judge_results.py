@@ -88,21 +88,28 @@ def parse_test_spec(spec_path: str) -> list:
 
 # ── 証跡ファイル探索 ────────────────────────────────────────────────────────
 
+# 種別別サブディレクトリ（複合種別 "AnonApex + SOQL" 等にも対応）
+_SHUBETSU_SUBDIR = {
+    "SOQL": "soql",
+    "AnonApex": "apex",
+    "UI": "screen",
+    "メタ確認": "meta",
+    "ファイル確認": "meta",
+}
+
+# サブディレクトリ → 種別ラベル群（meta は複数ラベルが乗るため list）
+_SUBDIR_SHUBETSU_LABELS: dict = {}
+for _label, _subdir in _SHUBETSU_SUBDIR.items():
+    _SUBDIR_SHUBETSU_LABELS.setdefault(_subdir, []).append(_label)
+
+
 def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
     """証跡ディレクトリから TC-001 に対応する全ファイルを返す（複数証跡・分岐ラベル対応）。"""
-    # 種別別サブディレクトリ（複合種別 "AnonApex + SOQL" 等にも対応）
-    subdir_map = {
-        "SOQL": "soql",
-        "AnonApex": "apex",
-        "UI": "screen",
-        "メタ確認": "meta",
-        "ファイル確認": "meta",
-    }
     # " + " で分割して各サブディレクトリを収集（重複なし・順序維持）
     subdirs_ordered = []
     seen_subdirs: set = set()
     for part in re.split(r'\s*\+\s*', shubetsu):
-        sd = subdir_map.get(part.strip(), "")
+        sd = _SHUBETSU_SUBDIR.get(part.strip(), "")
         if sd and sd not in seen_subdirs:
             seen_subdirs.add(sd)
             subdirs_ordered.append(sd)
@@ -209,6 +216,27 @@ def _parse_positive_anchor(kiki: str):
     return None, None
 
 
+def _parse_kiki_by_shubetsu(kiki: str) -> dict:
+    """期待結果が種別ラベル（UI/SOQL/AnonApex/メタ確認/ファイル確認）ごとに "/" 区切りで
+    書き分けられている場合、種別→期待値の dict を返す。
+    例: "UI:取引は開始されています / SOQL:3件" → {"UI": "取引は開始されています", "SOQL": "3件"}
+    複合種別（例 "UI + SOQL"）の TC で証跡ごとに期待値が異なる場合に使う（test-spec-builder.md 参照）。
+    セグメントが1つしかない、またはラベル形式に一致しないセグメントが混じる場合は {} を返し、
+    従来どおり kiki 全文を全証跡に共通適用させる（後方互換）。
+    """
+    segments = [s.strip() for s in kiki.split("/")]
+    if len(segments) < 2:
+        return {}
+    labels = "|".join(re.escape(l) for l in _SHUBETSU_SUBDIR)
+    parsed = {}
+    for seg in segments:
+        m = re.match(rf"^({labels})\s*[:：]\s*(.+)$", seg)
+        if not m:
+            return {}
+        parsed[m.group(1)] = m.group(2).strip()
+    return parsed
+
+
 def _is_blank_dom(text: str) -> bool:
     """DOM スナップショットが空撮り（前提データ未成立等で画面がほぼ空白）の疑いがあるかを判定する。"""
     return len(re.sub(r"\s+", "", text or "")) < _BLANK_DOM_CHAR_THRESHOLD
@@ -245,6 +273,30 @@ def _detect_sf_error(text: str, kiki: str) -> str:
     return ""
 
 
+def _validate_png(path: str) -> tuple:
+    """PNGとして実際にデコード可能か検証する。
+
+    サイズチェックのみでは、Playwright の screenshot を経由せず文字列生成だけで
+    「1000バイト以上のダミーファイル」を作っても素通りしてしまう。ここで PIL に
+    よる実デコードを通すことで、本物の画像データではないファイル（捏造・破損）を
+    機械的に弾く（DOM内容照合と並ぶ「実際に画面操作で撮影されたか」の最終ガード）。
+    """
+    try:
+        from PIL import Image as PILImage
+    except ImportError:
+        return True, "PIL未導入のため画像検証スキップ"
+    try:
+        with PILImage.open(path) as img:
+            img.verify()
+        with PILImage.open(path) as img:
+            w, h = img.size
+        if w < 50 or h < 50:
+            return False, f"画像サイズが異常に小さい ({w}x{h})"
+        return True, f"{w}x{h}"
+    except Exception as e:
+        return False, f"PNGとしてデコード不可（{e}）"
+
+
 def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: str) -> dict:
     """1証跡ファイルを判定し {"ok": bool|None, "actual": str, "reason": str} を返す。"""
 
@@ -253,6 +305,11 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         size = os.path.getsize(evidence_path)
         if size < 1000:
             return {"ok": False, "actual": f"スクショあり ({size}B・小さすぎる)", "reason": "PNG が不正に小さい"}
+        png_valid, png_note = _validate_png(evidence_path)
+        if not png_valid:
+            return {"ok": False, "actual": f"PNG不正（{png_note}）",
+                    "reason": "PNGファイルが正しい画像として開けません。Playwright の screenshot で実際に撮影されたか確認してください",
+                    "ng_type": "証跡不正"}
         # 同名の .txt（DOMスナップショット）を探す
         snap_path = re.sub(r'\.png$', '.txt', evidence_path, flags=re.IGNORECASE)
         if os.path.exists(snap_path):
@@ -548,17 +605,32 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
         after_txts = [f for f in all_files if f.lower().endswith(".txt")]
         return _judge_transition(tc, after_txts, evidence_dir)
 
-    # PNG と txt を分ける: PNG がある場合は PNG で判定（内部で snap.txt を参照）
-    # PNG が無く txt のみの場合は txt で判定
+    # PNG は内部で同名の .txt（DOM スナップショット）を参照して判定するため、
+    # そのペア txt は除外する。ただしそれ以外の txt（複合種別 "UI + SOQL" 等で
+    # PNG と共存する SOQL/AnonApex 証跡）は取りこぼさず判定対象に加える
+    # （旧: PNG があれば txt を丸ごと除外しており、共存する他種別の証跡が無評価のまま
+    # AND 判定から漏れていた）
     png_files = [f for f in all_files if f.lower().endswith(".png")]
     txt_files = [f for f in all_files if f.lower().endswith(".txt")]
+    paired_txt = {re.sub(r'\.png$', '.txt', p, flags=re.IGNORECASE) for p in png_files}
+    extra_txt_files = [f for f in txt_files if f not in paired_txt]
+    judge_targets = png_files + extra_txt_files
 
-    # PNG + DOM ペア判定（UI 証跡の場合）
-    judge_targets = png_files if png_files else txt_files
+    # 複合種別で証跡ごとに期待値が異なる場合（例: "UI:xxx / SOQL:yyy"）は種別別に振り分ける。
+    # 通常の単一期待結果（分岐ラベル "→" 形式含む）は {} が返り、従来どおり kiki 全文を共通適用する。
+    kiki_by_shubetsu = _parse_kiki_by_shubetsu(kiki)
 
     results = []
     for fpath in judge_targets:
-        r = judge_single_evidence(fpath, kiki, judge_method, no)
+        kiki_for_file = kiki
+        if kiki_by_shubetsu:
+            dirname = os.path.basename(os.path.dirname(fpath))
+            candidate_labels = _SUBDIR_SHUBETSU_LABELS.get(dirname, [])
+            matched = next((kiki_by_shubetsu[l] for l in candidate_labels if l in kiki_by_shubetsu), None)
+            # 種別ラベルが特定できない/kiki 側に該当ラベルが無い証跡は、無関係な他種別の
+            # 期待値を誤適用しないよう空文字（＝判定ヘッダのみで判定）にフォールバックする
+            kiki_for_file = matched if matched is not None else ""
+        r = judge_single_evidence(fpath, kiki_for_file, judge_method, no)
         results.append(r)
 
     if not results:
