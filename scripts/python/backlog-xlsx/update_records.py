@@ -94,6 +94,66 @@ def _copy_font(src_font):
     )
 
 
+def _shift_rows_down(ws, start_row, n):
+    """start_row 以降の全行（値・書式・結合範囲）を n 行下にシフトする。
+
+    openpyxl の insert_rows() は結合セル範囲を追従させないため、
+    後続セクション（■ NG対応履歴 等）を巻き込む場合はこちらを使う。
+    """
+    max_row = ws.max_row
+    max_col = ws.max_column
+
+    merges = [
+        (m.min_row, m.min_col, m.max_row, m.max_col)
+        for m in list(ws.merged_cells.ranges)
+        if m.min_row >= start_row
+    ]
+    for (r1, c1, r2, c2) in merges:
+        ws.unmerge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
+
+    for r in range(max_row, start_row - 1, -1):
+        for c in range(1, max_col + 1):
+            src = ws.cell(r, c)
+            dst = ws.cell(r + n, c)
+            dst.value = src.value
+            dst.font = copy.copy(src.font)
+            dst.alignment = copy.copy(src.alignment)
+            dst.fill = copy.copy(src.fill)
+            dst.border = copy.copy(src.border)
+            dst.number_format = src.number_format
+
+    for r in range(start_row, start_row + n):
+        for c in range(1, max_col + 1):
+            ws.cell(r, c).value = None
+
+    for (r1, c1, r2, c2) in merges:
+        ws.merge_cells(start_row=r1 + n, start_column=c1, end_row=r2 + n, end_column=c2)
+
+
+def _reserve_ba_rows(ws, next_row):
+    """Before/After 用に next_row から3行分、A:D 結合済みの空き領域を確保して先頭行を返す。
+
+    テンプレートの予約済み結合行（空）ならそのまま再利用する。
+    埋まっている・未結合の場合は後続セクションを3行分押し下げてから新規結合する
+    （2件目以降のファイルで非結合行・他セクションを巻き込む問題への対処）。
+    """
+    rows = (next_row, next_row + 1, next_row + 2)
+
+    def _is_merged_block(r):
+        return any(
+            m.min_row == r and m.max_row == r and m.min_col == 1 and m.max_col == 4
+            for m in ws.merged_cells.ranges
+        )
+
+    if all(_is_merged_block(r) for r in rows) and all(ws.cell(r, 1).value is None for r in rows):
+        return next_row
+
+    _shift_rows_down(ws, next_row, 3)
+    for r in rows:
+        ws.merge_cells(f"A{r}:D{r}")
+    return next_row
+
+
 def cmd_timeline(args, wb):
     """課題と対応方針 シートのタイムラインに1行追加する"""
     sheet_name = "課題と対応方針"
@@ -197,6 +257,7 @@ def cmd_before_after(args, wb):
 
     # Before/After セクションの次の空行を探す
     next_row = find_next_empty_row(ws, col=1, start_row=ba_header + 1)
+    next_row = _reserve_ba_rows(ws, next_row)
 
     def _write_cell_1(row, text, bold=False):
         """テンプレートの A:D マージ行にも対応した col 1 書き込み。"""
@@ -446,6 +507,7 @@ def cmd_content_from_md(args, wb):
             after  = row_data.get("After", "")
             if not file_:
                 continue
+            next_row = _reserve_ba_rows(ws, next_row)
             from openpyxl.styles import Font as _Font
             ws.cell(next_row,     1, value=f"【{file_}】").alignment = WRAP
             ws.cell(next_row,     1).font = _Font(name="游ゴシック", size=10, bold=True)
