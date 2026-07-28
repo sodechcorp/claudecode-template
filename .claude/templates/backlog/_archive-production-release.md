@@ -1,6 +1,6 @@
 # 本番リリース手順書テンプレート（アーカイブ）
 
-> **ステータス**: /backlog Phase 6 から除去済み（2025-06以降）。**`/release`（`release-preparer`）Phase 5 が本テンプレートを参照して `docs/logs/{issueID}/release-plan.md` を生成する**（正本はこのファイル。release-preparer.md 側でテンプレート構造を再利用）。
+> **ステータス**: /backlog Phase 6 から除去済み（2025-06以降）。**現在の正本は `release-preparer.md` Phase 5**（`--test-level` 判定ロジック含め、以後独自に更新されており本ファイルとは乖離している）。本ファイルは初期版の構造を残す資産保全先であり、実行時にはどのエージェントからも参照されない（下記の `RunLocalTests` 固定は当時の仕様のまま・現行仕様ではない）。
 > このファイルは資産の保全先。削除禁止。
 
 ---

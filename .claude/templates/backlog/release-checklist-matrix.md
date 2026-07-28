@@ -15,7 +15,7 @@
 - [ ] Sandbox でのテスト完了（`test-report.md` の総合判定が PASS）
 - [ ] `/test` の詳細証跡取得済み（`evidence/` に before/after が揃っている）
 - [ ] デプロイ対象資材の確定（Phase 1 資材マニフェストと git diff が一致）
-- [ ] `--test-level` の決定（Apex クラス・トリガーの含有有無で `RunLocalTests` / `NoTestRun` を判定済み。固定で `RunLocalTests` にしない）
+- [ ] `--test-level` の決定（Apex 含有 かつ 全対象クラスに専用テストクラス特定済み → `RunSpecifiedTests`（デフォルト）／ Apex 含有だが専用テストクラス不在 → `RunLocalTests` フォールバック／ Apex 非含有 → `NoTestRun`。固定で `RunLocalTests` にしない。判定ロジック: release-preparer.md Phase 1/5）
 - [ ] デプロイ元が `force-app` 本体であることの確認（バックアップ/マージ用フォルダを `--source-dir` に指定していない）
 - [ ] デプロイ順序の確認（Phase 1 の依存関係判定。分割要ならその順序）
 - [ ] 影響範囲の確認（Phase 2 の各 option 結果にリリースを止める要素がない）
@@ -32,11 +32,11 @@
 
 > **注意**: コマンドは常に1行で実行する（bash の `\` 行継続は PowerShell では動作しない）。`--source-dir` は必ず `force-app` 本体を指す。競合解消用のバックアップ/マージ用フォルダをそのままデプロイ元に指定しない。
 
-> **`--test-level` は資材マニフェストの Apex 含有有無で決める（固定で `RunLocalTests` にしない）**: Apex クラス・トリガーを1件でも含む場合のみ `RunLocalTests`（本番デプロイの必須要件・`NoTestRun` 使用不可）。含まない場合（Flow・LWC・オブジェクト・レイアウト等のみ）は `NoTestRun`（Salesforce 仕様上テスト不要。`RunLocalTests` を指定すると今回の変更と無関係な既存テストの失敗でリリースがブロックされる）。
+> **`--test-level` は資材マニフェストの Apex 含有有無 + 専用テストクラスの特定有無で決める（固定で `RunLocalTests` にしない）**: Apex クラス・トリガーを1件でも含み、かつ全対象クラスに専用テストクラスを特定できた場合は **`RunSpecifiedTests`（デフォルト）** ＋ 対象テストクラスを `--tests` で列挙（Salesforce 仕様上カバレッジ要件がデプロイ対象クラス単位で完結し、無関係な既存テストの合否を問わない）。専用テストクラスが1件でも見つからない場合のみ `RunLocalTests` にフォールバック（本番デプロイの必須要件・`NoTestRun` 使用不可。この場合のみ、今回の変更と無関係な既存テストの失敗でリリースがブロックされうる＝本番テスト負債として切り分ける）。Apex を含まない場合（Flow・LWC・オブジェクト・レイアウト等のみ）は `NoTestRun`（Salesforce 仕様上テスト不要）。判定ロジック詳細: release-preparer.md Phase 1/5。
 
 1. **直前記録**: `git log -1 --pretty=format:'%H'` でロールバック用コミットハッシュを記録する
-2. **dry-run（必須）**: `sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level <上記判定に従い RunLocalTests または NoTestRun>` で 0 errors を確認
-3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` は dry-run と同じ値を使う）
+2. **dry-run（必須）**: `sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests/NoTestRun>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加）で 0 errors を確認
+3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）
 4. **デプロイ順序**: 一括不可の場合は Phase 1 の依存順序（構造 → ロジック → UI → 自動化 → 権限 → レイアウト）で分割実行
 5. **結果確認**: `sf project deploy report --target-org <本番エイリアス>` で成功を確認
 6. **管理画面手動操作**: ソースデプロイ対象外の資材（Phase 1 で分離したもの）があれば、手順書の管理画面操作セクションに従って実施

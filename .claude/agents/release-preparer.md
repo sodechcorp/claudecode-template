@@ -71,6 +71,11 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 3. [option-deployment-dependency-check.md](../templates/backlog/options/option-deployment-dependency-check.md) を実施し、デプロイ順序・一括可否を判定する
 4. [deploy-skip-judgment.md](../templates/backlog/deploy-skip-judgment.md) の考え方を適用し、ソースデプロイ不可・管理画面手動操作が必要な資材があれば分離して記録する
 5. **デプロイ元は常に `force-app` 本体**。他チケットとの競合解消やマージ検証のためにバックアップ/作業用フォルダ（例: `.release-backup/{issueID}/...`）を作った場合でも、そこを `release-plan.md` の `--source-dir` に指定しない。競合解消後の変更は必ず `force-app` にマージしてから 1. の diff 抽出・Phase 5 のデプロイコマンドに反映する（`force-app` 外のフォルダは source-tracking・metadata 構造の前提を満たさず `NothingToDeploy` 等の予期しないエラーを招く）
+6. **`apex_in_scope: true` の場合、`--test-level` 判定用にテストクラスを確定する**（目的: 無関係な既存テストを全件実行する `RunLocalTests` を既定にせず、Salesforce 公式仕様上カバレッジ要件が「デプロイ対象クラス単位」で完結する `RunSpecifiedTests` をデフォルトにするため。根拠: RunSpecifiedTests は対象クラス/トリガーごとに個別カバレッジ75%が要件で無関係な既存テストの合否を問わないが、RunLocalTests は組織内の全ローカルテストの実行・合格が要件になる）:
+   - デプロイ対象の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`）で専用テストクラスを Glob/Grep で特定する
+   - `docs/logs/{issueID}/investigation.md` の「## 既存テストクラスへの影響」（option-test-class-impact.md が Phase 2 で作成済みの場合）に追加で挙がっているテストクラスがあれば取り込む
+   - 全デプロイ対象クラスに専用テストクラスが見つかった場合 → `test_coverage_risk: false`、特定したテストクラス一覧を `target_test_classes` として記録
+   - 1件でも専用テストクラスが見つからない場合 → `test_coverage_risk: true`、該当クラス名を記録（Phase 5 で `RunLocalTests` フォールバックの根拠にする）
 
 ## Phase 2: 影響範囲の最終確認
 
@@ -155,29 +160,37 @@ ROLLBACK_COMMIT_HASH: （未記録—デプロイ直前に記録する）
 
 {matrix §B の実行手順}
 
-**`--test-level` の決定（Phase 1 で判定した `apex_in_scope` に基づく。固定で `RunLocalTests` にしない）**:
-- `apex_in_scope: true`（Apex クラス・トリガーを1件でも含む）→ `--test-level RunLocalTests`（本番デプロイの必須要件。Apex を含む場合 `NoTestRun` は使用不可）
-- `apex_in_scope: false`（Flow・LWC・オブジェクト・レイアウト等のみで Apex を含まない）→ `--test-level NoTestRun`（Salesforce 仕様上 Apex を含まないデプロイにテスト実行は不要。`RunLocalTests` を指定すると今回の変更と無関係な既存テストが全件実行され、無関係な失敗でリリースがブロックされる）
+**`--test-level` の決定（Phase 1 で判定した `apex_in_scope` / `test_coverage_risk` / `target_test_classes` に基づく。固定で `RunLocalTests` にしない）**:
 
-**今回の判定: {apex_in_scope の値と種別根拠（含まれる Apex クラス/トリガー名、または「Apex クラス・トリガーは資材マニフェストに含まれない」）を明記した上で `--test-level` を確定し、以下 `{test_level}` に反映する}**
+Salesforce はテストレベルによってカバレッジ計算方式が異なる。`RunSpecifiedTests` は**デプロイ対象クラス/トリガーごとの個別カバレッジ75%**が要件で無関係な既存テストの合否を問わない。`RunLocalTests` は**組織内の全ローカルテストの実行・合格**が要件になるため、今回の変更と無関係な既存テストクラスが1件でも壊れていると本番デプロイ全体がブロックされる。この違いを使い、無関係なテスト実行を避けるのが既定方針:
+
+- `apex_in_scope: false`（Flow・LWC・オブジェクト・レイアウト等のみで Apex を含まない）→ `--test-level NoTestRun`（Salesforce 仕様上テスト実行は不要）
+- `apex_in_scope: true` かつ `test_coverage_risk: false`（デプロイ対象の全 Apex クラス/トリガーに専用テストクラスを特定済み）→ **`--test-level RunSpecifiedTests`（デフォルト）** + `target_test_classes` を `--tests` で列挙。無関係な既存テストクラスは実行対象に含まれないため合否に影響しない
+- `apex_in_scope: true` かつ `test_coverage_risk: true`（デプロイ対象の一部 Apex クラス/トリガーに専用テストクラスが見つからない）→ `--test-level RunLocalTests` にフォールバック（該当クラス名を明記。専用テストクラス不在のままでは `RunSpecifiedTests` で対象クラスのカバレッジ75%を満たせない可能性が高いため）。release-plan.md に「{クラス名} の専用テストクラスが見つからないため RunLocalTests にフォールバック。次回リリースを RunSpecifiedTests 化するには専用テストクラス追加を検討」と記録する
+
+**今回の判定: {apex_in_scope / test_coverage_risk の値と根拠（含まれる Apex クラス/トリガー名、対応する target_test_classes、または test_coverage_risk の理由）を明記した上で `--test-level` と `{tests_flag}` を確定する}**
 
 ```bash
 # Step 1: 直前記録
 git log -1 --pretty=format:'%H'    # ← ROLLBACK_COMMIT_HASH に記録
 
 # Step 2: dry-run で事前確認（必須）
-sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level {test_level}
+sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level {test_level}{tests_flag}
 
 # Step 3: 本番デプロイ（dry-run 0 errors 確認後に実行）
-sf project deploy start --source-dir force-app --target-org <本番エイリアス> --test-level {test_level}
+sf project deploy start --source-dir force-app --target-org <本番エイリアス> --test-level {test_level}{tests_flag}
 
 # Step 4: デプロイ結果確認
 sf project deploy report --target-org <本番エイリアス>
 ```
 
+> `{tests_flag}`: `--test-level RunSpecifiedTests` の場合のみ `--tests {クラス1} --tests {クラス2} ...`（`target_test_classes` を1つずつ `--tests` で列挙）を付与する。`RunLocalTests` / `NoTestRun` では付与しない。
+
 > **実行時の注意**: 各コマンドは1行のまま実行する（bash 風の `\` 行継続は PowerShell では動作しない）。`--source-dir` は必ず `force-app`。他チケットとの競合解消用に作ったバックアップ/マージ用フォルダを直接指定しない（force-app へマージ済みであることを確認してから実行する）。
 
-> **`apex_in_scope: true` で dry-run/デプロイが今回の変更と無関係なテストで失敗した場合**: 失敗したテストクラスが対象とするオブジェクト/クラスが Phase 1 資材マニフェストに含まれるか確認する。含まれていなければ既存の本番テスト負債（今回のリリースが壊したものではない）である可能性が高い。`RunLocalTests` は失敗テストの関連有無を問わず全体を Failed にするため、この場合でも回避はできない。release-plan.md に「本番テスト負債（今回のリリース対象外・別途是正要）」として原因テストクラス一覧を記録し、是正を別課題として提起するかを人間に確認する（`RunSpecifiedTests` への切り替え可否も含め推測で自動選択しない）
+> **dry-run/デプロイが失敗した場合の切り分け**:
+> - **`RunSpecifiedTests` 使用時にデプロイ対象クラスのカバレッジ不足で失敗**: `target_test_classes` が対象クラスを実際にどれだけ網羅しているか確認し、テストケース追加または関連テストクラスの追加指定を検討する。無関係テストの合否は要件外のため、原因は必ず「今回のデプロイ対象クラスのカバレッジ不足」に絞られる
+> - **`RunLocalTests` にフォールバックした場合に無関係な既存テストが失敗**: 失敗したテストクラスが対象とするオブジェクト/クラスが Phase 1 資材マニフェストに含まれるか確認する。含まれていなければ既存の本番テスト負債（今回のリリースが壊したものではない）である可能性が高い。release-plan.md に「本番テスト負債（今回のリリース対象外・別途是正要）」として原因テストクラス一覧を記録し、是正を別課題として提起するかを人間に確認する。あわせて該当クラスに専用テストクラスを追加し次回以降 `RunSpecifiedTests` に切り替えられないか検討する
 
 {デプロイ順序が分割要の場合は Phase 1 の順序をここに明記。管理画面手動操作がある場合は操作手順を記載}
 
@@ -218,7 +231,7 @@ sf project deploy report --target-org <本番エイリアス>
 
 ### サマリー
 - リリース対象: {N} 件のコンポーネント
-- --test-level: {test_level}（判定根拠: apex_in_scope={true/false}）
+- --test-level: {test_level}（判定根拠: apex_in_scope={true/false}, test_coverage_risk={true/false}）
 - 影響範囲: {概要}
 - チケット競合: なし / あり（{issueID} を確認してください）
 - 本番環境ドリフト: なし / あり（{詳細}） / 未実施（接続情報なし）
