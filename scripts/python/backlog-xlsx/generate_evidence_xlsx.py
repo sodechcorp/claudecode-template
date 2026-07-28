@@ -82,6 +82,7 @@ HDR_FONT    = _font(fg="FFFFFF", bold=True, size=10)
 OK_FILL     = PatternFill("solid", fgColor="C6EFCE")   # 緑
 NG_FILL     = PatternFill("solid", fgColor="FFC7CE")   # 赤
 MANUAL_FILL = PatternFill("solid", fgColor="FFEB9C")   # 黄（要手動）
+TAIGAIGAI_FILL = PatternFill("solid", fgColor="D9D9D9") # 灰（対象外・検証不能）
 EVIDENCE_BG = PatternFill("solid", fgColor="FFF3CD")   # エビデンス枠
 LIGHT_BLUE  = PatternFill("solid", fgColor="D6E4F7")   # サブヘッダー
 WHITE       = PatternFill("solid", fgColor="FFFFFF")
@@ -443,7 +444,7 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
         ■ TC-003: ②I-797「いいえ」で専用相談メッセージのみ表示（UI）
           確認観点: {確認ポイント（着眼点）or 導出文}
           確認箇所: {スクショの赤枠／テキストの赤字部分のどちらを見ればよいか}
-          判定   : {判定方法}  ✅OK / ❌NG / ⬜要手動
+          判定   : {判定方法}  ✅OK / ❌NG / ⬜要手動 / ▲対象外
 
     重複排除: 期待結果・判定方法の独立行は廃止（テスト結果シートと test-spec.md に既出のため）。
     「確認箇所」行は、何のテスト・何のためのエビデンスかを示す「確認観点」に対し、
@@ -462,6 +463,9 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
     elif status == "NG":
         judge_icon = "❌ NG"
         judge_fill = NG_FILL
+    elif status == "対象外":
+        judge_icon = "▲ 対象外"
+        judge_fill = TAIGAIGAI_FILL
     else:
         judge_icon = "⬜ 要手動"
         judge_fill = MANUAL_FILL
@@ -638,11 +642,12 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
         kiki = tc.get("期待結果", "")
         auto = tc.get("自動化可否", "自動").strip()
         is_manual = "要手動" in auto
+        is_taigaigai = "対象外" in auto
 
         # 最新回次の判定結果から実際の結果・ステータスを取得
         j_result = judgment.get(no, {})
         actual = j_result.get("actual", "")
-        status = j_result.get("status", "SKIP" if is_manual else "")
+        status = j_result.get("status", "対象外" if is_taigaigai else ("SKIP" if is_manual else ""))
 
         # 判定セルの表示と色
         if status == "OK":
@@ -651,6 +656,9 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
         elif status == "NG":
             judge_text = "❌ NG"
             row_fill = NG_FILL
+        elif status == "対象外":
+            judge_text = "▲ 対象外"
+            row_fill = TAIGAIGAI_FILL
         else:
             judge_text = "⬜ 要手動"
             row_fill = MANUAL_FILL
@@ -675,6 +683,8 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
                 round_vals.append("✅")
             elif rs == "NG":
                 round_vals.append("❌")
+            elif rs == "対象外":
+                round_vals.append("▲")
             else:
                 round_vals.append("⬜")
         right_vals = [actual, judge_text, ng_action, "→証跡"]
@@ -700,7 +710,8 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
                 c.alignment = CENTER_MID
                 c.font = _font(size=9)
                 c.fill = (OK_FILL if rs == "OK" else
-                          NG_FILL if rs == "NG" else MANUAL_FILL)
+                          NG_FILL if rs == "NG" else
+                          TAIGAIGAI_FILL if rs == "対象外" else MANUAL_FILL)
             elif j_col == col_judge:
                 # 判定列: 中央揃え・太字
                 c.alignment = CENTER_MID
@@ -808,6 +819,7 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
         shubetsu = tc.get("種別", "")
         auto = tc.get("自動化可否", "自動").strip()
         is_manual = "要手動" in auto
+        is_taigaigai = "対象外" in auto
 
         # 複数証跡ファイルを全件取得（judgment 正本→索引引きの二段構え）
         all_evidence = find_evidence_files(evidence_dir, no, shubetsu, judgment, index=evidence_index)
@@ -840,6 +852,19 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
             inst.alignment = _align("center", "center", wrap=False)
             inst.font = _font(fg="888888", italic=True)
             row_ptr = paste_bottom + 2
+
+        elif is_taigaigai:
+            # 対象外: 証跡取得自体を試みていないため「証跡ファイルなし」の警告表示にはせず、
+            # 理由（judgment の reason。無ければ actual）のみを明記する。
+            reason = judgment_entry.get("reason", "") or judgment_entry.get("actual", "対象外")
+            ws.merge_cells(start_row=row_ptr, start_column=1, end_row=row_ptr, end_column=2)
+            c = ws.cell(row=row_ptr, column=1,
+                        value=f"▲ 対象外（今回のテストでは検証不能） — {reason}")
+            c.fill = TAIGAIGAI_FILL
+            c.font = _font()
+            c.alignment = WRAP
+            c.border = THIN_BORDER
+            row_ptr += 2
 
         elif not all_evidence:
             c = ws.cell(row_ptr, 2, "（証跡ファイルなし）")
@@ -1051,10 +1076,11 @@ def main():
     ok_count   = sum(1 for r in latest_judgment.values() if r.get("status") == "OK")
     ng_count   = sum(1 for r in latest_judgment.values() if r.get("status") == "NG")
     skip_count = sum(1 for r in latest_judgment.values() if r.get("status") == "SKIP")
+    taigaigai_count = sum(1 for r in latest_judgment.values() if r.get("status") == "対象外")
     round_labels = [lbl for lbl, _, _ in all_rounds_data]
 
     print(f"生成完了: {out_path}")
-    print(f"  テストケース: {len(test_cases)} 件 (OK={ok_count} / NG={ng_count} / 要手動={skip_count})")
+    print(f"  テストケース: {len(test_cases)} 件 (OK={ok_count} / NG={ng_count} / 要手動={skip_count} / 対象外={taigaigai_count})")
     print(f"  回次: {len(all_rounds_data)} 回（{'・'.join(round_labels)}）")
     if not _PIL_OK:
         print("  ※ Pillow 未インストールのため PNG 自動貼付はスキップ。手動で貼り付けてください。")

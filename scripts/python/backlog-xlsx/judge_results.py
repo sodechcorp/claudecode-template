@@ -591,6 +591,14 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     if "要手動" in auto:
         return {"ok": None, "actual": "要手動確認", "reason": "自動化不可・ユーザー手動確認"}
 
+    # 対象外ケース: spec 上は自動化対象だったが、実行時に判明した正当な理由（前提状態の消失等）で
+    # 自動・手動を問わずそもそも検証手段が無いケース。「要手動」（人が後で確認すればいずれ検証
+    # できる）とは異なるため NG にも SKIP（要手動確認）にも倒さず、理由付きで独立集計する。
+    if "対象外" in auto:
+        m_reason = re.search(r"対象外\s*[（(](.+?)[）)]", auto)
+        reason = m_reason.group(1).strip() if m_reason else "理由未記載"
+        return {"ok": None, "actual": f"対象外（{reason}）", "reason": reason, "status_override": "対象外"}
+
     # 複数証跡を収集（evidence_dir が渡されていれば全ファイルを探す）
     if evidence_dir:
         all_files = find_evidence_files(evidence_dir, no, shubetsu)
@@ -703,6 +711,7 @@ def main():
     results = []
     ng_list = []
     skip_list = []
+    taigaigai_list = []
 
     for tc in test_cases:
         no = tc.get("No", "")
@@ -729,7 +738,11 @@ def main():
         reason = judgment["reason"]
         ng_type = judgment.get("ng_type", "")
 
-        if ok is None:
+        if judgment.get("status_override") == "対象外":
+            status = "対象外"
+            taigaigai_list.append({"no": no, "label": tc.get("観点", ""), "reason": reason})
+            xlsx_value = actual
+        elif ok is None:
             status = "SKIP"
             skip_list.append(no)
             xlsx_value = "要手動確認"
@@ -754,22 +767,25 @@ def main():
 
         # xlsx H 列更新: テスト・検証シートは廃止済みのため行わない（エビデンスはエビデンス.xlsx に集約）
 
-        icon = {"OK": "[OK]", "NG": "[NG]", "SKIP": "[--]"}[status]
+        icon = {"OK": "[OK]", "NG": "[NG]", "SKIP": "[--]", "対象外": "[NA]"}[status]
         print(f"{icon} {no}: {tc.get('観点', '')} → {actual}" + (f" ({reason})" if reason else ""))
 
     # サマリー
     ok_count = sum(1 for r in results if r["status"] == "OK")
     ng_count = len(ng_list)
     skip_count = len(skip_list)
-    print(f"\n判定サマリー: OK={ok_count} / NG={ng_count} / 要手動={skip_count} / 合計={len(results)}")
+    taigaigai_count = len(taigaigai_list)
+    print(f"\n判定サマリー: OK={ok_count} / NG={ng_count} / 要手動={skip_count} / 対象外={taigaigai_count} / 合計={len(results)}")
 
     output = {
         "ok": ok_count,
         "ng": ng_count,
         "skip": skip_count,
+        "taigaigai": taigaigai_count,
         "total": len(results),
         "ng_list": ng_list,
         "skip_list": skip_list,
+        "taigaigai_list": taigaigai_list,
         "results": results,
     }
 

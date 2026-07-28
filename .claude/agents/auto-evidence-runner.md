@@ -89,6 +89,23 @@ fi
 自動化可否ごとに仕分け:
 - `自動` → Step 2〜4 で自動実行
 - `要手動（理由）` → 証跡取得をスキップし、test-report.md の「要手動確認」欄に記録
+- `対象外（理由）` → 証跡取得をスキップし、test-report.md の「対象外（検証不能）」欄に記録（NG・要手動確認のいずれにも含めない）
+
+### 実行時に判明する「対象外」の扱い（Step 2〜4 共通）
+
+証跡採取を試みる中で、**前提状態が既に失われた等の理由で、この TC はどうやっても（自動でも手動でも）
+検証できない**と判明した場合のみ、以下を行う（濫用禁止のガード。実装バグ・API 呼び出し失敗・
+前提データ準備漏れ・一時的なエラーは対象外にせず、通常どおり証跡採取を試みて NG として扱う）:
+
+1. `{spec_path}`（test-spec.md）の該当 TC 行の `自動化可否` セルを `対象外（具体的理由）` に Edit する
+   （例: `対象外（デプロイ済みのため実装前の状態が再現不可能）`）
+2. その TC の証跡採取はスキップする（無理に採取を試み続けない）
+3. test-report.md の「対象外（検証不能）」欄に理由とともに記録する（Step 6 参照。NG 一覧・
+   要手動確認欄には含めない）
+
+**典型例**: 状態遷移（前後比較）の観点で、`/test` 実行時点では既に実装がデプロイ済みのため
+「実装前」の状態が物理的に再現できないと判明した場合（本来は `/backlog` Phase 3.5 の Before-only
+証跡採取〔`option-evidence-check.md`〕で採取すべきだったが未実施だったケース等）。
 
 **差分再実行モード**: `{target_tc_list}` が指定されている場合、リストに含まれない TC は Step 2〜5 をスキップし、既存の証跡ファイルをそのまま再利用する。空の場合は全件実行する。
 
@@ -221,12 +238,13 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 
 **生成元**: `{judgment_path}`（`judge_results.py` が Phase E で生成した `judgment-result.json`）。
 以下のキーを使って各列を組み立てる:
-- `results[].status` → 判定列（OK/NG/SKIP）・絵文字マッピング: OK=✅ / NG=❌ / SKIP=（要手動）
+- `results[].status` → 判定列（OK/NG/SKIP/対象外）・絵文字マッピング: OK=✅ / NG=❌ / SKIP=（要手動）/ 対象外=▲
 - `results[].actual` → 実際の結果列
 - `results[].label` + 種別は `{spec_path}` を照合して補完
 - `ng_list[].reason` → NG 一覧の理由
 - `skip_list` → 要手動確認テーブル（test-spec.md の観点・理由を補完）
-- `ok`/`ng`/`skip`/`total` → テスト実行サマリー
+- `taigaigai_list[].reason` → 対象外（検証不能）テーブルの理由
+- `ok`/`ng`/`skip`/`taigaigai`/`total` → テスト実行サマリー
 
 **目視ハンドオフブロックの組み立て**（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）:
 1. `{log_dir}/created_records.txt`（存在する場合）を Read し、各行 `{SObject}|{Id}|{Name}|{TC/仮説番号}` の `{SObject}`・`{Id}` を `{instance_url}/lightning/r/{SObject}/{Id}/view` に変換する（`{Name}`・`{TC/仮説番号}` は表の「確認対象」「対象TC」列にそのまま使う）
@@ -243,7 +261,7 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 - 実行日時: {YYYY-MM-DD HH:MM}
 - Sandbox alias: {alias}
 - テストケース合計: {total} 件
-- OK: {ok} 件 / NG: {ng} 件 / 要手動: {skip} 件
+- OK: {ok} 件 / NG: {ng} 件 / 要手動: {skip} 件 / 対象外: {taigaigai} 件
 - テスト実行回数: {N} 回目（NG 修正後の再実行回数）
 
 ### 自動実行結果
@@ -269,6 +287,16 @@ python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
 | TC-005 | ... | ... |
 
 エビデンス.xlsx「証跡」シートの該当ケース枠にスクリーンショットを貼り付けてください。操作手順は `{spec_path}` の該当 No「テスト手順」列（無ければ「前提・データ準備」＋「実行アクション」）を参照。要手動ケースは Claude がレコードを作成していない（外部サービス通信・本番限定データ・実時刻起動が理由のため）ので、下記「🔎 目視確認のご案内」には通常含まれない。
+
+### 対象外（検証不能）
+
+{taigaigai_count} 件が対象外です。前提状態の消失等により、自動・手動を問わず今回のテストでは検証する手段がありません（NG・要手動確認のいずれにも含めていません）。
+
+| No | 観点 | 対象外の理由 |
+|---|---|---|
+| TC-007 | ... | {reason} |
+
+`taigaigai_list` が空の場合は本節ごと省略する（空テーブルを出さない）。
 
 ### 網羅性チェック
 
