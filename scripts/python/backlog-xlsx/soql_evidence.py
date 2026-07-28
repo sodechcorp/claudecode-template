@@ -118,6 +118,11 @@ def to_text_evidence(data: dict, out_path: str, query: str, label: str = "", no:
     lines.append(f"クエリ  : {query}")
     lines.append(f"件数    : {total} 件")
     lines.append("=" * 60)
+    # judge_results.py の「含む」判定・F-5 照合は「実際の値:」セクション内のみを
+    # 検索スコープにする設計（test-pattern-map.md 参照）。このマーカーが無いと
+    # 上のクエリ文字列まで含めた全文検索にフォールバックし、期待値がクエリ文言に
+    # 偶然一致するだけで誤 OK になり得るため、レコード結果の直前に必ず置く。
+    lines.append("実際の値:")
 
     if records:
         # ヘッダー行

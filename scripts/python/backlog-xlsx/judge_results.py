@@ -499,8 +499,19 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
             "ng_type": "要確認"}
 
 
+def _strip_trailing_annotation(s: str) -> str:
+    """末尾の括弧書き注記（値本体とは別に書き手が添えた補足説明）を除去する。
+    例: "2026-07-18（連携先データも含む）" → "2026-07-18"。
+    証跡側にはこの補足説明までは出現しないため、除去しないと逐語照合が必ず
+    失敗する（偽NG）。値自体が括弧を含む場合（例: "ビザ申請料実費(立替費)"）は
+    除去後に残る本体部分がなお有効な照合キーとして機能するため副作用はない。
+    除去後に空文字になる場合（値全体が括弧書きだった場合）は元の文字列を返す。"""
+    stripped = re.sub(r"(?:\s*[（(][^（）()]*[）)])+\s*$", "", s).strip()
+    return stripped if stripped else s
+
+
 def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
-    """F-7: 状態遷移前後比較判定（判定方法に「前後比較」を含むケース専用）。
+    """F-7: 状態遷移前後比較判定(判定方法に「前後比較」を含むケース専用)。
     before/{No}_*.txt と after/{soql|apex|screen}/{No}_*.txt を突き合わせる。
     期待結果の形式: 「before:初期値 / after:変更後値」（例: before:未送信 / after:送信済）"""
     no = tc.get("No", "")
@@ -510,8 +521,8 @@ def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
     m_before_exp = re.search(r"(?:before|変更前)\s*[:：]\s*(.+?)(?:\s*/\s*(?:after|変更後)\s*[:：]|$)",
                              kiki, re.IGNORECASE)
     m_after_exp  = re.search(r"(?:after|変更後)\s*[:：]\s*(.+)", kiki, re.IGNORECASE)
-    exp_before = m_before_exp.group(1).strip() if m_before_exp else ""
-    exp_after  = m_after_exp.group(1).strip()  if m_after_exp  else kiki
+    exp_before = _strip_trailing_annotation(m_before_exp.group(1).strip()) if m_before_exp else ""
+    exp_after  = _strip_trailing_annotation(m_after_exp.group(1).strip())  if m_after_exp  else kiki
 
     # before .txt を収集（before/ ディレクトリ）
     before_dir = os.path.join(os.path.dirname(os.path.abspath(evidence_dir)), "before")

@@ -147,6 +147,12 @@ def to_text_evidence(apex_result: dict, out_path: str, label: str = "", no: str 
         lines.append(apex_code[:2000])  # 長すぎる場合は先頭 2000 文字
         lines.append("")
 
+    # judge_results.py の「含む」判定・F-5 照合は「実際の値:」セクション内のみを
+    # 検索スコープにする設計（test-pattern-map.md 参照）。このマーカーが無いと
+    # 上の実行コード全文まで含めた全文検索にフォールバックし、判定トークンが
+    # コード側に literal で書かれているだけで誤 OK になり得るため、debug 出力の
+    # 直前に必ず置き実行コードをスコープから除外する。
+    lines.append("実際の値:")
     lines.append("--- System.debug 出力 ---")
     if debug_lines:
         lines.extend(debug_lines)
