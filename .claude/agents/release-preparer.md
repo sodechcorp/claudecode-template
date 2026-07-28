@@ -170,17 +170,28 @@ Salesforce はテストレベルによってカバレッジ計算方式が異な
 
 **今回の判定: {apex_in_scope / test_coverage_risk の値と根拠（含まれる Apex クラス/トリガー名、対応する target_test_classes、または test_coverage_risk の理由）を明記した上で `--test-level` と `{tests_flag}` を確定する}**
 
+> **実行方針（厳守）**: 以下の Step 1〜4 は必ず1つずつ実行し、各 Step の結果を確認してから次の Step に進む。**Step 2（dry-run）と Step 3（本番デプロイ）をまとめて流さない**。dry-run が 0 errors であることを目視確認できた場合のみ Step 3 に進むこと。
+
+### Step 1: 直前記録（ロールバック用コミットハッシュ）
 ```bash
-# Step 1: 直前記録
-git log -1 --pretty=format:'%H'    # ← ROLLBACK_COMMIT_HASH に記録
+git log -1 --pretty=format:'%H'
+```
+→ 出力結果を上記「事前記録: ロールバック用コミットハッシュ」の `ROLLBACK_COMMIT_HASH:` に記録してから Step 2 へ進む。
 
-# Step 2: dry-run で事前確認（必須）
+### Step 2: dry-run で事前確認（必須）
+```bash
 sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level {test_level}{tests_flag}
+```
+→ **0 errors を確認できた場合のみ** Step 3 へ進む。エラーがあれば Step 3 は実行せず、下記「dry-run/デプロイが失敗した場合の切り分け」に従う。
 
-# Step 3: 本番デプロイ（dry-run 0 errors 確認後に実行）
+### Step 3: 本番デプロイ
+```bash
 sf project deploy start --source-dir force-app --target-org <本番エイリアス> --test-level {test_level}{tests_flag}
+```
+→ 完了後、Step 4 で結果を確認する。
 
-# Step 4: デプロイ結果確認
+### Step 4: デプロイ結果確認
+```bash
 sf project deploy report --target-org <本番エイリアス>
 ```
 
