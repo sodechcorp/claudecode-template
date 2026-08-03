@@ -41,7 +41,7 @@ from _common import (
     _font, _align, _thin_border, _thin_side,
     _set_row_height, _set_col_width, _freeze,
     _auto_col_width, _row_height_by_lines,
-    patch_preserve_space,
+    patch_preserve_space, parse_test_spec,
 )
 
 try:
@@ -103,28 +103,7 @@ _CM_PER_INCH  = 2.54
 
 
 # ── パーサ ───────────────────────────────────────────────────────────────────
-
-def parse_test_spec(spec_path: str) -> list:
-    text = Path(spec_path).read_text(encoding="utf-8")
-    headers = []
-    rows = []
-    in_table = False
-    for line in text.splitlines():
-        line = line.strip()
-        if not line.startswith("|"):
-            if in_table:
-                break
-            continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if all(re.match(r"^[-: ]+$", c) for c in cells):
-            in_table = True
-            continue
-        if not headers:
-            headers = cells
-            in_table = True
-        else:
-            rows.append(dict(zip(headers, cells)))
-    return rows
+# parse_test_spec は _common.py に移設（judge_results.py と共通化、C-1 修正）
 
 
 def load_judgment(judgment_path: str) -> dict:
@@ -262,6 +241,9 @@ def _highlight_terms_from_tc(tc: dict) -> list:
     """
     hanteihoo = tc.get("判定方法", "")
     kitai_raw = tc.get("期待結果", "").strip()
+    # judge_results.py 側（C-2）と同根: バッククォートが残ると証跡側に出現せず
+    # 赤字ハイライトが当たらないため、トークン化前に除去する
+    kitai_raw = re.sub(r"`+", "", kitai_raw).strip()
     neg_patterns = ["含まない", "非表示", "なし確認", "存在しない", "NG確認"]
     if any(p in hanteihoo for p in neg_patterns):
         anchor = _parse_positive_anchor(kitai_raw)

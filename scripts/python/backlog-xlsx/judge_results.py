@@ -21,7 +21,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from _common import validate_folder
+from _common import validate_folder, parse_test_spec
 
 
 def _next_archive_round(out_path: str) -> int:
@@ -48,42 +48,6 @@ def _archive_previous_round(out_path: str) -> None:
     if not os.path.isfile(archived_json):
         shutil.copy2(out_path, archived_json)
         print(f"[INFO] 回次退避（自己防衛）: {archived_json}")
-
-
-# ── test-spec.md パーサ ───────────────────────────────────────────────────────
-
-def parse_test_spec(spec_path: str) -> list:
-    """test-spec.md の "No" 列を持つテーブル（テストケース一覧）を dict リストとして返す。
-    ファイル中に複数テーブルがある場合は "No" ヘッダーを含む最初のテーブルを対象にする。
-    """
-    text = Path(spec_path).read_text(encoding="utf-8")
-    candidate_headers = []
-    candidate_rows = []
-    in_table = False
-
-    for line in text.splitlines():
-        line = line.strip()
-        if not line.startswith("|"):
-            if in_table:
-                if "No" in candidate_headers:
-                    return candidate_rows
-                candidate_headers = []
-                candidate_rows = []
-                in_table = False
-            continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if all(re.match(r"^[-: ]+$", c) for c in cells):
-            in_table = True
-            continue
-        if not candidate_headers:
-            candidate_headers = cells
-            in_table = True
-        else:
-            candidate_rows.append(dict(zip(candidate_headers, cells)))
-
-    if "No" in candidate_headers:
-        return candidate_rows
-    return []
 
 
 # ── 証跡ファイル探索 ────────────────────────────────────────────────────────
@@ -583,6 +547,9 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     複数証跡（分岐ラベル付き）がある場合は全証跡を AND 評価する。"""
     no = tc.get("No", "")
     kiki = tc.get("期待結果", "").strip()
+    # test-spec.md 生成時に LLM がバッククォート等の markdown 記法を付与すると、
+    # 証跡テキスト側には出現しないため in 比較が必ず False になり偽NGを生む（C-2）。
+    kiki = re.sub(r"`+", "", kiki).strip()
     judge_method = tc.get("判定方法", "").strip()
     auto = tc.get("自動化可否", "自動").strip()
     shubetsu = tc.get("種別", tc.get("実行種別", "")).strip()

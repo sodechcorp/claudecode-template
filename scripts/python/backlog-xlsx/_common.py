@@ -166,3 +166,39 @@ def validate_folder(value: str) -> str:
             f"[FATAL] --folder must be absolute path: {value!r}"
         )
     return str(p)
+
+
+# ── test-spec.md パーサ（judge_results.py / generate_evidence_xlsx.py 共通） ──
+
+def parse_test_spec(spec_path: str) -> list:
+    """test-spec.md の "No" 列を持つテーブル（テストケース一覧）を dict リストとして返す。
+    ファイル中に複数テーブルがある場合は "No" ヘッダーを含む最初のテーブルを対象にする。
+    """
+    text = Path(spec_path).read_text(encoding="utf-8")
+    candidate_headers = []
+    candidate_rows = []
+    in_table = False
+
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            if in_table:
+                if "No" in candidate_headers:
+                    return candidate_rows
+                candidate_headers = []
+                candidate_rows = []
+                in_table = False
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if all(re.match(r"^[-: ]+$", c) for c in cells):
+            in_table = True
+            continue
+        if not candidate_headers:
+            candidate_headers = cells
+            in_table = True
+        else:
+            candidate_rows.append(dict(zip(candidate_headers, cells)))
+
+    if "No" in candidate_headers:
+        return candidate_rows
+    return []
