@@ -480,6 +480,9 @@ def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
     期待結果の形式: 「before:初期値 / after:変更後値」（例: before:未送信 / after:送信済）"""
     no = tc.get("No", "")
     kiki = tc.get("期待結果", "").strip()
+    # test-spec.md 生成時に LLM がバッククォート等の markdown 記法を付与すると、
+    # 証跡テキスト側には出現しないため in 比較が必ず False になり偽NGを生む（C-2）。
+    kiki = re.sub(r"`+", "", kiki).strip()
 
     # 期待結果を before: / after: で分解
     m_before_exp = re.search(r"(?:before|変更前)\s*[:：]\s*(.+?)(?:\s*/\s*(?:after|変更後)\s*[:：]|$)",
