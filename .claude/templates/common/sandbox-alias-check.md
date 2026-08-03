@@ -28,6 +28,26 @@ INSTANCE_URL=$(echo "$SF_ORG_JSON" | python -c "import sys,json; print(json.load
 echo "INSTANCE_URL=$INSTANCE_URL"
 ```
 
+## メール到達安全確認（DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作の直前に必須）
+
+**実績インシデント（2026-08-03）**: Sandbox 検証中に承認プロセスのメールアラートが実際の顧客メールアドレスへ送信された。原因は Sandbox ユーザーの Email から `.invalid` サフィックスが外れていたこと（通常は Sandbox 作成時に自動付与されるが、手動編集等で個別ユーザーだけ外れることがある。ユーザーの Email ドメインが実在するかどうかは事前に見分けが付かない）。
+
+承認プロセス（Approval Process）・ワークフロー/Process Builder のメールアラート・Flow の「メールを送信」アクションを起動しうる操作（**実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作**）の直前に必ず実施する。SOQL の SELECT・dry-run デプロイ等、レコードを変更しない操作では不要。
+
+```bash
+sf data query --target-org "$SF_ALIAS" \
+  -q "SELECT Username, Email FROM User WHERE IsActive = true AND Email != null AND NOT Email LIKE '%.invalid'" -r csv
+```
+
+- **1件でも該当（`.invalid` が付いていない実アクティブユーザー）があれば、操作を中断してユーザーに確認を取る。無断で続行しない**
+- 該当ユーザーの Username・Email を一覧化した上で「これらのユーザーが承認者・関連ユーザーになっている操作を行うと、実アドレスへメールが送信される可能性があります。続行しますか？」と確認する
+- ユーザーが続行を明示的に承認した場合のみ操作を続行する
+- より確実な対策として、Setup → メール管理 → 配信性（Email Deliverability）を「システムメールのみ」に変更することを提案してよい。ただし組織設定変更は Claude が無断で行わず、必ずユーザー判断・ユーザー実施とする
+
+> このチェックを実施するエージェント: `auto-evidence-runner.md`（Step 1.5・AnonApex/UI ケースがある場合）/ `backlog-repro-runner.md`（Step 4.5・Step 5 の Sandbox 検証直前）
+
+---
+
 ## 認証状態の確認（frontdoor 認証の前提）
 
 Playwright の frontdoor 認証（`sf org open --url-only`）は対象エイリアスが sf CLI に**有効な状態で**認証済みであることが前提。実行前に確認する:
@@ -61,5 +81,7 @@ sf org login web --alias <alias> --instance-url https://<instance>.salesforce.co
 Sandbox 操作（sf apex run test / sf project deploy / SOQL 等）の直前に本テンプレートを参照してチェックを実施する。チェックが失敗した場合は操作を中断してユーザーに確認を取る。
 
 > このテンプレートを参照するエージェント: `backlog-tester.md` / `backlog-releaser.md` / `backlog-validator.md`（SOQL dryrun 時）/ `backlog-repro-runner.md`（バグ再現・仮説検証）/ `auto-evidence-runner.md`（テスト証跡採取）
+>
+> 上記のうち実データへの DML・匿名Apex 実行・UI 上での書き込み操作を行う `backlog-repro-runner.md` と `auto-evidence-runner.md` は、当該操作の直前に「メール到達安全確認」も追加で実施する（上記セクション参照）。
 
 **`INSTANCE_URL` の再利用**: ユーザーへの目視確認ハンドオフ（レコードURL・画面URLの提示）が必要なエージェントは、ここで取得済みの `INSTANCE_URL` をそのまま使う（再取得しない）。組み立て方・出力フォーマットは [visual-confirmation-handoff.md](visual-confirmation-handoff.md) を参照。

@@ -124,6 +124,14 @@ mkdir -p "{evidence_dir}/before"
 
 ---
 
+## Step 1.5: メール到達安全確認（AnonApex または UI ケースがある場合のみ・必須）
+
+種別 = AnonApex または UI のケースが1件以上ある場合（＝ Step 3/4 で実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作が発生しうる場合）に実施する。SOQL のみの場合はスキップする。
+
+> [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「メール到達安全確認」を Read して実施する。該当ユーザーが検出された場合はユーザーの明示的な続行承認を得るまで Step 3/4 に進まない。
+
+---
+
 ## Step 2: SOQL 証跡取得（種別 = SOQL）— 並列実行
 
 SOQL ケースが1件以上ある場合、test-spec.md を丸ごと渡す一括並列実行:

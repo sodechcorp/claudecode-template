@@ -104,6 +104,14 @@ mkdir -p "{証跡保存先}/logs"
 
 ---
 
+## Step 4.5: メール到達安全確認（必須）
+
+Step 5 で実データへの DML・匿名Apex 実行を行う直前に実施する。
+
+> [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「メール到達安全確認」を Read して実施する。該当ユーザーが検出された場合はユーザーの明示的な続行承認を得るまで Step 5 に進まない。
+
+---
+
 ## Step 5: 各仮説の Sandbox 検証
 
 各仮説（H1〜Hn）を**独立した状態**で順次検証する。仮説間で状態が持ち越されないよう、以下の原則を守る:
