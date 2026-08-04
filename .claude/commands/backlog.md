@@ -83,7 +83,7 @@ description: "Backlog課題の調査・対応・記録を一気通貫で実施�
 >
 > **【環境・記録】**
 > - **本番環境（isSandbox=false）への直接デプロイは絶対に行わない**
-> - **xlsx 更新の共通ルール**: Phase 1.5 で定義される共通ルール①（timeline 呼び出しに `--reason "{根拠}"` を追加）と共通ルール②（xlsx シート書き込みは `update_records.py cell` を使用）は Phase 2 以降の全 timeline 更新で適用すること（詳細は「Phase 1.5: 対応記録ファイルの作成」セクションの共通ルール定義を参照）
+> - **xlsx 更新の共通ルール**: Phase 1.5 で定義される共通ルール①（timeline 呼び出しに `--reason "{根拠}"` を追加）と共通ルール②（xlsx シート書き込みは `update_records.py cell` を使用）は Phase 2 以降の全 timeline 更新で適用すること（詳細は「Phase 1.5: xlsx フォルダの確定」セクションの共通ルール定義を参照）
 > - **中断・手動切替・リリース省略でフローが Phase 6 に到達しない場合**: `## §中断時の知見還流（部分還流）` に従い知見を `docs/knowledge/` へ部分還流してから終了する（知見取りこぼし防止）
 
 ---
