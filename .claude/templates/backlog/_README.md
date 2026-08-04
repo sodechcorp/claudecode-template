@@ -190,8 +190,8 @@
 - 合同 UI 確認（ユーザクロステスト）
 - After エビデンス取得
 - 接続先確認・Sandbox デプロイ（Phase 6 は Sandbox リリース専用）
-- xlsx フォルダ確定（簡易/詳細選択は AskUserQuestion で現状維持）
-- エビデンスファイル作成（簡易/詳細選択は AskUserQuestion で現状維持）
+- xlsx フォルダ確定（作成有無の選択は AskUserQuestion で現状維持）
+- エビデンスファイル作成（作成有無の選択は AskUserQuestion で現状維持）
 
 詳細は各エージェント定義（`backlog-investigator.md` 等）を参照。
 
