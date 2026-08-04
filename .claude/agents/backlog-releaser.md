@@ -316,14 +316,28 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 ### 4. 完了報告
 
+> フォーマット: [CLAUDE.md §Output Format](../CLAUDE.md#output-format)「完了報告」行 / 詳細: [completion-report-spec.md](../templates/common/completion-report-spec.md) に従う。
+
 ```
-## {issueID} 対応完了
+## {issueID} {alias} Sandbox で対応完了（本番未反映）
 
-### 次のアクション（Sandbox 接続の場合）
-- [ ] 動作確認結果を関係者に共有する
+### 確認環境
+- {alias}（Sandbox）
 
-### 次のアクション（管理画面操作の場合）
-- [ ] 上記の管理画面操作手順書（docs/logs/{issueID}/manual-operation-steps.md、全文提示済み）に従い担当者が操作を実施する
+### 本番反映状況
+**未反映**（本番リリースは別途 /release {issueID} で準備・人間が実施）
+
+### 残作業
+- [ ]（Sandbox 接続の場合）動作確認結果を関係者に共有する
+- [ ]（管理画面操作の場合）上記の管理画面操作手順書（docs/logs/{issueID}/manual-operation-steps.md、全文提示済み）に従い担当者が操作を実施する
+- [ ] 本番反映が必要な場合は /release {issueID} を実行する
+- 上記以外に残作業が無ければ「残作業なし」と記載する
+
+### 確認方法
+{誰が}→{Step 2a-5 の「🔎 目視確認のご案内」等、実施した操作}→{どうなれば OK か}
+
+### 未確認事項
+{あれば列挙。無ければ「未確認事項なし」}
 ```
 
 > ⚠️ この完了報告は中間ドラフト。出力後も処理は終わりではない。続けて Step 4.4（effort-log 追記）→ 4.5（case-index 追記）→ 4.6（自己点検）→ 5（議論・最終完了報告）→ 6（ドキュメント更新通知）を必ず実行する。
@@ -384,6 +398,7 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 - [ ] お客様確認サイン取得済（または issue_type がバグ以外で対象外と判定済）
 - [ ] xlsx タイムラインが追記されているか（xlsx_folder 設定の場合）
 - [ ] 管理画面操作手順書が保存され、チャットに全文提示されているか（管理画面操作の場合）
+- [ ] 完了報告に確認環境・本番反映状況・残作業・確認方法・未確認事項の5項目が揃っているか（[completion-report-spec.md](../templates/common/completion-report-spec.md) 参照）
 - [ ] ドキュメント更新通知（Step 6）の付記要否が判定済か
 
 未充足項目があれば該当 Step に戻って完了させる。

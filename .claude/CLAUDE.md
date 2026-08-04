@@ -222,6 +222,7 @@ Bash ツール引数に改行・インデント付きの多行スクリプトを
 | **自動処理の有効化状態（Active/Inactive・稼働バージョン）** | **組織に直接問い合わせる**（ローカルの `<status>` タグだけで「無効／対象外」と判定しない — 最後に retrieve した時点のスナップショットに過ぎず、組織側でその後 Active 化・バージョン更新されている場合がある）: Flow は `sf data query -q "SELECT ApiName, ActiveVersionId, VersionNumber FROM FlowDefinitionView WHERE ApiName IN (...)"`、Trigger は `sf data query -q "SELECT Name, Status FROM ApexTrigger WHERE Name IN (...)"` を対象組織（影響判断に使う環境。本番影響を語るなら本番、UAT 影響を語るなら UAT）で実行して確認する。「影響なし」の結論はこの確認の後にのみ書ける |
 | 項目挙動 | field-meta.xml で型・required・default・formula を Read |
 | 権限挙動 | 該当 permissionset/profile を Read |
+| **権限系の「できない／直った」の完了判定** | **対象ユーザーの全アサイン（プロファイル＋所属する権限セット＋権限セットグループ）の和集合を確認する**。加えて、異なる権限経路のユーザー（例: プロファイルのみで付与 vs 権限セット経由で付与）を最低1人ずつ用意し、双方で症状の再現・解消を確認してから完了と判定する。単一ユーザー・単一経路の確認のみで「直った」「できない」と断定しない |
 | **課題間の関係性（同一原因か・別か）** | **両課題の該当/修正コードを Read し、対象フィールドの型・原因レイヤー（LWC 送信値／Apex SOQL／Flow 等）・修正箇所が一致するか比較。記憶や issue タイトル・現象の類似で同一視しない** |
 | プラットフォーム標準仕様 | `docs/knowledge/sf-standard.md` を先に Read → 無ければ Web で裏取り（詳細: `.claude/templates/common/verify-implementation-spec.md`） |
 | **組織のランタイム状態（導入パッケージ・バージョン／組織設定／機能有効化／ライセンス）** | **組織に直接問い合わせる**: Setup → インストール済みパッケージ、または `sf data query --use-tooling-api -q "SELECT SubscriberPackage.Name, SubscriberPackage.NamespacePrefix, SubscriberPackageVersion.MajorVersion, SubscriberPackageVersion.MinorVersion FROM InstalledSubscriberPackage"`（全件取得後に絞る。`WHERE NamespacePrefix = ...` はフィルタ不可）。**コード・コメント・VF タグから推論しない** |
@@ -244,6 +245,7 @@ Bash ツール引数に改行・インデント付きの多行スクリプトを
 | 分析・調査 | TL;DR → 根拠 → 詳細 |
 | 会議・議事録 | 決定事項 / アクションアイテム（担当・期限付き） / 背景 |
 | エラー・障害報告 | **前提・背景**（仕様上の期待挙動）→ **実際の挙動**（観測）→ **推定原因**（根拠付き）→ 暫定対応 → 恒久対応 → 再発防止。ユーザー向け説明はラベル（日本語名）優先・API名は括弧補助 |
+| 完了報告（SF環境の状態に関わる対応） | **確認環境** → **本番反映状況**（済/未・未反映は明示）→ **残作業**（無ければ「残作業なし」）→ **確認方法**（誰が→どの操作→どうなれば OK）→ **未確認事項**（無ければ「未確認事項なし」）。見出しに環境を明記し、本番未反映のまま単に「完了」と書かない。詳細: [completion-report-spec.md](.claude/templates/common/completion-report-spec.md) |
 | 設計・仕様書 | 目的 → スコープ → 詳細 → 受入基準 |
 | デプロイ | チェックリスト形式（実行前・実行後） |
 

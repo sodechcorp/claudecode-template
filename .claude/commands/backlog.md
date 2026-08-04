@@ -118,7 +118,7 @@ sf org display --json
   Username: {user@example.com}
 
 この組織に対して課題対応を進めてよろしいですか？
-（Sandbox: 再現確認・テストにこの組織を使用します）
+（Sandbox: 再現確認・テストにこの組織を使用します。本フローの完了スコープは Sandbox での実装・検証・お客様確認までとし、本番反映は別途 `/release` でユーザーが実施します。このスコープに認識差異があれば教えてください）
 （本番: 参照のみ可能。データ確認の SELECT 文は都度許可を取ります）
 別の組織に切り替えたい場合: sf config set target-org <alias>
 ```
