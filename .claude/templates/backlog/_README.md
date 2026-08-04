@@ -18,7 +18,7 @@
 ├── _index-phase4.md              # Phase 4 用判定情報
 ├── _index-phase5.md              # Phase 5 用判定情報（横断系オプション含む）
 ├── _index-phase6.md              # Phase 6 用判定情報
-├── xlsx-setup.md                 # Phase 1.5 対応記録ファイル作成手順
+├── xlsx-setup.md                 # Phase 1.5 xlsx フォルダ確定手順
 ├── deploy-skip-judgment.md       # デプロイ適否の判定基準
 ├── resume-phase-routing.md       # 途中フェーズからの再開ルーティング
 ├── test-fail-routing.md          # Phase 5 NG 時の戻り先テーブル
@@ -190,7 +190,7 @@
 - 合同 UI 確認（ユーザクロステスト）
 - After エビデンス取得
 - 接続先確認・Sandbox デプロイ（Phase 6 は Sandbox リリース専用）
-- 対応記録ファイル作成（簡易/詳細選択は AskUserQuestion で現状維持）
+- xlsx フォルダ確定（簡易/詳細選択は AskUserQuestion で現状維持）
 - エビデンスファイル作成（簡易/詳細選択は AskUserQuestion で現状維持）
 
 詳細は各エージェント定義（`backlog-investigator.md` 等）を参照。
