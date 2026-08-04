@@ -1,6 +1,6 @@
 # Phase 5 オプションインデックス（テスト）
 
-backlog-tester が Phase 5 の Step 0b で参照する判定情報。10 オプション（横断系 2 件を含む）。
+backlog-tester が Phase 5 の Step 0b で参照する判定情報。11 オプション（横断系 3 件を含む）。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
 
@@ -150,5 +150,17 @@ options:
       - 追加要望で「防止」の概念が無関係
     ask-user-prompt: |
       この課題は一時的なミスで再発リスクが低そうです。類似課題の再発防止策提案は省略してもよさそうですか？
+    estimated-cost: 中
+
+  - name: option-diff-review
+    description: 実 diff と implementation-plan.md の整合・計画外変更検出・影響範囲再 rescan（旧 Phase 5.5 から統合）
+    category: B
+    auto-execute-when:
+      - 種別がバグまたは追加要望 かつ コード変更を伴う
+    auto-skip-when:
+      - typo 修正・ラベル変更のみ
+      - 設定ファイル・メタデータのみの変更（field-meta.xml / layout-meta.xml 等）
+    ask-user-prompt: |
+      この修正はコード変更が無いか軽微です。diff レビュー（実装計画整合・計画外混入・影響範囲再 rescan）は省略してもよさそうですか？
     estimated-cost: 中
 ```

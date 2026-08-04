@@ -16,8 +16,7 @@
 ├── _index-phase3.md              # Phase 3 用判定情報
 ├── _index-phase3-5.md            # Phase 3.5 用判定情報
 ├── _index-phase4.md              # Phase 4 用判定情報
-├── _index-phase5.md              # Phase 5 用判定情報
-├── _index-phase5-5.md            # Phase 5.5 用判定情報
+├── _index-phase5.md              # Phase 5 用判定情報（横断系オプション含む）
 ├── _index-phase6.md              # Phase 6 用判定情報
 ├── xlsx-setup.md                 # Phase 1.5 対応記録ファイル作成手順
 ├── deploy-skip-judgment.md       # デプロイ適否の判定基準
