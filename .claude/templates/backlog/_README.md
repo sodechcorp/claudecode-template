@@ -114,10 +114,12 @@
 
 | パターン | 判定挙動 | 該当オプション例 |
 |---|---|---|
-| **A. 常時実行** | `auto-skip-when` 空、ほぼ無条件で実行 | option-symptom-reverification / option-multi-cause-hypothesis / option-counter-evidence-search / option-knowledge-extraction（option-final-verifier / option-acceptance-criteria-recheck は Phase 5.5 廃止に伴い現在呼び出し元なし。再統合先は検討中） |
+| **A. 常時実行** | `auto-skip-when` 空、ほぼ無条件で実行 | option-symptom-reverification / option-multi-cause-hypothesis / option-counter-evidence-search / option-knowledge-extraction |
 | **B. コード変更の有無で判定** | コード実体に影響しない変更（コメント・ラベル等）はスキップ確認 | option-reverse-grep / option-similar-impl-search / option-unit-test-creation / option-bulk-processing-check / option-soql-governor-limit-check |
 | **C. 課題種別/ワード検出で判定** | 種別「バグ」「追加要望」や特定ワード（権限・データ・移行・パフォーマンス 等）でトリガ | option-permission-fls-check / option-sharing-rule-check / option-data-migration-plan / option-data-volume-analysis / option-performance-test |
 | **D. 規模・影響範囲で判定** | 影響範囲広・全社影響・重要バグ時のみ実行 | option-second-opinion / option-stakeholder-notification / option-staged-deployment-plan / option-feature-flag-design / option-security-audit |
+
+> **`_index-phase{N}.md` の対象外の option**: `option-final-verifier` / `option-acceptance-criteria-recheck` は上記 4 パターン分類（`_index-phase{N}.md` の auto-execute-when / auto-skip-when 判定）の対象外。旧 `/backlog` Phase 5.5 で使われていたが、Phase 5.5 廃止後は After エビデンスが確定する `/test` コマンド側に再統合されており、`.claude/commands/test.md` Phase F-1 から条件付き（`option-acceptance-criteria-recheck` は毎回・`option-final-verifier` は `judgment-result.json` の `ng == 0` の場合のみ）で直接呼び出される。
 
 ---
 

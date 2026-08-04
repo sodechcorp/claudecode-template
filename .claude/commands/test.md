@@ -326,6 +326,71 @@ python "$(pwd)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
 
 ---
 
+### Phase F-1: 受入基準再確認・blind 最終解決判定
+
+> **[ハーネス直接実行]**
+
+旧 `/backlog` Phase 5.5 の `option-acceptance-criteria-recheck` / `option-final-verifier`（Phase 5.5 廃止に伴い孤児化していたが、After エビデンスが確定する `/test` の完了確認として本 Phase に統合）。詳細手順は各 option ファイルを参照する。
+
+#### F-1a: 受入基準再確認（毎回実行）
+
+`.claude/templates/backlog/options/option-acceptance-criteria-recheck.md` の実行手順に従う:
+
+1. `mcp__backlog__get_issue`（課題本文）・`mcp__backlog__get_issue_comments`（全コメント）で `{issueID}` の内容を取得する
+2. 後付け要件・受入基準充足・スコープ縮小を確認する
+3. `{log_dir}/test-report.md` に「## 受入基準再確認」セクションを option-acceptance-criteria-recheck.md の出力フォーマットに従って追記する
+
+未対応の後付け要件を発見した場合: 対応内容を `implementation-plan.md` に追記し、業務判断を伴うため自動実装はせず「最終判定: 追加実装要」としてユーザーに提示する。
+
+#### F-1b: blind 最終解決判定（`judgment-result.json` の `ng == 0` の場合のみ）
+
+```bash
+NG_COUNT=$(python -c "import json; print(json.load(open(r'{judgment_path}', encoding='utf-8')).get('ng', 0))" 2>/dev/null || echo "1")
+echo "NG件数（blind判定の実行判定用）: ${NG_COUNT}"
+```
+
+**`NG_COUNT` が 0 以外の場合**: 本ステップをスキップする（既に NG が判明しており、blind 判定を追加しても新しい情報は得られないため。Phase F-2 の NG 修正ループを優先する）。
+
+**`NG_COUNT` が 0 の場合**: `option-final-verifier` を実行する。
+
+1. **After 状態のテキスト要約を自動生成する**（`{judgment_path}` の `results[]` から機械的に組み立てる。LLM 生成ではなく決定的な変換）:
+   ```bash
+   python -c "
+import json
+d = json.load(open(r'{judgment_path}', encoding='utf-8'))
+lines = [f\"- {r['label']}: {r['actual']}\" for r in d.get('results', []) if r.get('status') in ('OK', '対象外')]
+print(chr(10).join(lines) if lines else '(該当する実行結果なし)')
+"
+   ```
+2. **実施日時を取得する**: `TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M JST'`
+3. **課題本文・全コメント**: F-1a で取得済みのものを再利用する（未実施の場合のみ改めて取得）
+4. **After エビデンスのファイルパス**: `{judgment_path}` の `results[].evidence` から null を除き最大10件を列挙する
+5. **Task ツールで `backlog-blind-final-verifier` を起動する**（`.claude/templates/backlog/options/option-final-verifier.md` の「引き渡し情報」7項目に従う。実装の経緯・`implementation-plan.md` の内容は一切渡さない）:
+   ```
+   task_description: 「{issueID} の blind 最終解決判定」
+   パラメータ:
+     issueID: {issueID}
+     issue_body: {課題本文}
+     comments: {全コメントテキスト}
+     after_evidence_paths: {エビデンスファイルパス最大10件}
+     after_summary: {手順1で生成したテキスト要約}
+     blind_declaration: "実装の経緯・実装計画は一切伝えません。課題本文と After エビデンスだけで解決しているかを判定してください"
+     executed_at: {手順2で取得した日時}
+   ```
+6. 返却された `## blind 最終解決判定` ブロックを `{log_dir}/test-report.md` に追記する
+
+#### 総合判定への反映
+
+F-1a の「最終判定」が「追加実装要」、または F-1b を実行して判定が「解決済み」以外だった場合、`{log_dir}/test-report.md` の「### 総合判定」欄を以下に書き換える:
+```
+条件付きPASS（要確認: 受入基準再確認・blind最終判定で指摘あり。詳細は「## 受入基準再確認」「## blind 最終解決判定」を参照）
+```
+F-1a が「全項目 OK・リリース可」かつ（F-1b が「解決済み」または `NG_COUNT` 非0でスキップ）の場合は総合判定を変更しない。
+
+> **既知の簡略化**: F-1b は `NG_COUNT == 0` になった `/test` 実行のたびに毎回起動する（差分再実行で新規に変化がない場合の重複実行を避ける最適化は未実装）。コストが問題になった場合は前回の blind 判定結果を `judgment-result.json` の hash と紐付けてスキップする仕組みを追加検討する。
+
+---
+
 ### Phase F-2: NG 自動修正ループ（実装バグ限定）
 
 > **[ハーネス直接実行]**
@@ -508,7 +573,7 @@ python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
 === /test {issueID} 完了 ===
 
 テスト結果: {OK=N / NG=N / 要手動=N}
-総合判定: PASS ✅ / FAIL ❌ （NG が {N} 件）
+総合判定: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認・blind最終判定で指摘あり） / FAIL ❌ （NG が {N} 件）
 
 成果物:
   エビデンス.xlsx : {xlsx_folder}/{issueID}_エビデンス.xlsx
@@ -520,6 +585,11 @@ python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
   修正 TC: {auto_fix_tcs}
   次のステップ: 別セッションで /test {issueID} を再実行してください（差分モード）。
                次回 /test 起動時に今回の証跡が自動的に R{N} として退避されます。
+
+{総合判定が条件付きPASS（要確認）の場合（Phase F-1）}
+要確認: 受入基準再確認・blind最終判定で指摘があります。
+  詳細: test-report.md の「## 受入基準再確認」「## blind 最終解決判定」を参照してください。
+  対応: 業務判断が必要なため自動修正はしていません。指摘内容を確認し、必要なら implementation-plan.md に追記してから /backlog Phase 4 で再実装してください。
 
 {手動対応が必要な NG がある場合（要確認/未実行 / 自動修正のガードで止まった場合 / dry-run FAIL の場合）}
 NG 一覧:
