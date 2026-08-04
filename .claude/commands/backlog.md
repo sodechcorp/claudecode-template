@@ -27,6 +27,8 @@ description: "Backlog課題の調査・対応・記録を一気通貫で実施�
 | Phase 5: スモーク確認 | `backlog-tester`（内部: `sf-context-loader`） | スモーク結果（PASS で Phase 6 へ進む） |
 | Phase 6: Sandbox リリース・完了 | `backlog-releaser`（内部: `sf-context-loader`） | 完了報告 |
 
+> **実行順の注記**: 表・見出し番号は歴史的経緯により Phase 1.6 が Phase 1.5 より先に実行される（実行順: Phase 1 → 1.6 → 1.5 → 2。表の行順・見出しの並び順は実行順と一致している）。フェーズ番号の大小と実行順が一致しない点に注意すること。
+
 > **種別が「問い合わせ」の場合**: 実装を伴わないため、Phase 1 完了後に Phase 1.6・1.5・3〜6 をスキップし、Phase 2 で `backlog-planner` が回答ドラフト（`answer-draft.md`）を生成して完了する（詳細は Phase 2 セクション参照）。
 
 **各エージェントの内部構造**: 全エージェント（`backlog-repro-runner` を除く）は Step 0b でフェーズ用 `_index-phase{N}.md` を読んでオプション判定を行う（[à la carte 仕組み](../templates/backlog/_README.md)）。`backlog-repro-runner` は Phase 1.6（バグ系のみ）専用で Step 0b を持たず、à la carte 判定の対象外。`backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-planner` はさらに Step 0a で `sf-context-loader` を呼び出す（`backlog-planner` は digest 優先で実運用上ほぼ発火しない）。Phase 1.5 は本コマンドが直接実行するためエージェントを起動せず、`_index-phase1-5.md` は存在しない（不要）。
@@ -570,6 +572,8 @@ xlsx_folder: {xlsx_folder}
 ### Phase 6: Sandbox リリース・お客様確認・完了（backlog-releaser）
 
 > **dry-run 重複排除**: Phase 5 で dry-run PASS 済みかつ force-app に変更がない場合、Phase 6 は dry-run をスキップして本デプロイへ直行する。Phase 5 以降にコード変更がある場合のみ再 dry-run を実行する。
+
+> **デプロイ失敗・問題発生時**: `backlog-releaser` がデプロイ失敗またはリリース後動作確認で問題を検知した場合、`docs/logs/{issueID}/release-issue.md` に差し戻し理由・現象・ログを記録した上で Phase 5（backlog-tester）への差し戻しを提案する（`backlog-releaser.md` §2a. Sandbox の場合 参照）。ユーザーは `/backlog` を再実行し「途中フェーズから再開」で対応する。
 
 `backlog-releaser` エージェントを起動する:
 
