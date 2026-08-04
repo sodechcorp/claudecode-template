@@ -466,6 +466,8 @@ python "$(pwd)/scripts/python/backlog-xlsx/create_records.py" \
 
 `docs/logs/{issueID}/implementation-plan.md` の「変更対象ファイル」を確認し、LWC（`.html`/`.js`）・Aura（`.cmp`）・VF（`.page`）が含まれる、または実装方針に「画面・ラベル・文言・表示・UI」の語が含まれる場合のみ、[option-evidence-check.md](../templates/backlog/options/option-evidence-check.md) の B・C 手順を実行する（Sandbox alias 解決 → `ui-evidence-runner` を `mode: before-capture` で Task 起動 → Before データ値採取）。該当しない場合は本 Step 全体をスキップし `{evidence_result}` = 「該当なし（非UI変更）」とする。
 
+> **権限・FLS・レイアウト・RecordType・共有ルール変更の場合**: 本 Step（Before エビデンス自動採取）の対象外（`{evidence_result}` = 「該当なし（非UI変更）」）でも証跡取得が免除されるわけではない。`backlog-tester`（Phase 5）は dry-run のみでは完了と判定せず、Phase 6（`backlog-releaser`）の完了チェックリストで異なる権限経路の実ユーザーによる Login As 確認を必須とする（CLAUDE.md 「権限系の『できない／直った』の完了判定」参照）。
+
 **Step C: backlog-validator 起動**
 
 `backlog-validator` エージェントを起動する:
@@ -588,6 +590,8 @@ xlsx_folder: {xlsx_folder}
 
 > 種別別ルール・xlsx 更新: [.claude/templates/backlog/customer-signoff.md](../templates/backlog/customer-signoff.md)
 > ファイルが存在しない場合は「種別 {issue_type} のお客様確認内容は何ですか？」とテキストで確認し、ユーザの指示に従ってサインを取得する。
+
+> **「完了」の意味範囲**: ここで書き込む「完了」は `backlog-releaser` 内部の完了チェックリスト（デプロイ成功確認・種別別エビデンス取得。権限・FLS等は Login As 確認を含む。`backlog-releaser.md` §2a. Sandbox の場合 参照）を通過した上での、Sandbox実装・動作確認・お客様確認までの完了を意味する（Phase 0 で確認したスコープ通り）。`/test`（次アクション案内）による網羅的テスト・証跡採取・エビデンス Excel 生成は追加の構造化証跡であり、本ステータスの前提条件ではない。
 
 **ステータスを「完了」に更新**（`{xlsx_folder}` が設定されている場合のみ）
 
