@@ -83,7 +83,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / reviewe
 | キーワード（連携系） | API, 連携, 外部, callout | `docs/architecture/system.json` |
 | キーワード（要件系） | スコープ, 要件, `BR-\d+`, ビジネスルール | `docs/requirements/requirements.md` |
 | キーワード（マスタ系） | マスタ, ピックリスト, 選択リスト, 商品 | `docs/data/master-data.md` |
-| キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md` |
+| キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md` + `docs/knowledge/pitfalls.md`（全文 Read） |
 | キーワード（工数系） | 工数, effort, 見積, 何時間, calibration | `docs/knowledge/effort-calibration.md`（全文 Read） + `docs/knowledge/global-calibration.md`（全文 Read・存在する場合のみ） + `docs/knowledge/case-index.md`（工数列 Grep） |
 | `[A-Z]{2,}-\d+`（issueID） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（課題サマリーセクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（採用方針セクションのみ Grep） |
 | キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件を Grep） + `docs/knowledge/case-index.md`（症状列を Grep）→ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md` |
@@ -166,6 +166,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / reviewe
 | 過去判断キーワード | `docs/decisions.md`（直近10件: 先頭200行を Read・降順管理のため最新が先頭）+ `docs/knowledge/case-index.md`（症状列を Grep）+ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md`（存在すれば最大2件 Read・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出） |
 | 変更履歴キーワード | `docs/logs/changelog.md`（末尾30行 Read） |
 | 落とし穴キーワード | `docs/knowledge/pitfalls.md`（全文 Read）+ `docs/knowledge/global-pitfalls.md`（全文 Read・存在する場合のみ） |
+| 権限キーワード | `docs/knowledge/pitfalls.md`（全文 Read。org-profile.md は Phase 2 の常時読込ルールで別途対応済みのため本行では扱わない） |
 | レポート/ダッシュボードキーワード | `docs/data/reports-dashboards.md` |
 | キュー/承認/割り当てキーワード | `docs/data/automation-config.md` |
 | データ品質キーワード | `docs/data/data-quality.md` |
