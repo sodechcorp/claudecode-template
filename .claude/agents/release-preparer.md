@@ -66,8 +66,19 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 1. **デプロイ対象を一覧化する**（`backlog-releaser.md` と同ロジック。base 起点の差分抽出）:
    - `docs/logs/{issueID}/implementation-plan.md` の「## 段階コミット一覧」に先頭コミットハッシュがあれば、そこを base として `git diff --name-only {base} -- 'force-app/**'`
    - base が取得できない場合: `git diff --name-only HEAD -- 'force-app/**'`
-   - いずれも差分が空の場合は「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する。Glob 全量フォールバックは行わない
-2. 各ファイルをメタデータ種別・API名・変更種別（新規/変更/削除）に分類し、資材マニフェスト表を作成する。**この時点で Apex クラス（`.cls`）・Apex トリガー（`.trigger`）が資材マニフェストに1件でも含まれるかを判定し `apex_in_scope: true/false` として記録する**（Phase 5 の `--test-level` 決定に使用する。デプロイ本体に Apex が含まれない場合、参照先が Apex であっても `apex_in_scope` は変更しない＝あくまで「今回デプロイするファイルそのもの」で判定する）
+   - **いずれも差分が空の場合、まず `force-app/` が `.gitignore` 対象かを確認する**（`git check-ignore -q force-app/main/default` の終了コード、または `.gitignore` を Grep）:
+     - **`.gitignore` 対象でない場合**（通常は diff が効くはずの環境）: 「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する。Glob 全量フォールバックは行わない
+     - **`.gitignore` 対象の場合**（各メンバーが組織から都度 retrieve する運用で `git diff` が構造的に機能しない環境）: 人間に丸投げせず、**1a** の手順でマニフェストを再構築する
+1a. **【1. で `.gitignore` 対象により差分が取得できなかった場合のみ実施】資材マニフェストを環境間実体差分から再構築する**（`git diff` が使えない環境向けの代替ソース。人間の記憶と implementation-plan.md だけに依存しない）:
+   1. `docs/decisions.md` の当該課題（`{issueID}`）に該当する**全エントリ**（`## {issueID}:` で始まる見出しを Grep。降順記録のため同一課題が複数エントリに分かれていることがある＝再スコープの証跡。**最新エントリだけで打ち切らない**）と、存在すれば `docs/knowledge/cases/{issueKey}.md` の全文から、コンポーネント名らしき識別子（LWC/Aura ディレクトリ名・Apex クラス名等）を抽出し、暫定候補リストとする
+   2. `sandbox-alias-check.md`（Sandbox/UAT 接続・`$SF_ALIAS`）と `prod-readonly-check.md`（本番接続・`$PROD_ALIAS`）の両方を確認したうえで、[option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md) Tier 0 を本 Phase の時点で前倒し実行し、暫定候補リストを対象に UAT/本番の Tooling API 実体比較を行う。「UAT にのみ存在」「UAT と本番で内容が異なる」と判定されたコンポーネントを実差分として資材マニフェストに採用する。**いずれかの組織に接続できない場合はこの前倒し実行を諦め、通常どおり「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する**（1a 全体のフォールバック）
+   3. 確定したマニフェストをユーザーに提示し、「この一覧で間違いないか」の最終確認を取ってから 2. に進む（`git diff` より精度が落ちる推定ソースのため自動確定しない）
+   4. 前倒し実行した Tier 0 の結果はそのまま release-plan.md「## 本番環境ドリフト確認」に転記する（Phase 4 で Tier 0 を再実行する必要はない旨を明記する）
+2. 各ファイルをメタデータ種別・API名・変更種別（新規/変更/削除）に分類し、資材マニフェスト表を作成する（1. の `git diff` 結果、または 1a を実施した場合はその確定結果を使う）。**この時点で Apex クラス（`.cls`）・Apex トリガー（`.trigger`）が資材マニフェストに1件でも含まれるかを判定し `apex_in_scope: true/false` として記録する**（Phase 5 の `--test-level` 決定に使用する。デプロイ本体に Apex が含まれない場合、参照先が Apex であっても `apex_in_scope` は変更しない＝あくまで「今回デプロイするファイルそのもの」で判定する）
+2a. **未リリース積み残しの突合**（`.gitignore` 有無に関わらず常に実施。`git diff` が正常に効いた場合でも、今回のコミット差分に含まれない過去のスコープ変更分は `git diff` では原理的に検出できないため。実例: GF-368 — 課題が「初回実装 → 保留 → 再スコープ → リリース」の経路をたどり、再スコープ後の implementation-plan.md から初回実装分の未リリース資材（LWC 子コンポーネント）が消えた）:
+   1. `docs/decisions.md` の当該課題（`{issueID}`）に該当する**全エントリ**（1a-1 と同じ Grep 条件。最新エントリだけで打ち切らない）と、存在すれば `docs/knowledge/cases/{issueKey}.md` の全文から、コンポーネント名らしき識別子を抽出する（1a を実施済みならその結果を再利用してよい）
+   2. 抽出したコンポーネント名を 2. の資材マニフェストと突き合わせ、マニフェストに含まれないものを検出する
+   3. 1件でも検出した場合、release-plan.md に「資材マニフェスト外で言及されているコンポーネント」として警告記録し、完了報告でユーザーに「リリース対象に含めるべきか」を確認する（自動でマニフェストに追加しない）
 3. [option-deployment-dependency-check.md](../templates/backlog/options/option-deployment-dependency-check.md) を実施し、デプロイ順序・一括可否を判定する
 4. [deploy-skip-judgment.md](../templates/backlog/deploy-skip-judgment.md) の考え方を適用し、ソースデプロイ不可・管理画面手動操作が必要な資材があれば分離して記録する
 5. **デプロイ元は常に `force-app` 本体**。他チケットとの競合解消やマージ検証のためにバックアップ/作業用フォルダ（例: `.release-backup/{issueID}/...`）を作った場合でも、そこを `release-plan.md` の `--source-dir` に指定しない。競合解消後の変更は必ず `force-app` にマージしてから 1. の diff 抽出・Phase 5 のデプロイコマンドに反映する（`force-app` 外のフォルダは source-tracking・metadata 構造の前提を満たさず `NothingToDeploy` 等の予期しないエラーを招く）
@@ -97,13 +108,14 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 ## Phase 4: 本番環境ドリフト検知（階層型）
 
 > 詳細スペック: [option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md)
-> 事前ガード: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)
+> 事前ガード: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)（本番）・[sandbox-alias-check.md](../templates/common/sandbox-alias-check.md)（Tier 0 のみ・UAT/Sandbox）
 
 1. `prod-readonly-check.md` で本番組織への接続を確認する（read-only 前提の明示）。本番エイリアスが不明・未認証の場合はユーザーに確認する。**本番に接続できない/認証情報がない場合はこの Phase をスキップし、release-plan.md に「本番環境ドリフト確認: 未実施（接続情報なし）」と明記して Phase 5 へ進む**（リリース準備自体は続行可能）
-2. Tier 1（軽量スキャン）: `sf org list metadata` で対象コンポーネントの最終更新日/更新者を確認し、base コミット日時より後に他者が触った痕跡を抽出する
-3. Tier 2（深掘り）: Tier 1 で痕跡ありのコンポーネントのみ、一時ディレクトリへ本番から retrieve して現在の force-app と diff する。**`force-app/` へは絶対に取得しない**
-4. 一時ディレクトリは使用後に削除する（[cleanup-rules.md](../spec/cleanup-rules.md) 準拠）
-5. 「競合・要人間判断」判定が出た場合は release-plan.md に最重要警告として記録する
+2. **Tier 0（環境間実体差分チェック・マニフェスト非依存）**: Phase 1 の 1a（`.gitignore` 該当時のフォールバック）で前倒し実行済みの場合はここでは再実行せず、その結果を release-plan.md に転記する。未実施の場合はここで実施する。Tier 0 は UAT（Sandbox）との比較を伴うため、実施前に `sandbox-alias-check.md` で Sandbox 接続（`$SF_ALIAS`）も確認する（Sandbox に未接続/認証情報がない場合は Tier 0 のみスキップし、Tier 1/2 は通常どおり実施する）
+3. Tier 1（軽量スキャン）: `sf org list metadata` で対象コンポーネントの最終更新日/更新者を確認し、base コミット日時より後に他者が触った痕跡を抽出する
+4. Tier 2（深掘り）: Tier 1 で痕跡ありのコンポーネントのみ、一時ディレクトリへ本番から retrieve して現在の force-app と diff する。**`force-app/` へは絶対に取得しない**
+5. 一時ディレクトリは使用後に削除する（[cleanup-rules.md](../spec/cleanup-rules.md) 準拠）
+6. 「未リリース積み残し」「未リリース積み残しの疑い」「競合・要人間判断」のいずれかが出た場合は release-plan.md に最重要警告として記録する
 
 ## Phase 5: リリース手順書の生成
 
@@ -122,12 +134,15 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 作成日: {YYYY-MM-DD}
 作成者: release-preparer（Claude Code）
 
-{Phase 3/4 で「競合・要人間判断」が出た場合はここに最重要警告ブロックを挿入}
+{Phase 1 の 2a（資材マニフェスト外で言及されているコンポーネント）・Phase 3/4（「未リリース積み残し」「未リリース積み残しの疑い」「競合・要人間判断」）のいずれかが出た場合はここに最重要警告ブロックを挿入}
 
 ## リリース対象メタデータ
 | 種別 | API名 / ファイルパス | 変更種別 |
 |---|---|---|
 {Phase 1 の資材マニフェスト}
+
+## 資材マニフェスト外で言及されているコンポーネント（Phase 1 2a）
+{検出があれば一覧・なければ「該当なし」}
 
 ## デプロイ依存関係
 {Phase 1 の option-deployment-dependency-check 結果}
@@ -245,7 +260,8 @@ sf project deploy report --target-org <本番エイリアス>
 - --test-level: {test_level}（判定根拠: apex_in_scope={true/false}, test_coverage_risk={true/false}）
 - 影響範囲: {概要}
 - チケット競合: なし / あり（{issueID} を確認してください）
-- 本番環境ドリフト: なし / あり（{詳細}） / 未実施（接続情報なし）
+- 本番環境ドリフト: なし / あり（{詳細}） / 未リリース積み残しあり（{詳細}） / 未実施（接続情報なし）
+- 資材マニフェスト外で言及されているコンポーネント: なし / あり（{詳細}）
 
 ### 引き渡し
 本番リリース手順書: docs/logs/{issueID}/release-plan.md（① リリース前 → ② 実行 → ③ リリース後 の順・資材種別別チェック込み。全文は上記に提示済み）

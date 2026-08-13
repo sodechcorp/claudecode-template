@@ -2,11 +2,56 @@
 
 ## 何をするか
 
-本番組織の状態が、今回リリースするメタデータの想定と乖離していないか（＝自分たちの知らないところで誰かが本番を直接触っていないか）を **階層型（軽→深）** で確認する。組織間メタデータ比較機能はテンプレートに存在しないため、Tier1 の軽量スキャンで対象を絞り込み、疑わしいものだけ Tier2 で本番から実際に取得して差分を見る。
+本番組織の状態が、今回リリースするメタデータの想定と乖離していないか（ドリフト）を **3段階（Tier0: 実体差分 → Tier1: 軽量スキャン → Tier2: 深掘り）** で確認する。ドリフトには方向が2つあり、検知手段が異なる:
 
-**本番に対しては read-only のみ**。[prod-readonly-check.md](../../common/prod-readonly-check.md) を先に実施してから本オプションを実行する。
+- **本番が新しすぎる**（自分たちの知らないところで誰かが本番を直接触った）→ Tier1（資材マニフェスト対象の更新日時/更新者スキャン）→ Tier2（疑わしいものだけ実体取得して diff）
+- **本番が古すぎる**（未リリース積み残し。今回の資材マニフェストに漏れているコンポーネントが本番に未反映のまま）→ **Tier0**（資材マニフェストに依存せず、UAT/本番の実体を直接比較）
+
+Tier1/2 は release-preparer Phase 1 で確定した資材マニフェストに載っているコンポーネントしか検査しない。そのためマニフェスト自体に漏れがある場合（実例: GF-368 — 親 LWC のみが資材化され、参照される子コンポーネントの旧版が本番に残置。子は今回のコミット差分に含まれないためマニフェストに現れず、Tier1/2 の検査対象にすら入らなかった。本番だけ旧版のまま9日間・申込31件全てで必須項目が保存されず気づかれなかった）は Tier1/2 単独では検知できない。**Tier0 はマニフェストとは独立にスコープを決定して UAT/本番を直接比較することで、この穴を塞ぐ。**
+
+**本番に対しては read-only のみ**（Tooling API の SELECT のみ。`force-app/` への取得・書き込みは一切行わない）。[prod-readonly-check.md](../../common/prod-readonly-check.md) を先に実施してから本オプションを実行する。**Tier 0 のみ UAT（Sandbox）との比較を伴うため、[sandbox-alias-check.md](../../common/sandbox-alias-check.md) で Sandbox 接続（`$SF_ALIAS`）も確認する**（Tier 1/2 は本番のみで完結するため不要）。
 
 ## 実行手順
+
+### Tier 0: 環境間実体差分チェック（マニフェスト非依存・最優先）
+
+release-preparer Phase 1 のマニフェスト確定を待たず、以下の手順でスコープを独自に決定してから実施する（Phase 1 内で先出し実行される場合もある。詳細: release-preparer.md Phase 1）。
+
+**1. 対象スコープを次の和集合で確定する（全量比較はしない）**:
+1. release-preparer Phase 1 で確定した資材マニフェスト
+2. マニフェスト対象と**同一 LWC バンドル**、および**相互に参照し合うコンポーネント**（親が子を `modal.open({...})` / `<c-child prop=…>` で呼ぶ関係。実例: preCheck ⇄ preCheckModal）。特定方法: マニフェスト対象 LWC の `.js`/`.html` を Grep し、`import ... from 'c/{other}'` のインポート文・`<c-{kebab-case}` タグ・`{Something}Modal.open(` 等の呼び出しパターンから、参照先/参照元の LWC バンドルを双方向に洗い出してスコープへ追加する
+3. `docs/decisions.md` の当該課題（`{issueID}`）に該当する**全エントリ**（`## {issueID}:` で始まる見出しを Grep。降順記録のため同一課題が複数エントリに分かれて記録されている場合がある＝再スコープの証跡。**最新エントリだけで打ち切らない**）と、存在すれば `docs/knowledge/cases/{issueKey}.md` の全文から、コンポーネント名らしき識別子（LWC/Aura ディレクトリ名・Apex クラス名等）を抽出してスコープへ追加する
+
+**2. UAT（Sandbox）と本番の双方から Tooling API 経由で実体を取得する**（`$SF_ALIAS` = [sandbox-alias-check.md](../../common/sandbox-alias-check.md) で確認済みの Sandbox/UAT エイリアス、`$PROD_ALIAS` = [prod-readonly-check.md](../../common/prod-readonly-check.md) で確認済みの本番エイリアス。`force-app/` への retrieve は行わない。取得結果はメモリ上/一時ファイルでの比較にのみ使う）:
+```bash
+# LWC（LightningComponentResource は Tooling API のみで取得可能。Source にコンポーネント本文が入る）
+sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$SF_ALIAS" --json
+sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$PROD_ALIAS" --json
+# Apex クラス（Body は Tooling API のみで取得可能）
+sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$SF_ALIAS" --json
+sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$PROD_ALIAS" --json
+# Apex トリガー
+sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$SF_ALIAS" --json
+sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$PROD_ALIAS" --json
+```
+> フィールド名・リレーション名がエラーになる場合は `sf sobject describe --sobject LightningComponentResource --use-tooling-api --target-org "$SF_ALIAS"` で実際のスキーマを確認してから再実行する（API バージョン差異の可能性）。
+
+**3. UAT側・本番側の `Source` / `Body` を比較する**:
+```bash
+python -c "import json; a=json.load(open('{uat.json}',encoding='utf-8'))['result']['records']; b=json.load(open('{prod.json}',encoding='utf-8'))['result']['records']; ..."
+```
+
+**4. 差分の意味を判定する**:
+| 判定 | 条件 |
+|---|---|
+| **未リリース積み残し（最重要警告）** | UAT に存在するコンポーネントが本番に存在しない |
+| **未リリース積み残しの疑い（最重要警告）** | UAT と本番で内容が異なり、UAT 側の差分が今回のリリース対象の変更を含む/含みうる |
+| 他者変更あり・要確認 | UAT と本番で内容が異なるが、差分が今回のリリース内容と無関係（Tier1/2 の観点と合流） |
+| 差分なし | UAT と本番が一致 |
+
+**5. 「未リリース積み残し」「未リリース積み残しの疑い」が1件でもある場合**、release-plan.md 冒頭に最重要警告として記録する。**Tier0 で見つかったコンポーネントを資材マニフェストへ自動追加しない**（誤検知・スコープ外の可能性があるため）。完了報告で「マニフェストに含めるべきか」をユーザーに明示的に確認する。
+
+一時ファイルを作成した場合は使用後に削除する（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠）。
 
 ### Tier 1: 軽量スキャン（全リリース対象コンポーネントに実施）
 
@@ -49,6 +94,11 @@
 ```markdown
 ## 本番環境ドリフト確認
 
+### Tier 0（環境間実体差分・マニフェスト非依存）
+| コンポーネント | スコープ根拠 | UAT/本番 比較結果 | 判定 |
+|---|---|---|---|
+| {API名} | マニフェスト / 参照関係 / decisions.md・cases | 一致 / UAT のみ存在 / 内容相違 | 差分なし / 未リリース積み残し / 未リリース積み残しの疑い / 他者変更あり・要確認 |
+
 ### Tier 1（軽量スキャン）
 | コンポーネント | 最終更新日 | 最終更新者 | 痕跡 |
 |---|---|---|---|
@@ -59,7 +109,7 @@
 |---|---|---|
 | {API名} | 差分なし / 差分あり | 実害なし / 要確認 / 競合・要人間判断 |
 
-総合判定: ドリフトなし・リリース可 / 要確認あり（内容: {詳細}） / 競合あり（リリース中断推奨）
+総合判定: ドリフトなし・リリース可 / 未リリース積み残しあり（リリース対象への追加要確認） / 要確認あり（内容: {詳細}） / 競合あり（リリース中断推奨）
 ```
 
-**「競合・要人間判断」が1件でもある場合**: release-plan.md 生成は継続するが、手順書冒頭とデプロイコマンド直前に警告ブロックを挿入し、完了報告でユーザーに明示的に伝える。デプロイの実行可否はユーザー判断（エージェントは判断しない）。
+**「未リリース積み残し」「未リリース積み残しの疑い」「競合・要人間判断」のいずれかが1件でもある場合**: release-plan.md 生成は継続するが、手順書冒頭とデプロイコマンド直前に警告ブロックを挿入し、完了報告でユーザーに明示的に伝える。デプロイの実行可否・マニフェストへの追加要否はユーザー判断（エージェントは判断しない）。
