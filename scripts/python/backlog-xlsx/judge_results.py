@@ -168,6 +168,27 @@ def _read_text_evidence(path: str) -> str:
 _BLANK_DOM_CHAR_THRESHOLD = 300
 
 
+def _kiki_match_keys(kiki: str) -> list:
+    """期待結果(kiki)から実際に照合すべきキーワードを抽出する。
+    「」『』で値が引用されている場合はその中身のみを照合キーとする
+    （周辺の説明文「エラーメッセージ『◯◯』が表示される」等は証跡に
+    逐語で出現しないため、放置すると verbose な期待結果が構造的に
+    誤NGになる）。引用符が無ければ kiki 全体を単一キーとする
+    （従来の逐語一致にフォールバック・後方互換）。
+    """
+    quoted = re.findall(r"[「『]([^」』]+)[」』]", kiki)
+    return quoted if quoted else ([kiki] if kiki else [])
+
+
+def _kiki_matches(kiki: str, search_scope: str) -> bool:
+    """kiki の照合キー（複数なら AND）が search_scope に全て含まれるか判定する。"""
+    keys = _kiki_match_keys(kiki)
+    if not keys:
+        return True
+    scope_l = search_scope.lower()
+    return all(k.lower() in scope_l for k in keys)
+
+
 def _parse_positive_anchor(kiki: str):
     """期待結果からポジティブアンカー形式（test-pattern-map.md 準拠）を抽出する。
     形式: "画面描画確認: {アンカー} が表示 / 非表示確認: {対象} が非表示"
@@ -295,7 +316,7 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                 # F-5: 期待結果がある場合は「実際の値:」セクション内で追加照合（採取側OK行を盲信しない）
                 if ok and kiki:
                     m_snap_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", snap, re.DOTALL)
-                    if m_snap_section and kiki.lower() not in m_snap_section.group(1).lower():
+                    if m_snap_section and not _kiki_matches(kiki, m_snap_section.group(1)):
                         ok = False
                         reason = f"採取側はOKとしているが期待値「{kiki[:30]}」が「実際の値:」セクションに見つかりません"
                 actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）" + (" — " + reason[:40] if reason else "")
@@ -328,7 +349,7 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                     actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）— 「{target_str[:20]}」{'なし(OK)' if ok else 'あり(NG)'}"
                     reason = "" if ok else f"「{target_str[:30]}」が DOM に残存（非表示のはずが表示されている）"
                     return {"ok": ok, "actual": actual_str, "reason": reason}
-                ok = kiki.lower() in search_scope.lower() if kiki else True
+                ok = _kiki_matches(kiki, search_scope)
                 actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）— 「{kiki[:20]}」{'あり' if ok else 'なし'}"
                 reason = "" if ok else f"DOM に「{kiki[:30]}」が含まれない（DOM照合失敗）"
                 return {"ok": ok, "actual": actual_str, "reason": reason}
@@ -372,7 +393,7 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         # F-5: 期待結果がある場合は「実際の値:」セクション内で追加照合（採取側OK行を盲信しない）
         if ok and kiki:
             m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
-            if m_actual_section and kiki.lower() not in m_actual_section.group(1).lower():
+            if m_actual_section and not _kiki_matches(kiki, m_actual_section.group(1)):
                 ok = False
                 reason = f"採取側はOKとしているが期待値「{kiki[:30]}」が「実際の値:」セクションに見つかりません"
         actual_str = "OK — " + reason if ok else "NG — " + reason
@@ -428,7 +449,7 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
     if "含む" in judge_method or "存在" in judge_method:
         m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
         search_scope = m_actual_section.group(1) if m_actual_section else content
-        ok = kiki.lower() in search_scope.lower() if kiki else True
+        ok = _kiki_matches(kiki, search_scope)
         actual_str = f"「{kiki[:30]}」{'あり' if ok else 'なし'}"
         return {"ok": ok, "actual": actual_str, "reason": "" if ok else f"「{kiki[:30]}」が証跡に含まれない"}
 
