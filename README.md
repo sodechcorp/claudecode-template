@@ -88,3 +88,15 @@ clone 後の初期化順: `/sf-setup` → `CLAUDE.md` 記入 → `/setup-mcp` �
 - プロジェクト同期: `/git-sync`（`docs/` / `CLAUDE.md` の pull / push を対話形式で実行）
 
 > セットアップ詳細・前提ツール一覧・トラブルシュートは社内テンプレートガイド（wiki）を参照。
+
+---
+
+## テンプレート開発者向け
+
+`.claude/agents/` `.claude/commands/` を編集した場合、コミット前に BOM 混入チェックを実行する:
+
+```bash
+python3 scripts/check_bom.py
+```
+
+BOM (UTF-8 with BOM) が付くと YAML frontmatter が解析できず、対象ファイルはエラーも警告もなくエージェント/コマンドとして未登録になる。`scripts/upgrade.sh` も適用前に同チェックを自動実行するが、混入源はコミット前に断つこと。

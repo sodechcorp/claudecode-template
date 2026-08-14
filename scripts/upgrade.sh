@@ -68,6 +68,16 @@ if [ -f "$TMP_DIR/scripts/upgrade.sh" ] && ! diff -q "$_SELF" "$TMP_DIR/scripts/
     fi
 fi
 
+# --- 取得したテンプレートの BOM 混入チェック ---
+# BOM (UTF-8 with BOM) が付いた agents/commands の .md は YAML frontmatter が
+# 解析できず、エラーも警告も出ないままサイレントに未登録になる。適用前に検出する。
+if command -v python3 >/dev/null 2>&1 && [ -f "$TMP_DIR/scripts/check_bom.py" ]; then
+    if ! python3 "$TMP_DIR/scripts/check_bom.py" "$TMP_DIR/.claude" "$TMP_DIR/scripts"; then
+        warn "取得したテンプレートに BOM 付きファイルが含まれています（上記参照）"
+        warn "該当ファイルはエージェント/コマンドとして登録されない可能性があります"
+    fi
+fi
+
 # --- 適用失敗時の復旧案内 ---
 on_err() { warn "適用中にエラー。Git 管理下なら復旧: git checkout -- .claude scripts .gitignore && git clean -fd .claude scripts"; }
 trap 'on_err' ERR

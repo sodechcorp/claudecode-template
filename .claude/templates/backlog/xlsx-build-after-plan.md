@@ -1,4 +1,4 @@
-﻿# Phase 3 末尾: xlsx 一括生成手順
+# Phase 3 末尾: xlsx 一括生成手順
 
 Phase 3（実装方針確定）後に対応記録.xlsx を一括生成する。
 
