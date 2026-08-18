@@ -364,7 +364,8 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate_feature_list.py" \
   --project-name "{project_name}" \
   --version-increment {version_increment} \
   --source-file "{feature_list_dir}/機能一覧.xlsx" \
-  --project-dir "{project_dir}"
+  --project-dir "{project_dir}" \
+  --update-overview
 
 # 新規作成（初回）
 python "{project_dir}/scripts/python/sf-doc-mcp/generate_feature_list.py" \
@@ -373,8 +374,11 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate_feature_list.py" \
   --author "{author}" \
   --project-name "{project_name}" \
   --version-increment {version_increment} \
-  --project-dir "{project_dir}"
+  --project-dir "{project_dir}" \
+  --update-overview
 ```
+
+> **`--update-overview` について**: このエージェントの overview は design JSON 由来の高品質な内容（Phase 1 で生成）のため、既存 xlsx の overview より常に優先して反映する。sf-design-step3（javadoc 抜粋由来の低品質 overview）は本フラグを指定しないため、既存の高品質 overview を上書きしない（既定で保持される）。
 
 ---
 

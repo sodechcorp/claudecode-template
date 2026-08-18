@@ -343,6 +343,11 @@ def main():
     parser.add_argument("--force", action="store_true",
                         help="構造差分ゼロでも xlsx を強制再生成する（overview/name 変更反映用。"
                              "バージョンは据え置きで history は更新しない）")
+    parser.add_argument("--update-overview", action="store_true",
+                        help="既存機能の overview を今回の入力値で上書きする。未指定（既定）の場合、"
+                             "既存 xlsx に非空の overview がある機能はそれを保持し、今回の入力値を無視する。"
+                             "sf-design-writer（design JSON 由来の高品質 overview）からの呼び出しでのみ指定し、"
+                             "sf-design-step3（javadoc 抜粋由来の低品質 overview）からは指定しないこと。")
     parser.add_argument("--project-dir", default="",
                         help="Salesforce プロジェクトルート。指定するとカスタムオブジェクト/フィールド名を日本語ラベルに置換する")
     args = parser.parse_args()
@@ -422,6 +427,20 @@ def main():
                       if f.get("id") not in input_ids
                       and f.get("id") not in deprecated_ids]
         old_subset = [f for f in old_features if f.get("id") in input_ids]
+        # overview 保護: --update-overview 未指定時は、既存 xlsx に非空の overview があれば
+        # 今回の入力値より優先して保持する（低品質ルート（sf-design-step3）が高品質な
+        # overview（sf-design-writer 由来）を上書きしてしまうのを防ぐ既定挙動）。
+        if not args.update_overview:
+            old_by_id = {f.get("id"): f for f in old_subset if f.get("id")}
+            n_overview_kept = 0
+            for f in features:
+                old_f = old_by_id.get(f.get("id"))
+                old_overview = (old_f or {}).get("overview") or ""
+                if old_overview and f.get("overview") != old_overview:
+                    f["overview"] = old_overview
+                    n_overview_kept += 1
+            if n_overview_kept:
+                print(f"  [INFO] {n_overview_kept}件の overview を既存xlsxから保持（--update-overview 未指定のため）")
         # 差分は「今回処理した機能」のみで計算する
         diffs = compare_features(old_subset, features)
         # 削除対象（deprecated）を diffs.removed に反映

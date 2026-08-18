@@ -235,12 +235,22 @@ sf-design-writer の完了を確認してから次のバッチへ進む。
 
 `run_reviewer = true` の場合、全バッチの sf-design-writer 完了後（`{tmp_dir}` に `*_design.json` が温存された状態）に以下を実行する。
 
+### 0. 対象件数の上限チェック
+
+```bash
+python -c "import pathlib; n = len(list(pathlib.Path(r'{tmp_dir}').glob('*_design.json'))); print(f'count:{n}')"
+```
+
+`count:` の値が **30 件を超える場合**: reviewer への一括投入は context 破綻のリスクがあるため、このセクション以降（reviewer 起動）をスキップし、完了報告の品質ゲート欄に「スキップ（対象 {count} 件が上限 30 件を超過。target_group_ids / target_ids で対象を絞って再実行してください）」と記載する。**Phase 5.5 の 3. クリーンアップのみ実行**してから Phase 最終へ進む。
+
+30 件以下の場合は通常どおり以下の 1. へ進む。
+
 ### 1. reviewer の起動
 
 `Task(subagent_type="reviewer")` で起動する。
 
 起動時に渡す情報:
-- 対象ファイルパス: `{tmp_dir}/*_design.json`（全件）
+- 対象ファイルパス: `{tmp_dir}/*_design.json`（全件。0. のチェックにより 30 件以下であることが確定済み）
 - 変更スコープ: プログラム設計 JSON 生成（新規 / 既存更新は個別 JSON 次第）
 - 確認観点: 整合性・スコープ・プレースホルダ（`_parser_meta` 等）残存・責務記述の妥当性
 
@@ -250,7 +260,7 @@ reviewer は指摘のみ・修正は行わない。指摘があれば完了報�
 
 ### 3. クリーンアップ
 
-reviewer 完了後、tmp_dir を step2 自身が削除する（全バッチ `skip_cleanup=true` のため writer は未削除）:
+reviewer 完了後（または 0. で上限超過スキップした場合はそのまま）、tmp_dir を step2 自身が削除する（全バッチ `skip_cleanup=true` のため writer は未削除）:
 ```bash
 python "{project_dir}/scripts/python/sf-doc-mcp/cleanup_design_workspace.py" \
   --tmp-dir "{tmp_dir}" \
@@ -264,7 +274,17 @@ python "{project_dir}/scripts/python/sf-doc-mcp/cleanup_design_workspace.py" \
 
 `run_reviewer = false`（既定）の場合: `{tmp_dir}` の削除は sf-design-writer Phase 4 が担う。このエージェントでは実施しない。
 
-`run_reviewer = true` の場合: Phase 5.5 で既に step2 自身が削除済み。このセクションでは何もしない。
+`run_reviewer = true` の場合: 通常は Phase 5.5 で既に step2 自身が削除済み。**フォールバックとして** `{tmp_dir}` の存在を確認し、残っていれば無条件で削除する（reviewer 起動失敗・Phase 5.5 の途中終了で削除されなかった場合の保険。`cleanup_design_workspace.py` は `ignore_errors=True` で実装されており、Phase 5.5 で既に削除済みの場合に再実行しても安全）:
+```bash
+python -c "import pathlib, sys; sys.exit(0) if not pathlib.Path(r'{tmp_dir}').exists() else print('残存tmp_dirを検出。フォールバック削除を実行します')"
+```
+残存を検出した場合のみ:
+```bash
+python "{project_dir}/scripts/python/sf-doc-mcp/cleanup_design_workspace.py" \
+  --tmp-dir "{tmp_dir}" \
+  --output-dir "{output_dir}" \
+  --project-dir "{project_dir}"
+```
 
 ---
 

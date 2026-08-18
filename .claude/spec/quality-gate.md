@@ -1,6 +1,6 @@
 # Quality Gate（品質ゲート）— 詳細手順
 
-作業完了前に担当エージェントのセルフレビュー → チェック担当の自動レビューを必ず実行する。
+作業完了前に担当エージェントのセルフレビュー → チェック担当の自動レビューを実行する。対象・起動条件は下表を参照（任意起動と明記された行は既定 OFF）。
 
 ## ゲート定義
 
@@ -11,7 +11,7 @@
 | force-app 直接変更（宣言的メタデータのみ・アドホック実装、/backlog 未経由。Apex/LWC/Flow/トリガー/バッチのコーディングは対象外 → `/backlog` 必須） | メインスレッド／assistant | **reviewer**（§軽微修正の4条件を満たす場合はスキップ可） | メタデータ品質・権限/FLS・スコープ整合性 |
 | プログラム設計 JSON 生成（/sf-design、任意起動） | sf-design-step2 | **reviewer** | 生成した設計 JSON の整合性・スコープ・プレースホルダ残存・責務記述の妥当性 |
 
-> `/sf-design` は中間設計 JSON（`*_design.json`）に対する任意 reviewer ゲートを持つ（既定 OFF・ユーザーが明示要求した場合のみ実行。詳細は `sf-design-step2.md` Phase 5.5）。`/sf-doc`・`/sf-memory` 等は reviewer が読める自己生成の中間成果物（JSON/md）を持たないため本ゲート対象外。各コマンド内部のセルフチェックが品質を担保する。
+> `/sf-design` は中間設計 JSON（`*_design.json`）に対する任意 reviewer ゲートを持つ（既定 OFF・ユーザーが明示要求した場合のみ実行。詳細は `sf-design-step2.md` Phase 5.5）。`/sf-doc`・`/sf-memory` 等は reviewer ゲートを持たず、各 writer 内蔵のセルフレビューチェックリスト（`self-review-checklist.md` 等）が品質を担保する設計（xlsx が docs/ から決定論的に生成されるため、レビュー対象は生成物ではなく writer 自身の入力判断という前提。生成物そのものの内容検証は将来課題）。
 
 ## ゲートの動作
 
