@@ -28,9 +28,7 @@
 | 区分 | エージェント |
 |---|---|
 | 自ら Task/Agent で sf-context-loader を起動する | sf-architect / assistant（SF条件付き）/ backlog-planner / backlog-implementer / backlog-tester / backlog-releaser / release-preparer |
-| ダイジェスト再利用・直接 Read のみ（自らは起動しない） | backlog-investigator（呼び出し元が事前取得したコンテキストを使用）/ backlog-validator（Agent ツールを持たない leaf agent） |
-
-> **reviewer は要注意**: Phase 0 の記述は前者（直接起動）の形式で書かれているが、`reviewer.md` の tools リストに Agent ツールがなく実際には起動できない（スコープ外課題として別途起票）。
+| ダイジェスト再利用・直接 Read のみ（自らは起動しない） | backlog-investigator（呼び出し元が事前取得したコンテキストを使用）/ backlog-validator（Agent ツールを持たない leaf agent）/ reviewer（Agent ツールを持たない leaf agent。`docs/design/` を直接 Read） |
 
 ## 保守特化エージェント（/backlog フロー内で Claude が自動委譲）
 

@@ -9,6 +9,8 @@
 # 使い方:
 #   bash scripts/sf-retrieve.sh standard             # 標準セットで生成＋取得
 #   bash scripts/sf-retrieve.sh all                   # 全量で生成＋取得
+#   bash scripts/sf-retrieve.sh select "ApexClass:MyClass,MyClass2" "Flow:MyFlow" "CustomObject:Account"
+#                                                      # 型:メンバー指定で生成＋取得（型ごとに1引数、複数指定可）
 #   bash scripts/sf-retrieve.sh generate-only standard # 生成のみ（取得しない）
 #   bash scripts/sf-retrieve.sh retrieve              # 既存 package.xml で取得のみ
 #   bash scripts/sf-retrieve.sh check-version         # sf CLI バージョン確認のみ
@@ -33,7 +35,7 @@ error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 # --- 前提チェック ---
 command -v sf >/dev/null 2>&1 || error "Salesforce CLI がインストールされていません"
 [ -f "sfdx-project.json" ] || error "sfdx-project.json が見つかりません。SFDXプロジェクトのルートで実行してください"
-command -v python3 >/dev/null 2>&1 || error "python3 がインストールされていません"
+command -v python >/dev/null 2>&1 || error "python がインストールされていません"
 
 # --- sf CLI バージョン確認 ---
 # Entity expansion バグ (1031 > 1000) は sf CLI 2.133.0 未満で発生
@@ -157,7 +159,7 @@ generate_folder_based_manifest() {
         return 1
     }
 
-    python3 - "$content_type" "$folder_type" "$api_version" "$output" "$folders_json" << 'PYEOF'
+    python - "$content_type" "$folder_type" "$api_version" "$output" "$folders_json" << 'PYEOF'
 import sys, json
 content_type, folder_type, api_version, output, folders_json = sys.argv[1:6]
 data = json.loads(folders_json)
@@ -251,7 +253,7 @@ XMLEOF
     }
 
     local n_batches
-    n_batches=$(python3 - "${api_version}" << PYEOF
+    n_batches=$(python - "${api_version}" << PYEOF
 import json, math, sys
 
 api_version = sys.argv[1]
@@ -296,7 +298,7 @@ XMLEOF
     }
 
     if [ -n "${flexipages_json:-}" ]; then
-        n_flexipage_batches=$(python3 - "${api_version}" << PYEOF
+        n_flexipage_batches=$(python - "${api_version}" << PYEOF
 import json, math, sys
 api_version = sys.argv[1]
 data = json.loads("""${flexipages_json}""")
@@ -388,7 +390,7 @@ generate_all() {
     info "all モード自動スキップ: ${#skipped_for_log[@]} 型 (manifest/.retrieve-skipped-all.log に記録)"
 
     local n_batches
-    n_batches=$(python3 - "${api_version}" "${excluded_list}" << PYEOF
+    n_batches=$(python - "${api_version}" "${excluded_list}" << PYEOF
 import json, math, sys
 
 api_version = sys.argv[1]
@@ -457,7 +459,7 @@ PYEOF
 XMLEOF
     }
     if [ -n "${objects_json:-}" ]; then
-        python3 - "${api_version}" << PYEOF
+        python - "${api_version}" << PYEOF
 import json, math, sys
 api_version = sys.argv[1]
 data = json.loads("""${objects_json}""")
@@ -495,7 +497,7 @@ XMLEOF
     }
 
     if [ -n "${flexipages_json_all:-}" ]; then
-        n_flexipage_batches_all=$(python3 - "${api_version}" << PYEOF
+        n_flexipage_batches_all=$(python - "${api_version}" << PYEOF
 import json, math, sys
 api_version = sys.argv[1]
 data = json.loads("""${flexipages_json_all}""")
@@ -557,7 +559,7 @@ audit_flow_versions() {
         return
     }
 
-    python3 - << PYEOF
+    python - << PYEOF
 import json, sys
 
 data = json.loads("""${flow_query_json}""")
@@ -1041,6 +1043,75 @@ retrieve() {
     ok "メタデータ取得完了 → force-app/"
 }
 
+# --- select 用 package.xml 生成 ---
+#
+# 型判定（メタデータ名 → <name> タグ）は /sf-retrieve コマンド側（Claude）が
+# 対応表に基づき行い、判定できない場合は AskUserQuestion でユーザーに確認する
+# （この判断はスクリプト化しない。bash からは AskUserQuestion を呼べないため）。
+# スクリプト側は「type:member1,member2」形式の指定を受け取り、
+# XML 生成という機械的な部分のみを担当する。
+#
+# 引数: TypeName:member1,member2,... を type ごとに 1 引数（複数指定可）
+# 例: generate_select "62.0" "ApexClass:MyClass,MyClass2" "Flow:MyFlow" "CustomObject:Account"
+#
+# フォルダ型（Dashboard/Report/EmailTemplate/Document）を個別指定する場合、
+# member は "FolderName"（フォルダ内全アイテム）または "FolderName/ItemName"
+# （個別アイテム）を呼び出し元（コマンド側）が判定して渡すこと。
+generate_select() {
+    local api_version="$1"
+    shift
+    mkdir -p manifest
+    python - "$api_version" "$@" << 'PYEOF'
+import sys
+
+api_version = sys.argv[1]
+specs = sys.argv[2:]
+
+if not specs:
+    print("select には type:member1,member2 形式の指定が最低1つ必要です", file=sys.stderr)
+    sys.exit(1)
+
+blocks = []
+total_members = 0
+for spec in specs:
+    if ':' not in spec:
+        print(f"select 指定の形式が不正です: '{spec}'（正しい形式: TypeName:member1,member2,...）", file=sys.stderr)
+        sys.exit(1)
+    type_name, members_csv = spec.split(':', 1)
+    type_name = type_name.strip()
+    members = [m.strip() for m in members_csv.split(',') if m.strip()]
+    if not type_name or not members:
+        print(f"select 指定の形式が不正です: '{spec}'（正しい形式: TypeName:member1,member2,...）", file=sys.stderr)
+        sys.exit(1)
+    total_members += len(members)
+    members_xml = "\n".join(f"        <members>{m}</members>" for m in members)
+    blocks.append(f"    <types>\n{members_xml}\n        <name>{type_name}</name>\n    </types>")
+
+xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+xml += '<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n'
+xml += "\n".join(blocks) + "\n"
+xml += f"    <version>{api_version}</version>\n"
+xml += "</Package>\n"
+
+with open("manifest/package.xml", "w", encoding="utf-8") as f:
+    f.write(xml)
+
+print(f"{len(specs)} 型 / {total_members} コンポーネントを指定")
+PYEOF
+    ok "select package.xml 生成: manifest/package.xml (API ${api_version})"
+}
+
+# --- select 取得 ---
+retrieve_select() {
+    local target_org="$1"
+    info "接続中の組織: ${target_org}"
+    check_uncommitted
+
+    info "指定コンポーネントを取得中..."
+    sf project retrieve start --manifest manifest/package.xml --target-org "$target_org" --wait "$SF_WAIT" --ignore-conflicts
+    ok "メタデータ取得完了 → force-app/"
+}
+
 # --- メイン ---
 MODE="${1:-standard}"
 API_VERSION=$(get_api_version)
@@ -1072,6 +1143,12 @@ case "$MODE" in
                 ;;
         esac
         ;;
+    select)
+        [ $# -lt 2 ] && error "select には type:member1,member2 形式の指定が最低1つ必要です（例: bash scripts/sf-retrieve.sh select 'ApexClass:MyClass,MyClass2' 'Flow:MyFlow'）"
+        TARGET_ORG=$(get_target_org)
+        generate_select "$API_VERSION" "${@:2}"
+        retrieve_select "$TARGET_ORG"
+        ;;
     retrieve)
         retrieve
         ;;
@@ -1101,6 +1178,7 @@ case "$MODE" in
         echo ""
         echo "  standard            標準セットで package.xml 生成 + 取得"
         echo "  all                 全量で package.xml 生成 + 取得（明らかに不要な型は自動スキップ）"
+        echo "  select 'Type:m1,m2' ... 型:メンバー指定で package.xml 生成 + 取得（複数型指定可）"
         echo "  generate-only       package.xml 生成のみ（standard / all）"
         echo "  retrieve            既存 manifest/package.xml で取得のみ（後方互換）"
         echo "  retrieve-standard   生成済み standard 用全 manifest で取得のみ"

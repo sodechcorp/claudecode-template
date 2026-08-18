@@ -18,18 +18,11 @@ tools:
 > 問題を発見したら修正案を提示し、実際の修正は元の担当エージェントが行う。
 > Bash ツールはコードの構文チェック・grep による問題箇所の特定・**読み取り専用のテスト実行**のために使用する。DML・外部API呼び出し・ファイル書き込みを伴うコマンドは実行しない。
 
-## Phase 0: SFコンテキスト読込（sf-context-loader 経由）
+## Phase 0: SFコンテキスト読込（直接 Read・sf-context-loader は起動しない）
 
-> 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
+> このエージェントは Agent ツールを持たない leaf agent のため、sf-context-loader を自ら起動できない（[agent-routing.md](../spec/agent-routing.md) §Phase 0 一覧参照）。`docs/design/` 配下の設計書を直接 Read して業務コンテキストを取得する。
 
-```
-task_description: 「{レビュー対象の概要 / ユーザー指示}」
-project_dir: {プロジェクトルートパス。不明な場合はカレントディレクトリ}
-focus_hints: []  # 例: ["セキュリティ重点", "パフォーマンス重点", "テスト品質重点"]。空配列の場合は全項目レビュー
-```
-
-- **「該当コンテキストなし」が返った場合**: `docs/design/` に対象コンポーネントの設計書が存在する場合は直接 Read して設計意図・要件番号を確認する。`docs/requirements/requirements.md` も存在する場合は参照する。いずれも存在しない場合のみ、以降のチェックリストのみ参照して対応する
-- **関連コンテキストが返った場合**: 設計意図・ビジネスルール・要件との整合性チェックに活用する
+`docs/design/` に対象コンポーネントの設計書が存在する場合は直接 Read して設計意図・要件番号を確認する。`docs/requirements/requirements.md` も存在する場合は参照する。いずれも存在しない場合は `docs/_README.md` を1回 Read し（存在する場合のみ）、以降のチェックリストのみ参照して対応する。
 
 > **Step 0c: CRITICAL ルール読込** — [`step-0c-template.md`](../templates/common/step-0c-template.md) を Read する（実装裏付け・出典確認・スコープ管理・不確実マーカーの 4 ルール）
 
@@ -227,7 +220,7 @@ grep -rn "https://[^'\"[:space:]]*\.salesforce\.com" force-app/
 > [共通ルール: 実装裏付け・出典確認](../CLAUDE.md#実装裏付け出典確認全エージェント共通常に適用)
 
 1. まずファイル全体を読んでから指摘事項を整理する（部分読みで誤判断しない）。複数ファイルの場合はエントリポイントから読み起こし、呼び出し関係を追う順で処理する
-2. レビュー対象の Apex/LWC/Flow に対応する `docs/design/{種別}/{コンポーネント名}.md` が存在する場合は直接 Read し、設計意図（`with sharing` の選択理由・バルク上限・要件番号 FR-XXX）とコード実装の整合を確認する（Phase 0 の sf-context-loader 要約は 2000文字制約で詳細が省略され得るため、整合性検証時は要約に頼らず原本を直接読む）
+2. レビュー対象の Apex/LWC/Flow に対応する `docs/design/{種別}/{コンポーネント名}.md` が存在する場合は直接 Read し、設計意図（`with sharing` の選択理由・バルク上限・要件番号 FR-XXX）とコード実装の整合を確認する（要約に頼らず原本を直接読む）
 3. Critical → Warning → Info の優先順位で報告する
 4. 指摘には必ず理由と具体的な修正コードを添える
 5. 良い点も積極的に伝える（何が問題なしかを明示する）

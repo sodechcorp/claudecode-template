@@ -56,51 +56,13 @@ bash scripts/sf-retrieve.sh all
 
 `中断する` を選択した場合は処理を終了する。
 
-指定された名前からメタデータタイプを判定し `manifest/package.xml` を生成して取得する。
+指定された名前ごとに下記の対応表でメタデータタイプ（`<name>` タグ）を判定する。**この判定は必ず Claude が行う**（対応表にないタイプは Salesforce Metadata API 名をそのまま使い、指定されたタイプが不明な場合は AskUserQuestion でユーザーに確認する。スクリプトはこの判断を行わない）。
 
-**package.xml 生成ルール**:
-- ユーザー指定のコンポーネント名ごとに下記の対応表でメタデータタイプ（`<name>`）を判定する
-- `<members>` には対応表の例（`MyClass` 等）を使わず、**ユーザー指定値**をそのまま入れる
-- 対応表にないタイプは Salesforce Metadata API 名をそのまま `<name>` に指定する
-- 指定されたタイプが不明な場合は AskUserQuestion でユーザーに確認する
+判定したタイプごとにメンバーをグルーピングし、`scripts/sf-retrieve.sh select` に `型名:メンバー1,メンバー2,...` 形式で渡す（型ごとに1引数、複数型指定可）。package.xml 生成・API バージョン取得・target-org 確認・取得実行はスクリプトが行う:
 
 ```bash
-# sf CLI バージョン確認（standard/all と同じチェックをスクリプトから流用）
-bash scripts/sf-retrieve.sh check-version
-
 # 例: Apex クラス MyClass・フロー MyFlow・オブジェクト Account を指定した場合
-[ -f sfdx-project.json ] || { echo "sfdx-project.json が見つかりません。SFDXプロジェクトのルートで実行してください"; exit 1; }
-API_VER=$(python -c "import json; d=json.load(open('sfdx-project.json')); print(d.get('sourceApiVersion', ''))" 2>/dev/null)
-if [ -z "$API_VER" ]; then
-    echo "sfdx-project.json から sourceApiVersion を取得できませんでした。ファイルを確認してください。"
-    exit 1
-fi
-TARGET_ORG=$(sf config get target-org --json 2>/dev/null | python -c "import sys,json; r=json.load(sys.stdin).get('result',[]); print(r[0]['value'] if r else '')" 2>/dev/null || echo "")
-if [ -z "$TARGET_ORG" ]; then
-    echo "target-org が設定されていません。sf config set target-org <alias> で設定してから再実行してください。"
-    exit 1
-fi
-mkdir -p manifest
-cat > manifest/package.xml << XMLEOF
-<?xml version="1.0" encoding="UTF-8"?>
-<Package xmlns="http://soap.sforce.com/2006/04/metadata">
-    <types>
-        <members>MyClass</members>
-        <name>ApexClass</name>
-    </types>
-    <types>
-        <members>MyFlow</members>
-        <name>Flow</name>
-    </types>
-    <types>
-        <members>Account</members>
-        <name>CustomObject</name>
-    </types>
-    <version>${API_VER}</version>
-</Package>
-XMLEOF
-
-sf project retrieve start --manifest manifest/package.xml --target-org "$TARGET_ORG"
+bash scripts/sf-retrieve.sh select "ApexClass:MyClass" "Flow:MyFlow" "CustomObject:Account"
 ```
 
 メタデータタイプの対応表（主要なもの）:
