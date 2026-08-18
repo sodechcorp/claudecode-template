@@ -45,6 +45,13 @@ issueID: {issueID}
 
 `release-preparer` の完了報告をそのままユーザーに提示する。ユーザーの自由テキスト応答を待つ（質問・修正依頼 何でも可）。やり取りが落ち着いたら終了する。
 
+**本番デプロイ完了の報告を受けた場合**（本セッション継続中・`/release {issueID}` 再起動のいずれでも）: Task tool で `release-preparer` を再起動し、Phase 7（リリース実施後の記録）のみを実施させる:
+```
+task_description: 「/release 起動: {issueID} の Phase 7（リリース実施後の記録）のみを実施。デプロイ完了報告: {ユーザーからの報告内容}」
+project_dir: {プロジェクトルートパス}
+issueID: {issueID}
+```
+
 ---
 
 ## 注意事項

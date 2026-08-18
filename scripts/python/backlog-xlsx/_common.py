@@ -12,10 +12,6 @@ try:
 except ImportError:
     _OPENPYXL_AVAILABLE = False
 
-# リリース・ロールバックシート「リリース実施記録」の開始行（xlsx テンプレート固定値）
-# テンプレートを更新した場合はここを変更するだけで全スクリプトに反映される
-RELEASE_HISTORY_START_ROW = 38
-
 _STRIPE_A_RGB = "FFFFFF"  # 偶数インデックス行（0, 2, 4, ...）
 _STRIPE_B_RGB = "F2F7FB"  # 奇数インデックス行（1, 3, 5, ...）（薄青）
 
