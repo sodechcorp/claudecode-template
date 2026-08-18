@@ -68,7 +68,9 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 - `docs/logs/{issueID}/test-report.md`（存在する場合のみ）
 - `docs/logs/{issueID}/discussion-log.md`（存在する場合のみ）
 
-**補完 Grep（investigation.md のみ）**: 上記に加えて `## 根本原因 / 要件の本質` と `### 原因仮説（多角分析）` の見出しを Grep し、該当セクションも Read する（Step 3.8 の cases.md「教訓」・Step 4.5 の case-index.md「根本原因」列で常時必要になるが、本文中盤に位置するため冒頭+末尾だけでは欠落するため）。
+**補完 Grep（investigation.md）**: 上記に加えて `## 根本原因 / 要件の本質` と `### 原因仮説（多角分析）` の見出しを Grep し、該当セクションも Read する（Step 3.8 の cases.md「教訓」・Step 4.5 の case-index.md「根本原因」列で常時必要になるが、本文中盤に位置するため冒頭+末尾だけでは欠落するため）。
+
+**補完 Grep（test-report.md）**: 上記に加えて「## スモーク確認結果」の見出しを Grep し、該当セクションも Read する（Step 2a-2 の dry-run スキップ判定で常時必要になるが、`/test` 実施後は本文が長くなり中盤に位置しうるため冒頭+末尾だけでは欠落するため）。
 
 ファイルが存在しない場合は「不在（Step 0d 確認済み）」として記録する。各 Step でこれらのファイルを参照する際は再 Read せず、Step 0d で取得済みの内容を利用する。
 
@@ -101,18 +103,12 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 ### 2a. Sandbox の場合
 
-1. デプロイ対象を一覧化する。**Phase 4（実装）は標準フローでコミットしない設計**のため実装変更は未コミットの作業ツリーに残り、option-progressive-commits 採用時は複数コミットに分かれる。どちらも取り逃さないよう **段階コミット一覧の先頭コミット起点（base）から差分を取得する**:
-   - **base 取得**: option-progressive-commits を採用した場合、`docs/logs/{issueID}/implementation-plan.md` の「## 段階コミット一覧」に記録された先頭コミットハッシュを読む:
-     ```bash
-     python -c "import re,os; p=os.path.join('docs/logs/{issueID}','implementation-plan.md'); t=open(p,encoding='utf-8').read() if os.path.exists(p) else ''; m=re.search(r'段階コミット一覧.*?\n((?:\|.*\n)+)', t, re.S); rows=[r for r in (m.group(1).splitlines() if m else []) if re.match(r'\|\s*\d+\s*\|', r)]; print((rows[0].split('|')[2].strip()+'~1') if rows else '')"
-     ```
-   - **base が取得できた場合**: `git diff --name-only {base} -- 'force-app/**'`（コミット済み・未コミットの両方を網羅）
-   - **base が取得できない場合**（標準フロー＝コミットなし・段階コミット一覧なし）: `git diff --name-only HEAD -- 'force-app/**'`（未コミットの作業ツリー差分）
+1. デプロイ対象を一覧化する。base コミットの決定手順は [deploy-manifest-base.md](../templates/backlog/_partials/deploy-manifest-base.md) を参照（Phase 4 は標準フローでコミットしない設計のため実装変更が未コミットの作業ツリーに残る点・option-progressive-commits 採用時は複数コミットに分かれる点の両方を取り逃さない base 決定ロジック）
    - 上記いずれも差分が空の場合は「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する。`Glob` での全量フォールバックは行わない
 2. dry-run 検証（スキップ判定あり）:
 
    **スキップ判定**（本デプロイ前に以下を確認する）:
-   1. `docs/logs/{issueID}/test-report.md` の「## スモーク確認結果」を Read し、`dry-run: PASS` の記録があるか確認する
+   1. Step 0d で取得済みの `test-report.md`「## スモーク確認結果」の内容（補完 Grep 分含む）から `dry-run: PASS` の記録があるか確認する（再 Read しない）
    2. PASS の記録がある場合、Phase 5 以降に force-app が変更されていないかを確認する:
       ```bash
       find force-app -type f -newer docs/logs/{issueID}/test-report.md
@@ -120,7 +116,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    3. **出力なし（無変更）かつ PASS 記録あり** → dry-run を省略し「Phase 5 で dry-run PASS 済み・force-app 無変更のため dry-run を省略して本デプロイへ進む」と 1 行通知して Step 3 へ
    4. **出力あり（変更あり）または PASS 記録なし** → 以下の dry-run を実行する:
       ```bash
-      sf project deploy start --dry-run --source-dir force-app
+      sf project deploy start --dry-run --source-dir force-app --target-org "$SF_ALIAS"
       ```
 
 3. ユーザにデプロイ確認を取る:
@@ -129,7 +125,10 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    - 「中止」が返答された場合は中止理由を `docs/decisions.md` または `docs/logs/{issueID}/` 配下のメモにテキストで記録し、ユーザに通知する（Backlog コメント反映が必要ならユーザーが手動で投稿）。デプロイは行わない
 
    **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、直前の F-2 Step 2（backlog-tester）で現 force-app に対する dry-run PASS が保証されている（FAIL なら Step 3 は起動されない）。この保証を根拠に上記スキップ判定を**必ず適用**し、`find` の出力が無変更なら再 dry-run を省略して確認省略で 4 へ直接進む。`find` が変更を検知した場合のみ dry-run を実行し 0 errors を確認してから 4 へ進む（**通常の「dry-run を実行した場合」と異なり、この例外では diff があってもテキスト確認は取らない**）。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。
-4. デプロイ実行
+4. デプロイ実行:
+   ```bash
+   sf project deploy start --source-dir force-app --target-org "$SF_ALIAS"
+   ```
 5. デプロイ後の動作確認（Phase 5 と二重チェック）:
 
    **確認対象レコード/画面の特定（チェックリスト提示前に必ず実施）**:
@@ -371,7 +370,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 `docs/logs/effort-log.md` に当課題の見込み工数を1行追記する（末尾追加・昇順）。
 
 1. `docs/logs/{issueID}/approach-plan.md` の `## 工数見積` セクションから `{N}h`（sf-effort-estimator が算出した単一値）を取得する。approach-plan.md が存在しない、または `## 工数見積` セクションが無い場合はこの Step 全体をスキップし「工数見積が見つからないため effort-log.md への追記をスキップしました」と1行通知する。
-2. 「実績」列は着手直後で未確定のため空欄にする（後日 `/sf-memory` 保守履歴カテゴリ等でヒアリングして後埋め）。
+2. 「実績」列: 「今回の実績工数（h）を教えてください。分からなければ空欄で進みます」とユーザーに1回だけ確認する。回答があればその値を記入し、無回答・不明の場合は従来どおり空欄にする（後日 `/sf-memory` 保守履歴カテゴリ等でヒアリングして後埋め）。
 3. 「対応者種別」列は当セッションの対応形態を記載する（例: `ClaudeCode` / `手動` / `混在`）。
 4. 追記フォーマット・新規作成ヘッダー: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §effort-log.md 追記フォーマット
 5. `docs/logs/effort-log.md` が存在しない場合は上記パーシャルの新規作成ヘッダーを使用してから追記する。

@@ -15,7 +15,7 @@
 - [ ] Sandbox でのテスト完了（`test-report.md` の総合判定が PASS）
 - [ ] `/test` の詳細証跡取得済み（`evidence/` に before/after が揃っている）
 - [ ] デプロイ対象資材の確定（Phase 1 資材マニフェストと git diff が一致）
-- [ ] `--test-level` の決定（Apex 含有 かつ 全対象クラスに専用テストクラス特定済み → `RunSpecifiedTests`（デフォルト）／ Apex 含有だが専用テストクラス不在 → `RunLocalTests` フォールバック／ Apex 非含有 → `NoTestRun`。固定で `RunLocalTests` にしない。判定ロジック: release-preparer.md Phase 1/5）
+- [ ] `--test-level` の決定（判定ロジックは release-preparer.md Phase 1/5 が正本。固定で `RunLocalTests` にしない）
 - [ ] デプロイ元が `force-app` 本体であることの確認（バックアップ/マージ用フォルダを `--source-dir` に指定していない）
 - [ ] デプロイ順序の確認（Phase 1 の依存関係判定。分割要ならその順序）
 - [ ] 影響範囲の確認（Phase 2 の各 option 結果にリリースを止める要素がない）
@@ -34,7 +34,7 @@
 
 > **実行方針（厳守）**: 下記 1〜6 は1つずつ実行し、結果を確認してから次に進む。1個のスクリプト/コードブロックにまとめて流さない。特に 2.（dry-run）と 3.（デプロイ実行）は独立したステップとして扱い、dry-run が 0 errors であることを確認してから 3. に進む。release-plan.md 生成時もこの構成（Step ごとに個別コードブロック）を維持する。
 
-> **`--test-level` は資材マニフェストの Apex 含有有無 + 専用テストクラスの特定有無で決める（固定で `RunLocalTests` にしない）**: Apex クラス・トリガーを1件でも含み、かつ全対象クラスに専用テストクラスを特定できた場合は **`RunSpecifiedTests`（デフォルト）** ＋ 対象テストクラスを `--tests` で列挙（Salesforce 仕様上カバレッジ要件がデプロイ対象クラス単位で完結し、無関係な既存テストの合否を問わない）。専用テストクラスが1件でも見つからない場合のみ `RunLocalTests` にフォールバック（本番デプロイの必須要件・`NoTestRun` 使用不可。この場合のみ、今回の変更と無関係な既存テストの失敗でリリースがブロックされうる＝本番テスト負債として切り分ける）。Apex を含まない場合（Flow・LWC・オブジェクト・レイアウト等のみ）は `NoTestRun`（Salesforce 仕様上テスト不要）。判定ロジック詳細: release-preparer.md Phase 1/5。
+> **`--test-level` の判定ロジック（Apex 含有有無 + 専用テストクラスの特定有無で決定。固定で `RunLocalTests` にしない）は release-preparer.md Phase 1/5 が正本**。以下のコマンドの `--test-level` にはその判定結果を使う。
 
 1. **直前記録**: `git log -1 --pretty=format:'%H'` でロールバック用コミットハッシュを記録する
 2. **dry-run（必須）**: `sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests/NoTestRun>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加）で 0 errors を確認

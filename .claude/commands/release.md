@@ -26,21 +26,17 @@ argument-hint: "[課題ID]"
 
 ### Step 2: 前提チェック
 
-以下を確認する:
-
-1. `docs/logs/{issueID}/` が存在するか（Glob）
+`docs/logs/{issueID}/` が存在するか（Glob）を確認する:
    - 存在しない場合: 「`{issueID}` の作業履歴が見つかりません。先に `/backlog {issueID}` を実施してください」と案内して終了
-2. `docs/logs/{issueID}/test-report.md` が存在するか
-   - 存在しない場合: 「Sandbox でのテスト証跡（test-report.md）が見つかりません。`/test {issueID}` を先に実施することを推奨します。テスト未完のまま本番リリース準備を進めますか？」とテキストで確認する
-   - 「進める」の場合は `light_precheck: true` として release-preparer に伝え、release-plan.md 冒頭に警告を明記させる
-   - 「先にテストする」の場合は終了
+
+> `test-report.md` の有無確認・テスト未完時の続行可否確認は `release-preparer` Step 0b に一本化されている。本コマンドでは重複確認しない（Step 0b が未完のまま続行を希望された場合の release-plan.md 冒頭警告まで含めて処理する）。
 
 ### Step 3: release-preparer への委譲
 
 Task tool で `release-preparer` を起動する:
 
 ```
-task_description: 「/release 起動: {issueID} の本番リリース準備（資材確定・影響範囲・チケット競合・本番環境ドリフト検知・release-plan.md 生成）。{light_precheck が true の場合: 'test-report.md 未確認のまま進行。release-plan.md 冒頭に警告を明記すること'}」
+task_description: 「/release 起動: {issueID} の本番リリース準備（資材確定・影響範囲・チケット競合・本番環境ドリフト検知・release-plan.md 生成）」
 project_dir: {プロジェクトルートパス}
 issueID: {issueID}
 ```

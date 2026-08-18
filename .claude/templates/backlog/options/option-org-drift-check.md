@@ -15,30 +15,33 @@ Tier1/2 は release-preparer Phase 1 で確定した資材マニフェストに�
 
 ### Tier 0: 環境間実体差分チェック（マニフェスト非依存・最優先）
 
+> **検査対象の範囲（重要）**: Tier 0 の実体比較は **LWC（LightningComponentResource）/ Apex クラス / Apex トリガーの3種のみ**対応する（Tooling API で本文が取得できる種別に限定されるため）。Flow・カスタム項目・レイアウト等それ以外の種別の未リリース積み残しは Tier 0 では検知できない。これらは Tier 1（`sf org list metadata` の最終更新日時/更新者比較。資材マニフェストに載っている種別のみが対象）でカバーする。Tier 1 も資材マニフェスト外のコンポーネント（今回のマニフェストに現れない積み残し）は検知対象外である点に留意する。
+
 release-preparer Phase 1 のマニフェスト確定を待たず、以下の手順でスコープを独自に決定してから実施する（Phase 1 内で先出し実行される場合もある。詳細: release-preparer.md Phase 1）。
 
 **1. 対象スコープを次の和集合で確定する（全量比較はしない）**:
 1. release-preparer Phase 1 で確定した資材マニフェスト
 2. マニフェスト対象と**同一 LWC バンドル**、および**相互に参照し合うコンポーネント**（親が子を `modal.open({...})` / `<c-child prop=…>` で呼ぶ関係。実例: preCheck ⇄ preCheckModal）。特定方法: マニフェスト対象 LWC の `.js`/`.html` を Grep し、`import ... from 'c/{other}'` のインポート文・`<c-{kebab-case}` タグ・`{Something}Modal.open(` 等の呼び出しパターンから、参照先/参照元の LWC バンドルを双方向に洗い出してスコープへ追加する
-3. `docs/decisions.md` の当該課題（`{issueID}`）に該当する**全エントリ**（`## {issueID}:` で始まる見出しを Grep。降順記録のため同一課題が複数エントリに分かれて記録されている場合がある＝再スコープの証跡。**最新エントリだけで打ち切らない**）と、存在すれば `docs/knowledge/cases/{issueKey}.md` の全文から、コンポーネント名らしき識別子（LWC/Aura ディレクトリ名・Apex クラス名等）を抽出してスコープへ追加する
+3. [unreleased-component-scan.md](../_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出してスコープへ追加する（release-preparer Phase 1 1a-1/2a-1 で抽出済みの場合はそれを再利用し、再走査しない）
 
-**2. UAT（Sandbox）と本番の双方から Tooling API 経由で実体を取得する**（`$SF_ALIAS` = [sandbox-alias-check.md](../../common/sandbox-alias-check.md) で確認済みの Sandbox/UAT エイリアス、`$PROD_ALIAS` = [prod-readonly-check.md](../../common/prod-readonly-check.md) で確認済みの本番エイリアス。`force-app/` への retrieve は行わない。取得結果はメモリ上/一時ファイルでの比較にのみ使う）:
+**2. UAT（Sandbox）と本番の双方から Tooling API 経由で実体を取得する**（`$SF_ALIAS` = [sandbox-alias-check.md](../../common/sandbox-alias-check.md) で確認済みの Sandbox/UAT エイリアス、`$PROD_ALIAS` = [prod-readonly-check.md](../../common/prod-readonly-check.md) で確認済みの本番エイリアス。`force-app/` への retrieve は行わない。取得結果は一時ディレクトリ `{tmp_dir}/org-drift-tier0/` に保存し、比較にのみ使う）:
 ```bash
+mkdir -p "{tmp_dir}/org-drift-tier0"
 # LWC（LightningComponentResource は Tooling API のみで取得可能。Source にコンポーネント本文が入る）
-sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$SF_ALIAS" --json
-sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$PROD_ALIAS" --json
+sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{バンドル名}.uat.json"
+sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{バンドル名}.prod.json"
 # Apex クラス（Body は Tooling API のみで取得可能）
-sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$SF_ALIAS" --json
-sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$PROD_ALIAS" --json
+sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{クラス名}.uat.json"
+sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{クラス名}.prod.json"
 # Apex トリガー
-sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$SF_ALIAS" --json
-sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$PROD_ALIAS" --json
+sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{トリガー名}.uat.json"
+sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{トリガー名}.prod.json"
 ```
 > フィールド名・リレーション名がエラーになる場合は `sf sobject describe --sobject LightningComponentResource --use-tooling-api --target-org "$SF_ALIAS"` で実際のスキーマを確認してから再実行する（API バージョン差異の可能性）。
 
 **3. UAT側・本番側の `Source` / `Body` を比較する**:
 ```bash
-python -c "import json; a=json.load(open('{uat.json}',encoding='utf-8'))['result']['records']; b=json.load(open('{prod.json}',encoding='utf-8'))['result']['records']; ..."
+python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat.json',encoding='utf-8'))['result']['records']; b=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.prod.json',encoding='utf-8'))['result']['records']; ..."
 ```
 
 **4. 差分の意味を判定する**:
@@ -51,7 +54,7 @@ python -c "import json; a=json.load(open('{uat.json}',encoding='utf-8'))['result
 
 **5. 「未リリース積み残し」「未リリース積み残しの疑い」が1件でもある場合**、release-plan.md 冒頭に最重要警告として記録する。**Tier0 で見つかったコンポーネントを資材マニフェストへ自動追加しない**（誤検知・スコープ外の可能性があるため）。完了報告で「マニフェストに含めるべきか」をユーザーに明示的に確認する。
 
-一時ファイルを作成した場合は使用後に削除する（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠）。
+**6. 一時ディレクトリ `{tmp_dir}/org-drift-tier0/` は release-preparer「Phase 最終: クリーンアップ」で削除される**（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠。本 Step 単体では削除しない。Phase 1 で前倒し実行された場合も含め、release-plan.md 生成・完了報告後にまとめて削除するため）。
 
 ### Tier 1: 軽量スキャン（全リリース対象コンポーネントに実施）
 
@@ -94,10 +97,10 @@ python -c "import json; a=json.load(open('{uat.json}',encoding='utf-8'))['result
 ```markdown
 ## 本番環境ドリフト確認
 
-### Tier 0（環境間実体差分・マニフェスト非依存）
-| コンポーネント | スコープ根拠 | UAT/本番 比較結果 | 判定 |
-|---|---|---|---|
-| {API名} | マニフェスト / 参照関係 / decisions.md・cases | 一致 / UAT のみ存在 / 内容相違 | 差分なし / 未リリース積み残し / 未リリース積み残しの疑い / 他者変更あり・要確認 |
+### Tier 0（環境間実体差分・マニフェスト非依存。検査対象は LWC / Apex クラス / Apex トリガーのみ。それ以外の種別は Tier 1 の更新日時比較でのみカバー）
+| コンポーネント | 検査方式 | スコープ根拠 | UAT/本番 比較結果 | 判定 |
+|---|---|---|---|---|
+| {API名} | Tier0 実体比較 | マニフェスト / 参照関係 / decisions.md・cases | 一致 / UAT のみ存在 / 内容相違 | 差分なし / 未リリース積み残し / 未リリース積み残しの疑い / 他者変更あり・要確認 |
 
 ### Tier 1（軽量スキャン）
 | コンポーネント | 最終更新日 | 最終更新者 | 痕跡 |

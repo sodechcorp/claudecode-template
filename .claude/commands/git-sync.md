@@ -115,16 +115,7 @@ python scripts/python/git-sync/git-sync-merge.py --branch {Step 0 で取得し�
 
 ## プロジェクト部分を保存する
 
-### Step 1: 積み上げ同期型ファイルのマージ（push 前に必ず実行）
-
-push する前に上記スクリプトを実行する。  
-これにより、ローカルの積み上げ ＋ remote の積み上げを合体させた状態で push できる。
-
-```bash
-python scripts/python/git-sync/git-sync-merge.py --branch {Step 0 で取得したブランチ名}
-```
-
-### Step 2: 対象ファイルの選択
+### Step 1: 対象ファイルの選択
 
 AskUserQuestion で選択:
 
@@ -136,6 +127,16 @@ AskUserQuestion で選択:
 - CLAUDE.md のみ
 
 > docs/logs/ は選択肢に含まれません（課題作業ログ・対象外）。
+
+### Step 2: 積み上げ同期型ファイルのマージ（選択に応じて実行）
+
+**Step 1 の選択が「全て」または「引継ぎ対象 docs/ のみ」の場合のみ実行する**（積み上げ同期型ファイルは全て `docs/` 配下のため。「CLAUDE.md のみ」を選択した場合はスキップし、docs/ 配下をローカルで書き換えない）。
+
+push する前に実行することで、ローカルの積み上げ ＋ remote の積み上げを合体させた状態で push できる。
+
+```bash
+python scripts/python/git-sync/git-sync-merge.py --branch {Step 0 で取得したブランチ名}
+```
 
 ### Step 3: 変更確認
 
@@ -156,9 +157,9 @@ git status --short docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ do
 - 例: `docs: update catalog.md,requirements.md` / `chore: update CLAUDE.md,usecases.md`
 - 60 文字を超える場合は `...` で末尾を短縮
 
-Step 2 の選択に応じて `git add` の対象パスを以下から**そのまま**使う（`git add -A` / `git add .` は意図しないファイル混入の原因になるため使用禁止）:
+Step 1 の選択に応じて `git add` の対象パスを以下から**そのまま**使う（`git add -A` / `git add .` は意図しないファイル混入の原因になるため使用禁止）:
 
-| Step 2 の選択 | `git add` 対象パス |
+| Step 1 の選択 | `git add` 対象パス |
 |---|---|
 | 全て | `docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/decisions.md docs/_README.md CLAUDE.md` |
 | 引継ぎ対象 docs/ のみ | `docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/decisions.md docs/_README.md` |

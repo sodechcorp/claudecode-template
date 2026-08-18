@@ -63,41 +63,40 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 ## Phase 1: リリース資材の確定
 
-1. **デプロイ対象を一覧化する**（`backlog-releaser.md` と同ロジック。base 起点の差分抽出）:
-   - `docs/logs/{issueID}/implementation-plan.md` の「## 段階コミット一覧」に先頭コミットハッシュがあれば、そこを base として `git diff --name-only {base} -- 'force-app/**'`
-   - base が取得できない場合: `git diff --name-only HEAD -- 'force-app/**'`
+1. **デプロイ対象を一覧化する**。base コミットの決定手順は [deploy-manifest-base.md](../templates/backlog/_partials/deploy-manifest-base.md) を参照（`backlog-releaser.md` と同一の実行可能スクリプトを使う）:
    - **いずれも差分が空の場合、まず `force-app/` が `.gitignore` 対象かを確認する**（`git check-ignore -q force-app/main/default` の終了コード、または `.gitignore` を Grep）:
      - **`.gitignore` 対象でない場合**（通常は diff が効くはずの環境）: 「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する。Glob 全量フォールバックは行わない
      - **`.gitignore` 対象の場合**（各メンバーが組織から都度 retrieve する運用で `git diff` が構造的に機能しない環境）: 人間に丸投げせず、**1a** の手順でマニフェストを再構築する
 1a. **【1. で `.gitignore` 対象により差分が取得できなかった場合のみ実施】資材マニフェストを環境間実体差分から再構築する**（`git diff` が使えない環境向けの代替ソース。人間の記憶と implementation-plan.md だけに依存しない）:
-   1. `docs/decisions.md` の当該課題（`{issueID}`）に該当する**全エントリ**（`## {issueID}:` で始まる見出しを Grep。降順記録のため同一課題が複数エントリに分かれていることがある＝再スコープの証跡。**最新エントリだけで打ち切らない**）と、存在すれば `docs/knowledge/cases/{issueKey}.md` の全文から、コンポーネント名らしき識別子（LWC/Aura ディレクトリ名・Apex クラス名等）を抽出し、暫定候補リストとする
+   1. [unreleased-component-scan.md](../templates/backlog/_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出する
    2. `sandbox-alias-check.md`（Sandbox/UAT 接続・`$SF_ALIAS`）と `prod-readonly-check.md`（本番接続・`$PROD_ALIAS`）の両方を確認したうえで、[option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md) Tier 0 を本 Phase の時点で前倒し実行し、暫定候補リストを対象に UAT/本番の Tooling API 実体比較を行う。「UAT にのみ存在」「UAT と本番で内容が異なる」と判定されたコンポーネントを実差分として資材マニフェストに採用する。**いずれかの組織に接続できない場合はこの前倒し実行を諦め、通常どおり「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する**（1a 全体のフォールバック）
    3. 確定したマニフェストをユーザーに提示し、「この一覧で間違いないか」の最終確認を取ってから 2. に進む（`git diff` より精度が落ちる推定ソースのため自動確定しない）
    4. 前倒し実行した Tier 0 の結果はそのまま release-plan.md「## 本番環境ドリフト確認」に転記する（Phase 4 で Tier 0 を再実行する必要はない旨を明記する）
 2. 各ファイルをメタデータ種別・API名・変更種別（新規/変更/削除）に分類し、資材マニフェスト表を作成する（1. の `git diff` 結果、または 1a を実施した場合はその確定結果を使う）。**この時点で Apex クラス（`.cls`）・Apex トリガー（`.trigger`）が資材マニフェストに1件でも含まれるかを判定し `apex_in_scope: true/false` として記録する**（Phase 5 の `--test-level` 決定に使用する。デプロイ本体に Apex が含まれない場合、参照先が Apex であっても `apex_in_scope` は変更しない＝あくまで「今回デプロイするファイルそのもの」で判定する）
 2a. **未リリース積み残しの突合**（`.gitignore` 有無に関わらず常に実施。`git diff` が正常に効いた場合でも、今回のコミット差分に含まれない過去のスコープ変更分は `git diff` では原理的に検出できないため。実例: GF-368 — 課題が「初回実装 → 保留 → 再スコープ → リリース」の経路をたどり、再スコープ後の implementation-plan.md から初回実装分の未リリース資材（LWC 子コンポーネント）が消えた）:
-   1. `docs/decisions.md` の当該課題（`{issueID}`）に該当する**全エントリ**（1a-1 と同じ Grep 条件。最新エントリだけで打ち切らない）と、存在すれば `docs/knowledge/cases/{issueKey}.md` の全文から、コンポーネント名らしき識別子を抽出する（1a を実施済みならその結果を再利用してよい）
+   1. [unreleased-component-scan.md](../templates/backlog/_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出する（1a を実施済みならその結果をそのまま再利用する。パーシャル側の同一セッションキャッシュ規定を参照）
    2. 抽出したコンポーネント名を 2. の資材マニフェストと突き合わせ、マニフェストに含まれないものを検出する
    3. 1件でも検出した場合、release-plan.md に「資材マニフェスト外で言及されているコンポーネント」として警告記録し、完了報告でユーザーに「リリース対象に含めるべきか」を確認する（自動でマニフェストに追加しない）
 3. [option-deployment-dependency-check.md](../templates/backlog/options/option-deployment-dependency-check.md) を実施し、デプロイ順序・一括可否を判定する
 4. [deploy-skip-judgment.md](../templates/backlog/deploy-skip-judgment.md) の考え方を適用し、ソースデプロイ不可・管理画面手動操作が必要な資材があれば分離して記録する
 5. **デプロイ元は常に `force-app` 本体**。他チケットとの競合解消やマージ検証のためにバックアップ/作業用フォルダ（例: `.release-backup/{issueID}/...`）を作った場合でも、そこを `release-plan.md` の `--source-dir` に指定しない。競合解消後の変更は必ず `force-app` にマージしてから 1. の diff 抽出・Phase 5 のデプロイコマンドに反映する（`force-app` 外のフォルダは source-tracking・metadata 構造の前提を満たさず `NothingToDeploy` 等の予期しないエラーを招く）
 6. **`apex_in_scope: true` の場合、`--test-level` 判定用にテストクラスを確定する**（目的: 無関係な既存テストを全件実行する `RunLocalTests` を既定にせず、Salesforce 公式仕様上カバレッジ要件が「デプロイ対象クラス単位」で完結する `RunSpecifiedTests` をデフォルトにするため。根拠: RunSpecifiedTests は対象クラス/トリガーごとに個別カバレッジ75%が要件で無関係な既存テストの合否を問わないが、RunLocalTests は組織内の全ローカルテストの実行・合格が要件になる）:
-   - デプロイ対象の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`）で専用テストクラスを Glob/Grep で特定する
+   - `test-report.md`「### dry-run デプロイ検証」に「指定テストクラス: ...」の記載があれば（backlog-tester Step 2 で確定済み・空欄「なし」以外）、それを `target_test_classes` としてそのまま転記し、以下の Glob/Grep 探索は行わない
+   - 記載が無い場合のみ、デプロイ対象の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`）で専用テストクラスを Glob/Grep で特定する
    - `docs/logs/{issueID}/investigation.md` の「## 既存テストクラスへの影響」（option-test-class-impact.md が Phase 2 で作成済みの場合）に追加で挙がっているテストクラスがあれば取り込む
    - 全デプロイ対象クラスに専用テストクラスが見つかった場合 → `test_coverage_risk: false`、特定したテストクラス一覧を `target_test_classes` として記録
    - 1件でも専用テストクラスが見つからない場合 → `test_coverage_risk: true`、該当クラス名を記録（Phase 5 で `RunLocalTests` フォールバックの根拠にする）
 
 ## Phase 2: 影響範囲の最終確認
 
-`/backlog` Phase 1〜5 で影響範囲は既に調査済みのはずだが、リリース直前の最終確認として以下を再走査する:
+`/backlog` Phase 1 で調査済みの項目は再実行しない。判定は機械的に行う（実行するか否かをモデル判断に委ねない）:
 
-1. [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルール・共通ユーティリティへの影響
-2. [option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) — 既存テストクラスへの影響
-3. [option-cross-functional-impact.md](../templates/backlog/options/option-cross-functional-impact.md) — 横断機能・他チーム・データ整合性への影響
-4. [option-user-impact-survey.md](../templates/backlog/options/option-user-impact-survey.md) — 影響ユーザー数・部署の見積もり（**Sandbox** で SOQL 件数確認。本番へは Phase 4 まで接続しない）
-
-investigation.md / test-report.md に記録済みの結果があれば重複調査を避けて転記し、未実施のものだけ実行する。
+1. `find force-app -type f -newer docs/logs/{issueID}/investigation.md` を実行する（`investigation.md` が無い場合は「差分あり」扱いとする）。1件でも出力があれば「investigation.md 作成後に実装差分あり」と判定し、下記①〜③も無条件で再走査する
+2. 差分が無い場合、①〜③は investigation.md に該当見出しの記載があれば**無条件で転記し、option を実行しない**（見出しが無い場合のみ実行する）:
+   - ① [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルール・共通ユーティリティへの影響（investigation.md「## 影響範囲」の記載有無で判定）
+   - ② [option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) — 既存テストクラスへの影響（investigation.md「## 既存テストクラスへの影響」の記載有無で判定）
+   - ③ [option-user-impact-survey.md](../templates/backlog/options/option-user-impact-survey.md) — 影響ユーザー数・部署の見積もり（investigation.md「## 影響ユーザー調査」の記載有無で判定）。**option-user-impact-survey.md 本体の手順に従う**（本番 SELECT は `option-prod-select-reference` のユーザー許可を得て実施。Sandbox のユーザーマスタは検証用アカウントのみで本番の実在ユーザー数を表さないため代替不可。許可が得られない場合のみ Sandbox 件数を参考値とし `[要確認: 本番データ未確認]` を付す）。本番接続は `prod-readonly-check.md` 通過後の read-only に限り Phase 1 以降で許可されている（Phase 1-1a-2 の Tier 0 前倒し実行と同じ原則）
+3. [option-cross-functional-impact.md](../templates/backlog/options/option-cross-functional-impact.md) — 横断機能・他チーム・データ整合性への影響は `_index-phase1.md` に存在しない（`/backlog` Phase 1 で実行されない）オプションのため、差分の有無によらず常に実行する
 
 ## Phase 3: チケット競合チェック
 
@@ -217,6 +216,11 @@ sf project deploy report --target-org <本番エイリアス>
 > **dry-run/デプロイが失敗した場合の切り分け**:
 > - **`RunSpecifiedTests` 使用時にデプロイ対象クラスのカバレッジ不足で失敗**: `target_test_classes` が対象クラスを実際にどれだけ網羅しているか確認し、テストケース追加または関連テストクラスの追加指定を検討する。無関係テストの合否は要件外のため、原因は必ず「今回のデプロイ対象クラスのカバレッジ不足」に絞られる
 > - **`RunLocalTests` にフォールバックした場合に無関係な既存テストが失敗**: 失敗したテストクラスが対象とするオブジェクト/クラスが Phase 1 資材マニフェストに含まれるか確認する。含まれていなければ既存の本番テスト負債（今回のリリースが壊したものではない）である可能性が高い。release-plan.md に「本番テスト負債（今回のリリース対象外・別途是正要）」として原因テストクラス一覧を記録し、是正を別課題として提起するかを人間に確認する。あわせて該当クラスに専用テストクラスを追加し次回以降 `RunSpecifiedTests` に切り替えられないか検討する
+>
+> **戻り先の判断（原因種別で二分岐する）**:
+> - **本番固有の失敗**（org drift・権限不足・API バージョン不整合等、今回のデプロイ対象コード自体には問題がない）→ 原因を解消した上で `/release {issueID}` を再実行する（release-preparer が資材マニフェスト・ドリフト確認を read-only で再チェックし、release-plan.md を再生成する）
+> - **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等が原因）→ `docs/logs/{issueID}/release-issue.md`（無ければ新規作成）に差し戻し理由・現象・ログ・差し戻し先 Phase（`Phase 4`）を記録し（backlog-releaser.md と同じスキーマ。`resume-phase-routing.md` がこのファイルを読んで再開選択肢を出す）、「`/backlog {issueID}` を再実行して Phase 4（実装修正）から再開 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施してください」と人間に案内する
+> - 切り分けが困難な場合は上記2択を提示し、人間に判断してもらう
 
 {デプロイ順序が分割要の場合は Phase 1 の順序をここに明記。管理画面手動操作がある場合は操作手順を記載}
 
@@ -244,7 +248,7 @@ sf project deploy report --target-org <本番エイリアス>
 手順書生成時に以下を実施:
 - [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) を参照し、①/③ の資材種別別セクションを Phase 1 資材マニフェストの含有種別に合わせて組み立てる
 - [option-rollback-strategy.md](../templates/backlog/options/option-rollback-strategy.md) / [option-rollback-readiness.md](../templates/backlog/options/option-rollback-readiness.md) の内容を統合してロールバック手順セクションを埋める
-- [option-release-note-generation.md](../templates/backlog/options/option-release-note-generation.md) に従い `docs/logs/{issueID}/release-note.md` を生成する
+- `docs/logs/{issueID}/release-note.md` の生成前に既存ファイルの有無を確認する。**既に存在する場合**（`/backlog` Phase 6 で option-release-note-generation が実行済みの可能性がある）は全文 Read し、「リリース日」欄を本番リリース予定日に更新し、「注意事項」に今回の `--test-level` 判定結果を追記する差分更新のみ行う（全面再生成しない。既存の変更内容・影響範囲の記述を消さない）。**存在しない場合のみ** [option-release-note-generation.md](../templates/backlog/options/option-release-note-generation.md) に従い新規生成する
 
 ## Phase 6: 完了・引き渡し
 
@@ -280,10 +284,12 @@ Notion タスクに紐づく作業であれば、完了後に「ナレッジ／�
 ## Phase 最終: クリーンアップ
 [共通ルール参照](../spec/cleanup-rules.md)
 
-Phase 4 Tier 2 で一時ディレクトリ（`{tmp_dir}/prod-drift-check`）を作成した場合は、成果物書き出し後・完了報告前に必ず削除する:
+以下の一時ディレクトリを作成した場合は、成果物書き出し後・完了報告前に必ず削除する:
+- `{tmp_dir}/prod-drift-check`（Phase 4 Tier 2）
+- `{tmp_dir}/org-drift-tier0`（Phase 1-1a-2 前倒し実行時、または Phase 4 Tier 0 実行時）
 
 ```bash
-python -c "import shutil; shutil.rmtree(r'{tmp_dir}/prod-drift-check', ignore_errors=True)"
+python -c "import shutil; shutil.rmtree(r'{tmp_dir}/prod-drift-check', ignore_errors=True); shutil.rmtree(r'{tmp_dir}/org-drift-tier0', ignore_errors=True)"
 ```
 
 エラー終了時は削除しない（デバッグ用に残す）。

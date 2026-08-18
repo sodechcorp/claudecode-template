@@ -581,6 +581,10 @@ python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
   test-report.md  : {log_dir}/test-report.md
   証跡ファイル    : {evidence_dir}/ 配下 {N} ファイル
 
+{総合判定が PASS または 条件付きPASS（要確認）の場合}
+本番リリースを準備する場合は、別セッション（クリーンな会話）で以下を起動してください（/release が独立して本番リリース準備を担当します。/test 自身は本番へのデプロイ・準備を行いません）:
+  /release {issueID}
+
 {実装バグ NG が Phase F-2 で自動修正・再デプロイされた場合}
 自動修正: 完了（Phase F-2）
   修正 TC: {auto_fix_tcs}

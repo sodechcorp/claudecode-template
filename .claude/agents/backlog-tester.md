@@ -139,6 +139,7 @@ dry-run のためコードは Sandbox に届いていない。変更の反映を
 | 実装計画との整合 | PASS / FAIL | |
 
 ### dry-run デプロイ検証
+指定テストクラス: {Step 2 で列挙した `<テストクラス名>` をそのまま転記。Apex 変更なし/対応テストクラス不在の場合は「なし」}
 dry-run: PASS（0 errors） / FAIL
 Apex テスト: PASS / FAIL / 対象なし（Apex 変更なし）
 変更クラスカバレッジ: XX% / 対象なし
