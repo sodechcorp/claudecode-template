@@ -123,11 +123,26 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
   echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
 
-  TARGET_TC_LIST=$(python -c "import json; d = json.load(open(r'$JUDGMENT_PATH')); ng = [r['no'] for r in d.get('results', []) if r.get('status') == 'NG']; print(','.join(ng))" 2>/dev/null || echo "")
+  # 差分対象 = 前回 NG ∪ 前回 SKIP（要目視・DOM未取得） ∪ 前回結果に存在しない TC（--force 等での新規追加分）。
+  # 前回 OK・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
+  # 証跡未採取のまま judge_results.py で「証跡ファイルが見つかりません」の偽 NG になるため）。
+  TARGET_TC_LIST=$(python -c "
+import json, os, sys
+sys.path.insert(0, os.path.join(os.getcwd(), 'scripts', 'python', 'backlog-xlsx'))
+from _common import parse_test_spec
+d = json.load(open(r'$JUDGMENT_PATH'))
+prev = {r['no']: r.get('status') for r in d.get('results', [])}
+try:
+    spec_nos = [tc.get('No', '') for tc in parse_test_spec(r'$SPEC_PATH')]
+except Exception:
+    spec_nos = list(prev.keys())
+target = [no for no in spec_nos if prev.get(no, 'NEW') in ('NG', 'SKIP', 'NEW')]
+print(','.join(target))
+" 2>/dev/null || echo "")
   if [ -z "$TARGET_TC_LIST" ]; then
-    echo "[INFO] 前回 NG なし。差分対象なし（全件スキップ）。"
+    echo "[INFO] 前回 NG・SKIP なし、新規 TC なし。差分対象なし（全件スキップ）。"
   else
-    echo "[INFO] 差分対象（前回 NG）: $TARGET_TC_LIST"
+    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC）: $TARGET_TC_LIST"
     echo "[INFO] 影響範囲の TC も再テスト対象に含めるか、auto-evidence-runner が確認します。"
   fi
 else
@@ -147,10 +162,10 @@ fi
 > - **「docs/logs/ に出力する」**: `XLSX_FOLDER = docs/logs/{issueID}/`、`EVIDENCE_DIR = docs/logs/{issueID}/evidence` として続行する  
 > - **パス入力**: そのパスを `XLSX_FOLDER`・`EVIDENCE_DIR = {パス}/evidence` として設定してから続行する
 
-**ユーザー確認プロトコル**（実行前に必ず提示する）:
+**実行内容の提示**（提示のみ・停止しない。ユーザーは `/test {issueID}` を明示入力済みで課題ID・Sandbox は確定済みのため。実データへの書き込みを伴う操作の承認は Step 1.5 メール到達安全確認ゲートに集約する）:
 
 ```
-=== /test 実行前確認 ===
+=== /test 実行内容 ===
 課題ID    : {issueID}
 Sandbox   : {alias}
 証跡保存先: {evidence_dir}
@@ -163,9 +178,8 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
   Phase D: OK/NG 判定・対応記録.xlsx 更新
   Phase E: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
   Phase F: test-report.md 生成・一時ファイル後始末（テストデータは削除せず Sandbox に保持）
-
-続行しますか？（テスト実行・データ操作が発生します）
 ```
+上記を表示したうえで確認を待たずそのまま Phase A に進む。
 
 > **[ハーネス直接実行（A-2: 環境準備）]**
 
@@ -209,7 +223,7 @@ python -c "import PIL" 2>/dev/null || {
 
 `test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。
 
-> **仕様スキーマ（参考）**: 9 列 — No / 観点 / 種別 / 前提・データ準備 / 実行アクション / 期待結果 / 判定方法 / 証跡取得 / 自動化可否。  
+> **仕様スキーマ（参考）**: 11 列 — No / 観点 / 種別 / 前提・データ準備 / 実行アクション / テスト手順 / 期待結果 / 判定方法 / 証跡取得 / 自動化可否 / 確認ポイント（着眼点）。`テスト手順` と `確認ポイント（着眼点）` は任意列（詳細は `test-spec-builder.md` §Step 2 参照）。  
 > 詳細な展開ルール・種別選択肢・自動化可否判断基準・網羅性チェック手順は `test-spec-builder.md` に定義されている。  
 > **「観点」列はエビデンス Excel・判定ログ・対応記録に verbatim 転記される**: 自然文1文・ラベル（日本語表示名）優先・接頭ラベル（要求充足=①②…、回帰=`回帰`、共有コンポーネント consumer fan-out=`横展開`）必須。詳細と良い例・悪い例は `test-spec-builder.md` §「観点」列の記述ルールを参照。  
 > **網羅性は三軸**（軸1 要求充足／軸2 変更点回帰／軸3 共有コンポーネント consumer fan-out）。軸3は共有データ取得メソッド／共通ユーティリティを変更した場合、その全呼び出し元（入口／画面／フロー）で報告症状が再発しないかを各入口 1 TC で検証する。起動ゲートは `test-spec-builder.md` §軸3 を参照。
@@ -296,10 +310,7 @@ python "$(pwd)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
   --judgment "{judgment_path}"
 ```
 
-生成された `{xlsx_folder}/{issueID}_エビデンス.xlsx` を確認:
-- 「テスト結果」シートが存在するか
-- 「証跡」シートが存在するか
-- ケース数が test-spec.md と一致するか
+スクリプトの stdout（`生成完了: {出力パス}` / `テストケース: {N}件 (OK=.. / NG=.. / 要手動=.. / 対象外=..)` / `回次: {N}回`）をそのまま完了根拠とする。シート生成に失敗した場合（`PermissionError` 等）はスクリプトが exit 1 で終了するため、正常終了＝シート存在が保証される（目視確認は不要）。
 
 ---
 
@@ -352,7 +363,18 @@ echo "NG件数（blind判定の実行判定用）: ${NG_COUNT}"
 
 **`NG_COUNT` が 0 以外の場合**: 本ステップをスキップする（既に NG が判明しており、blind 判定を追加しても新しい情報は得られないため。Phase F-2 の NG 修正ループを優先する）。
 
-**`NG_COUNT` が 0 の場合**: `option-final-verifier` を実行する。
+**`NG_COUNT` が 0 の場合**: `.blind-verdict.json` のキャッシュを確認する:
+```bash
+JUDGMENT_HASH=$(python -c "import hashlib; d=open(r'{judgment_path}', encoding='utf-8').read(); print(hashlib.sha256(d.encode('utf-8')).hexdigest())" 2>/dev/null || echo "")
+CACHED_HASH=""
+if [ -f "{log_dir}/.blind-verdict.json" ]; then
+  CACHED_HASH=$(python -c "import json; print(json.load(open(r'{log_dir}/.blind-verdict.json', encoding='utf-8')).get('judgment_hash',''))" 2>/dev/null || echo "")
+fi
+echo "JUDGMENT_HASH=${JUDGMENT_HASH} / CACHED_HASH=${CACHED_HASH}"
+```
+
+- **`JUDGMENT_HASH` が `CACHED_HASH` と一致する場合**（証跡・判定結果が前回 blind 判定時から変化なし）: `option-final-verifier` を再実行せず、`.blind-verdict.json` の `verdict_block` をそのまま `{log_dir}/test-report.md` の「## blind 最終解決判定」として再掲する（以下手順1〜6はスキップ）。
+- **不一致または `.blind-verdict.json` 不在の場合**: `option-final-verifier` を実行する（以下手順1〜6）。手順6完了後、`{log_dir}/.blind-verdict.json` に `{"judgment_hash": "{JUDGMENT_HASH}", "verdict_block": "{手順6で返却された ## blind 最終解決判定 ブロック全文}"}` を Write する。
 
 1. **After 状態のテキスト要約を自動生成する**（`{judgment_path}` の `results[]` から機械的に組み立てる。LLM 生成ではなく決定的な変換）:
    ```bash
@@ -388,7 +410,7 @@ F-1a の「最終判定」が「追加実装要」、または F-1b を実行し
 ```
 F-1a が「全項目 OK・リリース可」かつ（F-1b が「解決済み」または `NG_COUNT` 非0でスキップ）の場合は総合判定を変更しない。
 
-> **既知の簡略化**: F-1b は `NG_COUNT == 0` になった `/test` 実行のたびに毎回起動する（差分再実行で新規に変化がない場合の重複実行を避ける最適化は未実装）。コストが問題になった場合は前回の blind 判定結果を `judgment-result.json` の hash と紐付けてスキップする仕組みを追加検討する。
+> **キャッシュ済み**: F-1b は `.blind-verdict.json`（`judgment-result.json` の hash 紐付け）により、差分再実行で証跡・判定結果に変化がない場合は `option-final-verifier` の再起動をスキップし前回結果を再掲する（2026-08-18 実装）。
 
 ---
 

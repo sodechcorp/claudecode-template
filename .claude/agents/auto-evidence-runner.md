@@ -82,9 +82,9 @@ fi
 
 ## Step 1: テスト仕様の確認と種別ルーティング
 
-`{spec_path}` を Read し、9 列テーブルを解析する:
+`{spec_path}` を Read し、11 列テーブル（`テスト手順` と `確認ポイント（着眼点）` は任意列。旧 9/10 列 spec は当該列が空欄のまま有効）を解析する:
 
-| No | 観点 | 種別 | 前提・データ準備 | 実行アクション | 期待結果 | 判定方法 | 証跡取得 | 自動化可否 |
+| No | 観点 | 種別 | 前提・データ準備 | 実行アクション | テスト手順 | 期待結果 | 判定方法 | 証跡取得 | 自動化可否 | 確認ポイント（着眼点） |
 
 自動化可否ごとに仕分け:
 - `自動` → Step 2〜4 で自動実行
@@ -164,7 +164,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 - **永続化するレコード（rollback しないもの）は必ず `System.debug('CREATED_RECORD|' + record.getSObjectType() + '|' + record.Id + '|' + record.Name + '|{No}');` 形式で1レコード1行 debug する**（末尾の `{No}` は生成中の当該 TC 番号をリテラルとして埋め込む。[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 の統一フォーマットに合わせるためのマーカー。3-4 で集約する。`rollback` する一時データは目視不可のため出力しない＝正しい挙動）。
 - `System.debug()` で結果・件数・フィールド値を出力し証跡に残す。**必ず「入力値→処理経路→結果値」を全て debug する**。
 - Flow 起動は `Flow.Interview.{Flow_API名}` または `Database.executeBatch` を使う。
-- **条件分岐の網羅（各 TC に適用・省略禁止）**: 「実行アクション」が分岐を持つ場合、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**。1 ファイル内で全分岐をカバーする。
+- **条件分岐の網羅（責務は spec 側に一本化・省略禁止）**: 分岐展開の要否は test-spec.md の「証跡取得」列（`分岐ラベル` フィールド）で判定する。当該 TC に `分岐ラベル` が列挙されている場合のみ、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**（1 ファイル内で全分岐をカバー）。**`分岐ラベル` がない TC（= spec 側で分岐ごとに別 TC 行として分割済み）は当該 TC の実行アクションのみを実行し、他分岐を追加展開しない**（test-spec-builder.md §「観点」展開の注意 参照）。
 
 生成した各 TC の Apex を `{log_dir}/tmp/{No}_anon.apex` に Write する:
 ```bash
@@ -224,7 +224,7 @@ grep -h "^CREATED_RECORD|" "{evidence_dir}"/after/apex/*.txt 2>/dev/null \
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
 - `max_workers_ui`: `{serial}` が true の場合は `1`、それ以外は `{max_workers_ui}`（デフォルト 3）
-- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル）
+- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル・**確認ポイント（着眼点）**）
 
 `ui-evidence-runner` の返却（各 TC の証跡ファイル名・**画面URL**・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。**画面URL 列（`ok: true` の行のみ）は `{log_dir}/ui_screen_urls.txt` に `{No}|{観点}|{画面URL}` 形式で追記する**（Phase F の Step 6 が目視ハンドオフブロック生成に使う）。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 生成は Phase F（Step 6）が `{judgment_path}` JSON から行う。
 
@@ -332,7 +332,9 @@ Sandbox（{alias}）に未ログインの場合は、リンククリック後に
 
 ---
 
-## NG 時の差し戻し案内
+## NG 時の差し戻し案内（判断材料の提示のみ）
+
+> **責務分担**: xlsx への NG 対応履歴記録・ユーザーへの戻り先 Phase / 修正手順の最終案内は `/test` Phase F 以降（`test.md` §「NG があった場合の差し戻し」）が担当する。本節はそれに使う判断材料（戻り先 Phase・ループ回次・影響範囲候補）を返却テーブルに添えるだけで、xlsx 書き込み・ユーザーへの最終案内は行わない（重複記録防止）。
 
 NG が 1 件以上ある場合:
 
@@ -345,27 +347,10 @@ NG が 1 件以上ある場合:
    ```bash
    ls "{log_dir}"/judgment-result.R*.json 2>/dev/null | wc -l
    ```
-   3 回を超えている場合は「繰り返し NG が続いています。業務担当者との打ち合わせを推奨します」と提案する。
+   3 回を超えている場合は返却テーブルに「繰り返し NG が続いています。業務担当者との打ち合わせを推奨します」と記録する。
 
-3. **影響範囲の TC を提示する**（修正コンポーネントが変わった場合の回帰漏れ防止）:
-   `implementation-plan.md` の改版履歴（最新行）から変更コンポーネント・オブジェクトを読み取り、test-spec.md の TC（観点・期待結果）と突き合わせて再テスト候補 TC を列挙する。ユーザーに「これらの TC も再テスト対象に含めますか？（--full で全件も可）」と確認する。
-
-4. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ）:
-   ```bash
-   # NG TC ごとに1行追記（R{N} = 現在のアーカイブ数 + 1）
-   python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
-     --folder "{xlsx_folder}" --issue-id "{issueID}" ng-history \
-     --round "R{N}" --tc "{TC番号}" --reason "{NG原因}" --fix "（修正方針は /backlog Phase 4 で確定後に記入）"
-   ```
-
-5. ユーザーに戻り先 Phase と以下の修正手順を提示する:
-   ```
-   修正手順:
-     1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run）
-     2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
-     3. /test {issueID} を再実行
-        → 今回の judgment-result.json と証跡は次回 /test 起動時に自動退避（R{N+1} として記録）されます
-   ```
+3. **影響範囲の TC を返却テーブルに提示する**（修正コンポーネントが変わった場合の回帰漏れ防止）:
+   `implementation-plan.md` の改版履歴（最新行）から変更コンポーネント・オブジェクトを読み取り、test-spec.md の TC（観点・期待結果）と突き合わせて再テスト候補 TC を列挙する（ユーザーへの確認・xlsx 記録は test.md 側が行う）。
 
 ---
 
