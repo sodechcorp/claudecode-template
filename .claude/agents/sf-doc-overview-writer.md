@@ -115,6 +115,14 @@ fi
 python -c "import pathlib, sys; p = pathlib.Path(r'{output_dir}/01_基本設計/プロジェクト概要書.xlsx'); (print(f'ERROR: {p} が生成されませんでした', file=sys.stderr), sys.exit(1)) if not p.exists() else None; print(f'OK: {p}')"
 ```
 
+**内容検証post-check（非ブロッキング）**: 存在確認の後、生成物の内容検証を実行する。ソースファイルが存在するのに対応シートがフォールバック文言のまま（パース結果が空）になっていないかを検出する。WARNING が出ても生成は完了扱いとし停止しない。WARNING があれば完了報告に転記する。
+
+```bash
+python "{project_dir}/scripts/python/sf-doc-mcp/check_sf_doc_overview.py" \
+  --docs-dir "{project_dir}/docs" \
+  --xlsx "{output_dir}/01_基本設計/プロジェクト概要書.xlsx"
+```
+
 ---
 
 ## 完了報告
@@ -124,6 +132,8 @@ python -c "import pathlib, sys; p = pathlib.Path(r'{output_dir}/01_基本設計/
 
 【生成先】{output_dir}/01_基本設計/プロジェクト概要書.xlsx
 ```
+
+> 内容検証post-checkでWARNINGが出た場合は完了報告に追記する: 「⚠️ 内容検証WARNING: {該当シート・理由}」。
 
 Phase 1.5 で中断した場合（パラメータ妥当性に関わる指摘があった場合）:
 ```
