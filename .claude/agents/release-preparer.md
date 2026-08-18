@@ -97,8 +97,8 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
    [ -z "$inv_commit" ] && echo "DIFF" || (git diff --quiet "$inv_commit" -- force-app || echo "DIFF")
    ```
    `DIFF` が出力された場合（investigation.md が未コミット、または該当コミット以降 `force-app` に差分あり）「investigation.md 作成後に実装差分あり」と判定し、下記①〜③も無条件で再走査する
-2. 差分が無い場合、①〜③は investigation.md に該当見出しの記載があれば**無条件で転記し、option を実行しない**（見出しが無い場合のみ実行する）:
-   - ① [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルール・共通ユーティリティへの影響（investigation.md「## 影響範囲」の記載有無で判定）
+2. 差分が無い場合、①〜③は investigation.md の記載から Phase 1 で実行済みと判定できれば**無条件で転記し、option を実行しない**（未実行と判定した場合のみ実行する）。判定方法は項目ごとに異なる（各カッコ内の通り）:
+   - ① [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルール・共通ユーティリティへの影響（investigation.md「## Step 0b オプション判定結果」→「### 採用したオプション」に `option-impact-scope-grep` の記載があれば実行済みと判定する。「### スキップしたオプション」側にある／同セクションが無い／自明ケース判定で Step 0b が一括スキップされている、のいずれかに該当する場合は未実行として扱い本 option を実行する。**「## 影響範囲」見出しの有無では判定しない**——同見出しは backlog-investigator.md の投稿テンプレートで常時必須出力されるため、option 実行有無の代理指標にならない）
    - ② [option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) — 既存テストクラスへの影響（investigation.md「## 既存テストクラスへの影響」の記載有無で判定）
    - ③ [option-user-impact-survey.md](../templates/backlog/options/option-user-impact-survey.md) — 影響ユーザー数・部署の見積もり（investigation.md「## 影響ユーザー調査」の記載有無で判定）。**option-user-impact-survey.md 本体の手順に従う**（本番 SELECT は `option-prod-select-reference` のユーザー許可を得て実施。Sandbox のユーザーマスタは検証用アカウントのみで本番の実在ユーザー数を表さないため代替不可。許可が得られない場合のみ Sandbox 件数を参考値とし `[要確認: 本番データ未確認]` を付す）。本番接続は `prod-readonly-check.md` 通過後の read-only に限り Phase 1 以降で許可されている（Phase 1-1a-2 の Tier 0 前倒し実行と同じ原則）
 3. [option-cross-functional-impact.md](../templates/backlog/options/option-cross-functional-impact.md) — 横断機能・他チーム・データ整合性への影響は `_index-phase1.md` に存在しない（`/backlog` Phase 1 で実行されない）オプションのため、差分の有無によらず常に実行する
