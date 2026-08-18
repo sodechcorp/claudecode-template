@@ -43,7 +43,7 @@ FORCE_FULL="{force_full}"
 FORCE_SPEC="{force_spec}"
 
 # 2. プロジェクトルート・ログディレクトリの確定
-PROJECT_DIR="$(pwd)"
+PROJECT_DIR="$(pwd -W)"
 LOG_DIR="${PROJECT_DIR}/docs/logs/${ISSUE_ID}"
 
 # 3. 必須ファイルの存在確認
@@ -281,7 +281,7 @@ if [ -f "{judgment_path}.prev" ]; then
   PREV_ARG="--prev {judgment_path}.prev"
 fi
 
-python "$(pwd)/scripts/python/backlog-xlsx/judge_results.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/judge_results.py" \
   --folder "{xlsx_folder}" \
   --issue-id "{issueID}" \
   --spec "{spec_path}" \
@@ -302,7 +302,7 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
 > **[ハーネス直接実行]**
 
 ```bash
-python "$(pwd)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
   --folder "{xlsx_folder}" \
   --issue-id "{issueID}" \
   --spec "{spec_path}" \
@@ -551,7 +551,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    これにより「何をなぜ変えたか」が記録に残り、NG 修正ループで実装の方向が課題の真因から静かにずれるのを防ぐ。
 4. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ）:
    ```bash
-   python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+   python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
      --folder "{xlsx_folder}" --issue-id "{issueID}" ng-history \
      --round "R{N}" --tc "{TC番号}" --reason "{NG原因}" --fix "{修正方針}"
    ```
@@ -571,7 +571,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 #### xlsx 対応記録の更新（タイムライン）
 
 ```bash
-python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "テスト" --source "Claude" \
   --content "Phase C-F 完了: 全{total}件 {NG=0なら'全件PASS' / NG>0なら 'NG={ng}件'}"
