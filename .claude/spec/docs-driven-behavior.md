@@ -34,26 +34,27 @@
 3. **権限・基本設定を設定する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「タブ」セクションに従い、タブ表示設定・アプリへの追加を必ず実施（付与方針の詳細はchecklist参照）
 
 ### 「Apex 作って」「トリガー書いて」
-1. `docs/design/apex/` に該当設計書があるか確認 → あれば設計に従う
-2. `docs/catalog/` で対象オブジェクトの項目・リレーションを確認
-3. `docs/requirements/requirements.md` で関連するビジネスルール（BR-XXX）を確認
-4. `.claude/CLAUDE.md` の Quality Standards に従って実装（バルク対応・テストクラス付き）
-5. **権限・基本設定を確認する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「Apex クラス」セクションに従い、`classAccesses` 付与を確認（付与方針の詳細はchecklist参照）
-6. 設計書がない場合は「設計書がありませんが実装しますか？先に `sf-architect` に設計書作成を依頼することも可能です」と提案
+
+**Apex / トリガーのコーディングは `/backlog` 経由が必須**（Backlog課題を伴わないアドホック実装の対象外）。理由: `/backlog` の実装は backlog-validator（Phase 3.5）＋ blind系3種＋regression-guard の多層ゲートを通るが、メインスレッドの直接実装ではこの水準のゲートを提供できないため（[quality-gate.md](../spec/quality-gate.md) 参照）。
+
+1. Backlog課題が未作成の場合: 「Apex / トリガーの実装は `/backlog` 経由が必要です。Backlog課題を作成のうえ `/backlog {issueID}` で対応してください」と案内する（ここでは実装しない）
+2. Backlog課題が既にある場合: `/backlog {issueID}` の実行を案内する
 
 ### 「フロー作って」
-1. `docs/design/flow/` に該当設計書があるか確認
-2. `docs/catalog/` で対象オブジェクトの入力規則・既存自動化を確認（競合リスク）
-3. 実装してメタデータファイルを作成
-4. **権限・基本設定を確認する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「フロー」セクションに従い、画面フローの場合は実行権限を確認
-5. 設計書がない場合は「設計書がありませんが実装しますか？先に `sf-architect` に設計書作成を依頼することも可能です」と提案
+
+**ロジックを持つフローのコーディングは `/backlog` 経由が必須**（理由は「Apex 作って」と同様）。
+
+1. Backlog課題が未作成の場合: 「フローの実装は `/backlog` 経由が必要です。Backlog課題を作成のうえ `/backlog {issueID}` で対応してください」と案内する（ここでは実装しない）
+2. Backlog課題が既にある場合: `/backlog {issueID}` の実行を案内する
 
 ### 「バグ直して」「エラー出る」
 1. エラー内容を確認
 2. `docs/catalog/` で関連オブジェクト・項目を把握
 3. `docs/design/` で該当機能の設計意図を確認
 4. `docs/requirements/requirements.md` で関連ビジネスルールを確認（仕様なのかバグなのか判断）
-5. 修正実施
+5. **修正手段を判定する**:
+   - 原因が Apex / LWC / Flow / トリガー / バッチのコード変更を要する場合: 「原因はコード側（{該当箇所}）にあり、修正には `/backlog` 経由が必要です。Backlog課題を作成のうえ `/backlog {issueID}` で対応してください」と案内し、ここでは実装しない
+   - 原因が宣言的な設定（入力規則の文言・ピックリスト値・レイアウト・FLS等）の場合: そのまま修正実施
 
 ### 「デプロイして」
 1. `docs/logs/changelog.md` で最近の変更を確認

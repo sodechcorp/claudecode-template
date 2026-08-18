@@ -11,6 +11,8 @@
 | 一般調査 / メール下書き / 翻訳 / アドホック / その他秘書業務 | `assistant` |
 | 工数計算 / 工数見積 / 工数 / effort / 見積 / 「何時間」「どのくらい」系の新規見積依頼（コマンド内外問わず） | `sf-effort-estimator` |
 
+> **force-app への実装依頼（/backlog 未経由）**: 「項目を追加して」等のアドホックな force-app 変更は、メインスレッド／assistant が `docs-driven-behavior.md` の指示パターンに従い直接実施する（Apex/LWC/Flow/トリガー/バッチのコーディングは対象外・`assistant` の禁止事項どおり sf-architect/backlog に委譲）。完了後は `quality-gate.md` のゲート表「force-app 直接変更」に従い reviewer チェックを通す。
+
 > **工数見積の強制集約**: `工数 / effort / 見積 / 何時間 / どのくらい` 等の語を含む依頼は、他エージェントが回答を始める前に必ず `sf-effort-estimator` に委譲する。例外なし。
 >
 > | 種別 | 判定 | 例 |
@@ -23,7 +25,12 @@
 
 ## Phase 0（sf-context-loader）を持つエージェント一覧
 
-sf-architect / reviewer / assistant（SF条件付き）/ backlog-investigator / backlog-planner / backlog-implementer / backlog-tester / backlog-validator / backlog-releaser
+| 区分 | エージェント |
+|---|---|
+| 自ら Task/Agent で sf-context-loader を起動する | sf-architect / assistant（SF条件付き）/ backlog-planner / backlog-implementer / backlog-tester / backlog-releaser / release-preparer |
+| ダイジェスト再利用・直接 Read のみ（自らは起動しない） | backlog-investigator（呼び出し元が事前取得したコンテキストを使用）/ backlog-validator（Agent ツールを持たない leaf agent） |
+
+> **reviewer は要注意**: Phase 0 の記述は前者（直接起動）の形式で書かれているが、`reviewer.md` の tools リストに Agent ツールがなく実際には起動できない（スコープ外課題として別途起票）。
 
 ## 保守特化エージェント（/backlog フロー内で Claude が自動委譲）
 
