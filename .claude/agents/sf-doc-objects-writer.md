@@ -373,7 +373,10 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate.py" \
 
 以下の内容で `{output_dir}/.tmp/verify-obj-xlsx-output.py` を Write する:
 ```python
-import pathlib, glob, os, sys, datetime
+import pathlib, glob, os, sys, datetime, re
+sys.path.insert(0, r'{project_dir}/scripts/python/sf-doc-mcp')
+from meta_store import read_meta
+
 files = sorted(glob.glob(r'{output_dir}/01_基本設計/オブジェクト項目定義書_v*.xlsx'), key=os.path.getmtime, reverse=True)
 if not files:
     print('ERROR: オブジェクト項目定義書_v*.xlsx が生成されませんでした', file=sys.stderr)
@@ -384,7 +387,19 @@ today = datetime.date.today()
 if mtime.date() != today or os.path.getsize(latest) == 0:
     print(f'ERROR: 生成失敗の疑い: {latest} (mtime={mtime}, size={os.path.getsize(latest)})', file=sys.stderr)
     sys.exit(1)
-print(f'OK: {latest} (size={os.path.getsize(latest)} bytes)')
+
+# 内容検証: 指定オブジェクト数と実際に生成されたオブジェクト数を突き合わせる
+# （generate.py の resolve_objects / fetch_all は一部失敗しても [警告] を出すだけで処理を継続するため、
+#  存在確認・mtime・sizeだけでは一部オブジェクトのサイレント欠落を検知できない）
+requested = [t for t in re.split(r'[,\s　、]+', r'{オブジェクトリスト}') if t.strip()]
+meta = read_meta(latest) or {}
+generated = list(meta.get('objects', {}).keys())
+if len(generated) < len(requested):
+    print(f'WARNING: 指定 {len(requested)} 件に対し生成されたオブジェクトは {len(generated)} 件（{generated}）。'
+          f'一部オブジェクトの名前解決・メタデータ取得に失敗している可能性があります。'
+          f'上の generate.py 実行ログの [警告]/[エラー] 行を確認してください。')
+
+print(f'OK: {latest} (size={os.path.getsize(latest)} bytes, オブジェクト数={len(generated)}/{len(requested)})')
 ```
 ```bash
 python {output_dir}/.tmp/verify-obj-xlsx-output.py

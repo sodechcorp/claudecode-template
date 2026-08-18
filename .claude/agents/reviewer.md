@@ -109,6 +109,18 @@ Critical X件 / Warning X件
 - [ ] `LIMIT` 句が設定されているか
 - [ ] インデックス項目（Id・Name・外部ID）を WHERE句で使用しているか
 
+### 設計書 JSON（`*_design.json`）必須確認項目
+
+> `/sf-design` の任意 reviewer ゲート（`sf-design-step2.md` Phase 5.5）専用。`check_design_json.py` が
+> 既に機械検証済みの項目（`node_type` の禁止値・`decision` の branch 有無・プレースホルダ `_parser_meta`
+> 残存）は対象外とし、実装コードとの突き合わせでしか判定できない観点のみを確認する。対象コンポーネントの
+> `force-app/main/default/{classes|flows}/...` を実際に Read してから照合すること（JSON 単体では判定不可）。
+
+- [ ] **スコープ逸脱の有無**: `calls` で外部呼び出しとして明示すべき箇所が、呼び出し先クラス/フローの内部実装まで `detail` に書き込んでいないか（[sf-design-writer/json-format.md](../templates/sf-design-writer/json-format.md) 「別Apexを呼び出す場合は calls フィールドで明示し detail では程度の記述にとどめる」規約との整合）
+- [ ] **スコープ不足の有無**: 逆に、対象コンポーネント自身が行っている処理（SOQL/DML/条件分岐）が「〇〇を呼び出す」の一言で省略され `object_ref`/`decision` に展開されていないか
+- [ ] **overview とコードの整合**: `overview` が実装コードの実際の処理内容（主要な分岐・エラーハンドリングの有無等）を反映しているか。実装に存在する主要な分岐・例外処理が overview から読み取れないほど省略されていないか
+- [ ] **calls / object_ref の網羅性**: 実装コードが呼び出している外部クラス・SOQL/DML が `steps` に漏れなく反映されているか（実装を Grep して呼び出し箇所の総数と `steps` 中の `calls`/`object_ref` 件数を突き合わせる）
+
 ### 新規メタデータ 権限・基本設定チェック
 
 > 参照: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md)

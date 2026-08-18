@@ -252,7 +252,7 @@ python -c "import pathlib; n = len(list(pathlib.Path(r'{tmp_dir}').glob('*_desig
 起動時に渡す情報:
 - 対象ファイルパス: `{tmp_dir}/*_design.json`（全件。0. のチェックにより 30 件以下であることが確定済み）
 - 変更スコープ: プログラム設計 JSON 生成（新規 / 既存更新は個別 JSON 次第）
-- 確認観点: 整合性・スコープ・プレースホルダ（`_parser_meta` 等）残存・責務記述の妥当性
+- 確認観点: reviewer.md「設計書 JSON（`*_design.json`）必須確認項目」節を参照（スコープ逸脱・スコープ不足・overview整合・calls/object_ref網羅性）。整合性・プレースホルダ残存は Phase 1.5 で `check_design_json.py`/スケルトン残存チェックにより機械検証済みのため reviewer の対象外
 
 ### 2. 指摘への対応
 
