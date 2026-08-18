@@ -576,7 +576,7 @@ xlsx_folder: {xlsx_folder}
 
 > **dry-run 重複排除**: Phase 5 で dry-run PASS 済みかつ force-app に変更がない場合、Phase 6 は dry-run をスキップして本デプロイへ直行する。Phase 5 以降にコード変更がある場合のみ再 dry-run を実行する。
 
-> **デプロイ失敗・問題発生時**: `backlog-releaser` がデプロイ失敗またはリリース後動作確認で問題を検知した場合、`docs/logs/{issueID}/release-issue.md` に差し戻し理由・現象・ログを記録した上で Phase 5（backlog-tester）への差し戻しを提案する（`backlog-releaser.md` §2a. Sandbox の場合 参照）。ユーザーは `/backlog` を再実行し「途中フェーズから再開」で対応する。
+> **デプロイ失敗・問題発生時**: `backlog-releaser` がデプロイ失敗またはリリース後動作確認で問題を検知した場合、原因の種別（デプロイ失敗 → Phase 5 / 実装ロジック起因の挙動不良 → Phase 4 / 切り分け困難 → ユーザー確認）に応じて差し戻し先を判定し、`docs/logs/{issueID}/release-issue.md` に差し戻し理由・現象・ログ・差し戻し先を記録した上で該当 Phase への差し戻しを提案する（`backlog-releaser.md` §2a. Sandbox の場合 参照）。ユーザーは `/backlog` を再実行し「途中フェーズから再開」で対応する。
 
 `backlog-releaser` エージェントを起動する:
 
