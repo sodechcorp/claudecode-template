@@ -32,7 +32,7 @@
 Read `.claude/templates/common/verify-source-attribution-spec.md`（出典確認ルール。追加ルール記入欄まで読む）
 ```
 
-既存エージェントからの参照リンク: `.claude/CLAUDE.md#引用出典の確認全エージェント共通`
+既存エージェントからの参照リンク: `.claude/CLAUDE.md#実装裏付け出典確認全エージェント共通常に適用`
 
 ---
 

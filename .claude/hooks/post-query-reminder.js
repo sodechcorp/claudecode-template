@@ -44,8 +44,8 @@ process.stdin.on('end', () => {
 
   const orgAlias = match[1].toLowerCase();
 
-  // prod / production 宛なら発火しない
-  if (/prod(uction)?$/.test(orgAlias)) return;
+  // prod / production 宛なら発火しない（pre-operation.js Check 1 と同じ部分一致判定に統一）
+  if (/prod|production/.test(orgAlias)) return;
 
   // ---- 非本番クエリ検知 → systemMessage でリマインダー注入 ----
   const message = [

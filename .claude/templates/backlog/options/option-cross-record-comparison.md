@@ -41,7 +41,7 @@ sf data query --query "SELECT {調査対象フィールドリスト} FROM {Objec
 ```bash
 # JSON出力を整形して差分確認
 # （必要に応じて Python や jq で整形する）
-python3 -c "
+python -c "
 import json, sys
 data = json.load(open('/dev/stdin'))
 for r in data['result']['records']:

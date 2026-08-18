@@ -58,6 +58,7 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 | docs/ のフォルダ構成・生成コマンド | [project-deliverables.md](.claude/spec/project-deliverables.md) |
 | 一時ファイルの後片付け手順 | [cleanup-rules.md](.claude/spec/cleanup-rules.md) |
 | sf-memory 品質原則・マーカー規約 | [sf-memory-quality.md](.claude/spec/sf-memory-quality.md) |
+| エージェントが Read する共通実行手順・チェックリストの一覧（26 本） | [templates/common/_README.md](.claude/templates/common/_README.md) |
 
 ---
 

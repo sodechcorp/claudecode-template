@@ -20,7 +20,7 @@ Salesforce 開発プロジェクト向けの Claude Code テンプレート。
 
 ---
 
-## スラッシュコマンド（9個）
+## スラッシュコマンド（11個）
 
 ### セットアップ系
 
@@ -43,6 +43,8 @@ Salesforce 開発プロジェクト向けの Claude Code テンプレート。
 | コマンド | 概要 | 補足 |
 |---|---|---|
 | `/backlog [課題ID]` | Backlog 課題の分析 → 対応方針提案 → 実装 → テスト → デプロイまで一気通貫 | ユーザー承認後に実装へ |
+| `/test [課題ID]` | 実装後テストを全自動実行し証跡採取・OK/NG判定・エビデンスExcel出力 | `/backlog` Phase 6（Sandboxデプロイ）後に実行 |
+| `/release [課題ID]` | 本番リリース準備（資材確定・影響範囲・ドリフト確認）を read-only で実行 | 本番へのデプロイ自体は行わない |
 
 ### ドキュメント生成系
 
@@ -80,7 +82,7 @@ pip install -r scripts/python/sf-doc-mcp/requirements.txt
 curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/scripts/setup.sh | bash -s フォルダ名 親ディレクトリ https://github.com/your-org/project-a.git
 ```
 
-clone 後の初期化順: `/sf-setup` → `CLAUDE.md` 記入 → `/setup-mcp` → `/sf-memory`
+clone 後の初期化順（正本: `/sf-setup` 実行後の案内）: `/sf-setup` → `/sf-retrieve` → `CLAUDE.md` 記入 → `/setup-mcp` → `/sf-memory` → `/sf-doc`
 
 ### テンプレートの更新・Git 同期
 

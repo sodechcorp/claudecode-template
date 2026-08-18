@@ -22,6 +22,25 @@
 //     forward-slash 形式（C:/Users/...AppData/...）は通過。
 // =============================================================================
 
+const fs = require('fs');
+
+// ---- .prod-aliases: プロジェクト固有の本番エイリアス追加パターン ----
+// プロジェクト直下 .prod-aliases（1行1 alias、# コメント可）が存在する場合に読み込む。
+// *prod*/*production* 命名規約に一致しない本番 alias（例: gf-main）を追加保護する。
+// .upgrade-keep と同じ「プロジェクト固有ファイルで上書きせず拡張する」パターン。
+// ファイル自体はプロジェクト直下に置くため /upgrade の対象外＝上書きで消えない。
+function loadCustomProdAliases() {
+  try {
+    const content = fs.readFileSync('.prod-aliases', 'utf8');
+    return content.split('\n')
+      .map(l => l.trim())
+      .filter(l => l && !l.startsWith('#'));
+  } catch (e) {
+    // ファイルが無い場合は従来通り *prod*/*production* 判定のみ
+    return [];
+  }
+}
+
 let buf = '';
 process.stdin.on('data', c => buf += c);
 process.stdin.on('end', () => {
@@ -64,10 +83,19 @@ process.stdin.on('end', () => {
 
     // 本番エイリアス検出: --target-org と -o 短縮形の両方に対応
     const targetProdRe = /(?:--target-org|-o)\s+\S*(?:prod|production)/i;
+    // *prod*/*production* に一致しないプロジェクト固有 alias（.prod-aliases 参照）
+    const targetOrgValRe = /(?:--target-org|-o)\s+(\S+)/i;
+    const customProdAliases = loadCustomProdAliases();
 
     const prodBlocked = segs.some(s => {
       const t = s.trim();
-      return dangerousCmdRe.test(t) && targetProdRe.test(t);
+      if (!dangerousCmdRe.test(t)) return false;
+      if (targetProdRe.test(t)) return true;
+      if (customProdAliases.length > 0) {
+        const m = t.match(targetOrgValRe);
+        if (m && customProdAliases.includes(m[1])) return true;
+      }
+      return false;
     });
     if (prodBlocked) {
       console.log(JSON.stringify({

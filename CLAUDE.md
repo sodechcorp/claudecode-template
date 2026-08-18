@@ -24,7 +24,7 @@
 
 > **接続先確認ルール**: 接続先は `sf org display` でセッション中にライブ確認する（固定値をここに書かない）。`isSandbox: false` 接続時のみ DML・デプロイ・force-app 書き込みを禁止する。Sandbox 接続時は DML・テスト・デプロイ可。
 
-> ⚠️ denyパターン一致が ✓ でない本番 alias を設定した場合は、`settings.json` の deny ルールにそのエイリアス名パターンを追加すること（例: alias が `gf-main` なら `*gf-main*` を追加）。
+> ⚠️ denyパターン一致が ✓ でない本番 alias を設定した場合は、プロジェクト直下に `.prod-aliases`（1行1 alias、`#` コメント可）を作成しそのエイリアス名を追記すること（例: `gf-main`）。`.claude/hooks/pre-operation.js` が読み込みハードブロックに追加する。`settings.json` の deny ルールへの追記は `/upgrade` で上書きされ消えるため非推奨（`.prod-aliases` はプロジェクト固有ファイルのため `/upgrade` の対象外）。
 
 ---
 

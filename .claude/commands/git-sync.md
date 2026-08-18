@@ -69,6 +69,22 @@ AskUserQuestion で操作を選択:
 
 ### Step 1: 全文同期型ファイルの取得
 
+取得前に `git status --short` で未コミットの変更を確認する:
+
+```bash
+git status --short docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/sf-standard.md docs/_README.md CLAUDE.md
+```
+
+出力がある場合、AskUserQuestion で確認する:
+
+**質問**: 「全文同期型ファイルに未コミットの変更があります。取得を続行しますか？（リモートの内容で上書きされます）」
+
+**選択肢**:
+- `続行する` — 変更を破棄してリモートの内容で上書きする
+- `中断する` — キャンセルする
+
+`中断する` を選択した場合は処理を終了する。出力がなければそのまま以下を実行する:
+
 ```bash
 git fetch origin {Step 0 で取得したブランチ名}
 git checkout origin/{Step 0 で取得したブランチ名} -- docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/sf-standard.md docs/_README.md CLAUDE.md 2>/dev/null || true
@@ -140,8 +156,16 @@ git status --short docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ do
 - 例: `docs: update catalog.md,requirements.md` / `chore: update CLAUDE.md,usecases.md`
 - 60 文字を超える場合は `...` で末尾を短縮
 
+Step 2 の選択に応じて `git add` の対象パスを以下から**そのまま**使う（`git add -A` / `git add .` は意図しないファイル混入の原因になるため使用禁止）:
+
+| Step 2 の選択 | `git add` 対象パス |
+|---|---|
+| 全て | `docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/decisions.md docs/_README.md CLAUDE.md` |
+| 引継ぎ対象 docs/ のみ | `docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/decisions.md docs/_README.md` |
+| CLAUDE.md のみ | `CLAUDE.md` |
+
 ```bash
-git add {対象パス...}
+git add {上表の対象パス}
 git commit -m "{自動生成したコミットメッセージ}"
 git push origin HEAD
 ```

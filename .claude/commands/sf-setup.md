@@ -1,5 +1,5 @@
 ---
-description: "Salesforce組織の認証を行う。org alias・CLAUDE.md記録・default-org設定を自動実施。setup.sh でプロジェクト作成後に実行する。"
+description: "Salesforce組織の認証を行う。org alias 設定・default-org 設定を自動実施。setup.sh でプロジェクト作成後に実行する。"
 ---
 
 ## 事前チェック
@@ -80,7 +80,7 @@ sf org display --target-org "$alias" --json
 
 > **注意**: 接続先をルート `CLAUDE.md` に静的テキストで記録しない。接続先は `sf org display` のライブ確認で判定するため、スナップショットを焼き込むと切り替え後に誤判定を起こす。
 
-CLAUDE.md への記録完了後、以下をユーザーに提示する:
+認証確認後、以下をユーザーに提示する:
 
 ```
 ✅ 認証完了

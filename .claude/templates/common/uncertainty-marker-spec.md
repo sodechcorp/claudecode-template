@@ -52,4 +52,4 @@
 
 - 実装裏付けルール: [verify-implementation-spec.md](./verify-implementation-spec.md)
 - 出典確認ルール: [verify-source-attribution-spec.md](./verify-source-attribution-spec.md)
-- 確証なし時の決定木: [CLAUDE.md §確証なし時の決定木](../.claude/../CLAUDE.md) (§107-118)
+- 確証なし時の決定木: [CLAUDE.md §確証なし時の行動原則](../../CLAUDE.md#確証なし時の行動原則全エージェント共通)

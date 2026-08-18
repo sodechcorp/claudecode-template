@@ -197,9 +197,10 @@ List<Account> results = Database.query(query);
 
 ### パターン4: ハードコードID・URL（Warning）
 ```bash
-# Salesforce レコードID（15桁/18桁）の検出。先頭3桁=キープレフィックスで全オブジェクト対応
-# 注: 15/18桁の英数字を広く拾うため誤検知あり。ヒットは目視でSF IDか確認する
-grep -rEn "\b[a-zA-Z0-9]{18}\b|\b[a-zA-Z0-9]{15}\b" force-app/
+# Salesforce レコードID（15桁/18桁）の検出。クォートで囲まれ、かつ SF キープレフィックス
+# （標準オブジェクト=00始まり／カスタムオブジェクト=a始まり）で始まる文字列のみに限定。
+# Apex クラス名・メソッド名等（15/18文字の英数字識別子）を誤検知しないための絞り込み。
+grep -rEn "['\"](00[0-9A-Za-z]|a[0-9A-Za-z]{2})[0-9A-Za-z]{12}([0-9A-Za-z]{3})?['\"]" force-app/
 # Salesforce ドメインURL のハードコード検出
 grep -rn "https://[^'\"[:space:]]*\.salesforce\.com" force-app/
 ```

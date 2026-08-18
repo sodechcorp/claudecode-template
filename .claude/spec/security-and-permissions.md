@@ -2,7 +2,7 @@
 
 ## settings.json による技術的ブロック
 
-`settings.json` は Git管理対象。`.claude/` 編集・`rm -rf .claude` は行動指示のみ。本番デプロイは deny（⚠️ `*prod*`/`*production*` エイリアスパターン依存）。`git push origin main` 等の破壊操作は未実装（チーム導入時に追加）。
+`settings.json` は Git管理対象。`.claude/` 編集・`rm -rf .claude` は行動指示のみ。本番デプロイは deny（⚠️ `*prod*`/`*production*` エイリアスパターン依存）。`git push` は `/git-sync`・`/upgrade` の正規手順として許可（両コマンドが自動実行する）。それ以外の文脈で直接 `git push` を実行しない。
 
 テンプレート更新は `/upgrade` コマンド経由のみ。
 

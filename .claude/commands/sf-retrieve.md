@@ -1,5 +1,6 @@
 ---
 description: "Salesforce組織からメタデータを取得する。package.xml の生成と取得対象をクリック選択で指定できる。"
+argument-hint: "[standard|all|select]"
 ---
 
 Salesforce組織からメタデータを取得してください。
@@ -69,8 +70,12 @@ bash scripts/sf-retrieve.sh check-version
 
 # 例: Apex クラス MyClass・フロー MyFlow・オブジェクト Account を指定した場合
 [ -f sfdx-project.json ] || { echo "sfdx-project.json が見つかりません。SFDXプロジェクトのルートで実行してください"; exit 1; }
-API_VER=$(python3 -c "import json; d=json.load(open('sfdx-project.json')); print(d.get('sourceApiVersion', '62.0'))" 2>/dev/null || echo "62.0")
-TARGET_ORG=$(sf config get target-org --json 2>/dev/null | python3 -c "import sys,json; r=json.load(sys.stdin).get('result',[]); print(r[0]['value'] if r else '')" 2>/dev/null || echo "")
+API_VER=$(python -c "import json; d=json.load(open('sfdx-project.json')); print(d.get('sourceApiVersion', ''))" 2>/dev/null)
+if [ -z "$API_VER" ]; then
+    echo "sfdx-project.json から sourceApiVersion を取得できませんでした。ファイルを確認してください。"
+    exit 1
+fi
+TARGET_ORG=$(sf config get target-org --json 2>/dev/null | python -c "import sys,json; r=json.load(sys.stdin).get('result',[]); print(r[0]['value'] if r else '')" 2>/dev/null || echo "")
 if [ -z "$TARGET_ORG" ]; then
     echo "target-org が設定されていません。sf config set target-org <alias> で設定してから再実行してください。"
     exit 1
@@ -118,10 +123,10 @@ sf project retrieve start --manifest manifest/package.xml --target-org "$TARGET_
 | レイアウト | `Layout` |
 | Lightning ページ | `FlexiPage` |
 | 静的リソース | `StaticResource` |
-| メールテンプレート | `EmailTemplate` | ⚠ フォルダ型 |
-| レポートタイプ | `ReportType` | |
-| レポート | `Report` | ⚠ フォルダ型 |
-| ダッシュボード | `Dashboard` | ⚠ フォルダ型 |
+| メールテンプレート | `EmailTemplate` |
+| レポートタイプ | `ReportType` |
+| レポート | `Report` |
+| ダッシュボード | `Dashboard` |
 | 名前付き資格情報 | `NamedCredential` |
 | リモートサイト設定 | `RemoteSiteSetting` |
 | プロファイル | `Profile` |

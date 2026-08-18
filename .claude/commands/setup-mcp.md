@@ -58,7 +58,7 @@ playwright を設定する場合は「その他」を選択して `playwright` �
 
 ### 「github」の場合
 
-AskUserQuestion でトークンを質問する:
+チャットで直接トークンを質問する（自由入力のため AskUserQuestion は使わない）:
 
 ```
 GitHub Personal Access Token を入力してください。
@@ -85,7 +85,7 @@ GitHub Personal Access Token を入力してください。
 
 ### 「slack」の場合
 
-AskUserQuestion で Slack Bot Token（`xoxb-` で始まる）を質問する。入力値を `.mcp.json` に書き込む:
+チャットで直接 Slack Bot Token（`xoxb-` で始まる）を質問する（自由入力のため AskUserQuestion は使わない）。入力値を `.mcp.json` に書き込む:
 
 ```json
 "slack": {
@@ -99,7 +99,7 @@ AskUserQuestion で Slack Bot Token（`xoxb-` で始まる）を質問する。�
 
 ### 「notion」の場合
 
-AskUserQuestion で Notion Integration Token（`ntn_` または `secret_` で始まる）を質問する。取得方法を先に案内してから質問する:
+チャットで直接 Notion Integration Token（`ntn_` または `secret_` で始まる）を質問する（自由入力のため AskUserQuestion は使わない）。取得方法を先に案内してから質問する:
 
 ```
 取得方法:
@@ -123,7 +123,7 @@ AskUserQuestion で Notion Integration Token（`ntn_` または `secret_` で始
 
 ### 「backlog」の場合
 
-AskUserQuestion で以下を 2 問に分けて質問する:
+チャットで直接、以下を2問に分けて質問する（自由入力のため AskUserQuestion は使わない）:
 
 1. **ドメイン** — 例: `yourcompany.backlog.com`
 2. **APIキー** — 取得方法を案内してから質問する:

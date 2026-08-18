@@ -1,5 +1,6 @@
 ---
 description: "Salesforce 保守課題の実装後テストを全自動実行し、証跡採取・OK/NG判定・エビデンスExcel出力まで行う。/backlog Phase 6（Sandboxデプロイ）後に /test [課題ID] で実行。"
+argument-hint: "[課題ID]"
 ---
 
 # /test [課題ID]
