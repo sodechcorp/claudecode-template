@@ -419,7 +419,7 @@ default_stance: {Phase 2 と同じ値を引き継ぐ}
 全 MD ファイルが揃ったこのタイミングで xlsx を一括生成する:
 
 ```bash
-python "$(pwd)/scripts/python/backlog-xlsx/create_records.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/create_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   --investigation docs/logs/{issueID}/investigation.md \
   --approach-plan docs/logs/{issueID}/approach-plan.md
@@ -485,7 +485,7 @@ Beforeエビデンス採取結果: {evidence_result}
 **xlsx 更新（実装前検証）**（`{xlsx_folder}` が設定されている場合のみ）
 
 ```bash
-python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "実装前検証" \
   --content "実装前検証完了: {ドライラン/テスト/影響範囲/クロスレビュー/エビデンスの結果サマリーを1行で}"
@@ -518,7 +518,7 @@ xlsx_folder: {xlsx_folder}
 > **実行主体**: implementer エージェントが `implementation-summary.md` を書き出した後、**本コマンド（ハーネス）が直接** 以下のスクリプトを実行する。create_records.py（Phase 3）と同型。
 
 ```bash
-python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   content-from-md --summary docs/logs/{issueID}/implementation-summary.md --force
 ```
@@ -532,7 +532,7 @@ python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
 **xlsx 充足確認（verify）**（`{xlsx_folder}` が設定されている場合のみ）
 
 ```bash
-python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   verify --stage pre-release
 ```
@@ -599,7 +599,7 @@ xlsx_folder: {xlsx_folder}
 > **実行主体**: releaser の xlsx 更新はハーネスが直接実行する（Phase 3 と同型）。
 
 ```bash
-python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   cell --sheet "課題と対応方針" --label "ステータス" --col 2 --value "完了" --force
 ```
@@ -609,7 +609,7 @@ python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
 **xlsx 最終充足確認（verify final）**（`{xlsx_folder}` が設定されている場合のみ）
 
 ```bash
-python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   verify --stage final --status-expected 完了
 ```
@@ -670,7 +670,7 @@ main スレッドが「この課題は Phase 6 に到達しない」と判断し
 > Phase 6 未完了のまま終了するため、ステータスが「対応中」のまま放置されないよう更新する。
 
 ```bash
-python "$(pwd)/scripts/python/backlog-xlsx/update_records.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   cell --sheet "課題と対応方針" --label "ステータス" --col 2 --value "中断中" --force
 ```
