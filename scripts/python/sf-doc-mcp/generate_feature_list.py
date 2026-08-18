@@ -137,20 +137,28 @@ def clone_sheet(wb, source_name: str, new_name: str) -> Worksheet:
 
 
 # ── 差分計算 ──────────────────────────────────────────────────
-def _feature_comparable(f: dict) -> tuple:
+def _feature_comparable(f: dict, include_overview: bool = False) -> tuple:
     """差分検出用に比較対象キーのみ抽出。
-    overview / name はエージェントが生成するため非決定的。毎回微妙に変わりうるので除外する。
+    overview / name はエージェントが生成するため非決定的。毎回微妙に変わりうるので既定では除外する。
     type / api_name の構造的変化のみを差分として扱う。
+    include_overview=True（--update-overview 指定時）の場合のみ overview も比較対象に含める。
+    overview を確定的に更新するモードでその変更を検知しないと、has_any_diff() が False のまま
+    xlsx 再生成自体がスキップされ、overview の更新が握りつぶされるため。
     """
-    return (
+    base = (
         f.get("type", ""),
         f.get("api_name", ""),
     )
+    if include_overview:
+        return base + (f.get("overview", "") or "",)
+    return base
 
 
-def compare_features(old_features: list, new_features: list) -> dict:
+def compare_features(old_features: list, new_features: list,
+                     include_overview: bool = False) -> dict:
     """前回と今回の機能一覧を比較し差分を返す。
     キーは id（feature_ids.yml で安定）を使う。
+    include_overview: True の場合 overview の変更も modified に含める（--update-overview 指定時用）。
     """
     old_map = {f.get("id"): f for f in (old_features or []) if f.get("id")}
     new_map = {f.get("id"): f for f in new_features if f.get("id")}
@@ -159,7 +167,8 @@ def compare_features(old_features: list, new_features: list) -> dict:
     removed  = [old_map[k] for k in old_map if k not in new_map]
     modified = []
     for k in new_map:
-        if k in old_map and _feature_comparable(old_map[k]) != _feature_comparable(new_map[k]):
+        if k in old_map and (_feature_comparable(old_map[k], include_overview)
+                              != _feature_comparable(new_map[k], include_overview)):
             modified.append({"id": k, "old": old_map[k], "new": new_map[k]})
 
     return {"added": added, "removed": removed, "modified": modified}
@@ -442,7 +451,7 @@ def main():
             if n_overview_kept:
                 print(f"  [INFO] {n_overview_kept}件の overview を既存xlsxから保持（--update-overview 未指定のため）")
         # 差分は「今回処理した機能」のみで計算する
-        diffs = compare_features(old_subset, features)
+        diffs = compare_features(old_subset, features, include_overview=args.update_overview)
         # 削除対象（deprecated）を diffs.removed に反映
         dropped = [f for f in old_features
                    if f.get("id") not in input_ids and f.get("id") in deprecated_ids]
@@ -457,7 +466,7 @@ def main():
         if n_dropped:
             print(f"  [INFO] {n_dropped}件の deprecated 機能を _meta から除外（削除扱い）")
     else:
-        diffs = compare_features(old_features, features)
+        diffs = compare_features(old_features, features, include_overview=args.update_overview)
 
     if prev_meta and not is_major and not has_any_diff(diffs):
         if not args.force:
