@@ -91,7 +91,12 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 `/backlog` Phase 1 で調査済みの項目は再実行しない。判定は機械的に行う（実行するか否かをモデル判断に委ねない）:
 
-1. `find force-app -type f -newer docs/logs/{issueID}/investigation.md` を実行する（`investigation.md` が無い場合は「差分あり」扱いとする）。1件でも出力があれば「investigation.md 作成後に実装差分あり」と判定し、下記①〜③も無条件で再走査する
+1. `investigation.md` が無い場合は「差分あり」扱いとする。存在する場合は以下を実行し、investigation.md 作成後の実装差分を**コミット内容ベース**で判定する（ファイルの更新日時では git checkout・エディタ保存等の内容変更を伴わない操作でも誤検知するため使わない）:
+   ```bash
+   inv_commit=$(git log -1 --format=%H -- docs/logs/{issueID}/investigation.md)
+   [ -z "$inv_commit" ] && echo "DIFF" || (git diff --quiet "$inv_commit" -- force-app || echo "DIFF")
+   ```
+   `DIFF` が出力された場合（investigation.md が未コミット、または該当コミット以降 `force-app` に差分あり）「investigation.md 作成後に実装差分あり」と判定し、下記①〜③も無条件で再走査する
 2. 差分が無い場合、①〜③は investigation.md に該当見出しの記載があれば**無条件で転記し、option を実行しない**（見出しが無い場合のみ実行する）:
    - ① [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルール・共通ユーティリティへの影響（investigation.md「## 影響範囲」の記載有無で判定）
    - ② [option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) — 既存テストクラスへの影響（investigation.md「## 既存テストクラスへの影響」の記載有無で判定）
