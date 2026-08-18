@@ -11,20 +11,42 @@
 2. `docs/overview/org-profile.md` の用語集で命名を統一
 3. プロジェクトルート `CLAUDE.md` の命名規則に従う
 4. メタデータファイルを作成（force-app 配下）
-5. `docs/catalog/` の該当定義書を更新（項目追加を反映）
+5. **権限・基本設定を設定する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「カスタム項目」セクションに従い、FLS・ページレイアウト配置を必ず実施（付与方針の詳細はchecklist参照）。チェック漏れを黙殺しない
+6. `docs/catalog/` の該当定義書を更新（項目追加を反映）
+
+### 「オブジェクトを作って」「カスタムオブジェクト追加して」
+1. `docs/catalog/` で既存オブジェクト構成・命名規則を確認
+2. `docs/overview/org-profile.md` の用語集で命名を統一
+3. プロジェクトルート `CLAUDE.md` の命名規則に従う
+4. メタデータファイルを作成（`force-app/main/default/objects/` 配下）
+5. **権限・基本設定を設定する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「カスタムオブジェクト」セクションに従い、CRUD権限・タブ・ページレイアウト・アプリ追加を必ず実施（付与方針の詳細はchecklist参照）
+6. `docs/catalog/` に新オブジェクトの定義書を作成
+
+### 「レコードタイプを作って」
+1. 対象オブジェクトの既存レコードタイプ構成（`force-app/` の `recordType-meta.xml`）を確認
+2. 要件（ピックリスト制限・レイアウト分岐・対象ユーザー）を確認
+3. メタデータファイルを作成
+4. **権限・基本設定を設定する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「レコードタイプ」セクションに従い、プロファイル割当・レイアウト割当・ピックリスト値割当を必ず実施（付与方針の詳細はchecklist参照）
+
+### 「タブを作って」
+1. 対象オブジェクト・Webタブ・VFページ等の種別を確認
+2. メタデータファイルを作成（`force-app/main/default/tabs/` 配下）
+3. **権限・基本設定を設定する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「タブ」セクションに従い、タブ表示設定・アプリへの追加を必ず実施（付与方針の詳細はchecklist参照）
 
 ### 「Apex 作って」「トリガー書いて」
 1. `docs/design/apex/` に該当設計書があるか確認 → あれば設計に従う
 2. `docs/catalog/` で対象オブジェクトの項目・リレーションを確認
 3. `docs/requirements/requirements.md` で関連するビジネスルール（BR-XXX）を確認
 4. `.claude/CLAUDE.md` の Quality Standards に従って実装（バルク対応・テストクラス付き）
-5. 設計書がない場合は「設計書がありませんが実装しますか？先に `sf-architect` に設計書作成を依頼することも可能です」と提案
+5. **権限・基本設定を確認する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「Apex クラス」セクションに従い、`classAccesses` 付与を確認（付与方針の詳細はchecklist参照）
+6. 設計書がない場合は「設計書がありませんが実装しますか？先に `sf-architect` に設計書作成を依頼することも可能です」と提案
 
 ### 「フロー作って」
 1. `docs/design/flow/` に該当設計書があるか確認
 2. `docs/catalog/` で対象オブジェクトの入力規則・既存自動化を確認（競合リスク）
 3. 実装してメタデータファイルを作成
-4. 設計書がない場合は「設計書がありませんが実装しますか？先に `sf-architect` に設計書作成を依頼することも可能です」と提案
+4. **権限・基本設定を確認する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「フロー」セクションに従い、画面フローの場合は実行権限を確認
+5. 設計書がない場合は「設計書がありませんが実装しますか？先に `sf-architect` に設計書作成を依頼することも可能です」と提案
 
 ### 「バグ直して」「エラー出る」
 1. エラー内容を確認
