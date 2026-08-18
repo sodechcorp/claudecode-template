@@ -78,6 +78,7 @@ INVEST_FILE="${LOG_DIR}/investigation.md"
 if [ -f "$INVEST_FILE" ]; then
   XLSX_FOLDER=$(python -c "import re; text = open(r'${INVEST_FILE}', encoding='utf-8').read(); m = re.search(r'^xlsx_folder:\s*(.+)$', text, re.MULTILINE); print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')" 2>/dev/null || echo "")
   EVIDENCE_DIR=$(python -c "import re; text = open(r'${INVEST_FILE}', encoding='utf-8').read(); m = re.search(r'^evidence_dir:\s*(.+)$', text, re.MULTILINE); print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')" 2>/dev/null || echo "")
+  LIGHT_MODE=$(python -c "import re; text = open(r'${INVEST_FILE}', encoding='utf-8').read(); m = re.search(r'^light_mode:\s*(.+)$', text, re.MULTILINE); print(m.group(1).strip().strip('\"').strip(\"'\").lower()) if m else print('false')" 2>/dev/null || echo "false")
 fi
 
 # ② .backlog_config.yml から読む（後方互換）
@@ -100,10 +101,12 @@ if [ -n "$XLSX_FOLDER" ] && [ -z "$EVIDENCE_DIR" ]; then
 fi
 SPEC_PATH="${LOG_DIR}/test-spec.md"
 JUDGMENT_PATH="${LOG_DIR}/judgment-result.json"
+LIGHT_MODE="${LIGHT_MODE:-false}"
 echo "XLSX_FOLDER=$XLSX_FOLDER"
 echo "EVIDENCE_DIR=$EVIDENCE_DIR"
 echo "SPEC_PATH=$SPEC_PATH"
 echo "JUDGMENT_PATH=$JUDGMENT_PATH"
+echo "LIGHT_MODE=$LIGHT_MODE"
 
 # 6. test-spec.md の存在確認（なければ Phase B へ）
 if [ ! -f "$SPEC_PATH" ]; then
@@ -140,10 +143,10 @@ target = [no for no in spec_nos if prev.get(no, 'NEW') in ('NG', 'SKIP', 'NEW')]
 print(','.join(target))
 " 2>/dev/null || echo "")
   if [ -z "$TARGET_TC_LIST" ]; then
-    echo "[INFO] 前回 NG・SKIP なし、新規 TC なし。差分対象なし（全件スキップ）。"
+    echo "[INFO] 前回 NG・SKIP・新規 TC なし（前回全件 OK）。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
   else
     echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC）: $TARGET_TC_LIST"
-    echo "[INFO] 影響範囲の TC も再テスト対象に含めるか、auto-evidence-runner が確認します。"
+    echo "[INFO] 影響範囲の TC は今回の実行対象には含まれません（Phase F で NG があった場合のみ、次回再テストの判断材料として提示されます）。"
   fi
 else
   echo "[INFO] 全量実行モード（初回または --full 指定）"
@@ -168,8 +171,12 @@ fi
 === /test 実行内容 ===
 課題ID    : {issueID}
 Sandbox   : {alias}
+対応方式  : {LIGHT_MODE=true なら "--light（軽微修正）" / false なら "通常"}
 証跡保存先: {evidence_dir}
 Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
+
+{LIGHT_MODE=true の場合のみ}
+※ --light（軽微修正）実行分ですが、/test は実装後検証の網羅性を落とさないため通常と同一のフル機能（Phase B〜F-2）で実行します。
 
 実行内容:
   Phase A: 前提検証・接続確認（Sandbox 判定）
@@ -220,6 +227,7 @@ python -c "import PIL" 2>/dev/null || {
 - `pattern_map_path`: `.claude/templates/backlog/test-pattern-map.md`
 - `force`: `${FORCE_SPEC:-false}`（`--force` 指定時は true）
 - `validation_report_path`: `{log_dir}/validation-report.md`（Phase 3.5 regression-guard の逆参照結果。軸3消費者リスト source・省略可）
+- `light_mode`: `{LIGHT_MODE}`（`/backlog --light` で対応した課題かどうか。investigation.md フロントマターから読み取り済み）
 
 `test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。
 
@@ -344,13 +352,16 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
 
 旧 `/backlog` Phase 5.5 の `option-acceptance-criteria-recheck` / `option-final-verifier`（Phase 5.5 廃止に伴い孤児化していたが、After エビデンスが確定する `/test` の完了確認として本 Phase に統合）。詳細手順は各 option ファイルを参照する。
 
-#### F-1a: 受入基準再確認（毎回実行）
+#### F-1a: 受入基準再確認
 
 `.claude/templates/backlog/options/option-acceptance-criteria-recheck.md` の実行手順に従う:
 
-1. `mcp__backlog__get_issue`（課題本文）・`mcp__backlog__get_issue_comments`（全コメント）で `{issueID}` の内容を取得する
-2. 後付け要件・受入基準充足・スコープ縮小を確認する
-3. `{log_dir}/test-report.md` に「## 受入基準再確認」セクションを option-acceptance-criteria-recheck.md の出力フォーマットに従って追記する
+1. `mcp__backlog__get_issue`（課題本文。`updated` フィールドを含む）・`mcp__backlog__get_issue_comments`（全コメント）で `{issueID}` の内容を取得する
+2. **キャッシュ判定**: 取得した課題の `updated` タイムスタンプと最終コメントIDを、`{log_dir}/.acceptance-recheck.json` の前回値と比較する:
+   - キャッシュが存在し、`issue_updated` と `last_comment_id` が両方とも前回値と完全一致し、かつ前回 `verdict` が「リリース可」だった場合: 後付け要件確認（手順3〜4）を実行せず、`{log_dir}/test-report.md` に前回の「## 受入基準再確認」内容をそのまま再掲する（末尾に「（コメント・課題本文に増分なしのため前回結果を再掲）」を付記）
+   - キャッシュ不在、値が不一致、または前回 `verdict` が「追加実装要」だった場合: 通常どおり手順3〜4を実行する
+3. 後付け要件・受入基準充足・スコープ縮小を確認する
+4. `{log_dir}/test-report.md` に「## 受入基準再確認」セクションを option-acceptance-criteria-recheck.md の出力フォーマットに従って追記する。完了後、`{log_dir}/.acceptance-recheck.json` に `{"issue_updated": "{updated値}", "last_comment_id": "{最終コメントID}", "verdict": "{最終判定}"}` を Write する
 
 未対応の後付け要件を発見した場合: 対応内容を `implementation-plan.md` に追記し、業務判断を伴うため自動実装はせず「最終判定: 追加実装要」としてユーザーに提示する。
 
@@ -595,6 +606,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 ```
 === /test {issueID} 完了 ===
 
+対応方式: {LIGHT_MODE=true なら "--light（軽微修正）" / false なら "通常"}
 テスト結果: {OK=N / NG=N / 要手動=N}
 総合判定: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認・blind最終判定で指摘あり） / FAIL ❌ （NG が {N} 件）
 
@@ -610,8 +622,10 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 {実装バグ NG が Phase F-2 で自動修正・再デプロイされた場合}
 自動修正: 完了（Phase F-2）
   修正 TC: {auto_fix_tcs}
-  次のステップ: 別セッションで /test {issueID} を再実行してください（差分モード）。
+  次のステップ: 別セッションで /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC のみ再テスト）。
                次回 /test 起動時に今回の証跡が自動的に R{N} として退避されます。
+               ⚠ 差分モードは今回の修正が前回 OK だった他 TC に影響していないか（回帰）までは検出しません。
+                 修正がバグ再現 TC 以外のコンポーネントにも及ぶ場合は --full での全件再テストを検討してください。
 
 {総合判定が条件付きPASS（要確認）の場合（Phase F-1）}
 要確認: 受入基準再確認・blind最終判定で指摘があります。

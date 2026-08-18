@@ -986,6 +986,9 @@ def main():
     parser.add_argument("--evidence-dir", required=True, dest="evidence_dir",
                         help="証跡ファイルの after/ ディレクトリ（最新回次）")
     parser.add_argument("--judgment",     default="",    help="judge_results.py 出力 JSON のパス（最新回次）")
+    parser.add_argument("--rounds", default="all", choices=["all", "latest"],
+                        help="生成する回次の範囲。'latest' 指定で最新回次のみ生成し高速化する"
+                             "（過去回次シートは含まれない。既定: all＝全回次を毎回再生成）")
     args = parser.parse_args()
 
     args.folder = validate_folder(args.folder)
@@ -1003,6 +1006,11 @@ def main():
         round_paths = discover_rounds(args.judgment, args.evidence_dir)
     else:
         round_paths = [("R1", args.judgment, args.evidence_dir)]
+
+    if args.rounds == "latest" and len(round_paths) > 1:
+        skipped = [lbl for lbl, _, _ in round_paths[:-1]]
+        print(f"[INFO] --rounds latest 指定のため過去回次シートを生成しません: {'・'.join(skipped)}")
+        round_paths = round_paths[-1:]
 
     # 全回次の judgment を読み込む → [(label, j_dict, ev_dir), ...]
     all_rounds_data = []

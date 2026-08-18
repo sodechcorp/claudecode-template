@@ -22,6 +22,7 @@ tools:
 - `{pattern_map_path}` — `.claude/templates/backlog/test-pattern-map.md`
 - `{force}` — true の場合は既存 test-spec.md を強制再生成。省略・false の場合は既存があればスキップ
 - `{validation_report_path}` — `{log_dir}/validation-report.md`（Phase 3.5 regression-guard の逆参照結果。軸3の消費者リスト source。省略可）
+- `{light_mode}` — `/backlog --light`（Phase 2 / Phase 3.5 スキップの軽微修正ショートカット）で対応した課題かどうか（`true`/`false`）。省略・false の場合は通常どおり判定する
 
 ---
 
@@ -148,6 +149,8 @@ TC 合計: {既存ファイルの件数} 件
 ## Step 3: 網羅性セルフチェック（必須・生成直後に実施）
 
 **三軸**でカバレッジを確認する。三軸の前に**軸0（判定方法のフォーマット検証）**を実施する。
+
+> **`{light_mode}` が true の場合**: 軸1・軸2の発動条件判定がグレー（該当するか微妙）なケースは、非該当（スキップ）側に倒してよい。ただし正常系 TC・回帰対象コンポーネントの主再現 TC 等、恒常的に必須な観点は省略しない（発動条件が明確に「該当」と判断できるものはそのまま作る）。
 
 ### 軸0: 判定方法のフォーマット検証（機械可読性チェック）
 
