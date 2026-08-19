@@ -25,6 +25,8 @@ Phase 1 で `docs/design/` / `docs/requirements/` / `docs/catalog/` 等を参照
 
 ### API名 vs 日本語ラベルの使い分け（全箇所共通）
 
+> 共通ルール（正本）: [.claude/templates/common/naming-convention-api-vs-label.md](../common/naming-convention-api-vs-label.md)
+
 | 記述対象 | 表記ルール | 例 |
 |---|---|---|
 | 自クラス名 | API名でOK | `RequestController`、`CommonUtil` |
