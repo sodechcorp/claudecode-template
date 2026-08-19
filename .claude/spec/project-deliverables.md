@@ -9,7 +9,7 @@
 | `docs/design/{種別}/` | 機能別設計書（apex/flow/batch/lwc/vf/aura/integration） | `/sf-memory` |
 | `docs/catalog/` | オブジェクト・項目定義書（Markdown・Claude記憶形成用） | `/sf-memory` |
 | `docs/data/` | マスタデータ・テンプレート・統計・品質 | `/sf-memory` |
-| `docs/logs/changelog.md` | 変更履歴 | `/backlog`（backlog-implementer が自動追記、backlog-releaser がフォールバック追記）・アドホック実装は担当（メインスレッド／assistant）が1行追記・/sf-memory Phase5 で自動追記 |
+| `docs/logs/changelog.md` | 変更履歴 | `/backlog`（backlog-implementer が自動追記、backlog-releaser がフォールバック追記）・アドホック実装は担当（メインスレッド／assistant）が1行追記・`/sf-memory` は sf-org-analyst Phase 7.5 で1セッション1行に集約追記（各カテゴリ単体では追記しない） |
 | `docs/knowledge/effort-calibration.md` | 工数温度感（Backlog実績から生成） | `/sf-memory`（Q2でcat6選択） |
 | `docs/decisions.md` | 対応履歴・判断記録 | `/backlog`（Phase5未到達時）または開発タスク経由で追記 |
 | `docs/knowledge/sf-standard.md` | Salesforce 標準仕様（ガバナ制限・API制限・トリガ順序等） | `/sf-memory`（Q3でcat8選択） |

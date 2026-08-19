@@ -72,7 +72,7 @@
 | オブジェクト・項目定義書（Excel/PowerPoint） | `docs/` 任意 | `/sf-doc` | 成果物提出・共有時 | 正式な成果物として提出・共有するための定義書 |
 | 機能設計書 | `docs/design/{種別}/` | `/sf-memory` | 機能実装前 | apex/flow/batch/lwc/vf/aura/integration |
 | データ統計・マスタ | `docs/data/` | `/sf-memory` | プロジェクト開始時・変更時 | マスタデータ・テンプレート・統計・品質 |
-| 変更履歴 | `docs/logs/changelog.md` | 自動 | 各コマンド実行時に自動追記 | コマンド実行時に自動追記 |
+| 変更履歴 | `docs/logs/changelog.md` | 自動 | `/backlog`・`/sf-memory` 実行時に自動追記（アドホック実装は担当が1行追記） | `/backlog`（backlog-implementer が自動追記・backlog-releaser がフォールバック追記）・`/sf-memory`（sf-org-analyst Phase 7.5 で1セッション1行に集約追記）・アドホック実装は担当（メインスレッド／assistant）が1行追記 |
 | 工数ログ | `docs/logs/effort-log.md` | `/backlog` | `/backlog` 実行時に自動追記 | 見込み工数。`/backlog` 実行時に自動追記 |
 | 対応履歴・判断記録 | `docs/decisions.md` | 自動 | `/backlog` 完了時に自動追記 | 保守・開発の判断根拠。`/backlog` 完了時に自動追記 |
 | Salesforceメタデータ | `force-app/main/default/` | SFDX | `/sf-retrieve` 実行後（初回・定期同期） | Apexクラス・LWC・フロー等（`/sf-retrieve` 実行後に生成） |

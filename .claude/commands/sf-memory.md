@@ -99,7 +99,7 @@ AskUserQuestion ツールを **1回** 呼び出す。`questions` 配列に以下
 | `docs/architecture/system.json` | システム構成図用（システム中心＋外部連携） |
 | `docs/flow/usecases.md` | 業務ユースケース一覧（新規申込・解約申込・見積依頼等） |
 | `docs/flow/swimlanes.json` | 業務フロー図（全体／UC別／例外／データフロー） |
-| `docs/logs/changelog.md` | 実行履歴・変更点（Phase 5 で追記） |
+| `docs/logs/changelog.md` | 実行履歴・変更点（cat1単体では追記せず、sf-org-analyst Phase 7.5 で全カテゴリ分を集約追記） |
 
 ### 「オブジェクト・項目構成」が選択された場合
 
