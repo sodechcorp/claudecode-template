@@ -1102,14 +1102,19 @@ PYEOF
 }
 
 # --- select 取得 ---
+# retrieve_manifest() 経由にすることで standard/all と同じ安全機構
+# （heartbeat・型/メンバー単位の自動リトライ・組織未使用判定・構造化ログ）を適用する。
 retrieve_select() {
     local target_org="$1"
     info "接続中の組織: ${target_org}"
     check_uncommitted
 
     info "指定コンポーネントを取得中..."
-    sf project retrieve start --manifest manifest/package.xml --target-org "$target_org" --wait "$SF_WAIT" --ignore-conflicts
-    ok "メタデータ取得完了 → force-app/"
+    if retrieve_manifest "manifest/package.xml" "$target_org" "select"; then
+        ok "メタデータ取得完了 → force-app/"
+    else
+        error "メタデータ取得に失敗しました。ログ: manifest/.retrieve-select.log / スキップ一覧: manifest/.retrieve-status/select.skipped"
+    fi
 }
 
 # --- メイン ---
