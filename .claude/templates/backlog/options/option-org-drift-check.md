@@ -44,7 +44,7 @@ sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{
 python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat.json',encoding='utf-8'))['result']['records']; b=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.prod.json',encoding='utf-8'))['result']['records']; ..."
 ```
 
-**4. 差分の意味を判定する**:
+**4. 差分の意味を判定する**（本判定は手順2で実体取得できた LWC / Apex クラス / Apex トリガーの3種のみに適用する。それ以外の種別の候補がスコープに含まれていた場合、実体取得できないため Tier0 では判定不可＝Tier1 の更新日時比較に委ねる）:
 | 判定 | 条件 |
 |---|---|
 | **未リリース積み残し（最重要警告）** | UAT に存在するコンポーネントが本番に存在しない |
