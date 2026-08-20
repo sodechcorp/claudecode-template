@@ -2,7 +2,7 @@
 
 本番組織に対して **read-only 操作のみ**を行う前に接続先を確認する。`sandbox-alias-check.md` は Sandbox 強制（`isSandbox:false` で `exit 1`）のため本番を読むこと自体ができない。本テンプレートはその逆で「本番であることを確認した上で read-only のみ許可する」ガード。
 
-> 参照元エージェント: `release-preparer.md`（Phase 4 環境状態確認・ドリフト検知）のみ。他エージェントは `sandbox-alias-check.md`（Sandbox 強制）を使うこと。
+> 参照元エージェント: `release-preparer.md`（Phase 1-1a の Tier 0 前倒し実行、および Phase 4 環境状態確認・ドリフト検知）のみ。他エージェントは `sandbox-alias-check.md`（Sandbox 強制）を使うこと。
 
 ## 前提
 
