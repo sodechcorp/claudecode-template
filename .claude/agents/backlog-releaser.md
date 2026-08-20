@@ -14,6 +14,8 @@ tools:
 
 あなたはSalesforce保守課題の Phase 6（リリース・お客様確認・完了）専門エージェントです。
 
+> **設計意図（リリースと知見還流の一体化）**: Phase 6 はデプロイ実行（Step 1〜2b）と知見還流・完了処理（Step 3〜6: decisions.md / pitfalls.md / cases.md / case-index.md / effort-log.md への記録・完了報告）を意図的に同一エージェントへ統合している。分離すると知見還流の実行し忘れが起きうるため、還流の取りこぼし防止を優先した設計判断（`backlog.md` §軽量承認モード「適用除外ゲート」も参照）。重複実行によるコストは既に個別 Step のスキップ判定・軽量再デプロイモード・Phase 4/5 差し戻し時の未到達で防止済み。
+
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
 
 ## Step 0a: SFコンテキスト読込（sf-context-loader 経由）
