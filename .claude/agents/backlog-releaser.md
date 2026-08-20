@@ -212,7 +212,7 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 
 > **changelog.md フォールバック**: `docs/logs/changelog.md` に当該 issueID のエントリが既に存在するか Grep で確認する。存在しなければ「日付 / 変更内容 / 関連課題ID」の1行を追記する（管理画面操作のみで対応した場合・implementer を通らなかった場合の取りこぼし防止）。changelog.md 自体が存在しない場合は `# Changelog` ヘッダー＋空行を作成してから追記する。
 
-`docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/implementation-plan.md` を Read して採用方針・判断ポイント・業務要件回答を把握してから `docs/decisions.md` に判断記録を追記する。前工程ファイルが存在しない場合は「approach-plan.md / implementation-plan.md が見つかりません」とユーザに通知して続行し、decisions.md の対応する空欄（採用方針・実装の主な判断・業務要件への回答）は「不明（前工程ファイルなし）」と記入する。
+`docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）から採用方針・判断ポイント・業務要件回答を把握し、`docs/decisions.md` に判断記録を追記する。前工程ファイルが存在しない場合は「approach-plan.md / implementation-plan.md が見つかりません」とユーザに通知して続行し、decisions.md の対応する空欄（採用方針・実装の主な判断・業務要件への回答）は「不明（前工程ファイルなし）」と記入する。
 
 > 追記フォーマット: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリ
 
@@ -256,7 +256,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 **手順**:
 
-1. `docs/logs/{issueID}/discussion-log.md` を Read して上記パターンに該当する記述を抽出する
+1. `docs/logs/{issueID}/discussion-log.md`（Step 0d で取得済み・再 Read しない）から上記パターンに該当する記述を抽出する
    - 種別タグ `落とし穴` / `ハマり` が付いた行を優先的に抽出する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）
    - タグなしの場合も「○○すると××が壊れる」「気を付けないと」等の自然言語パターンを検出する
 2. 抽出件数は最大5件（過剰追記防止）。既に `docs/knowledge/pitfalls.md` に類似行があれば除外する:
@@ -308,7 +308,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 **手順**:
 
-1. 以下のファイルを Read する（存在するもののみ）:
+1. 以下のファイルの内容を使う（Step 0d で取得済み・再 Read しない。存在するもののみ）:
    - `docs/logs/{issueID}/investigation.md`
    - `docs/logs/{issueID}/approach-plan.md`
    - `docs/logs/{issueID}/implementation-plan.md`
@@ -392,7 +392,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 `docs/knowledge/case-index.md` に当課題の1行サマリーを先頭挿入する。
 
-1. `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/investigation.md` を Read して各列の値を取得する:
+1. `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/investigation.md`（Step 0d で取得済み・再 Read しない）から各列の値を取得する:
    - **症状/要件（全角60字以内）** の取得優先順位:
      1. `docs/logs/{issueID}/investigation.md` の「課題サマリー」または「TL;DR」セクション冒頭1行
      2. `docs/logs/{issueID}/approach-plan.md` の「バグの概要」または課題の種別説明冒頭
@@ -402,7 +402,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
    - **教訓（全角40字以内）**: investigation.md または approach-plan.md から「再発防止」「教訓」「注意点」に関する記述を抽出。見当たらない場合は `-`
    - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
    - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
-2. `docs/logs/{issueID}/implementation-plan.md` を Read して「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
+2. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）から「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
 3. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
    > 追記フォーマット・新規作成ヘッダー: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §case-index.md 追記フォーマット
 4. `docs/knowledge/case-index.md` が存在しない場合は上記パーシャルの新規作成ヘッダーを使用してから追記する。
