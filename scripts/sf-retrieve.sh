@@ -702,8 +702,8 @@ retrieve_manifest() {
 
     # manifest の構造判定: リトライ戦略を決定する
     local name_count wildcard_count
-    name_count=$(grep -c '<name>' "$manifest" 2>/dev/null || echo 0)
-    wildcard_count=$(grep -c '<members>\*</members>' "$manifest" 2>/dev/null || echo 0)
+    name_count=$(grep -c '<name>' "$manifest" 2>/dev/null) || name_count=0
+    wildcard_count=$(grep -c '<members>\*</members>' "$manifest" 2>/dev/null) || wildcard_count=0
 
     local api_ver label_safe
     api_ver=$(get_api_version)
