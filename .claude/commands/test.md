@@ -129,23 +129,33 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   # 差分対象 = 前回 NG ∪ 前回 SKIP（要目視・DOM未取得） ∪ 前回結果に存在しない TC（--force 等での新規追加分）。
   # 前回 OK・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
   # 証跡未採取のまま judge_results.py で「証跡ファイルが見つかりません」の偽 NG になるため）。
+  # ng_type=要確認（証跡は正常採取済み・判定方法が機械可読パターンに一致しないだけ）の NG は、
+  # test-spec.md の判定方法を修正すれば既存証跡のまま Phase D が正しく再判定できるため、証跡の
+  # 再採取対象からは除外する（判定パターン未一致だけで Playwright/SOQL/AnonApex を無駄に再実行しない）。
+  # ただし除外した結果リストが空になる場合（残り NG が要確認のみ）は「空リスト＝全件再実行」の
+  # 既存フォールバックに落ちて無関係な OK 済み TC まで巻き込んでしまうため、その場合のみ除外前の
+  # リストにロールバックする（=除外前と同じ挙動に留め、退化させない）。
   TARGET_TC_LIST=$(python -c "
 import json, os, sys
 sys.path.insert(0, os.path.join(os.getcwd(), 'scripts', 'python', 'backlog-xlsx'))
 from _common import parse_test_spec
 d = json.load(open(r'$JUDGMENT_PATH'))
 prev = {r['no']: r.get('status') for r in d.get('results', [])}
+prev_ng_type = {r['no']: r.get('ng_type', '') for r in d.get('results', [])}
 try:
     spec_nos = [tc.get('No', '') for tc in parse_test_spec(r'$SPEC_PATH')]
 except Exception:
     spec_nos = list(prev.keys())
-target = [no for no in spec_nos if prev.get(no, 'NEW') in ('NG', 'SKIP', 'NEW')]
+raw_target = [no for no in spec_nos if prev.get(no, 'NEW') in ('NG', 'SKIP', 'NEW')]
+capture_target = [no for no in raw_target
+                   if not (prev.get(no) == 'NG' and prev_ng_type.get(no, '') == '要確認')]
+target = capture_target if capture_target else raw_target
 print(','.join(target))
 " 2>/dev/null || echo "")
   if [ -z "$TARGET_TC_LIST" ]; then
     echo "[INFO] 前回 NG・SKIP・新規 TC なし（前回全件 OK）。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
   else
-    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC）: $TARGET_TC_LIST"
+    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC。判定パターン未一致=要確認のみだった NG は証跡再採取から除外済み）: $TARGET_TC_LIST"
     echo "[INFO] 影響範囲の TC は今回の実行対象には含まれません（Phase F で NG があった場合のみ、次回再テストの判断材料として提示されます）。"
   fi
 else
