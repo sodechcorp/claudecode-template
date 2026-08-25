@@ -54,6 +54,8 @@ focus_hints: ["{関連コンポーネント一覧から抽出したキーワー�
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
 > 本 agent の Phase: 5（_index-phase5.md を Read して判定）
 
+> **Phase 5 は dry-run 限定（Sandbox 実操作不可）**: 採用したオプション（`option-regression-test` / `option-edge-case-test` / `option-permission-test` / `option-performance-test` / `option-unit-test-creation` 等）の実行手順に Sandbox への実操作・UI 確認・デプロイ後の計測が含まれる場合、本 Phase では dry-run の制約上その部分は実施できない（Step 2・Step 3 参照。コードは Sandbox に永続化されない）。該当箇所は「/test で実施予定」として test-report.md に記録し、静的に確認可能な範囲（コードレビュー・観点の洗い出し・テストクラスの作成）のみ実施する。デプロイ後の実操作確認・証跡採取は `/test` の担当範囲（観点は [test-pattern-map.md](../templates/backlog/test-pattern-map.md) 参照）であり、重複実施しない。
+
 判定結果（採用・スキップしたオプション）は `docs/logs/{issueID}/test-report.md` の「## スモーク確認結果」セクション末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
 > **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。test-report.md の所見・確認結果は日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
