@@ -366,10 +366,10 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
 
 `.claude/templates/backlog/options/option-acceptance-criteria-recheck.md` の実行手順に従う:
 
-1. `mcp__backlog__get_issue`（課題本文。`updated` フィールドを含む）・`mcp__backlog__get_issue_comments`（全コメント）で `{issueID}` の内容を取得する
-2. **キャッシュ判定**: 取得した課題の `updated` タイムスタンプと最終コメントIDを、`{log_dir}/.acceptance-recheck.json` の前回値と比較する:
-   - キャッシュが存在し、`issue_updated` と `last_comment_id` が両方とも前回値と完全一致し、かつ前回 `verdict` が「リリース可」だった場合: 後付け要件確認（手順3〜4）を実行せず、`{log_dir}/test-report.md` に前回の「## 受入基準再確認」内容をそのまま再掲する（末尾に「（コメント・課題本文に増分なしのため前回結果を再掲）」を付記）
-   - キャッシュ不在、値が不一致、または前回 `verdict` が「追加実装要」だった場合: 通常どおり手順3〜4を実行する
+1. **軽量フェッチ（キャッシュ判定用）**: `mcp__backlog__get_issue`（課題本文。`updated` フィールドを含む）・`mcp__backlog__get_issue_comments`（`order: desc`, `count: 1` で最新コメント1件のみ）で `{issueID}` の `updated` タイムスタンプと最終コメントIDを取得する（この時点では全コメント本文は取得しない）
+2. **キャッシュ判定**: 取得した `issue_updated` と `last_comment_id` を、`{log_dir}/.acceptance-recheck.json` の前回値と比較する:
+   - キャッシュが存在し、`issue_updated` と `last_comment_id` が両方とも前回値と完全一致し、かつ前回 `verdict` が「リリース可」だった場合: 全コメント取得・後付け要件確認（手順3〜4）を実行せず、`{log_dir}/test-report.md` に前回の「## 受入基準再確認」内容をそのまま再掲する（末尾に「（コメント・課題本文に増分なしのため前回結果を再掲）」を付記）
+   - キャッシュ不在、値が不一致、または前回 `verdict` が「追加実装要」だった場合: `mcp__backlog__get_issue_comments`（引数なし＝全コメント）で全件を改めて取得し、手順3〜4を実行する
 3. 後付け要件・受入基準充足・スコープ縮小を確認する
 4. `{log_dir}/test-report.md` に「## 受入基準再確認」セクションを option-acceptance-criteria-recheck.md の出力フォーマットに従って追記する。完了後、`{log_dir}/.acceptance-recheck.json` に `{"issue_updated": "{updated値}", "last_comment_id": "{最終コメントID}", "verdict": "{最終判定}"}` を Write する
 
@@ -407,7 +407,7 @@ print(chr(10).join(lines) if lines else '(該当する実行結果なし)')
 "
    ```
 2. **実施日時を取得する**: `TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M JST'`
-3. **課題本文・全コメント**: F-1a で取得済みのものを再利用する（未実施の場合のみ改めて取得）
+3. **課題本文・全コメント**: F-1a の手順2でキャッシュ不一致となり全コメントを取得済みならそれを再利用する。F-1a がキャッシュヒットして軽量フェッチ（最新コメント1件のみ）で終わっていた場合は、ここで改めて `mcp__backlog__get_issue_comments`（引数なし＝全コメント）を実行する
 4. **After エビデンスのファイルパス**: `{judgment_path}` の `results[].evidence` から null を除き最大10件を列挙する
 5. **Task ツールで `backlog-blind-final-verifier` を起動する**（`.claude/templates/backlog/options/option-final-verifier.md` の「引き渡し情報」7項目に従う。実装の経緯・`implementation-plan.md` の内容は一切渡さない）:
    ```
