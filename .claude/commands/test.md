@@ -200,15 +200,9 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 
 > **[ハーネス直接実行（A-2: 環境準備）]**
 
-```bash
-# SF_ALIAS の再導出（Bash ツールは毎回新シェル。A-1 の変数を引き継げないため再取得）
-SF_ALIAS=$(sf config get target-org --json | python -c "import sys,json; print(json.load(sys.stdin)['result'][0]['value'])" 2>/dev/null || echo "")
-IS_SANDBOX=$(sf org display --target-org "$SF_ALIAS" --json | python -c "import sys,json; d=json.load(sys.stdin)['result']; print(d.get('isSandbox')==True or 'sandbox.my.salesforce.com' in d.get('instanceUrl',''))" 2>/dev/null || echo "false")
-if [ "$IS_SANDBOX" != "True" ]; then
-  echo "[FATAL] 接続先が Sandbox ではありません ($SF_ALIAS). 本番への操作は禁止されています。"
-  exit 1
-fi
+Sandbox 判定は直前の A-1 で確認済み（本番だった場合は A-1 の時点で `[FATAL]` により停止しているため、本ステップは Pillow 確認のみ行う。再確認しない）。
 
+```bash
 # 9. Pillow の存在確認・自動インストール（PNG 自動貼付に必要）
 python -c "import PIL" 2>/dev/null || {
   echo "[INFO] Pillow が未インストールです。自動インストールを実行します..."

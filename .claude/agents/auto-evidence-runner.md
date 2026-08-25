@@ -17,7 +17,9 @@ tools:
 
 テスト仕様の展開・網羅性チェックは `test-spec-builder` が担当済みです（Phase B 完了後に起動されます）。UI 証跡は `ui-evidence-runner` に委譲します。
 
-## Step 0: 前提確認（必須）
+## Step 0: 前提確認（必須・証跡採取モードのみ）
+
+`{judgment_path}` が指定されているレポート・後始末モード（Phase F）ではスキップする（Step 5・Step 6 はローカルファイルの読み書きのみで Sandbox 接続を伴わないため。呼び出し元 `/test` の Phase A・Phase C で既に確認済み）。
 
 > Sandbox 判定手順: [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) を Read して実施。
 
@@ -47,8 +49,8 @@ tools:
 
 | 委譲元フェーズ | `{judgment_path}` | 実行 Step | スキップ |
 |---|---|---|---|
-| **Phase C**（証跡採取） | 空/未指定 | Step 1〜4 ＋ 完了セルフチェック | Step 5・Step 6 |
-| **Phase F**（レポート・後始末） | 指定あり | Step 5 → Step 6 | Step 1〜4（証跡採取を再実行しない） |
+| **Phase C**（証跡採取） | 空/未指定 | Step 0 ＋ Step 1〜4 ＋ 完了セルフチェック | Step 5・Step 6 |
+| **Phase F**（レポート・後始末） | 指定あり | Step 5 → Step 6 | Step 0（Sandbox 接続を伴わないため不要）・Step 1〜4（証跡採取を再実行しない） |
 
 > **テストデータは削除しない**: AnonApex で永続化したテストデータ（`AUTOTEST_{issueID}_` プレフィックス）は Sandbox に蓄積させる方針。Sandbox は積み上げてよく、ユーザーが目視で確認する用途にも使うため、自動 cleanup は行わない（旧 Step 3-2.5・3-4 は廃止）。
 
