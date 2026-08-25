@@ -334,30 +334,6 @@ Sandbox（{alias}）に未ログインの場合は、リンククリック後に
 
 ---
 
-## NG 時の差し戻し案内（判断材料の提示のみ）
-
-> **責務分担**: xlsx への NG 対応履歴記録・ユーザーへの戻り先 Phase / 修正手順の最終案内は `/test` Phase F 以降（`test.md` §「NG があった場合の差し戻し」）が担当する。本節はそれに使う判断材料（戻り先 Phase・ループ回次・影響範囲候補）を返却テーブルに添えるだけで、xlsx 書き込み・ユーザーへの最終案内は行わない（重複記録防止）。
-
-NG が 1 件以上ある場合:
-
-1. `test-fail-routing.md` を Read して戻り先 Phase を確認する:
-   ```bash
-   cat "{project_dir}/.claude/templates/backlog/test-fail-routing.md" 2>/dev/null || echo "（test-fail-routing.md なし: Phase 4 差し戻しをデフォルトとする）"
-   ```
-
-2. ループ回次を確認する（`judgment-result.R{N}.json` のファイル数 = これまでの NG 修正回数）:
-   ```bash
-   ls "{log_dir}"/judgment-result.R*.json 2>/dev/null | wc -l
-   ```
-   3 回を超えている場合は返却テーブルに「繰り返し NG が続いています。業務担当者との打ち合わせを推奨します」と記録する。
-
-3. **影響範囲の TC を返却テーブルに提示する**（修正コンポーネントが変わった場合の回帰漏れ防止）:
-   `implementation-plan.md` の改版履歴（最新行）から変更コンポーネント・オブジェクトを読み取り、test-spec.md の TC（観点・期待結果）と突き合わせて再テスト候補 TC を列挙する（ユーザーへの確認・xlsx 記録は test.md 側が行う）。
-
----
-
----
-
 ## Step 7: テストデータレシピ・落とし穴の還流（write-after）— **Phase F のみ**
 
 > `{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。

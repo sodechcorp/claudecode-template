@@ -560,13 +560,23 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 
    NG 種類が混在している場合は、実装バグ（ng_type 空）を最優先で修正してから再テストする。
 
-2. `test-report.md` の「NG 一覧」と `.claude/templates/backlog/test-fail-routing.md` で戻り先 Phase を確定する
-3. **NGの原因と修正方針を `implementation-plan.md` の改版履歴に追記する**（修正に着手する前に必ず実施）:
+2. **ループ回次を確認する**（`judgment-result.R{N}.json` のファイル数 = これまでの NG 修正回数。`test-fail-routing.md` §「ループ上限」のセッション跨ぎ通算カウント基準と同一）:
+   ```bash
+   ls "{log_dir}"/judgment-result.R*.json 2>/dev/null | wc -l
+   ```
+   3 回を超えている場合は 7 のユーザー提示に「繰り返し NG が続いています。業務担当者との打ち合わせを推奨します」を含める。
+
+3. `test-report.md` の「NG 一覧」と `.claude/templates/backlog/test-fail-routing.md` で戻り先 Phase を確定する
+
+4. **影響範囲の TC を提示候補として洗い出す**（修正コンポーネントが変わった場合の回帰漏れ防止）:
+   `implementation-plan.md` の改版履歴（最新行）から変更コンポーネント・オブジェクトを読み取り、`test-spec.md` の TC（観点・期待結果）と突き合わせて再テスト候補 TC を列挙する。
+
+5. **NGの原因と修正方針を `implementation-plan.md` の改版履歴に追記する**（修正に着手する前に必ず実施）:
    ```
    | {YYYY-MM-DD} | /test NG差し戻し | {NGのTC番号・観点} | {NGの原因（実際の結果）} | {修正方針（何をどう変えるか）} | investigation.md §{対応する要求} |
    ```
    これにより「何をなぜ変えたか」が記録に残り、NG 修正ループで実装の方向が課題の真因から静かにずれるのを防ぐ。
-4. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ）:
+6. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ）:
    ```bash
    python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
      --folder "{xlsx_folder}" --issue-id "{issueID}" ng-history \
@@ -574,9 +584,9 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    ```
    複数 NG TC がある場合は TC ごとに1回ずつ呼ぶ。
 
-5. ユーザーに戻り先 Phase・NG 原因・修正方針（上記で記録した内容）を提示する
+7. ユーザーに戻り先 Phase・NG 原因・修正方針（上記で記録した内容）・（該当時）ループ回次警告・影響範囲 TC 候補を提示する
 
-6. 修正後の手順をユーザーに案内する:
+8. 修正後の手順をユーザーに案内する:
    ```
    修正手順（この順番で実施してください）:
      1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run 確認）
