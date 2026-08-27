@@ -323,7 +323,23 @@ source_file:       {overview_source_file}
 > `pre_confirmed=true` により sf-doc-overview-writer 内の /sf-memory 最新化確認はスキップされる。Phase 1 で既に確認済みのため。
 > `version_increment` は Phase 3 で取得した値（オブジェクト定義書のバージョン種別）と同じものを流用する。概要書の改版方針をオブジェクト定義書と揃えるための設計。
 
-sf-doc-overview-writer の完了を待ってから Phase 7 に進む。応答が「⚠️ プロジェクト概要書 生成中断」で始まる場合は `overview_status = 中断` とし、応答内の【理由】をそのまま `overview_reason` として控える。それ以外（「✅ プロジェクト概要書 生成完了」で始まる場合）は `overview_status = 完了` とし、応答内に「⚠️ 内容検証WARNING」の行があればその内容を `overview_warning` として控える。いずれの場合も Phase 7 の進行条件・処理内容は変更しない（両方とも Phase 7 へ進む）。
+sf-doc-overview-writer の完了を待つ。応答が「✅ プロジェクト概要書 生成完了」で始まる場合は `overview_status = 完了` とし、応答内に「⚠️ 内容検証WARNING」の行があればその内容を `overview_warning` として控える。
+
+**応答が「⚠️ プロジェクト概要書 生成中断」で始まる場合**（最大1回のみリカバリを試みる）:
+
+1. 応答内の【理由】をそのままユーザーに提示したうえで、AskUserQuestion で確認する:
+   - question: "プロジェクト概要書の生成が中断されました。どうしますか？"
+   - header: "生成中断"
+   - multiSelect: false
+   - options:
+     - label: "値を修正して再実行する"、description: "理由に該当する項目の値を入力し直して再試行する"
+     - label: "概要書なしで続行する"、description: "オブジェクト定義書のみ生成する（概要書は後で /sf-doc を再実行）"
+2. 「値を修正して再実行する」の場合: チャットで「どの値をどう修正しますか？」と確認し、回答内容に応じて `author` / `version_increment` / `overview_source_file` のうち該当するものを補正した上で、sf-doc-overview-writer を **1回だけ** 再度呼び出す。
+   - 再実行後の応答が「✅ プロジェクト概要書 生成完了」で始まる場合 → `overview_status = 完了`（WARNING があれば `overview_warning` に控える）
+   - 再実行後も「⚠️ プロジェクト概要書 生成中断」で始まる場合 → `overview_status = 中断`、直近の応答内の【理由】を `overview_reason` として控える（**再々実行はしない**）
+3. 「概要書なしで続行する」を選んだ場合 → `overview_status = 中断`、応答内の【理由】を `overview_reason` として控える。
+
+いずれの場合も Phase 7 の進行条件・処理内容は変更しない（`overview_status` の値によらず Phase 7 へ進む。中断時の完了報告の出し分けは後述）。
 
 ---
 
