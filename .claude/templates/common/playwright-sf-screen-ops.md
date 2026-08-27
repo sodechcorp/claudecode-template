@@ -189,18 +189,26 @@ async (page) => {
 
 ### 実ユーザ名の解決
 
-プロファイル名から SOQL で実ユーザ名を取得する:
+プロファイル名から SOQL で実ユーザ名を取得する（`Id` は Login As 高速パス〈servlet.su 直接遷移〉の `suorgadminid` に使うため必ず取得する）:
 
 ```bash
 sf data query --target-org "$SF_ALIAS" \
-  -q "SELECT Username, Name, Profile.Name FROM User WHERE Profile.Name = '{プロファイル名}' AND IsActive = true"
+  -q "SELECT Id, Username, Name, Profile.Name FROM User WHERE Profile.Name = '{プロファイル名}' AND IsActive = true"
 ```
 
 複数該当時は Name が対象と一致するものを選ぶ。組織クエリで特定できない場合のみユーザに 1 回質問する（パスワード不要）。
 
+**組織 ID の解決**（Login As 高速パスの `oid` に使用。TC/手順全体で 1 回だけ取得しキャッシュする）:
+
+```bash
+sf data query --target-org "$SF_ALIAS" -q "SELECT Id FROM Organization LIMIT 1"
+```
+
 ### Login As 操作（ユーザ単位バッチ — 1 Login As → 全 TC → 1 logout）
 
 **バッチ化の原則**: 同じユーザが対象の TC を全てまとめて 1 コードブロックで実行する。TC ごとに Login As/logout を往復しない。
+
+**高速パス優先の原則**: `servlet.su` への直接 URL 遷移（1 遷移）を第一候補にし、遷移後に成功を検証する。`servlet.su` は Salesforce の非公式・内部エンドポイント（公式ドキュメント記載なし）のため、委任管理者の Login As 権限設定・IP 制限・My Domain 設定等の組織固有事情で失敗しうる前提で扱い、**検証に失敗した場合のみ** ManageUsers 経由の GUI 操作（4 遷移）に自動フォールバックする。フォールバックが起きても結果は従来どおり成功する＝退行なし。
 
 ```javascript
 async (page) => {
@@ -210,18 +218,37 @@ async (page) => {
     await page.locator('.slds-spinner, lightning-spinner')
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
+  function looksLikeLoginAsFailure(text, url) {
+    const failMarkers = ['このページを表示する権限がありません', 'insufficient privileges', 'Invalid Session', 'ページが見つかりません', 'INVALID_SESSION_ID'];
+    if (failMarkers.some(m => text.includes(m))) return true;
+    if (/\/login\.jsp/.test(url)) return true; // ログイン画面に戻された＝失敗
+    return false;
+  }
 
-  // ─── Login As（このユーザの TC 群を開始する前に 1 回だけ実行）───
-  await page.goto('/lightning/setup/ManageUsers/home');
-  await waitSfReady(page);
-  const searchBox = page.getByLabel('検索').or(page.getByPlaceholder('検索'));
-  await searchBox.fill('{ユーザ名}');
-  await page.keyboard.press('Enter');
-  await waitSfReady(page);
-  await page.getByText('{ユーザ名}').first().click();
-  await waitSfReady(page);
-  await page.getByRole('button', {name: 'ユーザに代わってログイン'}).click();
-  await waitSfReady(page);
+  // ─── Login As 高速パス（servlet.su 直接遷移。上記で解決済みの OrgId/UserId を使う）───
+  let loginAsOk = false;
+  try {
+    await page.goto('/servlet/servlet.su?oid={OrgId}&suorgadminid={UserId}&targetURL=%2Fhome%2Fhome.jsp');
+    await waitSfReady(page);
+    const checkText = await page.locator('body').innerText();
+    loginAsOk = !looksLikeLoginAsFailure(checkText, page.url());
+  } catch (e) {
+    loginAsOk = false;
+  }
+
+  // ─── フォールバック: ManageUsers 経由の GUI 操作（高速パス失敗時のみ実行）───
+  if (!loginAsOk) {
+    await page.goto('/lightning/setup/ManageUsers/home');
+    await waitSfReady(page);
+    const searchBox = page.getByLabel('検索').or(page.getByPlaceholder('検索'));
+    await searchBox.fill('{ユーザ名}');
+    await page.keyboard.press('Enter');
+    await waitSfReady(page);
+    await page.getByText('{ユーザ名}').first().click();
+    await waitSfReady(page);
+    await page.getByRole('button', {name: 'ユーザに代わってログイン'}).click();
+    await waitSfReady(page);
+  }
 
   // ─── 当該ユーザの TC を連続撮影（TC が増えてもここに追加するだけ）───
   // TC-XXX: {観点}
@@ -351,7 +378,7 @@ async (page) => {
 対象ユーザーのプロファイルを確認
 │
 ├─ 社内プロファイル（標準 / システム管理者 / カスタム内部）
-│  → 通常 Login As（ManageUsers → ユーザに代わってログイン）
+│  → 通常 Login As（servlet.su 直接遷移 → 失敗時のみ ManageUsers → ユーザに代わってログイン）
 │
 └─ 外部プロファイル（Customer Community / Partner / コミュニティ / Portal 系）
    → コミュニティ Login As（Contact ページ → ユーザーとしてログイン）
@@ -365,7 +392,7 @@ async (page) => {
 
 ### 仕組み
 
-`page.context().browser().newContext()` で TC ごとに独立したブラウザコンテキストを作成し、各コンテキストが自前で `goto(FRONTDOOR_URL)` ログイン → 割当 TC を撮影 → コンテキストを閉じる。`max_workers_ui`（デフォルト3）件ずつ `Promise.all` でチャンク処理する。
+`page.context().browser().newContext()` で TC ごとに独立したブラウザコンテキストを作成する。frontdoor 認証は最初に1回だけ行い、その `storageState`（Cookie 等の認証状態）を全コンテキストの生成時（`newContext({storageState})`）に渡して使い回すことで、TC ごとの frontdoor 再ログインを回避する（各コンテキストは対象 URL へ直接遷移）。`max_workers_ui`（デフォルト3）件ずつ `Promise.all` でチャンク処理する。
 
 ### 骨格コード
 
@@ -387,6 +414,15 @@ async (page) => {
     // ... TC 数だけ追加
   ];
 
+  // 0. frontdoor 認証を1回だけ確立し storageState（Cookie 等）を取得（以降の全コンテキストで使い回す）
+  const bootCtx = await page.context().browser().newContext();
+  const bootPage = await bootCtx.newPage();
+  bootPage.setDefaultTimeout(15000);
+  await bootPage.goto(FRONTDOOR);
+  await waitSfReady(bootPage);
+  const authState = await bootCtx.storageState();
+  await bootCtx.close();
+
   const results = [];
   // MAX_WORKERS 件ずつチャンク処理
   for (let i = 0; i < tasks.length; i += MAX_WORKERS) {
@@ -394,13 +430,18 @@ async (page) => {
     const chunkResults = await Promise.all(chunk.map(async (t) => {
       let ctx;
       try {
-        ctx = await page.context().browser().newContext();
+        ctx = await page.context().browser().newContext({ storageState: authState }); // frontdoor 再ログイン不要（Cookie 引き継ぎ）
         const p = await ctx.newPage();
         p.setDefaultTimeout(15000);
-        await p.goto(FRONTDOOR);
-        await waitSfReady(p);
         await p.goto(t.url);
         await waitSfReady(p);
+        if (/\/(secur\/login|login)/i.test(p.url())) {
+          // storageState のセッションが無効だった場合のみ frontdoor で個別ログイン（フォールバック）
+          await p.goto(FRONTDOOR);
+          await waitSfReady(p);
+          await p.goto(t.url);
+          await waitSfReady(p);
+        }
         // before 撮影（fullPage: true）+ before DOM 取得
         await p.screenshot({ path: t.beforePath, fullPage: true });
         const beforeText = await p.locator('body').innerText();
