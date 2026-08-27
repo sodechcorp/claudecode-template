@@ -33,6 +33,6 @@ implementation-plan.md に追記:
 
 | フェーズ | 対象 | 確認内容 | 完了条件 | ロールバック手順 |
 |---|---|---|---|---|
-| Phase 1 | Sandbox | 動作確認・テスト | テスト全 PASS | git revert |
+| Phase 1 | Sandbox | 動作確認・テスト | テスト全 PASS | retrieve済み変更前状態を再デプロイ |
 | Phase 2 | UAT / 管理者 | UAT 確認 | 承認取得 | 再デプロイ |
-| Phase 3 | 全社 | 本番確認 | 障害なし 24h | git revert |
+| Phase 3 | 全社 | 本番確認 | 障害なし 24h | retrieve済み変更前状態を再デプロイ |

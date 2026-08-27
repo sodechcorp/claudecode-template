@@ -21,7 +21,7 @@
 - [ ] 影響範囲の確認（Phase 2 の各 option 結果にリリースを止める要素がない）
 - [ ] チケット競合チェック: 問題なし（Phase 3。競合ありなら承知の上か）
 - [ ] 本番環境ドリフト確認: 問題なし（Phase 4。ドリフトありなら承知の上か）
-- [ ] ロールバック手順の確認（`option-rollback-readiness` 準拠・コミットハッシュ記録の準備）
+- [ ] ロールバック手順の確認（`option-rollback-readiness` 準拠・ロールバック用バックアップ retrieve の準備）
 - [ ] お客様確認サイン取得済み（バグ・仕様変更を伴う場合）
 - [ ] リリース日時・実施者・立ち会い者の確定
 - [ ] リリース時間帯の業務影響確認（営業時間中か・バッチ稼働時間と重ならないか）
@@ -36,7 +36,7 @@
 
 > **`--test-level` の判定ロジック（Apex 含有有無 + 専用テストクラスの特定有無で決定。固定で `RunLocalTests` にしない）は release-preparer.md Phase 1/5 が正本**。以下のコマンドの `--test-level` にはその判定結果を使う。
 
-1. **直前記録**: `git log -1 --pretty=format:'%H'` でロールバック用コミットハッシュを記録する
+1. **直前記録**: `force-app/` は `.gitignore` 対象（各メンバーが組織から都度 retrieve する運用）のため、コミットハッシュに基づくロールバックは機能しない。デプロイ対象コンポーネントの本番環境上の変更前状態を `sf project retrieve start --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --output-dir docs/logs/{issueID}/rollback-backup` でロールバック用バックアップとして退避する
 2. **dry-run（必須）**: `sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests/NoTestRun>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加）で 0 errors を確認
 3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）
 4. **デプロイ順序**: 一括不可の場合は Phase 1 の依存順序（構造 → ロジック → UI → 自動化 → 権限 → レイアウト）で分割実行

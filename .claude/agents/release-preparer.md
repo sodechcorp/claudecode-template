@@ -177,9 +177,9 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 ## 資材種別別・リリース前確認
 {Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「リリース前」を転記}
 
-## 事前記録: ロールバック用コミットハッシュ
-**デプロイ直前**に `git log -1 --pretty=format:'%H'` を実行し、出力結果を以下に記録する。
-ROLLBACK_COMMIT_HASH: （未記録—デプロイ直前に記録する）
+## 事前記録: ロールバック用バックアップ
+`force-app/` は `.gitignore` 対象（各メンバーが組織から都度 retrieve する運用）のため、コミットハッシュに基づくロールバックは機能しない（`git reset --hard` は Git 管理対象外のファイルには無効）。**デプロイ直前**に、リリース対象コンポーネントの本番環境上の変更前状態を退避しておく。
+ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （未取得—デプロイ直前に取得する）
 
 ---
 
@@ -199,11 +199,11 @@ Salesforce はテストレベルによってカバレッジ計算方式が異な
 
 > **実行方針（厳守）**: 以下の Step 1〜4 は必ず1つずつ実行し、各 Step の結果を確認してから次の Step に進む。**Step 2（dry-run）と Step 3（本番デプロイ）をまとめて流さない**。dry-run が 0 errors であることを目視確認できた場合のみ Step 3 に進むこと。
 
-### Step 1: 直前記録（ロールバック用コミットハッシュ）
+### Step 1: 直前記録（ロールバック用バックアップ retrieve）
 ```bash
-git log -1 --pretty=format:'%H'
+sf project retrieve start --metadata "{リリース対象メタデータのAPI名一覧をType:Name形式で列挙}" --target-org <本番エイリアス> --output-dir docs/logs/{issueID}/rollback-backup
 ```
-→ 出力結果を上記「事前記録: ロールバック用コミットハッシュ」の `ROLLBACK_COMMIT_HASH:` に記録してから Step 2 へ進む。
+→ 取得完了を確認してから Step 2 へ進む（上記「事前記録: ロールバック用バックアップ」の `ROLLBACK_BACKUP_DIR` に取得済みである旨を記録する）。**新規追加コンポーネント**（本番に未存在）は retrieve 対象から除外する（存在しないためエラーになる。ロールバック時は削除で対応する旨をロールバック手順に明記する）。
 
 ### Step 2: dry-run で事前確認（必須）
 ```bash
@@ -250,9 +250,9 @@ sf project deploy report --target-org <本番エイリアス>
 
 ## ロールバック手順
 {option-rollback-strategy.md（approach-plan.md 記載があれば転記）+ option-rollback-readiness.md による最終確認}
-1. git reset --hard {ROLLBACK_COMMIT_HASH}
+1. `sf project deploy start --source-dir {ROLLBACK_BACKUP_DIR} --target-org <本番エイリアス>` — 事前retrieve済みの変更前メタデータを本番へ再デプロイする（新規追加コンポーネントは対象外のため、該当分は Setup 画面から手動削除する）
 2. Sandbox で動作確認
-3. 本番に再デプロイ
+3. 本番の状態を確認
 
 ## リリースノート
 {option-release-note-generation.md に従い docs/logs/{issueID}/release-note.md を別途生成し、ここにリンクする}
