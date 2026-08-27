@@ -87,7 +87,7 @@ Grep で「確定した実装方針まとめ」「Implementation Summary」「�
    - 矛盾がある場合は「矛盾あり: {内容}」として validation-report.md に記録し、Phase 3 戻りを提案する
 
 2. **Q 答え未確定の有無確認**
-   - approach-plan.md の「判断ポイント一覧」を Read し、「回答: 未確定」「保留」「TBD」等の未確定 Q が残っていないか確認
+   - implementation-plan.md の「判断ポイント一覧」を Read し、「回答: 未確定」「保留」「TBD」等の未確定 Q が残っていないか確認
    - 未確定 Q がある場合は実装前に解決が必要として Phase 3 戻りを提案する
 
 3. **implementation-plan.md の改版履歴妥当性確認**
