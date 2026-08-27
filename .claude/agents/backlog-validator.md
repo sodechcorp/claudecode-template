@@ -67,7 +67,7 @@ implementation-plan.md の確定実装方針が **典型的自明ケース**（[
 
 issueID は呼び出し元（backlog.md Phase 3.5）の引数として渡される（例: LINK-139）。渡されない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら「対象 issueID を `XXX-1`、`XXX-2`... のどれにしますか？」とテキストで確認する。
 
-Grep で「実装方針まとめ」「Implementation Summary」「テストシナリオ」「Test Scenarios」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認1・2 で「業務要件への回答」「判断ポイント一覧」を参照するため）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
+Grep で「実装方針まとめ」「Implementation Summary」「テストシナリオ」「Test Scenarios」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」「関連コンポーネント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認1・2 で「業務要件への回答」「判断ポイント一覧」を参照するため）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
 
 **いずれかのファイルが存在しない場合**: 不足ファイルに応じて以下を案内し、処理を終了する。
 - `approach-plan.md` 不在: `Phase A（対応方針策定）が未完了です。/backlog を実行して Phase A から進めてください。`
