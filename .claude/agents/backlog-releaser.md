@@ -423,11 +423,21 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 - [ ] デプロイ対象一覧が手順書に記録されているか
 - [ ] effort-log.md に見込み工数（単一値）が追記されているか（旧2列形式や内訳再掲になっていないか）
 - [ ] decisions.md が更新されているか（または更新不要の判定がされているか）
+- [ ] catalog/design 更新確認: 下記手順で機械確認し、未更新の可能性があるファイルがあれば完了報告の「未確認事項」に明記されているか（2b. 管理画面直接操作の場合はスキップ）
 - [ ] お客様確認サイン: 取得済み（または issue_type がバグ以外で対象外と判定済）。未取得の場合は `pending-signoff.md` が作成され、完了報告の「残作業」に明記されているか（Step 3.7 参照。ブロッキングしないため未取得のまま先へ進んでよい）
 - [ ] xlsx タイムラインが追記されているか（xlsx_folder 設定の場合）
 - [ ] 管理画面操作手順書が保存され、チャットに全文提示されているか（管理画面操作の場合）
 - [ ] 完了報告に確認環境・本番反映状況・残作業・確認方法・未確認事項の5項目が揃っているか（[completion-report-spec.md](../templates/common/completion-report-spec.md) 参照）
 - [ ] ドキュメント更新通知（Step 6）の付記要否が判定済か
+
+> **catalog/design 更新確認の実施手順**（2a. Sandbox の場合のみ。2b. 管理画面直接操作の場合はスキップ — Claude が実装していないため確認対象がない）:
+> 1. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）の「関連コンポーネント一覧（変更対象ファイル）」からコンポーネント（カスタム項目・Apex・Flow・LWC・VF・Aura・Batch・Integration）を抽出する。Step 0d で「不在」と判定されている場合、または該当コンポーネントが0件（データ変更のみ等）の場合はこの確認自体をスキップする。
+> 2. 各コンポーネントに対応する期待ファイルパスを、backlog-implementer.md の対応表（カスタム項目 → `docs/catalog/{standard|custom}/{オブジェクト名}.md`、Apex/Flow/LWC/VF/Aura/Batch/Integration → `docs/design/{種別}/{名称}.md`）に従って算出する。
+> 3. 以下で `implementation-plan.md` 作成後に更新されたファイル一覧を取得する（Step 2a-2 と同型の `-newer` 判定）:
+>    ```bash
+>    find docs/catalog docs/design -type f -newer docs/logs/{issueID}/implementation-plan.md 2>/dev/null
+>    ```
+> 4. 手順2の期待パスのうち手順3の一覧に含まれないものを「未更新の可能性」として記録する。**内容の正しさまでは検証しない存在+更新有無の機械確認であり、ブロッキングしない**（WARNING 扱い）。1件以上あれば完了報告の「未確認事項」に `⚠ catalog/design 未更新の可能性: {パス一覧}` として明記する。0件なら内部記録のみで完了報告への記載は不要。
 
 未充足項目があれば該当 Step に戻って完了させる。
 
