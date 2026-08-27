@@ -145,7 +145,7 @@
 ### option を新規追加する時
 
 1. `options/option-{name}.md` を作成（実行手順のみ・判定情報は持たない）
-2. 該当 Phase の `_index-phase{N}.md` にエントリ追加（name / description / auto-execute-when / auto-skip-when / ask-user-prompt / category / estimated-cost）
+2. 該当 Phase の `_index-phase{N}.md` にエントリ追加（name / description / auto-execute-when / auto-skip-when / category / estimated-cost）
    - `prerequisites`（任意）: 実行前に満たすべき前提条件の一覧。例: 「test-report.md にエビデンスマッピング表が存在し全項目✅取得済」
    - `prerequisite-fail-action`（任意）: 前提条件が満たせない場合の指示（エラー文言 or フォールバック手順）。`prerequisites` がある場合は必ずセットで記述する
 3. Phase 5 向けの場合は `_index-phase5.md` に追加（横断系オプションも Phase 5 に統合済み）

@@ -33,9 +33,6 @@ options:
       - 変更対象がコメント文字列のみ
       - 変更対象がラベル・表示文字列のみ（API 名・コードロジック非該当）
       - （※ 根本原因が共有コンポーネントの場合は skip しない — 上記 auto-execute-when が優先）
-    ask-user-prompt: |
-      この修正はコード実体に影響しない変更（コメント・ラベル等）のようです。
-      変更対象を呼んでいる他のコードがないか確認する手順は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-similar-impl-search
@@ -49,8 +46,6 @@ options:
     auto-skip-when:
       - 既存コード 1 メソッド内の単純な値修正のみ
       - 単純な定数値変更
-    ask-user-prompt: |
-      この修正はごく狭い範囲の値変更のようです。プロジェクト内の類似実装を広く探す手順は省略してもよさそうですか？
     estimated-cost: 重
     default-when-uncertain: skip
 
@@ -63,8 +58,6 @@ options:
       - 標準 API（REST/SOAP）の仕様確認が必要
     auto-skip-when:
       - 完全カスタム実装のみが対象（標準仕様非該当）
-    ask-user-prompt: |
-      この課題はカスタム実装のみが対象のようです。Salesforce 公式ドキュメントでの標準仕様裏取りは省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-symptom-reverification
@@ -77,8 +70,6 @@ options:
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
       - 種別が「追加要望」かつ既存挙動への言及がない
       - 設定変更のみで症状概念が無関係
-    ask-user-prompt: |
-      この課題は新機能追加であり、既存挙動の症状確認は不要そうです。症状の前提再確認は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-impact-scope-grep
@@ -90,8 +81,6 @@ options:
     auto-skip-when:
       - 変更対象が単一 LWC 内の表示制御のみ
       - コメント・ラベル変更のみ
-    ask-user-prompt: |
-      この修正は単一コンポーネント内の表示制御のみのようです。Validation Rule や承認プロセス・割り当てルール・共通ユーティリティへの影響確認は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-second-opinion
@@ -105,8 +94,6 @@ options:
     auto-skip-when:
       - 種別が「その他」かつ単純な設定変更のみ
       - typo 修正・ラベル変更レベル（典型的自明ケース）
-    ask-user-prompt: |
-      この課題は影響範囲が小さい修正のようです。blind 別仮説（subagent）の検証は省略してもよさそうですか？
     estimated-cost: 重
     default-when-uncertain: skip
 
@@ -120,8 +107,6 @@ options:
     auto-skip-when:
       - 完全新規機能の追加要望
       - 設定変更のみでロジック関与なし
-    ask-user-prompt: |
-      この課題は過去の同種課題が無さそうです。Backlog 過去課題の履歴検索は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-git-blame-history
@@ -133,8 +118,6 @@ options:
     auto-skip-when:
       - 完全新規ファイル作成のみ
       - 変更対象が docs/ や設定ファイルのみ
-    ask-user-prompt: |
-      この修正は新規ファイル作成のみで既存コードに触れないようです。git blame による過去履歴確認は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-permission-fls-check
@@ -147,8 +130,6 @@ options:
     auto-skip-when:
       - 変更対象が Apex 内部ロジックのみ（FLS 非該当）
       - コメント変更のみ
-    ask-user-prompt: |
-      この修正は内部ロジックのみで権限・FLS への影響は無さそうです。権限セット・プロファイル・FLS の確認は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-flow-trigger-trace
@@ -160,8 +141,6 @@ options:
     auto-skip-when:
       - 変更対象が読み取り専用処理（クエリ・表示のみ）
       - LWC 内の表示制御のみ
-    ask-user-prompt: |
-      この修正は読み取り専用処理のようです。Flow / Trigger の連鎖実行追跡は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-test-class-impact
@@ -173,8 +152,6 @@ options:
     auto-skip-when:
       - 変更対象が LWC のみ・Flow メタデータのみ（Apex 非該当）
       - 設定変更のみ
-    ask-user-prompt: |
-      この修正は Apex を含まないようです。既存テストクラスへの影響確認は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-data-volume-analysis
@@ -187,8 +164,6 @@ options:
     auto-skip-when:
       - LWC 内の表示制御のみ（DB 操作なし）
       - 単一レコード操作のみ
-    ask-user-prompt: |
-      この修正は単一レコード操作のみのようです。データ件数・大量データ影響評価は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-similar-past-issue
@@ -199,8 +174,6 @@ options:
       - 同一機能領域で過去 1 ヶ月以内に類似修正履歴がある可能性
     auto-skip-when:
       - 完全新規機能の追加要望
-    ask-user-prompt: |
-      この課題は新機能追加で再発概念が無さそうです。類似過去課題の再発確認は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-business-process-mapping
@@ -211,8 +184,6 @@ options:
       - 課題で「業務フロー」「営業プロセス」「申請フロー」等への言及
     auto-skip-when:
       - 変更対象が UI 表示・コメント・ラベルのみ（業務ロジック非関与）
-    ask-user-prompt: |
-      この修正は業務ロジックに関与しないようです。業務フロー視点での影響確認は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-user-impact-survey
@@ -224,8 +195,6 @@ options:
     auto-skip-when:
       - 変更対象が単一プロファイル・特定ユーザー専用機能
       - 内部処理のみで UI 影響なし
-    ask-user-prompt: |
-      この修正は特定ユーザー専用機能のようです。影響ユーザー数・部署の見積もりは省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-sharing-rule-check
@@ -237,8 +206,6 @@ options:
       - レコードタイプ変更を含む
     auto-skip-when:
       - 変更対象が UI のみ・Apex 内部処理のみ（DB 構造非関与）
-    ask-user-prompt: |
-      この修正は共有モデルに影響しないようです。共有ルール・OWD への影響確認は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-multi-cause-hypothesis
@@ -250,8 +217,6 @@ options:
     auto-skip-when:
       - 種別が追加要望（原因概念が無関係）
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
-    ask-user-prompt: |
-      この課題は新機能追加で原因仮説の概念が無関係です。多重原因仮説の検討は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-assumption-listing
@@ -262,8 +227,6 @@ options:
       - 「○○のはず」「通常は」「想定では」等の前提語が課題にある
     auto-skip-when:
       - 単純な定数値修正・typo 修正で前提概念が無関係
-    ask-user-prompt: |
-      この課題は前提検証が不要そうです。暗黙前提の明示は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-counter-evidence-search
@@ -275,8 +238,6 @@ options:
     auto-skip-when:
       - 種別が追加要望（原因概念が無関係）
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
-    ask-user-prompt: |
-      この課題は新機能追加で反証概念が無関係です。反証探索は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-causal-chain-analysis
@@ -288,8 +249,6 @@ options:
     auto-skip-when:
       - 単一行修正レベル
       - 設定変更のみ
-    ask-user-prompt: |
-      この修正は単一箇所への修正のようです。症状から根本原因への連鎖図示は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-reproduction-step-detail
@@ -301,8 +260,6 @@ options:
     auto-skip-when:
       - 種別が追加要望（再現概念が無関係）
       - その他で再現性確認が不要
-    ask-user-prompt: |
-      この課題は新機能追加で再現概念が無関係です。再現手順の 1 操作粒度分解は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-apex-debug-log
@@ -316,8 +273,6 @@ options:
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
       - 種別が「追加要望」または「その他」
       - 変更対象が純 UI（HTML・表示文言のみ）・ラベル変更・設定のみで Apex / Trigger / Flow が非関与
-    ask-user-prompt: |
-      この課題はバックエンドロジックに関係しないようです。Apex デバッグログの取得・解析は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-cross-record-comparison
@@ -331,8 +286,6 @@ options:
       - 種別が「追加要望」または「その他」
       - 全レコードで一律に発生する（比較対象となる正常レコードが存在しない）
       - 設定・コードのみが原因でデータ差分が関係しない（単一コード分岐の誤り等）
-    ask-user-prompt: |
-      この課題は全レコードで一律に発生しているようです。症状あり/なしレコードの差分比較は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-error-message-reverse-lookup
@@ -345,8 +298,6 @@ options:
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
       - 種別が「追加要望」または「その他」
       - エラー文言の記載がなく、症状が「表示されない」「データが変わらない」等の無反応系のみ
-    ask-user-prompt: |
-      この課題にはエラー文言の記載がないようです。エラーメッセージからの逆引き grep は省略してもよさそうですか？
     estimated-cost: 軽
 ```
 

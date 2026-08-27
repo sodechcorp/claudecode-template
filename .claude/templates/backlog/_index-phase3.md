@@ -17,8 +17,6 @@ options:
     auto-skip-when:
       - 典型的自明ケース（_README.md §典型的自明ケース定義 を参照）
       - 推奨案 A が唯一解で別案が構造的に立てられない（実装選択肢がゼロ）
-    ask-user-prompt: |
-      この課題は唯一解のため別案が立てられない可能性があります。blind 別案レビュー（subagent）は省略してもよさそうですか？
     estimated-cost: 重
 
   - name: option-staged-deployment-plan
@@ -31,8 +29,6 @@ options:
     auto-skip-when:
       - 単一ユーザー・単一プロファイル向け修正
       - 設定変更のみ
-    ask-user-prompt: |
-      この修正は段階展開の必要性が無さそうです。段階的デプロイ計画は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-feature-flag-design
@@ -45,8 +41,6 @@ options:
     auto-skip-when:
       - 単純なバグ修正
       - 既存設定変更のみ
-    ask-user-prompt: |
-      この修正は段階展開不要のようです。フィーチャーフラグ設計は省略してもよさそうですか？
     estimated-cost: 重
     default-when-uncertain: skip
 
@@ -60,8 +54,6 @@ options:
     auto-skip-when:
       - データ更新を含まない処理修正
       - UI 表示変更のみ
-    ask-user-prompt: |
-      この修正はデータ移行を含まないようです。データ移行計画は省略してもよさそうですか？
     estimated-cost: 重
     default-when-uncertain: skip
 
@@ -75,8 +67,6 @@ options:
     auto-skip-when:
       - 単一ファイル修正
       - 設定変更のみ
-    ask-user-prompt: |
-      この修正は単一メタデータタイプのみのようです。デプロイ順序・依存関係確認は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-implementation-pattern-check
@@ -87,8 +77,6 @@ options:
       - 新規 LWC・Apex クラス・Flow を作成
     auto-skip-when:
       - 既存メソッド内の最小修正のみ（パターン整合の概念が無関係）
-    ask-user-prompt: |
-      この修正は既存メソッド内の最小修正のみのようです。既存実装パターンとの整合性確認は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-anti-pattern-check
@@ -101,8 +89,6 @@ options:
     auto-skip-when:
       - LWC / Flow メタデータのみの修正（Apex 非該当）
       - コメント・ラベル修正のみ
-    ask-user-prompt: |
-      この修正は Apex を含まないようです。アンチパターン検出は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-error-handling-design
@@ -115,7 +101,5 @@ options:
     auto-skip-when:
       - 読み取り専用処理（クエリ・表示のみ）
       - LWC 内の表示制御のみ
-    ask-user-prompt: |
-      この修正は読み取り専用処理のようです。エラーハンドリング設計レビューは省略してもよさそうですか？
     estimated-cost: 中
 ```

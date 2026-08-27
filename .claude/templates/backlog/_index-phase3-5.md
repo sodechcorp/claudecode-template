@@ -20,8 +20,6 @@ options:
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
       - SOQL を含まない実装（UI 制御・ラベル変更・設定変更のみ）
       - 既存 SOQL の一切変更なし
-    ask-user-prompt: |
-      この実装計画は SOQL を含まないようです。Sandbox での想定 SOQL ドライラン確認は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-existing-test-baseline
@@ -34,8 +32,6 @@ options:
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
       - Apex コードを含まない変更（設定・メタデータ・LWC のみ）
       - 新規プロジェクトでテストクラスが存在しない
-    ask-user-prompt: |
-      この変更は Apex コードを含まないようです。変更前テストベースライン記録は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-impact-rescan
@@ -48,8 +44,6 @@ options:
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
       - 変更が単一ファイル内に完全に閉じている（外部参照なし）
       - コメント・ラベル・表示文字列のみの変更
-    ask-user-prompt: |
-      この変更は外部への影響が無さそうです。影響範囲の逆参照 grep 再走査は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-cross-review
@@ -59,8 +53,6 @@ options:
       - 種別がバグまたは追加要望（常時実行）
     auto-skip-when:
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
-    ask-user-prompt: |
-      この修正は typo 修正・ラベル変更のみのようです。権限/FLS・副作用・類似実装整合の多角レビューは省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-evidence-check
@@ -70,7 +62,5 @@ options:
       - 種別がバグまたは追加要望（常時実行）
     auto-skip-when:
       - typo 修正・ラベル変更のみ（エビデンス概念が無関係）
-    ask-user-prompt: |
-      この修正は typo 修正・ラベル変更のみのようです。実装前エビデンス取得確認は省略してもよさそうですか？
     estimated-cost: 軽
 ```

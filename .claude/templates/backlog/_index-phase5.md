@@ -18,8 +18,6 @@ options:
     auto-skip-when:
       - 種別が追加要望（再現確認の概念が無関係）
       - Sandbox で事象が再現しない場合（本番特有の条件）
-    ask-user-prompt: |
-      この課題は追加要望（または Sandbox 再現不可）のようです。Sandbox 修正後再現確認は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-prod-select-reference
@@ -33,8 +31,6 @@ options:
       - Sandbox データで十分確認可能
       - データ変更を含まない純粋な UI 変更
       - 権限上の問題で本番 SELECT 不可
-    ask-user-prompt: |
-      Sandbox データで十分確認できそうです。本番 SELECT 参照は省略してもよさそうですか？
     estimated-cost: 重
     default-when-uncertain: skip
 
@@ -48,8 +44,6 @@ options:
     auto-skip-when:
       - Apex コードを含まない変更
       - 既存テストクラスで十分なカバレッジを確保済み
-    ask-user-prompt: |
-      この変更は Apex コードを含まないようです。Apex 単体テスト作成は省略してもよさそうですか？
     estimated-cost: 重
 
   - name: option-regression-test
@@ -62,8 +56,6 @@ options:
     auto-skip-when:
       - 影響範囲が単一機能に閉じている最小修正
       - typo 修正・ラベル変更のみ
-    ask-user-prompt: |
-      この変更は単一機能に閉じた最小修正のようです。リグレッションテストは省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-edge-case-test
@@ -76,8 +68,6 @@ options:
     auto-skip-when:
       - 単純なラベル変更・設定変更
       - 入力バリデーションが無関係な管理画面操作のみ
-    ask-user-prompt: |
-      この修正は単純な設定変更のようです。境界値・異常系テストは省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-permission-test
@@ -90,8 +80,6 @@ options:
     auto-skip-when:
       - 権限とは無関係な処理修正
       - システム管理者のみが使う機能の変更
-    ask-user-prompt: |
-      この修正は権限・FLS に関係しないようです。権限・FLS テストは省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-performance-test
@@ -104,8 +92,6 @@ options:
     auto-skip-when:
       - データ件数が少ない単一レコード操作
       - 設定変更・ラベル変更のみ
-    ask-user-prompt: |
-      この修正はパフォーマンス影響が無さそうです。パフォーマンステストは省略してもよさそうですか？
     estimated-cost: 重
     default-when-uncertain: skip
 
@@ -120,8 +106,6 @@ options:
     auto-skip-when:
       - 内部管理画面のみの変更（外部入力なし）
       - 設定・ラベル変更のみ
-    ask-user-prompt: |
-      この修正はセキュリティリスクが低い変更のようです。セキュリティ監査は省略してもよさそうですか？
     estimated-cost: 重
     default-when-uncertain: skip
 
@@ -134,8 +118,6 @@ options:
       - docs/logs/{issueID}/discussion-log.md に議論・指摘・却下案が記録されている場合（必ず実行）
     auto-skip-when:
       - typo 修正・ラベル変更のみ かつ discussion-log.md が存在しないまたは空（知見として残す内容が一切ない場合のみ）
-    ask-user-prompt: |
-      この修正は typo 修正・ラベル変更のみのようです。知見抽出・docs 更新は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-similar-future-prevention
@@ -148,8 +130,6 @@ options:
     auto-skip-when:
       - 一時的な設定ミス・typo レベルで再発リスクなし
       - 追加要望で「防止」の概念が無関係
-    ask-user-prompt: |
-      この課題は一時的なミスで再発リスクが低そうです。類似課題の再発防止策提案は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-diff-review
@@ -160,7 +140,5 @@ options:
     auto-skip-when:
       - typo 修正・ラベル変更のみ
       - 設定ファイル・メタデータのみの変更（field-meta.xml / layout-meta.xml 等）
-    ask-user-prompt: |
-      この修正はコード変更が無いか軽微です。diff レビュー（実装計画整合・計画外混入・影響範囲再 rescan）は省略してもよさそうですか？
     estimated-cost: 中
 ```

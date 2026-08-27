@@ -19,8 +19,6 @@ options:
     auto-skip-when:
       - 単一ファイルの最小修正（1〜2行変更）
       - typo 修正・ラベル変更のみ
-    ask-user-prompt: |
-      この修正は単一ファイルの最小修正のようです。段階コミットは省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-error-handling-comprehensive
@@ -33,8 +31,6 @@ options:
     auto-skip-when:
       - 読み取り専用処理（クエリ・表示のみ）
       - LWC/Aura の表示制御のみ
-    ask-user-prompt: |
-      この変更は読み取り専用処理のようです。網羅的エラーハンドリング追加は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-code-comments-detail
@@ -48,8 +44,6 @@ options:
       - 単純な値変更・設定変更
       - 既存コメントで十分な場合
       - typo 修正・ラベル変更のみ
-    ask-user-prompt: |
-      この実装は単純な変更のようです。コードコメント詳細化は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-soql-governor-limit-check
@@ -62,8 +56,6 @@ options:
     auto-skip-when:
       - Apex コードを含まない変更
       - 既存 SOQL の変更なし・新規 SOQL なし
-    ask-user-prompt: |
-      この変更は Apex SOQL を含まないようです。ガバナ制限・効率評価は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-bulk-processing-check
@@ -76,7 +68,5 @@ options:
     auto-skip-when:
       - Apex コードを含まない変更
       - 単一レコードのみを対象とした処理確定（設定・管理画面操作のみ）
-    ask-user-prompt: |
-      この変更は Apex トリガー・バッチを含まないようです。バルク処理対応確認は省略してもよさそうですか？
     estimated-cost: 軽
 ```

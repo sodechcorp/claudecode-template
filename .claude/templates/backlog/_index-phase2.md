@@ -20,8 +20,6 @@ options:
       - 種別がバグ（原則として唯一解。blind 別案は option-validator-blind に委譲）
       - typo・ラベル・コメント・単一値修正
       - 推奨案 A が業務的・技術的に唯一解
-    ask-user-prompt: |
-      この課題は推奨案 A が唯一解のようです。代替案 B/C の生成は省略してもよさそうですか？
     estimated-cost: 重
     default-when-uncertain: skip
     # 注意: 「課題優先度が高/緊急」は auto-execute-when に含めない。保守課題はデフォルト「高」のため
@@ -37,8 +35,6 @@ options:
     auto-skip-when:
       - 単一案で確定の場合
       - typo 修正レベル
-    ask-user-prompt: |
-      この課題は単一案で進めるためトレードオフ比較が不要そうです。メリット・デメリット深掘りは省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-future-extensibility
@@ -51,8 +47,6 @@ options:
     auto-skip-when:
       - 種別がバグの最小修正
       - 単一機能内に閉じる修正
-    ask-user-prompt: |
-      この修正は単一機能内で完結するようです。将来拡張性の評価は省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-rollback-strategy
@@ -65,8 +59,6 @@ options:
     auto-skip-when:
       - 設定変更のみで簡単に戻せる修正
       - 単純な値修正
-    ask-user-prompt: |
-      この修正は簡単に戻せる範囲のようです。方針段階でのロールバック戦略事前設計は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-side-effect-analysis
@@ -77,8 +69,6 @@ options:
       - 共通コンポーネント・共通ユーティリティへの修正
     auto-skip-when:
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
-    ask-user-prompt: |
-      この修正は副作用概念が無関係なラベル修正等のようです。副作用網羅は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-minimum-change-principle
@@ -91,8 +81,6 @@ options:
     auto-skip-when:
       - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
       - 種別が追加要望で新規ファイル作成のみ（既存ファイル無変更）
-    ask-user-prompt: |
-      この修正は既存ファイル変更を伴わないため、スコープ膨張のリスクが低そうです。最小変更原則チェックは省略してもよさそうですか？
     estimated-cost: 軽
 
   - name: option-conservative-vs-progressive
@@ -104,8 +92,6 @@ options:
     auto-skip-when:
       - 種別が追加要望
       - 単純なバグ修正で抜本対応の選択肢が無い
-    ask-user-prompt: |
-      この修正は抜本対応の選択肢が無さそうです。保守的 vs 抜本案の比較は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-customer-questions
@@ -115,7 +101,5 @@ options:
       - 業務要件の確認事項（Q）が 1 件以上ある場合（常時実行）
     auto-skip-when:
       - 業務要件の確認事項（Q）が 0 件
-    ask-user-prompt: |
-      顧客向け確認事項ドラフトは常時生成されます（未送信・要人間レビュー）。不要な場合は生成物を破棄してください。
     estimated-cost: 軽
 ```

@@ -21,8 +21,6 @@ options:
       - 内部設定変更のみ（エンドユーザーへの影響なし）
       - typo 修正・ラベル変更レベル
       - 単一ユーザー・単一プロファイル向け修正
-    ask-user-prompt: |
-      この修正はエンドユーザーへの影響が無さそうです。リリースノート生成は省略してもよさそうですか？
     estimated-cost: 中
 
   - name: option-stakeholder-notification
@@ -37,8 +35,6 @@ options:
       - 開発者内のみで完結する修正
       - 単純なバグ修正で影響範囲が小さい
       - typo 修正・ラベル変更レベル
-    ask-user-prompt: |
-      この修正は影響範囲が小さく関係者周知は不要そうです。ステークホルダーへの完了通知は省略してもよさそうですか？
     estimated-cost: 軽
 
   # option-rollback-readiness は Phase 6 から除去（Phase 6 は Sandbox 専用のため常に auto-skip になるため）。
