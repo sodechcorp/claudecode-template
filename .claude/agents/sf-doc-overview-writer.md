@@ -3,6 +3,7 @@ name: sf-doc-overview-writer
 description: "sf-doc コマンドから委譲されるプロジェクト概要書生成エージェント。docs/ 配下の情報源を元に generate_basic_doc.py を呼び出してプロジェクト概要書.xlsx を生成する。単独実行（概要書のみ選択）または両方選択時の sf-doc-objects-writer からの連鎖呼び出しで起動する。"
 tools:
   - Read
+  - Write
   - Glob
   - Grep
   - Bash
@@ -30,7 +31,7 @@ sf-doc コマンド、または sf-doc-objects-writer から委譲されて実�
 |---|---|
 | `project_dir` | プロジェクトルート |
 | `output_dir` | 出力先フォルダ（基準。`{output_dir}/01_基本設計/` に生成される） |
-| `author` | 作成者名 |
+| `author` | 作成者名（空文字は `/sf-doc` Step1「スキップ」選択時の正規値） |
 | `pre_confirmed` | 常に `true`（sf-doc コマンド側で /sf-memory 最新化確認済み） |
 | `version_increment` | `"minor"` / `"major"`（省略時は `"minor"`）。既存 xlsx の改版履歴を引き継ぐ際のバージョン昇格方式 |
 | `source_file` | 既存 xlsx のフルパス（省略時 or 空文字 = 新規モード）。スクリプトへの `--source-file` に渡す |
@@ -79,7 +80,7 @@ Read: {project_dir}/.claude/templates/sf-doc/self-review-checklist.md
 上記ファイルのチェックリスト（共通チェック + 概要書固有チェック）を全件確認する。
 
 - **このエージェント自身の判断で訂正できる項目**（例: `output_dir` 直下のフォルダ作成漏れ等の機械的な不備）: 修正してから Phase 2 へ進む。
-- **呼び出し元から渡されたパラメータの妥当性に関わる項目**（例: `author` が空、`version_increment` の判断が実態と不一致 等。このエージェントは AskUserQuestion を持たずユーザーに直接確認できない）: **Phase 2 に進まず中断する**。完了報告の代わりに「⚠️ 要確認: {チェック項目} — {具体的な懸念点}」を出力し、呼び出し元（単独実行時は `/sf-doc` コマンド、連鎖呼び出し時は sf-doc-objects-writer）に差し戻す。呼び出し元はユーザーに確認のうえ再実行すること。
+- **呼び出し元から渡されたパラメータの妥当性に関わる項目**（例: `version_increment` の判断が実態と不一致 等。このエージェントは AskUserQuestion を持たずユーザーに直接確認できない）: **Phase 2 に進まず中断する**。完了報告の代わりに「⚠️ 要確認: {チェック項目} — {具体的な懸念点}」を出力し、呼び出し元（単独実行時は `/sf-doc` コマンド、連鎖呼び出し時は sf-doc-objects-writer）に差し戻す。呼び出し元はユーザーに確認のうえ再実行すること。`author` が空文字であること自体は「受け取る情報」に記載の通り `/sf-doc` Step1「スキップ」選択による正規値であり、単独では要確認としない。
 
 ---
 
