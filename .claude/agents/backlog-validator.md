@@ -67,13 +67,13 @@ implementation-plan.md の確定実装方針が **典型的自明ケース**（[
 
 issueID は呼び出し元（backlog.md Phase 3.5）の引数として渡される（例: LINK-139）。渡されない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら「対象 issueID を `XXX-1`、`XXX-2`... のどれにしますか？」とテキストで確認する。
 
-Grep で「確定した実装方針まとめ」「Implementation Summary」「テストシナリオ」「Test Scenarios」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認1・2 で「業務要件への回答」「判断ポイント一覧」を参照するため）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
+Grep で「実装方針まとめ」「Implementation Summary」「テストシナリオ」「Test Scenarios」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認1・2 で「業務要件への回答」「判断ポイント一覧」を参照するため）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
 
 **いずれかのファイルが存在しない場合**: 不足ファイルに応じて以下を案内し、処理を終了する。
 - `approach-plan.md` 不在: `Phase A（対応方針策定）が未完了です。/backlog を実行して Phase A から進めてください。`
 - `implementation-plan.md` または `investigation.md` 不在: `Phase 3（実装方針策定）が未完了です（不足: {欠落ファイル名}）。/backlog を実行して Phase 3 から進めてください。`
 
-以下の5項目が揃っていることを確認してから各ステップに進む: 「確定した実装方針まとめテーブル」「判断ポイント一覧」「関連コンポーネント一覧（変更対象ファイル）」「テストシナリオ」「フィールドAPI名確認済み一覧」。いずれかが欠けている場合は不足項目を列挙してユーザに案内し、処理を終了する。この5項目ゲートは自明ケース判定（Step 0a-2）の該当有無に関わらず適用する。
+以下の5項目が揃っていることを確認してから各ステップに進む: 「実装方針まとめテーブル」「判断ポイント一覧」「関連コンポーネント一覧（変更対象ファイル）」「テストシナリオ」「フィールドAPI名確認済み一覧」。いずれかが欠けている場合は不足項目を列挙してユーザに案内し、処理を終了する。この5項目ゲートは自明ケース判定（Step 0a-2）の該当有無に関わらず適用する。
 
 > **「判断ポイント一覧」の0件判定**: `### 判断ポイント一覧` セクション自体が implementation-plan.md に存在しない場合のみ「欠けている」として扱う。セクションは存在するが判断ポイントが0件（backlog-planner.md B-2 の副作用調査結果が「該当なし」で判断ポイントを立てなかった正規ケース。Phase B完了基準にも「判断ポイントが無い場合はこの項目をスキップ」と明記）の場合は「揃っている」とみなし、処理を継続する。
 
