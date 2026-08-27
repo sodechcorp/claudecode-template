@@ -323,7 +323,7 @@ source_file:       {overview_source_file}
 > `pre_confirmed=true` により sf-doc-overview-writer 内の /sf-memory 最新化確認はスキップされる。Phase 1 で既に確認済みのため。
 > `version_increment` は Phase 3 で取得した値（オブジェクト定義書のバージョン種別）と同じものを流用する。概要書の改版方針をオブジェクト定義書と揃えるための設計。
 
-sf-doc-overview-writer の完了を待ってから Phase 7 に進む。
+sf-doc-overview-writer の完了を待ってから Phase 7 に進む。応答が「⚠️ プロジェクト概要書 生成中断」で始まる場合は `overview_status = 中断` とし、応答内の【理由】をそのまま `overview_reason` として控える。それ以外（「✅ プロジェクト概要書 生成完了」で始まる場合）は `overview_status = 完了` とし、応答内に「⚠️ 内容検証WARNING」の行があればその内容を `overview_warning` として控える。いずれの場合も Phase 7 の進行条件・処理内容は変更しない（両方とも Phase 7 へ進む）。
 
 ---
 
@@ -422,6 +422,9 @@ python {output_dir}/.tmp/verify-obj-xlsx-output.py
 
 ## 完了報告
 
+「概要書含む」場合は `overview_status` に応じてテンプレートを出し分ける。
+
+**`overview_status = 完了`、または単独実行で概要書を含まない場合:**
 ```
 ✅ 資料生成完了
 
@@ -433,7 +436,20 @@ python {output_dir}/.tmp/verify-obj-xlsx-output.py
 【オブジェクト定義書】
   - オブジェクト項目定義書_v{version}.xlsx
 
-⚠️ 要確認: ...
+⚠️ 内容検証WARNING: {overview_warning}（overview_warning がある場合のみ表示）
+```
+
+**`overview_status = 中断` の場合（プロジェクト概要書は生成されていない）:**
+```
+✅ 資料生成完了（オブジェクト定義書のみ）
+
+【生成先】{output_dir}/01_基本設計/
+
+【オブジェクト定義書】
+  - オブジェクト項目定義書_v{version}.xlsx
+
+⚠️ プロジェクト概要書は生成されていません（{overview_reason}）
+【対応】内容を確認のうえ、必要であれば /sf-doc を再実行してください。
 ```
 
 失敗時:
