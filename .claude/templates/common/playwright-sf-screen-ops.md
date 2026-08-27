@@ -69,6 +69,80 @@ async function waitSfReady(page) {
 
 ---
 
+## DOM テキストの直接保存（saveText・LLM 経由の書き戻し回避）
+
+`browser_run_code_unsafe` の実行環境には `fs`/`require`/`process` が一切なく（実機確認済み: `require('fs')` → `require is not defined`、`import('node:fs')` → `A dynamic import callback was not specified`、`globalThis` 走査でも該当グローバルなし）、コードブロック内から直接ファイル書き込みはできない。DOM 全文（`page.locator('body').innerText()`）を `return` してエージェント(LLM)が `Write` する従来方式は、DOM 全文が毎回 LLM の入力トークン（tool result 受信）・出力トークン（Write 引数として再生成）の両方を経由し、TC 数×採取回数分のコストが線形に積み上がる（テスト実行全体のボトルネックの主要因）。
+
+代わりに Playwright の download API（`Blob` 生成 → `<a download>` クリック → `page.waitForEvent('download')` → `download.saveAs(path)`）を使うと、DOM 全文を LLM のコンテキストへ一度も渡さずファイルへ直接保存できる。download イベントが発火しなかった場合のみ `false` を返し、呼び出し側は `text`（`beforeText`）を `results`/`return` に積んでエージェントに Write でフォールバックさせる（**保存経路が変わるだけで証跡が失われることはない**）。
+
+各コードブロックの冒頭で `waitSfReady` と同様にインラインで定義して使う:
+
+```javascript
+const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
+  '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
+  'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
+
+async function saveText(p, text, path) {
+  try {
+    const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
+    await p.evaluate(({ text, filename }) => {
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.download = filename;
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, { text, filename: path.split(/[\\/]/).pop() });
+    const download = await downloadPromise;
+    if (!download) return false; // 発火しなかった → 呼び出し側で text をフォールバック返却
+    await download.saveAs(path);
+    return true;
+  } catch (_) {
+    return false; // 例外時も同様にフォールバック
+  }
+}
+```
+
+**使い方**: `const saved = await saveText(page, text, '/絶対パス/xxx.txt'); results.push({..., ...(saved ? {} : { text })});`（`saved` が `false` の要素だけ、呼び出し元エージェントが受け取った `text` を Write する）。`errorSignature: ERROR_SIGNATURES.find(s => text.includes(s)) || null` と `thinDom: text.length < 200` もこの時点で計算し `results` に積む（旧来「エージェントが `text` を読んで Write 前に判定する」方式は、`text` がエージェントに渡らなくなったため機能しない。判定は必ずコードブロック側で行う）。
+
+**frontdoor 認証後、最初の Salesforce（Lightning）画面へ遷移した状態で 1 回だけ probe を実行して発火確認する**（`newContext` 不可時のフォールバックと同じ考え方）。**about:blank 等の CSP が適用されない画面で probe すると必ず `OK` になり検証にならない**ため、必ず対象組織の実画面上で実行すること。probe は他のコードブロックと独立したスコープで評価されるため `saveText` 定義をそのまま貼り込んで自己完結させる（外部定義への参照は不可。定義を省略すると `saveText is not defined` で必ず失敗する）:
+```javascript
+async (page) => {
+  async function saveText(p, text, path) {
+    try {
+      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
+      await p.evaluate(({ text, filename }) => {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = filename;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, { text, filename: path.split(/[\\/]/).pop() });
+      const download = await downloadPromise;
+      if (!download) return false;
+      await download.saveAs(path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+  // 保存先は証跡ディレクトリ外（各エージェントのログ／作業ディレクトリ: {log_dir} や {証跡保存先}/logs 等）にする。
+  // evidence 配下だと .txt 索引・Step 4 の find に混入するため
+  const ok = await saveText(page, 'probe', '{log_dir}/_saveText_probe.txt');
+  return ok ? 'saveText: OK' : 'saveText: NG（download 不発火。以降は text を直接 return してエージェント側 Write に統一する）';
+}
+```
+probe が NG だった場合、そのセッション内では `saveText` の呼び出し自体を省略し、最初から `text`/`beforeText` を `results` に積む（毎回 8 秒のタイムアウト待ちを繰り返さないため）。**Salesforce Lightning の実画面での発火は claude-temp 側では未検証**（about:blank での実機検証のみ実施済み）。CSP・iframe 構成等で発火しない場合はこの probe とフォールバックで自動的に旧方式（LLM 経由 Write）に切り替わり、性能は改善しないが証跡欠落は起きない。
+
+---
+
 ## ロケータ指針（Salesforce LWC/Aura・Shadow DOM 対応）
 
 Salesforce の画面は LWC/Aura の Shadow DOM を持つため、固定セレクタ（`#id`・`.class`）は機能しない。以下を使う（いずれも Shadow DOM を自動貫通する）:
@@ -97,21 +171,58 @@ async (page) => {
     await page.locator('.slds-spinner, lightning-spinner')
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
+  const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
+    '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
+    'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
+  async function saveText(p, text, path) {
+    // DOM 全文を LLM 経由で書き戻さず直接保存する（「DOM テキストの直接保存」節参照）
+    try {
+      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
+      await p.evaluate(({ text, filename }) => {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = filename;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, { text, filename: path.split(/[\\/]/).pop() });
+      const download = await downloadPromise;
+      if (!download) return false;
+      await download.saveAs(path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
   // 画面に遷移（1件目のみ: await page.goto(FRONTDOOR_URL) でログインしてもよい）
   await page.goto('{対象URL}');
   await waitSfReady(page);
   // before 撮影（fullPage: true で観点が viewport 外でも写る）+ before DOM 取得
   await page.screenshot({path: '/絶対パス/xxx_before.png', fullPage: true});
   const beforeText = await page.locator('body').innerText();
+  const beforeSaved = await saveText(page, beforeText, '/絶対パス/xxx_before.txt');
   // 操作（ロケータ指針に従う）
   await page.getByText('{ラベル}').click();
   await waitSfReady(page);
   // after 撮影（fullPage: true）
   await page.screenshot({path: '/絶対パス/xxx.png', fullPage: true});
-  // DOM return（エージェントが after .txt に Write する。beforeText は before .txt に Write する）
-  return JSON.stringify({url: page.url(), beforeText, text: await page.locator('body').innerText()});
+  const text = await page.locator('body').innerText();
+  const afterSaved = await saveText(page, text, '/絶対パス/xxx.txt');
+  // saveText が true を返した分は保存済み。false の分だけエージェントが受け取って Write する
+  return JSON.stringify({
+    url: page.url(),
+    textLen: text.length, thinDom: text.length < 200,
+    errorSignature: ERROR_SIGNATURES.find(s => text.includes(s)) || null,
+    ...(beforeSaved ? {} : { beforeText }),
+    ...(afterSaved ? {} : { text }),
+  });
 }
 ```
+
+**重要**: この return には（保存に成功した通常ケースでは）**DOM 全文が含まれない**。呼び出し元エージェントが DOM 本文そのもの（症状再現ログ等・.txt に保存済みの内容）を判定・分析に使う必要がある場合は、return の `textLen`/`thinDom`/`errorSignature` だけでは情報が足りないことがある。その場合は保存先の `.txt` を **`Read` ツールで読む**（`saveText` が `false` を返した要素は return の `beforeText`/`text` をそのまま使う）。DOM 全文を再び `browser_run_code_unsafe` の return やコードブロック引数に載せて渡す設計に戻さないこと（今回の性能改修の前提が崩れる）。
 
 **パス指定**: `page.screenshot({path: ...})` には**絶対パス**を使う（変数を展開した実パス文字列を埋め込む）。
 
@@ -218,6 +329,32 @@ async (page) => {
     await page.locator('.slds-spinner, lightning-spinner')
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
+  const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
+    '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
+    'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
+  async function saveText(p, text, path) {
+    // DOM 全文を LLM 経由で書き戻さず直接保存する（「DOM テキストの直接保存」節参照）
+    try {
+      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
+      await p.evaluate(({ text, filename }) => {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = filename;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, { text, filename: path.split(/[\\/]/).pop() });
+      const download = await downloadPromise;
+      if (!download) return false;
+      await download.saveAs(path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
   function looksLikeLoginAsFailure(text, url) {
     const failMarkers = ['このページを表示する権限がありません', 'insufficient privileges', 'Invalid Session', 'ページが見つかりません', 'INVALID_SESSION_ID'];
     if (failMarkers.some(m => text.includes(m))) return true;
@@ -251,36 +388,48 @@ async (page) => {
   }
 
   // ─── 当該ユーザの TC を連続撮影（TC が増えてもここに追加するだけ）───
+  const results = [];
   // TC-XXX: {観点}
   await page.goto('{対象画面URL_1}');
   await waitSfReady(page);
-  // before 撮影（fullPage: true）+ before DOM 取得
+  // before 撮影（fullPage: true）+ before DOM 取得（**書き込み動詞ありの TC のみ**。表示・参照のみは before を採取しない）
   await page.screenshot({path: '/絶対パス/{No}_xxx_before.png', fullPage: true});
   const beforeText1 = await page.locator('body').innerText();
+  const beforeSaved1 = await saveText(page, beforeText1, '/絶対パス/{No}_xxx_before.txt');
   // （操作があれば）
   await page.getByText('{ラベル}').click();
   await waitSfReady(page);
   // after 撮影（fullPage: true）
   await page.screenshot({path: '/絶対パス/{No}_xxx.png', fullPage: true});
   const text1 = await page.locator('body').innerText();
+  const afterSaved1 = await saveText(page, text1, '/絶対パス/{No}_xxx.txt');
+  results.push({
+    no: '{No}', ok: true, url: page.url(),
+    textLen: text1.length, thinDom: text1.length < 200,
+    errorSignature: ERROR_SIGNATURES.find(s => text1.includes(s)) || null,
+    ...(beforeSaved1 ? {} : { beforeText: beforeText1 }),
+    ...(afterSaved1 ? {} : { text: text1 }),
+  });
 
   // TC-YYY: {観点} — 同ユーザの次 TC はそのまま続ける（再ログイン不要）
   await page.goto('{対象画面URL_2}');
   await waitSfReady(page);
-  await page.screenshot({path: '/絶対パス/{No2}_yyy_before.png', fullPage: true});
-  const beforeText2 = await page.locator('body').innerText();
   await page.screenshot({path: '/絶対パス/{No2}_yyy.png', fullPage: true});
   const text2 = await page.locator('body').innerText();
+  const afterSaved2 = await saveText(page, text2, '/絶対パス/{No2}_yyy.txt');
+  results.push({
+    no: '{No2}', ok: true, url: page.url(),
+    textLen: text2.length, thinDom: text2.length < 200,
+    errorSignature: ERROR_SIGNATURES.find(s => text2.includes(s)) || null,
+    ...(afterSaved2 ? {} : { text: text2 }),
+  });
 
   // ─── プロキシ解除（このユーザの全 TC 完了後に 1 回だけ実行）───
   await page.goto('/secur/logout.jsp');
   await waitSfReady(page);
 
-  // エージェントは text → after .txt に、beforeText → before .txt に Write する
-  return JSON.stringify([
-    {no: '{No}',  url: page.url(), beforeText: beforeText1, text: text1},
-    {no: '{No2}', url: page.url(), beforeText: beforeText2, text: text2},
-  ]);
+  // saveText が true を返した分は保存済み。エージェントは beforeText/text が存在する要素（フォールバック）のみ Write する
+  return JSON.stringify(results);
 }
 ```
 
@@ -322,6 +471,32 @@ async (page) => {
     await page.locator('.slds-spinner, lightning-spinner')
       .first().waitFor({ state: 'hidden', timeout: 20000 }).catch(() => {});
   }
+  const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
+    '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
+    'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
+  async function saveText(p, text, path) {
+    // DOM 全文を LLM 経由で書き戻さず直接保存する（「DOM テキストの直接保存」節参照）
+    try {
+      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
+      await p.evaluate(({ text, filename }) => {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = filename;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, { text, filename: path.split(/[\\/]/).pop() });
+      const download = await downloadPromise;
+      if (!download) return false;
+      await download.saveAs(path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 
   // ─── ステップ1: 対象コミュニティユーザーの Contact ページへ遷移 ───
   // 事前 SOQL で取得した ContactId を使う
@@ -350,9 +525,12 @@ async (page) => {
   //   await page.goto(currentUrl.replace('/s/', '/s/') + '?flowName=CopyQuoteByCustomer');
   await page.screenshot({path: '/絶対パス/evidence/before/{No}_before.png', fullPage: true});
   const beforeText = await page.locator('body').innerText();
+  const beforeSaved = await saveText(page, beforeText, '/絶対パス/evidence/before/{No}_before.txt');
   // （フロー操作）
   await page.screenshot({path: '/絶対パス/evidence/after/screen/{No}_xxx.png', fullPage: true});
   const afterText = await page.locator('body').innerText();
+  const afterSaved = await saveText(page, afterText, '/絶対パス/evidence/after/screen/{No}_xxx.txt');
+  const afterUrl = page.url(); // 管理者復帰（ステップ4）前に確定させる（コミュニティ画面のURLを記録するため）
 
   // ─── ステップ4: コミュニティセッション終了 → 管理者に戻る ───
   // コミュニティ上で管理者に戻るには以下のいずれかを使う
@@ -362,7 +540,14 @@ async (page) => {
   // 方法B: コミュニティヘッダーに「管理者に戻る」リンクがある場合はクリック
   // await page.getByText('管理者として戻る').or(page.getByText('Return to Admin')).click().catch(() => {});
 
-  return JSON.stringify({no: '{No}', beforeText, text: afterText});
+  // saveText が true を返した分は保存済み。エージェントは beforeText/text が存在する要素（フォールバック）のみ Write する
+  return JSON.stringify({
+    no: '{No}', ok: true, url: afterUrl,
+    textLen: afterText.length, thinDom: afterText.length < 200,
+    errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || null,
+    ...(beforeSaved ? {} : { beforeText }),
+    ...(afterSaved ? {} : { text: afterText }),
+  });
 }
 ```
 
@@ -400,6 +585,9 @@ async (page) => {
 async (page) => {
   const MAX_WORKERS = 3; // max_workers_ui を展開
   const FRONTDOOR = 'FRONTDOOR_URL_HERE'; // 変数展開で埋め込む（accessToken は直書き禁止）
+  const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
+    '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
+    'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
 
   async function waitSfReady(p) {
     await p.waitForLoadState('domcontentloaded');
@@ -407,10 +595,37 @@ async (page) => {
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
 
+  async function saveText(p, text, path) {
+    // DOM全文をLLM経由で書き戻さず Blob download 経由で直接保存する
+    // （browser_run_code_unsafe の実行環境には fs/require が無く、コードブロック内から直接ファイル書き込みはできないため）
+    try {
+      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
+      await p.evaluate(({ text, filename }) => {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = filename;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, { text, filename: path.split(/[\\/]/).pop() });
+      const download = await downloadPromise;
+      if (!download) return false; // 発火しなかった → 呼び出し側で text をフォールバック返却
+      await download.saveAs(path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // 並列可 TC のリスト（エージェントが TC 分だけ定義する）
+  // 【before 採取の設計方針】並列可＝グループ①（読み取り専用）は before≒after（同じ画面）となり
+  // 「修正前も同じ内容だった」と誤読させる証跡になるため before は採取しない（after のみ）
   const tasks = [
-    { no: 'TC-001', url: '{対象URL_1}', beforePath: '/絶対パス/TC-001_xxx_before.png', afterPath: '/絶対パス/TC-001_xxx.png', txtPath: '/絶対パス/TC-001_xxx.txt' },
-    { no: 'TC-003', url: '{対象URL_2}', beforePath: '/絶対パス/TC-003_yyy_before.png', afterPath: '/絶対パス/TC-003_yyy.png', txtPath: '/絶対パス/TC-003_yyy.txt' },
+    { no: 'TC-001', url: '{対象URL_1}', afterPath: '/絶対パス/TC-001_xxx.png', txtPath: '/絶対パス/TC-001_xxx.txt' },
+    { no: 'TC-003', url: '{対象URL_2}', afterPath: '/絶対パス/TC-003_yyy.png', txtPath: '/絶対パス/TC-003_yyy.txt' },
     // ... TC 数だけ追加
   ];
 
@@ -442,14 +657,17 @@ async (page) => {
           await p.goto(t.url);
           await waitSfReady(p);
         }
-        // before 撮影（fullPage: true）+ before DOM 取得
-        await p.screenshot({ path: t.beforePath, fullPage: true });
-        const beforeText = await p.locator('body').innerText();
         // ケース固有操作があればここに挿入
-        // after 撮影（fullPage: true）
+        // after 撮影（fullPage: true）+ after DOM 取得（グループ①は before を採取しない）
         await p.screenshot({ path: t.afterPath, fullPage: true });
         const text = await p.locator('body').innerText();
-        return { no: t.no, ok: true, beforeText, text, url: p.url() };
+        const afterSaved = await saveText(p, text, t.txtPath);
+        return {
+          no: t.no, ok: true, url: p.url(),
+          textLen: text.length, thinDom: text.length < 200,
+          errorSignature: ERROR_SIGNATURES.find(s => text.includes(s)) || null,
+          ...(afterSaved ? {} : { text }),
+        };
       } catch (e) {
         return { no: t.no, ok: false, error: String(e) };
       } finally {
@@ -461,6 +679,8 @@ async (page) => {
   return JSON.stringify(results);
 }
 ```
+
+`saveText` が `true` を返した TC は保存済みのため、呼び出し元エージェントは `text` フィールドが存在する要素（download 不発火時のフォールバック）のみ Write すればよい。
 
 ### newContext 不可時のフォールバック
 

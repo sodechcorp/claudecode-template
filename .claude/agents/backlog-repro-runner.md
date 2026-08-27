@@ -145,7 +145,7 @@ Step 5 で実データへの DML・匿名Apex 実行を行う直前に実施す�
 2. **再現手順を 1 ステップずつ実施**（`getByText`/`getByRole`/`getByLabel` でロケータ）
 3. **各ステップ後の画面スクショ**: `{証跡保存先}/after/H{N}_{手順概要}_step{M}.png`（主要ステップのみ）
 4. **症状が現れる操作の直後に after スクショ**: `{証跡保存先}/after/H{N}_{症状概要}.png`
-5. **return した DOM テキスト**を `{証跡保存先}/logs/H{N}_dom.txt` に Write する
+5. **DOM テキスト**: `playwright-sf-screen-ops.md`「DOM テキストの直接保存（saveText）」の `saveText` を使い `{証跡保存先}/logs/H{N}_dom.txt` に直接保存する（`saveText(page, text, '{証跡保存先}/logs/H{N}_dom.txt')`。DOM 全文を LLM 経由で書き戻さないための仕組みのため、通常は return に本文が載らない）。5-5 の判定で DOM 本文の内容確認が必要な場合は、保存した `.txt` を `Read` ツールで読む（`saveText` が `false` を返した場合のみ、コードブロックの return 値に含まれる `text` をそのまま Write する）
 
 ### 5-4. 現象観察ログの採取
 

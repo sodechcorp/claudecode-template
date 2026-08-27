@@ -356,7 +356,7 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
             return {"ok": True, "actual": "画面表示OK（DOM照合済）", "reason": ""}
         # F-1: DOM スナップショットなし → 観点の自動確認不可（要目視）。ok: None = SKIP 扱い
         return {"ok": None, "actual": "スクショ取得済（DOM未取得・要目視確認）",
-                "reason": "DOM スナップショット（.txt）が採取されていません。ui-evidence-runner の return 値が .txt に Write されているか確認してください"}
+                "reason": "DOM スナップショット（.txt）が採取されていません。ui-evidence-runner の saveText（download 経由の直接保存）が失敗し、かつ return 値のフォールバック Write も行われていない可能性があります"}
 
     # テキスト証跡（SOQL/Apex ログ / DOM スナップショット .txt）
     content = _read_text_evidence(evidence_path)

@@ -80,12 +80,13 @@ Sandbox 確認は呼び出し元（auto-evidence-runner の Step 0 または bac
 
 3. **各 target_screen を順次撮影**（`{target_screens}` リストを順番に処理）:
 
-   各画面について:
+   各画面について（`playwright-sf-screen-ops.md`「DOM テキストの直接保存（saveText）」で定義済みの `saveText`/`ERROR_SIGNATURES` をコードブロック内にインラインで定義して使う。テスト証跡モードとは独立した実行なので、この節だけで完結するコードブロックを組む）:
    - `nav_hint` に従って遷移する（1件目のみ `page.goto(FRONTDOOR_URL)` でログイン、以降はアプリ内遷移）。`getByText` / `getByRole` / URL 直指定で遷移し、`waitSfReady(page)` で表示完了を待つ。
    - 遷移パスが特定できない・遷移後に画面が一致しない場合は**スキップ**し「遷移パス特定不可（{name}）」を返却テキストに記録する（ユーザー依頼はしない）。
    - `target_label` が指定されていれば `highlightTarget` で赤枠注入後に撮影し、`clearHighlight` で解除する。
    - スクショ（fullPage: true）: `await page.screenshot({path: '{evidence_dir}/before/{issueID}_{name_sanitized}_before.png', fullPage: true})`
-   - DOM テキスト: `await page.locator('body').innerText()` を `{evidence_dir}/before/{issueID}_{name_sanitized}_before.txt` に Write する。
+   - DOM テキスト: `const text = await page.locator('body').innerText()` を取得し、`saveText(page, text, '{evidence_dir}/before/{issueID}_{name_sanitized}_before.txt')` で直接保存する。`errorSignature: ERROR_SIGNATURES.find(s => text.includes(s)) || null` も計算し、非 null なら返却テーブルの備考欄に `[画面エラー検出: {errorSignature}]` を付記する（実装前の現状画面が既にエラー状態＝調査価値のある発見のため記録する）。
+   - 各画面の結果は `results.push({name, ok: true, errorSignature, ...(saved ? {} : { text })})` のように配列へ積み、全画面処理後に `return JSON.stringify(results)` で1回だけ返す。戻り値（`saved` = `saveText` の戻り値）が `false`（download 不発火）の場合のみ、当該画面の `text` がこの結果配列に含まれ、それを受け取ったエージェントが Write でフォールバック保存する（**LLM への応答テキスト＝呼び出し元 backlog.md への返却テキストには DOM 全文を含めない**）。
 
 4. **ブラウザ終了**: `mcp__playwright__browser_close`
 
@@ -157,11 +158,12 @@ mkdir -p "{evidence_dir}/before"
 
 ### Step 2A: 並列コンテキスト（グループ①：読み取り専用）
 
-`playwright-sf-screen-ops.md` の「並列 UI 証跡（複数コンテキスト）」に従い、`{max_workers_ui}` 件ずつ `Promise.all` でチャンク処理する。
+`playwright-sf-screen-ops.md` の「並列 UI 証跡（複数コンテキスト）」に従い、`{max_workers_ui}` 件ずつ `Promise.all` でチャンク処理する。読み取り専用 TC は before/after で画面状態が変わらないため **before は採取しない（after のみ）**（同ファイル「並列 UI 証跡」骨格コードの前提コメント参照）。
 
 - 各コンテキストが自前で `goto(FRONTDOOR_URL)` ログイン → TC 撮影 → コンテキストを閉じる
-- return 値は `JSON.stringify([{no, ok, text, url}, ...])` の配列（失敗要素は `{no, ok:false, error}`）。エージェントは各要素を以下の通り処理する:
-  - `ok:true` の要素: `text` を `after/screen/{No}_{観点サニタイズ}.txt` に Write する（読み取り専用 TC は before/after で画面状態が変わらないため before は採取しない）。`url` は `.split('?')[0]` でクエリを除去した上で返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3。ユーザーの目視ハンドオフに使うため破棄しない）
+- DOM テキストは `saveText`（`playwright-sf-screen-ops.md`「DOM テキストの直接保存」節で定義するヘルパー。Blob download 経由でコードブロック内から `after/screen/{No}_{観点サニタイズ}.txt` へ直接保存し、DOM全文をLLM経由で書き戻さない）で保存する。保存失敗時のみ `text` フィールドにフォールバックとして本文を積む。
+- return 値は `JSON.stringify([{no, ok, url, textLen, thinDom, errorSignature, text?}, ...])` の配列（`text` は保存失敗時のみ存在。失敗要素は `{no, ok:false, error}`。グループ①は `highlightTarget` を使わないため `highlighted` は含まれない）。エージェントは各要素を以下の通り処理する:
+  - `ok:true` の要素: `text` が存在する場合（保存失敗フォールバック）のみ `after/screen/{No}_{観点サニタイズ}.txt` に Write する（通常はコードブロック内で保存済みのため不要）。`url` は `.split('?')[0]` でクエリを除去した上で返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3。ユーザーの目視ハンドオフに使うため破棄しない）。`thinDom: true` は備考欄に `[空撮り疑い: DOM {textLen}文字]`、`errorSignature` が非 null は `[画面エラー検出: {errorSignature}]` を付記し NG 扱いにする（Step 2B と同一ルール。期待結果がそのエラー文言自体を検証する意図の TC は対象外）
   - `ok:false` の要素: 当該 `no` を NG として返却テーブルに記録する（`error` の内容を備考欄に記載）
 - **newContext 不可時**: 単一セッションの逐次（Step 2B と同じ方式）にフォールバックする。先にプローブコードで確認することを推奨:
   ```javascript
@@ -186,25 +188,25 @@ mkdir -p "{evidence_dir}/before"
 
 1. **before 撮影 + DOM取得（F-6/F-7）**:
    - スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true})`
-   - before DOM: `const beforeText = await page.locator('body').innerText()` を取得
+   - before DOM: `const beforeText = await page.locator('body').innerText()` を取得し、`saveText(page, beforeText, '/絶対パス/before/{No}_{観点サニタイズ}_before.txt')` で直接保存する（後述）。
 2. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で遷移・表示を待つ。
 3. **after 撮影（分岐ごと）＋ 確認対象の赤枠ハイライト**:
    - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。`target` 未記載の TC は `const highlightEl = null;` として明示する（ハイライトを試みない）。
    - スクショ: `fullPage: true` で全ページ撮影。分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`
-   - after DOM: `await page.locator('body').innerText()` を取得（判定の主役）
-4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText(), highlighted: !!highlightEl})`。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
+   - after DOM: `await page.locator('body').innerText()` を取得（判定の主役）し、`saveText(page, afterText, '/絶対パス/after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt')` で直接保存する。
+4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), highlighted: !!highlightEl, textLen: afterText.length, thinDom: afterText.length < 200, errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || null, ...(beforeSaved ? {} : {beforeText}), ...(afterSaved ? {} : {text: afterText})})`。`beforeSaved`/`afterSaved` は `saveText` の戻り値（`true`=保存済み・`false`=download 不発火でフォールバック要）。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
    - `highlighted`: `target=` 指定ありかつ要素解決に成功した場合のみ `true`。`target=` 未記載、または解決失敗で枠なし撮影した場合は `false`。この実績値は下流の証跡シート生成（`generate_evidence_xlsx.py`）が「赤枠あり/なし」の説明文を実態に合わせて出し分けるために使う（種別だけを見て機械的に「赤枠あり」と書いてしまう不整合を防ぐ）。
    - `target` 未記載・ロケータ解決失敗の場合は枠なしで**必ず撮影**（スキップしない。これはロケータ失敗ではなく catch 対象外）。
 
-全 TC 処理後、`return JSON.stringify(results)` で配列を返す。Write はコードブロック内では不可のため、エージェントが return 受け取り後に配列を反復して行う: `ok: true` の要素は `text` を `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt` に、`beforeText` を `before/{No}_{観点サニタイズ}_before.txt` に Write し、`url` は `.split('?')[0]` でクエリを除去して返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。`ok: false` の要素は当該 No を NG として返却テーブルに記録し、`error` の内容を備考欄に記載する。
+全 TC 処理後、`return JSON.stringify(results)` で配列を返す。`saveText` が `true` を返したファイルはコードブロック内で保存済みのため Write 不要。エージェントは return 受け取り後に配列を反復し、`beforeText`/`text` フィールドが**存在する要素のみ**（保存失敗フォールバック）該当パス（`before/{No}_{観点サニタイズ}_before.txt` / `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt`）に Write する。`url` は全 `ok: true` 要素について `.split('?')[0]` でクエリを除去して返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。`ok: false` の要素は当該 No を NG として返却テーブルに記録し、`error` の内容を備考欄に記載する。`thinDom: true` の要素は返却テーブル備考欄に `[空撮り疑い: DOM {textLen}文字]` を、`errorSignature` が非 null の要素は `[画面エラー検出: {errorSignature}]` を付記する（採取時点の検知。最終判定は Phase E `judge_results.py` の再検知が防波堤）。
 
 **ハイライト実績の記録（全 TC 処理後に1回だけ）**: `results` を反復し `{no: highlighted}` のマッピング（`ok: false` の TC は含めない）を組み立て、`{evidence_dir}/after/screen/_highlight_status.json` に Write する。ファイル名が `_` で始まるため証跡ファイルの TC 番号索引（`fname.split("_")[0]`）とは衝突しない。
 
-> **画面エラー検知（Write 前に必ず実施）**: `text`（after DOM）を Write する前に、以下のシグネチャが含まれていないか確認する: `問題が発生しました` / `問題が発生しているようです` / `is malformed` / `関連リストはレイアウトにありません` / `権限が不十分です` / `Insufficient Privileges` / `このページには到達できません` / `URL No Longer Exists` / `予期しないエラーが発生しました` / `Unexpected Error`。該当した場合、`ok: true` であっても Write 自体は通常どおり行うが、**返却テーブルには当該 No を NG として記録し備考欄に `[画面エラー検出: {検出文言}]` を付記する**（期待結果がそのエラー文言自体を検証する意図の TC は対象外）。**画面が開けてスクショが撮れたことと、画面の中身が正しいことは別**。「操作手順どおりに画面を開いてスクショを撮った」だけで OK として報告しない。最終的な機械判定は Phase E `judge_results.py` 側でも同じシグネチャを検知して強制 NG にするため、ここでの検知漏れは自動的な最終防波堤があるが、採取時点で気づいたものはこの場で NG として報告すること。
+> **画面エラー検知（JS側で computed・Write 前提ではない）**: `errorSignature` はコードブロック内の `ERROR_SIGNATURES`（後述 `saveText` と併せて定義）で以下のシグネチャを `afterText.includes()` 判定した結果: `問題が発生しました` / `問題が発生しているようです` / `is malformed` / `関連リストはレイアウトにありません` / `権限が不十分です` / `Insufficient Privileges` / `このページには到達できません` / `URL No Longer Exists` / `予期しないエラーが発生しました` / `Unexpected Error`。該当した場合、`ok: true` であっても保存自体は通常どおり行うが、**返却テーブルには当該 No を NG として記録し備考欄に `[画面エラー検出: {errorSignature}]` を付記する**（期待結果がそのエラー文言自体を検証する意図の TC は対象外）。**画面が開けてスクショが撮れたことと、画面の中身が正しいことは別**。「操作手順どおりに画面を開いてスクショを撮った」だけで OK として報告しない。最終的な機械判定は Phase E `judge_results.py` 側でも同じシグネチャを検知して強制 NG にするため、ここでの検知漏れは自動的な最終防波堤があるが、採取時点で気づいたものはこの場で NG として報告すること。
 
 > **fullPage の理由**: Salesforce のレコード詳細・リスト画面は観点となる項目・セクションが viewport 下方に折り返すことが多い。`fullPage: true` で全ページを撮影することで、PNG 証跡に確認観点が必ず写るようにする。
 
-> **空撮り疑いの検知（撮影は必ず行う・スキップしない）**: after DOM テキスト（`text`）の可視文字数が極端に少ない（目安: 200 文字未満）場合、前提データ未成立で画面がほぼ空のまま撮影された可能性がある。この場合も撮影・Write は通常どおり行った上で、返却テーブルの備考欄に `[空撮り疑い: DOM {N}文字]` を付記する（判定は行わない・記録のみ）。最終的な OK/NG 判定は Phase E `judge_results.py` がポジティブアンカー照合で行う。
+> **空撮り疑いの検知（撮影は必ず行う・スキップしない）**: `thinDom`（`afterText.length < 200` を JS側で computed）が `true` の場合、前提データ未成立で画面がほぼ空のまま撮影された可能性がある。この場合も撮影・保存は通常どおり行った上で、返却テーブルの備考欄に `[空撮り疑い: DOM {textLen}文字]` を付記する（判定は行わない・記録のみ）。最終的な OK/NG 判定は Phase E `judge_results.py` がポジティブアンカー照合で行う。
 
 > **画面エラーの検知（空撮りとは別扱い・記録のみで済ませない）**: 空撮り（DOM が薄い）と違い、Salesforce のエラー画面（「問題が発生しました」等）は DOM 文字数が十分にあることが多く、空撮り検知をすり抜ける。上記の「画面エラー検知」ルールに従い、この場合は**記録だけでなく NG として報告する**。「画面は開けた・スクショは撮れた」＝「テスト成功」ではない。
 
@@ -257,6 +259,10 @@ await clearHighlight(highlightEl);
 
 Lightning CSS が outline を上書きする場合は `!important` 付きで注入済み（上記に含む）。before 撮影は枠なし（差分強調のため）。
 
+#### `saveText` — DOM全文をLLM経由で書き戻さない直接保存ヘルパー
+
+定義・仕組みは `playwright-sf-screen-ops.md`「DOM テキストの直接保存（saveText）」節を参照（`fs`/`require` が使えない実行環境の制約と、download API での代替方式）。以下のコードブロック例のとおり `highlightTarget`/`clearHighlight` と同様にコードブロック冒頭でインライン定義して使う。
+
 **コードブロック例（同一セッションの2 TC をバッチ実行）**:
 ```javascript
 async (page) => {
@@ -294,6 +300,32 @@ async (page) => {
       node.style.outlineOffset = '';
     }).catch(() => {});
   }
+  const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
+    '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
+    'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
+  async function saveText(p, text, path) {
+    // DOM全文をLLM経由で書き戻さず Blob download 経由で直接保存する（fs/require は使用不可のため）
+    try {
+      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
+      await p.evaluate(({ text, filename }) => {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = filename;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, { text, filename: path.split(/[\\/]/).pop() });
+      const download = await downloadPromise;
+      if (!download) return false;
+      await download.saveAs(path);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
   const results = [];
 
   // 1件目のみ: await page.goto('FRONTDOOR_URL');
@@ -303,6 +335,7 @@ async (page) => {
     // before 撮影（fullPage: true）+ before DOM 取得（状態遷移観点で使用）
     await page.screenshot({path: 'C:/path/evidence/before/TC-001_ラベル確認_before.png', fullPage: true});
     const beforeText = await page.locator('body').innerText();
+    const beforeSaved = await saveText(page, beforeText, 'C:/path/evidence/before/TC-001_ラベル確認_before.txt');
     // 画面遷移
     await page.getByText('プリチェック').click();
     await waitSfReady(page);
@@ -310,7 +343,15 @@ async (page) => {
     const highlightEl = await highlightTarget(page, 'プリチェック'); // target={label} を使用
     await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png', fullPage: true});
     await clearHighlight(highlightEl);
-    results.push({no: 'TC-001', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText(), highlighted: !!highlightEl});
+    const afterText = await page.locator('body').innerText();
+    const afterSaved = await saveText(page, afterText, 'C:/path/evidence/after/screen/TC-001_ラベル確認.txt');
+    results.push({
+      no: 'TC-001', ok: true, url: page.url(), highlighted: !!highlightEl,
+      textLen: afterText.length, thinDom: afterText.length < 200,
+      errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || null,
+      ...(beforeSaved ? {} : { beforeText }),
+      ...(afterSaved ? {} : { text: afterText }),
+    });
   } catch (e) {
     results.push({no: 'TC-001', ok: false, error: String(e)});
   }
@@ -322,6 +363,7 @@ async (page) => {
     await waitSfReady(page);
     await page.screenshot({path: 'C:/path/evidence/before/TC-002_別画面確認_before.png', fullPage: true});
     const beforeText = await page.locator('body').innerText();
+    const beforeSaved = await saveText(page, beforeText, 'C:/path/evidence/before/TC-002_別画面確認_before.txt');
     // 操作
     await page.getByText('対象ボタン').click();
     await waitSfReady(page);
@@ -329,12 +371,20 @@ async (page) => {
     const highlightEl = await highlightTarget(page, '対象ボタン');
     await page.screenshot({path: 'C:/path/evidence/after/screen/TC-002_別画面確認.png', fullPage: true});
     await clearHighlight(highlightEl);
-    results.push({no: 'TC-002', ok: true, url: page.url(), beforeText, text: await page.locator('body').innerText(), highlighted: !!highlightEl});
+    const afterText = await page.locator('body').innerText();
+    const afterSaved = await saveText(page, afterText, 'C:/path/evidence/after/screen/TC-002_別画面確認.txt');
+    results.push({
+      no: 'TC-002', ok: true, url: page.url(), highlighted: !!highlightEl,
+      textLen: afterText.length, thinDom: afterText.length < 200,
+      errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || null,
+      ...(beforeSaved ? {} : { beforeText }),
+      ...(afterSaved ? {} : { text: afterText }),
+    });
   } catch (e) {
     results.push({no: 'TC-002', ok: false, error: String(e)});
   }
 
-  // エージェントは results を反復し、ok:true の要素は before/after .txt を Write、ok:false は NG 記録
+  // エージェントは results を反復し、beforeText/text が存在する要素（保存失敗フォールバック）のみ Write、ok:false は NG 記録
   // さらに {no: highlighted} マッピングを _highlight_status.json として after/screen/ に Write する
   return JSON.stringify(results);
 }
@@ -369,9 +419,9 @@ Login As 前提チェック・実ユーザ名の解決・Login As バッチ操�
 Login As での証跡はユーザ名を含む命名にする:
 - before: `{evidence_dir}/before/{No}_{観点サニタイズ}_{ユーザ名}_before.png`（**書き込み動詞ありの TC のみ**。表示・参照のみの TC は before を採取しない）
 - after: `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.png`
-- DOM テキスト: `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.txt`
+- DOM テキスト: `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名}.txt`（Step 2B の `saveText` で直接保存。保存失敗時のみ Write でフォールバック）
 
-Step 2B と同様に `results.push` へ `url: page.url()` を含め、返却テーブルの「画面URL」列に `.split('?')[0]` でクエリを除去した値を記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。
+Step 2B と同様に `saveText`/`ERROR_SIGNATURES` を使い、`results.push` へ `url: page.url()` を含め、返却テーブルの「画面URL」列に `.split('?')[0]` でクエリを除去した値を記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。
 
 **Login As が実行時に失敗した場合の手順**:
 1. まず `playwright-sf-screen-ops.md` のコミュニティ Login As 手順（Contact ページ → ユーザーとしてログイン）を試みる
