@@ -28,10 +28,12 @@ Usage（初回・単一回次）:
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import sys
+import tempfile
 from collections import Counter
 from io import BytesIO
 from pathlib import Path
@@ -773,6 +775,22 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
 
 # ── Sheet 2: 証跡 ────────────────────────────────────────────────────────────
 
+def _thumb_cache_path(ep: str, disp_w: int, disp_h: int) -> str:
+    """PNGサムネイルのキャッシュパスを返す。
+
+    証跡フォルダの外（OS一時ディレクトリ）に置くことで find_evidence_files /
+    build_evidence_index の証跡探索には一切影響しない。キーにソースの絶対パス・
+    mtime・サイズ・表示サイズを含めるため、ソースが変われば自動的に別キーになり
+    明示的な無効化チェックなしにキャッシュが再生成される（過去回次はアーカイブ後
+    不変のためキャッシュは安全に効き続ける）。
+    """
+    st = os.stat(ep)
+    key = f"{os.path.abspath(ep)}|{st.st_mtime_ns}|{st.st_size}|{disp_w}x{disp_h}"
+    digest = hashlib.md5(key.encode("utf-8")).hexdigest()
+    cache_dir = os.path.join(tempfile.gettempdir(), "sf_evidence_thumb_cache")
+    return os.path.join(cache_dir, f"{digest}.png")
+
+
 def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str, tc_to_row: dict) -> None:
     """証跡シートを構築する。シート名は呼び出し側で設定済みのため上書きしない。"""
     # ws.title はシート作成時に呼び出し側が設定する（単一回次="証跡" / 複数回次="証跡_R{N}"）
@@ -885,14 +903,27 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                         w, h = pil_img.size
                         if w > max_w:
                             ratio = max_w / w
-                            pil_img = pil_img.resize((int(w * ratio), int(h * ratio)), PILImage.LANCZOS)
-                            buf = BytesIO()
-                            pil_img.save(buf, format="PNG")
-                            buf.seek(0)
-                            ep_use = buf   # BytesIO で渡し、_resized.png を証跡フォルダに残さない
+                            disp_w, disp_h = int(w * ratio), int(h * ratio)
+                            # サムネイルキャッシュ: 過去回次（アーカイブ済み・不変）の画像を
+                            # /test 再実行のたびにリサイズ・再エンコードし直すのを避ける
+                            cache_path = _thumb_cache_path(ep, disp_w, disp_h)
+                            if os.path.exists(cache_path):
+                                ep_use = cache_path
+                            else:
+                                pil_img = pil_img.resize((disp_w, disp_h), PILImage.LANCZOS)
+                                try:
+                                    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+                                    pil_img.save(cache_path, format="PNG")
+                                    ep_use = cache_path
+                                except OSError:
+                                    # キャッシュ書込に失敗しても貼付自体は従来どおりメモリ経由で続行
+                                    buf = BytesIO()
+                                    pil_img.save(buf, format="PNG")
+                                    buf.seek(0)
+                                    ep_use = buf   # BytesIO で渡し、_resized.png を証跡フォルダに残さない
                         else:
                             ep_use = ep
-                        disp_w, disp_h = pil_img.size  # 実際に貼り付ける表示サイズ（px）
+                            disp_w, disp_h = w, h
                         xl_img = XLImage(ep_use)
                         xl_img.width  = disp_w          # DPIメタデータを無視し表示サイズを固定
                         xl_img.height = disp_h
