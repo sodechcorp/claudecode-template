@@ -6,9 +6,11 @@ SF系エージェント（sf-architect / reviewer / backlog系 / assistant 等�
 
 ## 1. 実装裏付け（verify-implementation-spec）
 
-正本: `.claude/CLAUDE.md` §実装裏付け・出典確認（全エージェント共通・常に適用）。同ファイルは全チャットに毎回注入されるため、断定表現の確認義務・確認方法・追問反転ガード・承認整形の検証義務は既に保持している。ここでは再掲しない。
+挙動・仕様・原因・課題間の関係性を答える / 対応方針を出す / 調査結果を報告するときは、記憶や推測で書かず、必ず実装コード・docs・実データ（SOQL）・Web を調べてから `ファイル名:行番号`（または docs パス）で根拠を示す。確認できない範囲は `[推定]`／`[要確認]` を付け、根拠なしに断定しない。**承認・整形・転記（「確認して」「整えて」「レビューして」）も同じ検証義務が適用される**。実装を読まずに「正しい」「問題ない」と言わない。
 
-詳細仕様（backlog 固有 extras）: [verify-implementation-spec.md](./verify-implementation-spec.md)
+> **注**: `.claude/CLAUDE.md` はメインスレッドには自動注入されるが、本ファイルを読む SF 系サブエージェント自身には自動継承されない（Claude Code の subagent は fork 以外 context isolation のため）。上記は要旨のみ。確認方法テーブル・調査尽くしゲート・追問反転ガードの全文は次のファイルに掲載している。
+
+詳細仕様・全文: [verify-implementation-spec.md](./verify-implementation-spec.md)
 
 ---
 

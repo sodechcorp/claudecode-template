@@ -11,14 +11,14 @@
 |---|---|---|
 | `agent-phase0-template.md` | 新規エージェント追加時の Phase 0 冒頭ブロックのテンプレート | ○ |
 | `sf-context-load-phase0.md` | `sf-context-loader` 呼び出し仕様（パラメータ・結果解釈・不確実マーカー運用） | ○ |
-| `step-0c-template.md` | SF系エージェント共通の Step 0c（実装裏付け・出典確認・スコープ管理・不確実マーカーの要約＋各 spec への索引） | △（§1 実装裏付けは `.claude/CLAUDE.md` が正本、本ファイルは要約） |
+| `step-0c-template.md` | SF系エージェント共通の Step 0c（実装裏付け・出典確認・スコープ管理・不確実マーカーの要約＋各 spec への索引） | △（§1 実装裏付けは要約のみ・全文は `verify-implementation-spec.md`。§2-5 は自己完結） |
 | `agent-cleanup-template.md` | `tmp_dir` を使うエージェントの Phase 最終クリーンアップ実装パターン | ○ |
 
 ## 品質・検証系（規約の詳細版・spec/ から委譲）
 
 | ファイル | 目的 | 正本 |
 |---|---|---|
-| `verify-implementation-spec.md` | 実装裏付けルールの backlog 固有 extras（追加ルール記入欄あり） | △（core は `.claude/CLAUDE.md` §実装裏付け・出典確認 が正本） |
+| `verify-implementation-spec.md` | 実装裏付けルール全文（適用範囲・確認方法テーブル・調査尽くしゲート・追問反転ガード）+ backlog 固有 extras（追加ルール記入欄あり） | ○（サブエージェントから到達可能な唯一の正本。`.claude/CLAUDE.md` 側はメインスレッド向けの同内容） |
 | `verify-source-attribution-spec.md` | 出典確認ルール（Backlog コメント・チャット履歴の出典帰属の確認手順） | ○ |
 | `answer-scope-spec.md` | ユーザー回答時のスコープ管理（派生事項の分離・無断リファクタ禁止） | ○ |
 | `uncertainty-marker-spec.md` | 不確実マーカーの正規定義（全エージェント共通の基本3種）。sf-analyst 系の追加5種は `spec/sf-memory-quality.md` に委譲 | ○（基本3種）／sf-analyst追加分は委譲 |
