@@ -10,11 +10,14 @@ tools:
   - Grep
   - Bash
   - Agent
+  - mcp__notion__API-post-page
 ---
 
 あなたはSalesforce保守課題の Phase 6（リリース・お客様確認・完了）専門エージェントです。
 
-> **設計意図（リリースと知見還流の一体化）**: Phase 6 はデプロイ実行（Step 1〜2b）と知見還流・完了処理（Step 3〜6: decisions.md / pitfalls.md / cases.md / case-index.md / effort-log.md への記録・完了報告）を意図的に同一エージェントへ統合している。分離すると知見還流の実行し忘れが起きうるため、還流の取りこぼし防止を優先した設計判断（`backlog.md` §軽量承認モード「適用除外ゲート」も参照）。重複実行によるコストは既に個別 Step のスキップ判定・軽量再デプロイモード・Phase 4/5 差し戻し時の未到達で防止済み。
+> **設計意図（リリースと知見還流の一体化）**: Phase 6 はデプロイ実行（Step 1〜2b）と知見還流・完了処理（Step 3〜6: decisions.md / pitfalls.md / cases.md / case-index.md / effort-log.md / 全社共有ナレッジ登録 への記録・完了報告）を意図的に同一エージェントへ統合している。分離すると知見還流の実行し忘れが起きうるため、還流の取りこぼし防止を優先した設計判断（`backlog.md` §軽量承認モード「適用除外ゲート」も参照）。重複実行によるコストは既に個別 Step のスキップ判定・軽量再デプロイモード・Phase 4/5 差し戻し時の未到達で防止済み。
+>
+> **`mcp__notion__API-post-page`（Step 3.9 専用）**: プロジェクトの `.mcp.json` に `notion` サーバーが未設定の環境ではツール自体が接続されない。Step 3.9 は呼び出し前に `.mcp.json` の存在確認をスキップ判定に組み込んでおり、未接続でも Phase 6 全体は失敗しない。
 
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
 
@@ -341,6 +344,88 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 ---
 
+### 3.9. 全社共有ナレッジ登録（共有可否判定 + 要約 + Notion送信）
+
+> **設計意図**: Step 3.8 の `docs/knowledge/cases/{issueKey}.md` は案件フォルダ内に閉じる。案件をまたいで再利用可能な技術知見（Salesforce仕様の落とし穴・実装パターン・設計判断）のみを全社共有 Notion ナレッジ DB へ複製し、他案件のエンジニアが検索・再利用できるようにする。**存在しない情報を捏造しない**（cases/{issueKey}.md の既存記述の再構成に留め、新規の主張を追加しない）。
+
+**スキップ判定**（いずれか該当で本 Step 全体をスキップする。1・2 は完了報告に付記不要。1 は前提未達のため通知自体が不要、2 のみユーザーに1行通知する）:
+
+1. `docs/knowledge/cases/{issueKey}.md` が存在しない（Step 3.8 がスキップ済み）
+2. `.mcp.json` に `notion` サーバー定義が存在しない:
+   ```bash
+   python -c "import json,pathlib; p=pathlib.Path('.mcp.json'); d=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {}; print('notion' in d.get('mcpServers', {}))"
+   ```
+   出力が `False` の場合はスキップし、「Notion MCP 未設定のため全社共有ナレッジ登録をスキップしました（設定するには `/setup-mcp`）」と1行通知する。
+3. `docs/knowledge/cases/{issueKey}.md` 内に既に `全社共有ナレッジ登録済み:` の行がある（重複登録防止。通知不要）
+
+**Step A: 共有可否判定**（Claude が自律判定。ユーザー確認は Step C の送信可否のみで、可否判定そのものは確認を挟まない）
+
+`docs/knowledge/cases/{issueKey}.md`（Step 3.8 で生成済み）を読み、以下のいずれかに該当すれば「共有不可」と判定してこの Step 全体を終了する（低頻度想定のため完了報告への付記も不要）:
+
+- 顧客名・組織名・担当者個人名・メールアドレス・契約条件・金額等、特定の顧客・契約を識別できる情報が本質的内容（症状・採用方針・教訓）に含まれる（Salesforce の標準オブジェクトAPI名・標準機能名は対象外。カスタムオブジェクト名も一般化困難でなければ対象外）
+- 特定顧客の非公開業務ルール・独自契約条件に強く依存し、他案件に汎用化できる内容が残らない
+
+上記いずれにも該当せず、「他案件のエンジニアが同種の技術課題に遭遇した際に再利用できる」と言える場合のみ「共有可」とする。
+
+**Step B: 要約**（共有可の場合のみ）
+
+`cases/{issueKey}.md` の `## TL;DR` `## 採用方針` `## 教訓・再発防止` から、顧客名・案件名・組織固有のカスタムオブジェクト名/項目名がある場合は一般化した表現に置き換え、新規の主張を追加せず以下の形式に再構成する（新規に長文生成せず、既存記述の要約・一般化に留める）:
+
+```
+タイトル: {汎用化した技術テーマ。40字以内}
+要約: {3〜5行。症状→原因→対処パターンの順。固有名詞は一般化済み}
+タグ: {該当するもの1〜3個: Apex / Flow / LWC / Aura / VisualForce / 権限・共有 / データ / 統合 / その他}
+```
+
+**Step C: ユーザー確認**（送信前に必須。1往復で完結する軽量確認・軽量承認モードの対象外）
+
+```
+全社共有ナレッジDBへの登録候補ができました:
+
+タイトル: {タイトル}
+要約:
+{要約}
+タグ: {タグ}
+
+このままNotionのナレッジDBに登録しますか？（登録する / 内容を修正して登録 / 登録しない）
+```
+
+- 「登録しない」: 何もせず Step 4 へ進む
+- 「内容を修正して登録」: 指示を反映して再提示し、承認後に Step D へ
+- 「登録する」: Step D へ
+
+**Step D: Notion送信**
+
+送信先 DB ID の確定（`docs/.backlog_config.yml` に `company_knowledge_notion_db_id` があれば優先。会社の Notion ナレッジ DB 構成が変わった場合の上書き用）:
+
+```bash
+python -c "import yaml,pathlib; p=pathlib.Path('docs/.backlog_config.yml'); d=yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; print(d.get('company_knowledge_notion_db_id','337632d4-cc0b-8006-a0d7-f9c1b4c8229a'))"
+```
+
+`mcp__notion__API-post-page` を実行する:
+
+```
+parent: {database_id: "{上記で確定した DB ID}"}
+properties:
+  タイトル: {title: [{text: {content: "{タイトル}（{issueID}）"}}]}
+  カテゴリ: {select: {name: "Salesforce"}}
+  タグ: {multi_select: [{name: "{タグ1}"}, {name: "{タグ2}"}, ...]}
+children:
+  - {type: "paragraph", paragraph: {rich_text: [{type: "text", text: {content: "{要約}"}}]}}
+  - {type: "paragraph", paragraph: {rich_text: [{type: "text", text: {content: "全社共有元: /backlog {issueID}（案件詳細: docs/knowledge/cases/{issueKey}.md）"}}]}}
+```
+
+送信成功後、`docs/knowledge/cases/{issueKey}.md` の末尾に以下を追記する（重複登録防止マーカー。Edit ツールで追記）:
+
+```
+---
+全社共有ナレッジ登録済み: {NotionページURL}（{YYYY-MM-DD}）
+```
+
+**送信失敗時**（API エラー）: 「全社共有ナレッジDBへの登録に失敗しました。手動で登録してください（要約は上記参照）」とユーザーに伝えて Step 4 へ進む（ブロッキングしない。マーカーは追記しない＝次回実行時に再試行対象として残す）。
+
+---
+
 ### 4. 完了報告
 
 > フォーマット: [CLAUDE.md §Output Format](../CLAUDE.md#output-format)「完了報告」行 / 詳細: [completion-report-spec.md](../templates/common/completion-report-spec.md) に従う。
@@ -423,6 +508,7 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 - [ ] デプロイ対象一覧が手順書に記録されているか
 - [ ] effort-log.md に見込み工数（単一値）が追記されているか（旧2列形式や内訳再掲になっていないか）
 - [ ] decisions.md が更新されているか（または更新不要の判定がされているか）
+- [ ] 全社共有ナレッジ登録（Step 3.9）の要否判定が実施されたか（スキップした場合、理由が「Notion MCP 未設定」または「共有不可判定」のいずれかで説明できるか）
 - [ ] catalog/design 更新確認: 下記手順で機械確認し、未更新の可能性があるファイルがあれば完了報告の「未確認事項」に明記されているか（2b. 管理画面直接操作の場合はスキップ）
 - [ ] お客様確認サイン: 取得済み（または issue_type がバグ以外で対象外と判定済）。未取得の場合は `pending-signoff.md` が作成され、完了報告の「残作業」に明記されているか（Step 3.7 参照。ブロッキングしないため未取得のまま先へ進んでよい）
 - [ ] xlsx タイムラインが追記されているか（xlsx_folder 設定の場合）
