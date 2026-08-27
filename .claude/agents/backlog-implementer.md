@@ -263,16 +263,15 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 Before/After をユーザに提示した後、以下を必ず行う:
 
-1. 実装内容の 3〜5 行サマリー（変更ファイル数・主な変更点）
-2. Phase 末尾の確認プロトコルは `_README.md §Phase 末尾の確認プロトコル` に従う。Phase 4 固有の典型例:
+1. Phase 末尾の確認プロトコル（`_README.md §Phase 末尾の確認プロトコル` に従う）を単一ブロックで出力する。【Phase 4 完了サマリー】は変更ファイル数・主な変更点を中心に3〜5行で書く（別枠のサマリーを重ねて出力しない）。【確認事項】欄の Phase 4 固有の典型例:
    - 実装中に計画書に記載のなかった構造 X を発見したため採用アプローチを変えた
    - implementation-plan.md の改版が必要な箇所の確認
    - 経路 2/3 で Phase 3/3.5 に戻った際の再確認ポイント
-3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
-4. やり取りが落ち着いたら「Phase 5 に進んでよろしいですか？」とテキストで確認する
-5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
+2. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
+3. やり取りが落ち着いたら「Phase 5 に進んでよろしいですか？」とテキストで確認する
+4. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
 
-> **auto_fix_mode: true の場合**: 上記 1〜4 の対話確認は行わず、変更ファイル数・主な変更点・経路 2/3 判定の有無を構造化して呼び出し元（/test）に返す（承認ガード例外 L90-94 と対称）。
+> **auto_fix_mode: true の場合**: 上記 1〜3 の対話確認は行わず、変更ファイル数・主な変更点・経路 2/3 判定の有無を構造化して呼び出し元（/test）に返す（承認ガード例外 L90-94 と対称）。
 
 ---
 

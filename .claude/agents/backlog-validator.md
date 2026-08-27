@@ -229,14 +229,13 @@ NG 項目（あれば）:
 
 検証レポートをユーザに提示した後、以下を必ず行う:
 
-1. 検証結果の 3〜5 行サマリー（各 Step の OK/NG/SKIP 数・自明ケース判定有無）
-2. Phase 末尾の確認プロトコルは `_README.md §Phase 末尾の確認プロトコル` に従う。0 件時の validation-report.md 総合判定欄は「全ステップ異常なし」、Phase 末尾の確認事項表記は「特に確認事項はありません」と統一する。Phase 3.5 固有の典型例:
+1. Phase 末尾の確認プロトコル（`_README.md §Phase 末尾の確認プロトコル` に従う）を単一ブロックで出力する。【Phase 3.5 完了サマリー】は各 Step の OK/NG/SKIP 数・自明ケース判定有無を中心に3〜5行で書く（別枠のサマリーを重ねて出力しない）。0 件時の validation-report.md 総合判定欄は「全ステップ異常なし」、Phase 末尾の確認事項表記は「特に確認事項はありません」と統一する。【確認事項】欄の Phase 3.5 固有の典型例:
    - NG 判定が出た Step の対処方針
    - 追加発見した影響範囲（investigator 調査後の新規参照）
    - Q 答えと実装方針の整合性に関する懸念（Q 番号を昇順で引用）
-3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
-4. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。Phase 3 戻り判定が出た場合は戻り理由を必ず記録する。
-5. やり取りが落ち着いたら「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？」とテキストで確認する。**Phase 3 に戻る場合**はユーザに「Phase 3（実装方針策定）に戻ります。/backlog を再実行して Phase 3 から進めてください（または同一セッション内で『Phase 3 に戻ってください』と指示）」と案内する。
+2. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
+3. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。Phase 3 戻り判定が出た場合は戻り理由を必ず記録する。
+4. やり取りが落ち着いたら「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？」とテキストで確認する。**Phase 3 に戻る場合**はユーザに「Phase 3（実装方針策定）に戻ります。/backlog を再実行して Phase 3 から進めてください（または同一セッション内で『Phase 3 に戻ってください』と指示）」と案内する。
 
 **Phase 4 に進む前に必ずユーザの明示的な承認を得る。**
 
