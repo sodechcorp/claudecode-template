@@ -91,12 +91,20 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 `/backlog` Phase 1 で調査済みの項目は再実行しない。判定は機械的に行う（実行するか否かをモデル判断に委ねない）:
 
-1. `investigation.md` が無い場合は「差分あり」扱いとする。存在する場合は以下を実行し、investigation.md 作成後の実装差分を**コミット内容ベース**で判定する（ファイルの更新日時では git checkout・エディタ保存等の内容変更を伴わない操作でも誤検知するため使わない）:
+1. `investigation.md` が無い場合は「差分あり」扱いとする。存在する場合は以下を実行し、investigation.md 作成後の実装差分を**コミット内容ベース**で判定する（ファイルの更新日時では git checkout・エディタ保存等の内容変更を伴わない操作でも誤検知するため使わない）。**`docs/logs/` は `.gitignore` 対象のため investigation.md 自体は Git 管理対象外（commit されない）。基準点には investigation.md 本文に記録済みの「調査時点 force-app HEAD」（backlog-investigator.md が保存時に埋め込む）を使う。investigation.md 自身の commit 履歴（`git log -- docs/logs/...`）は使わない**（常に空になり判定が機能しないため）:
    ```bash
-   inv_commit=$(git log -1 --format=%H -- docs/logs/{issueID}/investigation.md)
-   [ -z "$inv_commit" ] && echo "DIFF" || (git diff --quiet "$inv_commit" -- force-app || echo "DIFF")
+   if git check-ignore -q force-app 2>/dev/null; then
+     echo "DIFF"  # force-app が Git 管理対象外の環境ではコミットベースの差分検出が構造的に機能しないため常に再走査（安全側フォールバック）
+   else
+     inv_head=$(grep -m1 '^調査時点 force-app HEAD: ' "docs/logs/{issueID}/investigation.md" 2>/dev/null | sed 's/^調査時点 force-app HEAD: //')
+     if [ -z "$inv_head" ] || [ "$inv_head" = "N/A（force-app は Git 管理対象外）" ]; then
+       echo "DIFF"  # 未記録（旧形式の investigation.md）または記録時点で force-app が未追跡だった場合も安全側
+     else
+       git diff --quiet "$inv_head" -- force-app || echo "DIFF"
+     fi
+   fi
    ```
-   `DIFF` が出力された場合（investigation.md が未コミット、または該当コミット以降 `force-app` に差分あり）「investigation.md 作成後に実装差分あり」と判定し、下記①〜③も無条件で再走査する
+   `DIFF` が出力された場合（記録なし・判定不能・または該当コミット以降 `force-app` に差分あり）「investigation.md 作成後に実装差分あり」と判定し、下記①〜③も無条件で再走査する
 2. 差分が無い場合、①〜③は investigation.md の記載から Phase 1 で実行済みと判定できれば**無条件で転記し、option を実行しない**（未実行と判定した場合のみ実行する）。判定方法は項目ごとに異なる（各カッコ内の通り）:
    - ① [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルール・共通ユーティリティへの影響（investigation.md「## Step 0b オプション判定結果」→「### 採用したオプション」に `option-impact-scope-grep` の記載があれば実行済みと判定する。「### スキップしたオプション」側にある／同セクションが無い／自明ケース判定で Step 0b が一括スキップされている、のいずれかに該当する場合は未実行として扱い本 option を実行する。**「## 影響範囲」見出しの有無では判定しない**——同見出しは backlog-investigator.md の投稿テンプレートで常時必須出力されるため、option 実行有無の代理指標にならない）
    - ② [option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) — 既存テストクラスへの影響（investigation.md「## 既存テストクラスへの影響」の記載有無で判定）

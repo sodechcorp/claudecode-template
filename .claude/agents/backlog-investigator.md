@@ -481,12 +481,25 @@ Sandbox で再現できる場合は使わない（最終手段）。
 
 ## 出力形式
 
-調査完了後、以下の形式で `docs/logs/{issueID}/investigation.md` に保存する:
+調査完了後、`docs/logs/{issueID}/investigation.md` に保存する前に、release-preparer.md Phase 2 の再走査要否判定（コミットベース差分検出）が使う基準点として、この時点の `force-app` の Git 状態を記録する:
+
+```bash
+if git check-ignore -q force-app 2>/dev/null; then
+  echo "N/A（force-app は Git 管理対象外）"
+else
+  git rev-parse HEAD
+fi
+```
+
+取得した値を下記テンプレートの `{調査時点 force-app HEAD}` に埋め込む。この行は release-preparer.md Phase 2 が Grep で読み取る前提の固定書式のため、文言・コロン位置を変えない。
+
+以下の形式で保存する:
 
 ```markdown
 # 調査レポート: {issueID}
 
 作成日時: {YYYY-MM-DD HH:MM}
+調査時点 force-app HEAD: {調査時点 force-app HEAD}
 
 ## 課題原文（逐語記録・要約禁止）
 
