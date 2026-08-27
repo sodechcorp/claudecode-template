@@ -601,8 +601,15 @@ PYEOF
 # --- 未コミット変更の確認（情報提供のみ・中断しない）---
 # コマンド側（sf-retrieve.md）が AskUserQuestion で続行可否を確認済みのため、
 # スクリプトは警告のみ出力して自動継続する。
+# 注: force-app/ が .gitignore 対象（テンプレート既定の標準構成）の場合、
+#     git status は対象パスを追跡しないため常に無変更を返し検知が機能しない。
+#     この場合は検知不能である旨を毎回明示する（無警告＝安全という誤解を避ける）。
 check_uncommitted() {
     if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        if git check-ignore -q force-app/ 2>/dev/null; then
+            warn "force-app/ は Git 管理対象外（.gitignore）のため、未コミット変更の検知はできません（取得でローカルの未反映な変更が上書きされる可能性があります）"
+            return
+        fi
         local changes
         changes=$(git status --porcelain force-app/ 2>/dev/null | head -5)
         if [ -n "$changes" ]; then
@@ -1199,5 +1206,9 @@ esac
 
 echo ""
 echo "次のステップ:"
-echo "  変更確認: git diff force-app/"
+if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git check-ignore -q force-app/ 2>/dev/null; then
+    echo "  変更確認: force-app/ は Git 管理対象外のため diff 不可（ファイルを直接ご確認ください）"
+else
+    echo "  変更確認: git diff force-app/"
+fi
 echo ""

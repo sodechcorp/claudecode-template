@@ -46,7 +46,9 @@ bash scripts/sf-retrieve.sh all
 ### 「select」の場合
 
 取得したいメタデータ名（クラス名・フロー名・オブジェクト名等）をチャットで確認する（カンマ区切りで複数指定可。例:「MyClass, MyFlow, Account」）。
-取得前に `git status force-app/` で未コミットの変更を確認し、変更がある場合は AskUserQuestion で以下を表示する:
+取得前に `git check-ignore -q force-app/ 2>/dev/null` で force-app/ の Git 管理状態を確認する:
+- **管理対象外（.gitignore、テンプレート既定の標準構成）の場合**: `git status` による未コミット変更検知は構造的に機能しない（常に無変更を返す）ため、この確認はスキップする。「force-app/ は Git 管理対象外のためローカル変更の検知はできません」とひとこと案内し、そのまま取得へ進む
+- **管理対象内（force-app を Git 管理下に置くようカスタマイズした非標準プロジェクト）の場合**: `git status force-app/` で未コミットの変更を確認し、変更がある場合は AskUserQuestion で以下を表示する:
 
 **質問**: 「force-app/ に未コミットの変更があります。取得を続行しますか？」
 
@@ -129,7 +131,16 @@ AskUserQuestion で以下を表示する:
 
 **「exists」の場合（2回目以降）**:
 
-取得後に git diff で変更内容を確認し、変更の種別に応じて以下を通知する:
+`git check-ignore -q force-app/ 2>/dev/null` で force-app/ の Git 管理状態を確認する。
+
+**管理対象外（.gitignore、テンプレート既定の標準構成）の場合**: `git diff` による変更検出は構造的に機能しない（常に無変更を返す）ため、以下の分類レポートは生成せず、次のメッセージのみ伝えて Step 3b を終了する:
+
+```
+メタデータ取得完了。force-app/ は Git 管理対象外のため変更内容の自動検出はできません。
+ドキュメント更新（/sf-memory・/sf-design・/sf-doc）が必要か、対応内容に応じて手動でご確認ください。
+```
+
+**管理対象内（force-app を Git 管理下に置くようカスタマイズした非標準プロジェクト）の場合**: 取得後に git diff で変更内容を確認し、変更の種別に応じて以下を通知する:
 
 ```bash
 git diff --name-only force-app/
