@@ -65,8 +65,8 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 1. **デプロイ対象を一覧化する**。base コミットの決定手順は [deploy-manifest-base.md](../templates/backlog/_partials/deploy-manifest-base.md) を参照（`backlog-releaser.md` と同一の実行可能スクリプトを使う）:
    - **いずれも差分が空の場合、まず `force-app/` が `.gitignore` 対象かを確認する**（`git check-ignore -q force-app/main/default` の終了コード、または `.gitignore` を Grep）:
-     - **`.gitignore` 対象でない場合**（通常は diff が効くはずの環境）: 「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する。Glob 全量フォールバックは行わない
-     - **`.gitignore` 対象の場合**（各メンバーが組織から都度 retrieve する運用で `git diff` が構造的に機能しない環境）: 人間に丸投げせず、**1a** の手順でマニフェストを再構築する
+     - **`.gitignore` 対象の場合（テンプレート既定の `.gitignore` 構成であり、実運用ではこちらが標準経路）**: 各メンバーが組織から都度 retrieve する運用のため `git diff` は構造的に機能しない。人間に丸投げせず、**1a** の手順でマニフェストを再構築する
+     - **`.gitignore` 対象でない場合（`force-app/` を Git 管理対象に含めるようカスタマイズした非標準プロジェクトでのみ発生する例外経路）**: 「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する。Glob 全量フォールバックは行わない
 1a. **【1. で `.gitignore` 対象により差分が取得できなかった場合のみ実施】資材マニフェストを環境間実体差分から再構築する**（`git diff` が使えない環境向けの代替ソース。人間の記憶と implementation-plan.md だけに依存しない）:
    1. [unreleased-component-scan.md](../templates/backlog/_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出する
    2. `sandbox-alias-check.md`（Sandbox/UAT 接続・`$SF_ALIAS`）と `prod-readonly-check.md`（本番接続・`$PROD_ALIAS`）の両方を確認したうえで、[option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md) Tier 0 を本 Phase の時点で前倒し実行し、暫定候補リストを対象に UAT/本番の Tooling API 実体比較を行う（**対象は LWC / Apex クラス / Apex トリガーの3種のみ。それ以外の種別は Tier 0 で判定不可**。詳細は option-org-drift-check.md Tier 0 冒頭の検査対象範囲の注記を参照）。「UAT にのみ存在」「UAT と本番で内容が異なる」と判定されたコンポーネントを実差分として資材マニフェストに採用する。**いずれかの組織に接続できない場合はこの前倒し実行を諦め、通常どおり「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する**（1a 全体のフォールバック）
