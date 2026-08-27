@@ -488,10 +488,6 @@ Phase B の提示を行う**前に**、以下を実施する:
 > - NG 例: `force-app/main/default/lwc/preCheck/preCheck.html` / `force-app/main/default/classes/PreCheckController.cls`
 > - 複数プロファイルなど同名衝突が起きるケースのみ括弧でディレクトリ補足可: `Admin.profile-meta.xml（profiles/×54件 一括）`
 
-## 影響確認チェックリスト
-- [ ] 確認内容1
-- [ ] 確認内容2
-
 ## テスト観点（軽量列挙）
 
 investigation.md の Step G に記載されたテストシナリオを元に、テスト観点を列挙する。
