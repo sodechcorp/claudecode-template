@@ -93,7 +93,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 1. `investigation.md` が無い場合は「差分あり」扱いとする。存在する場合は以下を実行し、investigation.md 作成後の実装差分を**コミット内容ベース**で判定する（ファイルの更新日時では git checkout・エディタ保存等の内容変更を伴わない操作でも誤検知するため使わない）。**`docs/logs/` は `.gitignore` 対象のため investigation.md 自体は Git 管理対象外（commit されない）。基準点には investigation.md 本文に記録済みの「調査時点 force-app HEAD」（backlog-investigator.md が保存時に埋め込む）を使う。investigation.md 自身の commit 履歴（`git log -- docs/logs/...`）は使わない**（常に空になり判定が機能しないため）:
    ```bash
-   if git check-ignore -q force-app 2>/dev/null; then
+   if git check-ignore -q force-app/ 2>/dev/null; then
      echo "DIFF"  # force-app が Git 管理対象外の環境ではコミットベースの差分検出が構造的に機能しないため常に再走査（安全側フォールバック）
    else
      inv_head=$(grep -m1 '^調査時点 force-app HEAD: ' "docs/logs/{issueID}/investigation.md" 2>/dev/null | sed 's/^調査時点 force-app HEAD: //')

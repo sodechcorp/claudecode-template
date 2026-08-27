@@ -484,7 +484,7 @@ Sandbox で再現できる場合は使わない（最終手段）。
 調査完了後、`docs/logs/{issueID}/investigation.md` に保存する前に、release-preparer.md Phase 2 の再走査要否判定（コミットベース差分検出）が使う基準点として、この時点の `force-app` の Git 状態を記録する:
 
 ```bash
-if git check-ignore -q force-app 2>/dev/null; then
+if git check-ignore -q force-app/ 2>/dev/null; then
   echo "N/A（force-app は Git 管理対象外）"
 else
   git rev-parse HEAD
