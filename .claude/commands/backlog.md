@@ -112,7 +112,11 @@ sf config get target-org
 sf org display --json
 ```
 
-`isSandbox`・`Username`・`alias` を読み取り、以下をテキストで提示する:
+`isSandbox`・`Username`・`alias` を読み取る。
+
+**同一セッション内スキップ**: 本会話内で直前に確認・承認済みの alias と今回の alias が一致する場合、下記のブロッキング確認は省略し「接続組織確認済み（{alias} / Sandbox・本番）」と一行だけ通知して次に進んでよい。alias が変わっている場合、または本会話内でまだ確認していない場合（会話開始直後の初回実行等）は必ず以下の全文確認を行う。
+
+初回確認（または alias 変更時）は以下をテキストで提示する:
 
 ```
 現在の接続組織:
@@ -126,7 +130,7 @@ sf org display --json
 別の組織に切り替えたい場合: sf config set target-org <alias>
 ```
 
-ユーザーが確認の返答をするまで次に進まない。
+ユーザーが確認の返答をするまで次に進まない。確認が得られたら、その alias を本会話内で保持し、以降の同一セッション内スキップ判定に使う。
 
 ```powershell
 New-Item -ItemType Directory -Force -Path "docs/logs/{issueID}" | Out-Null
