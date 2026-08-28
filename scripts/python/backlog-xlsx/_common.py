@@ -121,6 +121,8 @@ def patch_preserve_space(xlsx_path: str) -> int:
     """保存済み xlsx 内の worksheet / sharedStrings パーツを走査し、
     先頭・末尾が空白なのに xml:space="preserve" が無い <t> 要素を修正して
     ファイルを書き戻す。戻り値は修正した <t> 要素数（0 なら無修正）。
+    修正が1件も無い場合は zip 再構築・os.replace を行わずファイルには触れない
+    （数十MB の xlsx でも無修正時は zip 読み込みのみで完了する）。
     """
     fixed_total = 0
 
@@ -132,9 +134,8 @@ def patch_preserve_space(xlsx_path: str) -> int:
             return f'<t{attrs} xml:space="preserve">{inner}</t>'
         return m.group(0)
 
-    tmp_path = xlsx_path + ".tmp"
-    with zipfile.ZipFile(xlsx_path) as zin, \
-         zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout:
+    items = []
+    with zipfile.ZipFile(xlsx_path) as zin:
         for item in zin.infolist():
             data = zin.read(item.filename)
             is_target = (
@@ -144,6 +145,14 @@ def patch_preserve_space(xlsx_path: str) -> int:
             if is_target:
                 text = _T_TAG_RE.sub(_fix, data.decode("utf-8"))
                 data = text.encode("utf-8")
+            items.append((item, data))
+
+    if fixed_total == 0:
+        return 0
+
+    tmp_path = xlsx_path + ".tmp"
+    with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item, data in items:
             zout.writestr(item, data)
     os.replace(tmp_path, xlsx_path)
     return fixed_total
