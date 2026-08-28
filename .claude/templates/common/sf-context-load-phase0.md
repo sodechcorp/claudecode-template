@@ -32,6 +32,8 @@
 
 返された内容（関連オブジェクト・UC・ビジネスルール・注意点）を以降の判断材料として保持する。
 
+**引用時の規約（2層ルール、必ず守ること）**: `sf-context-loader` は行番号を保持しないため、loader 要約からの引用はファイルパス単位で出典を示せば足りる（例: `docs/catalog/Foo__c.md`）。断定・裏付けが必要な箇所は必ず原本を直接 Read して `ファイル名:行番号` を付す（詳細: [verify-implementation-spec.md](./verify-implementation-spec.md) §sf-context-loader 経由の要約コンテキスト（2層ルール））。
+
 ### ⚠️ 「該当コンテキストなし」が返った場合
 
 `docs/` 未整備または task と docs が無関係。ただし **最低限 `docs/_README.md` を 1 回 Read する**（存在する場合のみ）。ドキュメント体系・用語集の所在だけ把握してから次の手順へ進む。
