@@ -36,7 +36,7 @@
 
 > **`--test-level` の判定ロジック（Apex 含有有無 + 専用テストクラスの特定有無で決定。固定で `RunLocalTests` にしない）は release-preparer.md Phase 1/5 が正本**。以下のコマンドの `--test-level` にはその判定結果を使う。
 
-1. **直前記録**: `force-app/` は `.gitignore` 対象（各メンバーが組織から都度 retrieve する運用）のため、コミットハッシュに基づくロールバックは機能しない。デプロイ対象コンポーネントの本番環境上の変更前状態を `sf project retrieve start --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --output-dir docs/logs/{issueID}/rollback-backup` でロールバック用バックアップとして退避する
+1. **直前記録**: `force-app/` は `.gitignore` 対象（各メンバーが組織から都度 retrieve する運用）のため、コミットハッシュに基づくロールバックは機能しない。デプロイ対象コンポーネントの本番環境上の変更前状態を `sf project retrieve start --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --output-dir docs/logs/{issueID}/rollback-backup` でロールバック用バックアップとして退避する。**新規追加コンポーネント**（本番に未存在）は retrieve 対象から除外する（存在しないためエラーになる。ロールバック時は削除で対応する旨をロールバック手順に明記する）。
 2. **dry-run（必須）**: `sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests/NoTestRun>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加）で 0 errors を確認
 3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）
 4. **デプロイ順序**: 一括不可の場合は Phase 1 の依存順序（構造 → ロジック → UI → 自動化 → 権限 → レイアウト）で分割実行

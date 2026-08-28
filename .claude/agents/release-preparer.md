@@ -193,7 +193,7 @@ ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （未取得—デプ�
 
 # ② リリース実行（execution・人間が実行する。エージェントは実行しない）
 
-{matrix §B の実行手順}
+**具体的な実行コマンド・Step構成は本セクション（Step 1〜4）が正本**。matrix §B は同じ実行手順を人間向け参照用に保持しているが、`{issueID}`/`{test_level}` 等の実値埋め込みが必要な release-plan.md 生成は本セクションのテンプレートをそのまま使う（matrix §B からの転記は行わない）。
 
 **`--test-level` の決定（Phase 1 で判定した `apex_in_scope` / `test_coverage_risk` / `target_test_classes` に基づく。固定で `RunLocalTests` にしない）**:
 
