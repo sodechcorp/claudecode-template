@@ -125,6 +125,8 @@ Grep で「実装方針まとめ」「Implementation Summary」「テストシ�
 | 影響範囲（再走査） | Step 3 テーブル（追加発見した参照元・対応 列） |
 | 過去修正履歴 | Step 3 テーブル（対応 列に「過去修正: {件数}件（{概要}）」として補足） |
 
+> **Step 3『対応』列の判定基準**: `regression-guard確認結果` の「影響範囲（再走査）」に列挙された項目ごとに、事前準備で読込済みの `implementation-plan.md` の「関連コンポーネント一覧（変更対象ファイル）」と照合する。同一ファイル名（`関連コンポーネント一覧` はフォルダパスを含まずファイル名のみを記載する規約のため、regression-guard 側の `ファイルパス:行番号` からファイル名部分だけを取り出して比較する）が一覧に含まれていれば「investigator 済み」、含まれていなければ「新規発見・要検討」と記録する（regression-guard 自体はこの分類を行わないため、validator が implementation-plan.md との突き合わせで判定する）。「新規発見・要検討」と判定した項目は Phase 末尾の確認事項（`_README.md` §Phase 末尾の確認プロトコル、backlog.md Phase 3.5 典型例「新規発見した影響箇所への対処方針」）に必ず含める。
+
 > **Step 2 は静的確認（実行なし）**: regression-guard の Step 2 は Grep/Read によるテストコード内容の確認のみで、実際に `sf apex run test` を実行しない。カバレッジ%・PASS/FAIL の実測値はここでは得られない（`existing-test-baseline` option 本来の実行結果とは性質が異なる代替のため、Step 2 テーブルにも実行系の列は設けない）。実測のカバレッジ・PASS/FAIL は Phase 5（backlog-tester の dry-run）で確定する。
 >
 > **`regression-guard確認結果` が渡されなかった場合**: 呼び出し元での regression-guard 起動が失敗・スキップされたと判断し、Step 2-3 セクションに「regression-guard 未実行（{渡された理由があれば記載}）」と記録する。NG 扱いにはしないが Phase 4 進行前にユーザへ一言申し添える。
