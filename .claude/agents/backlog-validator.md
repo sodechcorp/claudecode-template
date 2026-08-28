@@ -249,6 +249,7 @@ NG 項目（あれば）:
 
 ```bash
 python -c "import shutil; shutil.rmtree(r'<作成した作業フォルダの実パス>', ignore_errors=True)"
+python -c "import os; print('削除成功' if not os.path.exists(r'<作成した作業フォルダの実パス>') else '削除失敗（残存）')"
 ```
 
 - 作業フォルダを作成していなければスキップしてよい
