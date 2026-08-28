@@ -120,13 +120,12 @@ python -c "import pathlib; ddt = r'{detail_design_tmp}'; detail_dir = pathlib.Pa
 `purpose` / `screens[].items` （詳細設計）を参照して画面項目の業務意味・バリデーション仕様を補完する。
 見つからない場合（フォールバックパスが存在しない場合を含む）は上位設計参照なしで続行する。
 
-> 一時ファイルルール: [.claude/templates/common/tmp-file-rules.md](../templates/common/tmp-file-rules.md)
-
 **参照リファレンスを読み込む（Phase 0 で1回のみ Read）:**
 ```
 Read: {project_dir}/.claude/templates/sf-screen-writer/json-format.md
 Read: {project_dir}/.claude/templates/sf-screen-writer/type-rules.md
 Read: {project_dir}/.claude/templates/common/naming-convention-api-vs-label.md
+Read: {project_dir}/.claude/templates/common/tmp-file-rules.md
 ```
 usecase 内ステップの決定木（Q1〜Q5）・JSON フォーマット・種別別作成ルール・API名 vs 日本語ラベルの使い分け・自然言語テキスト項目での禁止事項を把握してから Phase 1 へ進む。
 
