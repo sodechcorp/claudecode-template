@@ -59,7 +59,7 @@
 
 > 検出方法列: Phase 3.6 経由の追記は常に `[fallback]`（discussion-log.md から抽出のため）。
 
-**verify-*.md 追加ルール記入欄への追記フォーマット**:
+**verify-*.md / answer-scope-spec.md 追加ルール記入欄への追記フォーマット**:
 
 ```
 - [{YYYY-MM-DD}] {ルール内容}（由来: {issueID}）
