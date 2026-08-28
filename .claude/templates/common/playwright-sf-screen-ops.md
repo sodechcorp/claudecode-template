@@ -57,6 +57,7 @@ Salesforce Lightning は EMP/CometD のロングポーリングにより通信�
 ```javascript
 async function waitSfReady(page) {
   // domcontentloaded で DOM 確定後、Lightning スピナーが消えるまで待つ
+  // 15 秒でタイムアウトした場合は catch で例外を握りつぶし、そのまま処理を続行する（fail-safe設計・呼び出し元への通知はない）
   await page.waitForLoadState('domcontentloaded');
   await page.locator('.slds-spinner, lightning-spinner')
     .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
@@ -64,7 +65,7 @@ async function waitSfReady(page) {
 ```
 
 - 各コードブロックの冒頭で `page.setDefaultTimeout(15000)` を設定し、ロケータ不一致を 15 秒で fail-fast させる
-- 目的画面のアンカー要素が分かる場合は `waitSfReady` の後に `await page.waitForSelector('<アンカー>', { timeout: 15000 })` を併用する（より確実）
+- 目的画面のアンカー要素が分かる場合は `waitSfReady` の後に `await page.waitForSelector('<アンカー>', { timeout: 15000 })` を併用する（より確実。**`waitSfReady` は 15 秒超過時にタイムアウトを無条件で握りつぶすため、判定が必要な遷移ではこの併用が必須**）
 - `waitForTimeout` は引き続き最終手段のみ（アニメーション等で他に手がない場合）
 
 ---
