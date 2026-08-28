@@ -355,7 +355,7 @@ cat6（sf-analyst-cat6）と /backlog（backlog-releaser Step 3.6）が生成・
 
 ## docs/knowledge/pitfalls.md（プロジェクト固有のハマりポイント）
 
-cat6（sf-analyst-cat6）と /backlog（backlog-releaser Step 3.7）が生成・追記する。
+cat6（sf-analyst-cat6）と /backlog（backlog-releaser Step 3.6）が生成・追記する。
 
 ### スキーマ（列定義）
 
