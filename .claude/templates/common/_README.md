@@ -9,7 +9,7 @@
 
 | ファイル | 目的 | 正本 |
 |---|---|---|
-| `agent-phase0-template.md` | 新規エージェント追加時の Phase 0 冒頭ブロックのテンプレート | ○ |
+| `agent-phase0-template.md` | 新規エージェント追加時の Phase 0 + Step 0c 冒頭ブロックのテンプレート | ○ |
 | `sf-context-load-phase0.md` | `sf-context-loader` 呼び出し仕様（パラメータ・結果解釈・不確実マーカー運用） | ○ |
 | `step-0c-template.md` | SF系エージェント共通の Step 0c（実装裏付け・出典確認・スコープ管理・不確実マーカーの要約＋各 spec への索引） | △（§1 実装裏付けは要約のみ・全文は `verify-implementation-spec.md`。§2-5 は自己完結） |
 | `agent-cleanup-template.md` | `tmp_dir` を使うエージェントの Phase 最終クリーンアップ実装パターン | ○ |
