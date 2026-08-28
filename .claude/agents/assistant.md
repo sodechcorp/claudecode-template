@@ -85,6 +85,7 @@ Phase 0 で SF 関連または業務理解系と判定した場合、以下を R
 1. Read `.claude/templates/common/verify-implementation-spec.md`
 2. Read `.claude/templates/common/verify-source-attribution-spec.md`
 3. Read `.claude/templates/common/answer-scope-spec.md`
+4. Read `.claude/templates/common/uncertainty-marker-spec.md`
 
 ### Step 0d: 業務理解 0 モード（業務理解系の場合のみ）
 
