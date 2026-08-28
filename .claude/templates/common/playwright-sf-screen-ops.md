@@ -143,6 +143,30 @@ probe が NG だった場合、そのセッション内では `saveText` の呼�
 
 ---
 
+## DOM 本文取得（getPageText・グローバルヘッダーノイズの除去）
+
+`page.locator('body').innerText()` は画面全体を無条件取得するため、Lightning 共通ヘッダー（グローバルナビ・検索・通知等。ARIA ランドマーク `role="banner"`）が毎回のスナップショットに定型ノイズとして混入し、判定対象の肥大化や（`saveText` の download 不発火時フォールバックでの）LLM 再入力コスト増につながる。
+
+代わりに body を複製した DOM 上で `role="banner"` 要素を除去してから `innerText` を取得する `getPageText` を使う。対象要素が存在しない画面（Setup／Flow／コミュニティ等）では除去が空振りするだけで、除去前と同じ全文がそのまま返る（実機確認済み: `data:` URL 上で複製 DOM の除去挙動と、`role="banner"` 非存在時に無変化であることの両方を確認済み）。
+
+```javascript
+async function getPageText(page) {
+  try {
+    return await page.evaluate(() => {
+      const clone = document.body.cloneNode(true);
+      clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
+      return clone.innerText;
+    });
+  } catch (_) {
+    return await page.locator('body').innerText(); // 失敗時は従来どおりの全文取得にフォールバック
+  }
+}
+```
+
+**適用範囲・既知の限界**: 除去対象は `role="banner"` のみ。標準レコードページの Chatter フィードパネル等は安定した共通セレクタが未確認のため対象外（画面種別ごとに DOM 構造が異なり、採用には実機 Sandbox でのセレクタ検証が別途必要）。以降の各コードブロック例では、DOM 本文取得に `page.locator('body').innerText()` の代わりに `getPageText(page)`（並列コンテキストでは `getPageText(p)`）を使う。`waitSfReady`/`saveText` と同様、コードブロックごとにインラインで定義する。
+
+---
+
 ## ロケータ指針（Salesforce LWC/Aura・Shadow DOM 対応）
 
 Salesforce の画面は LWC/Aura の Shadow DOM を持つため、固定セレクタ（`#id`・`.class`）は機能しない。以下を使う（いずれも Shadow DOM を自動貫通する）:
@@ -197,19 +221,31 @@ async (page) => {
       return false;
     }
   }
+  async function getPageText(page) {
+    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    try {
+      return await page.evaluate(() => {
+        const clone = document.body.cloneNode(true);
+        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
+        return clone.innerText;
+      });
+    } catch (_) {
+      return await page.locator('body').innerText();
+    }
+  }
   // 画面に遷移（1件目のみ: await page.goto(FRONTDOOR_URL) でログインしてもよい）
   await page.goto('{対象URL}');
   await waitSfReady(page);
   // before 撮影（fullPage: true で観点が viewport 外でも写る）+ before DOM 取得
-  await page.screenshot({path: '/絶対パス/xxx_before.png', fullPage: true});
-  const beforeText = await page.locator('body').innerText();
+  await page.screenshot({path: '/絶対パス/xxx_before.png', fullPage: true, animations: 'disabled', scale: 'css'});
+  const beforeText = await getPageText(page);
   const beforeSaved = await saveText(page, beforeText, '/絶対パス/xxx_before.txt');
   // 操作（ロケータ指針に従う）
   await page.getByText('{ラベル}').click();
   await waitSfReady(page);
   // after 撮影（fullPage: true）
-  await page.screenshot({path: '/絶対パス/xxx.png', fullPage: true});
-  const text = await page.locator('body').innerText();
+  await page.screenshot({path: '/絶対パス/xxx.png', fullPage: true, animations: 'disabled', scale: 'css'});
+  const text = await getPageText(page);
   const afterSaved = await saveText(page, text, '/絶対パス/xxx.txt');
   // saveText が true を返した分は保存済み。false の分だけエージェントが受け取って Write する
   return JSON.stringify({
@@ -225,6 +261,8 @@ async (page) => {
 **重要**: この return には（保存に成功した通常ケースでは）**DOM 全文が含まれない**。呼び出し元エージェントが DOM 本文そのもの（症状再現ログ等・.txt に保存済みの内容）を判定・分析に使う必要がある場合は、return の `textLen`/`thinDom`/`errorSignature` だけでは情報が足りないことがある。その場合は保存先の `.txt` を **`Read` ツールで読む**（`saveText` が `false` を返した要素は return の `beforeText`/`text` をそのまま使う）。DOM 全文を再び `browser_run_code_unsafe` の return やコードブロック引数に載せて渡す設計に戻さないこと（今回の性能改修の前提が崩れる）。
 
 **パス指定**: `page.screenshot({path: ...})` には**絶対パス**を使う（変数を展開した実パス文字列を埋め込む）。
+
+**撮影オプション（必須）**: `page.screenshot()` は常に `{fullPage: true, animations: 'disabled', scale: 'css'}` を付ける。`animations` は既定値 `'allow'` のままだと Lightning のトースト・スピナー等の CSS アニメーションが収まるまで撮影内部の安定化待ちが発生する（`'disabled'` で即座に確定状態にして待ちを回避）。`scale` は既定値 `'device'` のままだと実行環境の `deviceScaleFactor`（HiDPI ディスプレイ等）がそのまま反映され、PNG が不要に大きくなる（`'css'` で CSS ピクセル基準に固定し肥大化を防ぐ）。
 
 ### 操作待機パターン
 
@@ -253,10 +291,22 @@ async (page) => {
     await page.locator('.slds-spinner, lightning-spinner')
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
+  async function getPageText(page) {
+    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    try {
+      return await page.evaluate(() => {
+        const clone = document.body.cloneNode(true);
+        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
+        return clone.innerText;
+      });
+    } catch (_) {
+      return await page.locator('body').innerText();
+    }
+  }
   await page.goto('{対象URL}');
   await waitSfReady(page);
   // DOM を確認してロケータを確定する（参照のみ）
-  return await page.locator('body').innerText();
+  return await getPageText(page);
 }
 ```
 
@@ -286,11 +336,23 @@ async (page) => {
     await page.locator('.slds-spinner, lightning-spinner')
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
+  async function getPageText(page) {
+    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    try {
+      return await page.evaluate(() => {
+        const clone = document.body.cloneNode(true);
+        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
+        return clone.innerText;
+      });
+    } catch (_) {
+      return await page.locator('body').innerText();
+    }
+  }
   await page.goto('/lightning/setup/LoginAccessPolicies/home');
   await waitSfReady(page);
   // アンカー要素（設定ページ固有テキスト）の出現で遷移完了を確認
   await page.waitForSelector('text=ログインアクセスポリシー', { timeout: 15000 }).catch(() => {});
-  const text = await page.locator('body').innerText();
+  const text = await getPageText(page);
   return text;
 }
 ```
@@ -361,13 +423,25 @@ async (page) => {
     if (/\/login\.jsp/.test(url)) return true; // ログイン画面に戻された＝失敗
     return false;
   }
+  async function getPageText(page) {
+    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    try {
+      return await page.evaluate(() => {
+        const clone = document.body.cloneNode(true);
+        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
+        return clone.innerText;
+      });
+    } catch (_) {
+      return await page.locator('body').innerText();
+    }
+  }
 
   // ─── Login As 高速パス（servlet.su 直接遷移。上記で解決済みの OrgId/UserId を使う）───
   let loginAsOk = false;
   try {
     await page.goto('/servlet/servlet.su?oid={OrgId}&suorgadminid={UserId}&targetURL=%2Fhome%2Fhome.jsp');
     await waitSfReady(page);
-    const checkText = await page.locator('body').innerText();
+    const checkText = await getPageText(page);
     loginAsOk = !looksLikeLoginAsFailure(checkText, page.url());
   } catch (e) {
     loginAsOk = false;
@@ -393,15 +467,15 @@ async (page) => {
   await page.goto('{対象画面URL_1}');
   await waitSfReady(page);
   // before 撮影（fullPage: true）+ before DOM 取得（**書き込み動詞ありの TC のみ**。表示・参照のみは before を採取しない）
-  await page.screenshot({path: '/絶対パス/{No}_xxx_before.png', fullPage: true});
-  const beforeText1 = await page.locator('body').innerText();
+  await page.screenshot({path: '/絶対パス/{No}_xxx_before.png', fullPage: true, animations: 'disabled', scale: 'css'});
+  const beforeText1 = await getPageText(page);
   const beforeSaved1 = await saveText(page, beforeText1, '/絶対パス/{No}_xxx_before.txt');
   // （操作があれば）
   await page.getByText('{ラベル}').click();
   await waitSfReady(page);
   // after 撮影（fullPage: true）
-  await page.screenshot({path: '/絶対パス/{No}_xxx.png', fullPage: true});
-  const text1 = await page.locator('body').innerText();
+  await page.screenshot({path: '/絶対パス/{No}_xxx.png', fullPage: true, animations: 'disabled', scale: 'css'});
+  const text1 = await getPageText(page);
   const afterSaved1 = await saveText(page, text1, '/絶対パス/{No}_xxx.txt');
   results.push({
     no: '{No}', ok: true, url: page.url(),
@@ -414,8 +488,8 @@ async (page) => {
   // TC-YYY: {観点} — 同ユーザの次 TC はそのまま続ける（再ログイン不要）
   await page.goto('{対象画面URL_2}');
   await waitSfReady(page);
-  await page.screenshot({path: '/絶対パス/{No2}_yyy.png', fullPage: true});
-  const text2 = await page.locator('body').innerText();
+  await page.screenshot({path: '/絶対パス/{No2}_yyy.png', fullPage: true, animations: 'disabled', scale: 'css'});
+  const text2 = await getPageText(page);
   const afterSaved2 = await saveText(page, text2, '/絶対パス/{No2}_yyy.txt');
   results.push({
     no: '{No2}', ok: true, url: page.url(),
@@ -497,6 +571,18 @@ async (page) => {
       return false;
     }
   }
+  async function getPageText(page) {
+    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    try {
+      return await page.evaluate(() => {
+        const clone = document.body.cloneNode(true);
+        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
+        return clone.innerText;
+      });
+    } catch (_) {
+      return await page.locator('body').innerText();
+    }
+  }
 
   // ─── ステップ1: 対象コミュニティユーザーの Contact ページへ遷移 ───
   // 事前 SOQL で取得した ContactId を使う
@@ -523,12 +609,12 @@ async (page) => {
   // TC-XXX: {観点}
   // 例: CopyQuoteByCustomer フローを起動する場合
   //   await page.goto(currentUrl.replace('/s/', '/s/') + '?flowName=CopyQuoteByCustomer');
-  await page.screenshot({path: '/絶対パス/evidence/before/{No}_before.png', fullPage: true});
-  const beforeText = await page.locator('body').innerText();
+  await page.screenshot({path: '/絶対パス/evidence/before/{No}_before.png', fullPage: true, animations: 'disabled', scale: 'css'});
+  const beforeText = await getPageText(page);
   const beforeSaved = await saveText(page, beforeText, '/絶対パス/evidence/before/{No}_before.txt');
   // （フロー操作）
-  await page.screenshot({path: '/絶対パス/evidence/after/screen/{No}_xxx.png', fullPage: true});
-  const afterText = await page.locator('body').innerText();
+  await page.screenshot({path: '/絶対パス/evidence/after/screen/{No}_xxx.png', fullPage: true, animations: 'disabled', scale: 'css'});
+  const afterText = await getPageText(page);
   const afterSaved = await saveText(page, afterText, '/絶対パス/evidence/after/screen/{No}_xxx.txt');
   const afterUrl = page.url(); // 管理者復帰（ステップ4）前に確定させる（コミュニティ画面のURLを記録するため）
 
@@ -620,6 +706,19 @@ async (page) => {
     }
   }
 
+  async function getPageText(p) {
+    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    try {
+      return await p.evaluate(() => {
+        const clone = document.body.cloneNode(true);
+        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
+        return clone.innerText;
+      });
+    } catch (_) {
+      return await p.locator('body').innerText();
+    }
+  }
+
   // 並列可 TC のリスト（エージェントが TC 分だけ定義する）
   // 【before 採取の設計方針】並列可＝グループ①（読み取り専用）は before≒after（同じ画面）となり
   // 「修正前も同じ内容だった」と誤読させる証跡になるため before は採取しない（after のみ）
@@ -659,8 +758,8 @@ async (page) => {
         }
         // ケース固有操作があればここに挿入
         // after 撮影（fullPage: true）+ after DOM 取得（グループ①は before を採取しない）
-        await p.screenshot({ path: t.afterPath, fullPage: true });
-        const text = await p.locator('body').innerText();
+        await p.screenshot({ path: t.afterPath, fullPage: true, animations: 'disabled', scale: 'css' });
+        const text = await getPageText(p);
         const afterSaved = await saveText(p, text, t.txtPath);
         return {
           no: t.no, ok: true, url: p.url(),
