@@ -184,7 +184,7 @@ mkdir -p "{evidence_dir}/before"
 
 コードブロック構成（同一セッションの連続 TC を1コードブロックにまとめる）:
 
-**バッチ化の原則**: 同一セッションのグループ② TC は可能な限り1コードブロックにまとめて実行する（1件目のみ goto ログイン、以降はブロック内でアプリ内遷移を続ける）。TC が増えても同じブロックに追記するだけにし、TC ごとに `browser_run_code_unsafe` を往復しない。ロケータの事前 snapshot 確認が必要な TC や、フォーム状態を戻せない TC のみ別ブロックに分割する。
+**バッチ化の原則**: 同一セッションのグループ② TC は可能な限り1コードブロックにまとめて実行する（1件目のみ goto ログイン、以降はブロック内でアプリ内遷移を続ける）。TC が増えても同じブロックに追記するだけにし、TC ごとに `browser_run_code_unsafe` を往復しない。ロケータの事前 snapshot 確認が必要な TC や、フォーム状態を戻せない TC のみ別ブロックに分割する。**撮影・DOM取得・保存・push の共通処理は1つの関数（`runTC`）にまとめ、TC 固有の操作部分のみを配列（`tcs`）でループさせる（Step 2A の `tasks`/`Promise.all` 骨格と同じ考え方）。TC ごとにブロック全体（撮影〜push の一連の記述）を複製しない**（生成トークンが TC 数に比例して線形増加するのを防ぐため。後述のコードブロック例を参照）。
 
 各 TC はブロック内で以下 1〜4 を行い、結果を配列 `results` へ push する。TC ごとに `try/catch` で囲み、失敗した TC が後続 TC の証跡採取を止めないようにする:
 
@@ -266,7 +266,7 @@ Lightning CSS が outline を上書きする場合は `!important` 付きで注�
 
 定義・仕組みは `playwright-sf-screen-ops.md`「DOM テキストの直接保存（saveText）」節を参照（`fs`/`require` が使えない実行環境の制約と、download API での代替方式）。DOM 本文取得自体は同ファイル「DOM 本文取得（getPageText）」節で定義する `getPageText`（グローバルヘッダーのノイズを除去して取得する）を使う。以下のコードブロック例のとおり `highlightTarget`/`clearHighlight` と同様にコードブロック冒頭でインライン定義して使う。
 
-**コードブロック例（同一セッションの2 TC をバッチ実行）**:
+**コードブロック例（同一セッションの複数 TC を `tcs` 配列 + `runTC` 共通処理でループ実行。TC が増えても `tcs` にエントリを追記するだけで、`runTC` 自体は複製しない）**:
 ```javascript
 async (page) => {
   page.setDefaultTimeout(15000);
@@ -343,60 +343,64 @@ async (page) => {
   }
   const results = [];
 
-  // 1件目のみ: await page.goto('FRONTDOOR_URL');
+  // TC 定義: TC ごとに変わるのはラベル・対象画面・操作（action）だけ。
+  // 撮影・DOM取得・保存・push の共通処理は runTC に集約しているため、
+  // TC が増えてもここに1エントリ追記するだけでよい（ブロック全体を複製しない）。
+  const tcs = [
+    {
+      // TC-001: プリチェック画面のラベル確認（このTCでは遷移自体が確認対象のため preNav は使わず action で遷移+操作を行う）
+      no: 'TC-001', label: 'ラベル確認', screen: 'プリチェック画面', targetLabel: 'プリチェック',
+      action: async (page) => { await page.getByText('プリチェック').click(); await waitSfReady(page); },
+    },
+    {
+      // TC-002: 次の画面での確認（同セッションの次 TC は再ログイン不要でそのまま続ける）
+      // preNav: TC 対象画面へ到達するための前提遷移（before 採取より前に実行。対象画面が前TCと同じ場合は navSkipped によりスキップされる）
+      // action: このTCで確認対象となる操作（before/after の間で実行）
+      no: 'TC-002', label: '別画面確認', screen: '別画面', targetLabel: '対象ボタン',
+      preNav: async (page) => { await page.getByText('別画面').click(); await waitSfReady(page); },
+      action: async (page) => { await page.getByText('対象ボタン').click(); await waitSfReady(page); },
+    },
+    // TC が増えたらここに1エントリ追加するだけでよい。例（対象画面が直前 TC と同じ＝手順1.5の画面遷移スキップ対象）:
+    // { no: 'TC-003', label: '追加確認', screen: '別画面', targetLabel: null,
+    //   action: async (page) => { await page.getByText('追加ボタン').click(); await waitSfReady(page); } },
+  ];
 
-  // ── TC-001: プリチェック画面のラベル確認 ──
-  try {
-    // before 撮影（fullPage: true）+ before DOM 取得（状態遷移観点で使用）
-    await page.screenshot({path: 'C:/path/evidence/before/TC-001_ラベル確認_before.png', fullPage: true, animations: 'disabled', scale: 'css'});
-    const beforeText = await getPageText(page);
-    const beforeSaved = await saveText(page, beforeText, 'C:/path/evidence/before/TC-001_ラベル確認_before.txt');
-    // 画面遷移
-    await page.getByText('プリチェック').click();
-    await waitSfReady(page);
-    // after 撮影 + 確認対象に赤枠を注入（target= がある場合のみ）
-    const highlightEl = await highlightTarget(page, 'プリチェック'); // target={label} を使用
-    await page.screenshot({path: 'C:/path/evidence/after/screen/TC-001_ラベル確認.png', fullPage: true, animations: 'disabled', scale: 'css'});
-    await clearHighlight(highlightEl);
-    const afterText = await getPageText(page);
-    const afterSaved = await saveText(page, afterText, 'C:/path/evidence/after/screen/TC-001_ラベル確認.txt');
-    results.push({
-      no: 'TC-001', ok: true, url: page.url(), highlighted: !!highlightEl,
-      textLen: afterText.length, thinDom: afterText.length < 200,
-      errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || null,
-      ...(beforeSaved ? {} : { beforeText }),
-      ...(afterSaved ? {} : { text: afterText }),
-    });
-  } catch (e) {
-    results.push({no: 'TC-001', ok: false, error: String(e)});
+  let prevScreen = null; // 1.5 画面遷移要否の判定（テスト時短・任意最適化）に使う直前 TC の対象画面
+
+  async function runTC(page, tc) {
+    const navSkipped = !!(tc.screen && prevScreen && tc.screen === prevScreen);
+    try {
+      // 1.5 画面遷移要否の判定: navSkipped の場合は preNav（遷移部分）を省略し、操作部分のみ実行する
+      if (tc.preNav && !navSkipped) await tc.preNav(page);
+      // 1. before 撮影（fullPage: true）+ before DOM 取得（F-6/F-7・状態遷移観点で使用）
+      await page.screenshot({path: `C:/path/evidence/before/${tc.no}_${tc.label}_before.png`, fullPage: true, animations: 'disabled', scale: 'css'});
+      const beforeText = await getPageText(page);
+      const beforeSaved = await saveText(page, beforeText, `C:/path/evidence/before/${tc.no}_${tc.label}_before.txt`);
+      // 2. 操作
+      await tc.action(page);
+      // 3. after 撮影 + 確認対象に赤枠を注入（targetLabel がある場合のみ）
+      const highlightEl = tc.targetLabel ? await highlightTarget(page, tc.targetLabel) : null;
+      await page.screenshot({path: `C:/path/evidence/after/screen/${tc.no}_${tc.label}.png`, fullPage: true, animations: 'disabled', scale: 'css'});
+      await clearHighlight(highlightEl);
+      const afterText = await getPageText(page);
+      const afterSaved = await saveText(page, afterText, `C:/path/evidence/after/screen/${tc.no}_${tc.label}.txt`);
+      // 4. push
+      results.push({
+        no: tc.no, ok: true, url: page.url(), highlighted: !!highlightEl, navSkipped,
+        textLen: afterText.length, thinDom: afterText.length < 200,
+        errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || null,
+        ...(beforeSaved ? {} : { beforeText }),
+        ...(afterSaved ? {} : { text: afterText }),
+      });
+    } catch (e) {
+      results.push({no: tc.no, ok: false, error: String(e)});
+    }
+    prevScreen = tc.screen || null;
   }
 
-  // ── TC-002: 次の画面での確認 — 同セッションの次 TC は再ログイン不要でそのまま続ける ──
-  try {
-    // 画面遷移（アプリ内リンク・goto どちらでも可）
-    await page.getByText('別画面').click();
-    await waitSfReady(page);
-    await page.screenshot({path: 'C:/path/evidence/before/TC-002_別画面確認_before.png', fullPage: true, animations: 'disabled', scale: 'css'});
-    const beforeText = await getPageText(page);
-    const beforeSaved = await saveText(page, beforeText, 'C:/path/evidence/before/TC-002_別画面確認_before.txt');
-    // 操作
-    await page.getByText('対象ボタン').click();
-    await waitSfReady(page);
-    // after 撮影
-    const highlightEl = await highlightTarget(page, '対象ボタン');
-    await page.screenshot({path: 'C:/path/evidence/after/screen/TC-002_別画面確認.png', fullPage: true, animations: 'disabled', scale: 'css'});
-    await clearHighlight(highlightEl);
-    const afterText = await getPageText(page);
-    const afterSaved = await saveText(page, afterText, 'C:/path/evidence/after/screen/TC-002_別画面確認.txt');
-    results.push({
-      no: 'TC-002', ok: true, url: page.url(), highlighted: !!highlightEl,
-      textLen: afterText.length, thinDom: afterText.length < 200,
-      errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || null,
-      ...(beforeSaved ? {} : { beforeText }),
-      ...(afterSaved ? {} : { text: afterText }),
-    });
-  } catch (e) {
-    results.push({no: 'TC-002', ok: false, error: String(e)});
+  // 1件目のみ: await page.goto('FRONTDOOR_URL');
+  for (const tc of tcs) {
+    await runTC(page, tc);
   }
 
   // エージェントは results を反復し、beforeText/text が存在する要素（保存失敗フォールバック）のみ Write、ok:false は NG 記録
@@ -407,7 +411,7 @@ async (page) => {
 
 **条件分岐がある場合（`分岐ラベル` フィールドがある TC のみ）**: 分岐展開の要否は `ui_cases` の `分岐ラベル` フィールドで判定する。`分岐ラベル` が列挙されている TC のみ、該当 TC の `try` 内で全分岐を順に実行し、分岐ごとに after 撮影する。各分岐の前後で操作を戻す（デフォルト選択に戻す・フォームリセット等）ことで1フローに収める。**`分岐ラベル` がない TC（= spec 側で分岐ごとに別 TC 行として分割済み）は単一分岐のみ実行し、追加展開しない**。
 
-グループ①②の全 TC 完了後に `mcp__playwright__browser_close` でセッションを閉じる。
+グループ①②の全 TC 完了後、**グループ③（Login As）が存在しない場合のみ** `mcp__playwright__browser_close` でセッションを閉じる。グループ③が存在する場合はセッションを閉じずに Step 3 へ進む（Login As の前提チェックは既存の admin セッション（`page`）をそのまま使う相対 URL 遷移のため、ここで閉じると Step 3 側で frontdoor 再認証＋ブラウザ再起動が必要になり無駄な往復が発生する）。
 
 ---
 
