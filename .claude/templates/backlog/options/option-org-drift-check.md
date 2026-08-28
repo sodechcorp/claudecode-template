@@ -58,6 +58,8 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
 
 ### Tier 1: 軽量スキャン（全リリース対象コンポーネントに実施）
 
+> **release-preparer Phase 2 の mtime 判定禁止規定との違い（重要）**: Phase 2 は「ファイルの更新日時」（ローカル `force-app/` の mtime。`git checkout`・エディタの保存操作だけで内容が変わらなくても更新される）を差分判定に使わないと明記しているが、これはローカル Git 管理下ファイル特有の誤検知リスクへの対策であり、本 Tier 1 が参照する Salesforce 組織側の `lastModifiedDate`（メタデータ API が記録する組織側の保存時刻。ローカルの checkout/editor 操作では変化しない）とは対象・発生メカニズムが異なるため抵触しない。ただし本 Tier 1 の「痕跡なし → Tier 2 スキップ」判定は `lastModifiedDate` のみに基づき実体 diff で裏取りしないため、「本番側で更新されたが `lastModifiedDate` に反映されない」ケースは検知できない残存リスクがある（Tier 0 がマニフェスト外の積み残しを検知できないのと同種の、既知の限界として運用する）。
+
 1. release-preparer Phase 1 で確定した資材マニフェスト（API 名一覧）を用意する
 2. 本番組織のメタデータ一覧を取得し、更新日時・更新者を確認する:
    ```bash
