@@ -26,6 +26,7 @@ import subprocess
 import shutil
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -37,8 +38,54 @@ SF_BIN = shutil.which("sf") or "sf"
 
 # ── sandbox 判定（soql_evidence.py と同一ロジック） ────────────────────────
 
-def assert_sandbox(alias: str) -> str:
-    """alias が Sandbox であることを確認する。本番なら SystemExit。確定した alias を返す。"""
+_SANDBOX_CACHE_TTL_SEC = 300  # docs/.sf/ の既存メタデータキャッシュ（cat1/cat5）と同じ「5分以内」基準
+
+
+def _read_sandbox_cache(cache_path: str, alias: str):
+    """キャッシュが有効（alias一致・is_sandbox=True・5分以内）なら経過秒数を返す。
+    それ以外（不在・パース失敗・alias不一致・期限切れ・is_sandbox=False）は None
+    （＝実チェックにフォールバック。フェイルクローズ）。accessToken 等の認証情報は
+    一切保持しない（is_sandbox 判定結果のみ）。
+    """
+    if not cache_path:
+        return None
+    try:
+        d = json.loads(Path(cache_path).read_text(encoding="utf-8"))
+        age = time.time() - float(d.get("checked_at", 0))
+        if d.get("alias") == alias and d.get("is_sandbox") is True and 0 <= age <= _SANDBOX_CACHE_TTL_SEC:
+            return age
+    except Exception:
+        pass
+    return None
+
+
+def _write_sandbox_cache(cache_path: str, alias: str, instance_url: str = ""):
+    """Sandbox確認済みの結果をキャッシュする（is_sandbox=True の場合のみ呼ぶ）。
+    書き込み失敗（権限・ディスク等）は本処理を止めない（キャッシュは高速化のみが目的で、
+    安全判定そのものはこの関数を通らずとも成立している）。accessToken は書き込まない。
+    """
+    if not cache_path:
+        return
+    try:
+        Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(cache_path).write_text(
+            json.dumps({"alias": alias, "is_sandbox": True, "instance_url": instance_url,
+                        "checked_at": time.time()}, ensure_ascii=False),
+            encoding="utf-8"
+        )
+    except Exception:
+        pass
+
+
+def assert_sandbox(alias: str, cache_path: str = "") -> str:
+    """alias が Sandbox であることを確認する。本番なら SystemExit。確定した alias を返す。
+
+    `cache_path` 指定時（run-batch 経由・/test の Phase C 内でのみ使用）: 直前に
+    test.md / auto-evidence-runner.md Step0 / soql_evidence.py のいずれかが実施した
+    確認結果が5分以内・同一alias で残っていれば `sf org display` を省略する
+    （/test 1回の実行内でのSandbox判定4重化の削減。実測11～20秒重複の一部を解消）。
+    キャッシュが無い・古い・alias不一致の場合は必ず以下の実チェックを行う。
+    """
     if not alias:
         result = subprocess.run(
             [SF_BIN, "config", "get", "target-org", "--json"],
@@ -50,6 +97,12 @@ def assert_sandbox(alias: str) -> str:
             raise SystemExit("[FATAL] target-org が設定されていません。--alias を指定してください。")
         if not alias:
             raise SystemExit("[FATAL] target-org が設定されていません。--alias を指定してください。")
+
+    cache_age = _read_sandbox_cache(cache_path, alias)
+    if cache_age is not None:
+        print(f"OK: Sandbox 接続確認済み（キャッシュ再利用: {int(cache_age)}秒前に確認, alias={alias}）",
+              file=sys.stderr)
+        return alias
 
     result = subprocess.run(
         [SF_BIN, "org", "display", "--target-org", alias, "--json"],
@@ -78,6 +131,7 @@ def assert_sandbox(alias: str) -> str:
             f"[FATAL] 接続先が Sandbox ではありません ({alias})。\n"
             "        本番組織への匿名 Apex 実行は禁止されています。"
         )
+    _write_sandbox_cache(cache_path, alias, org_info.get("instanceUrl", "") if isinstance(org_info, dict) else "")
     return alias
 
 
@@ -363,9 +417,13 @@ def main():
                          help="強制的に逐次実行（ガバナ競合時のフォールバック用）")
     p_batch.add_argument("--serial-nos", default="", dest="serial_nos",
                          help="逐次実行に寄せる TC 番号カンマ区切り（同一既存レコード競合懸念 TC）")
+    p_batch.add_argument("--sandbox-cache", default="", dest="sandbox_cache",
+                         help="Sandbox判定キャッシュのファイルパス（省略時はキャッシュ無効・毎回 sf org display を実施）。"
+                              "/test の auto-evidence-runner から run-batch 実行時のみ渡される")
 
     args = parser.parse_args()
-    alias = assert_sandbox(args.alias)  # Sandbox 確認はループ前に1回だけ実施
+    # run/cleanup サブコマンドには --sandbox-cache が無いため getattr で安全にデフォルト化
+    alias = assert_sandbox(args.alias, getattr(args, "sandbox_cache", ""))  # Sandbox 確認はループ前に1回だけ実施
 
     if args.subcommand == "run":
         apex_code = Path(args.apex_file).read_text(encoding="utf-8")

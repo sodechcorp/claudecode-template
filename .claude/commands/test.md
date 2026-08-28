@@ -67,6 +67,11 @@ echo "OK: Sandbox 接続確認済み ($SF_ALIAS)"
 
 # 4.5. instanceUrl の取得（目視ハンドオフのレコードURL組み立て用。accessToken を含まないため出力可）
 INSTANCE_URL=$(echo "$SF_ORG_JSON" | python -c "import sys,json; print(json.load(sys.stdin)['result'].get('instanceUrl',''))" 2>/dev/null || echo "")
+
+# 4.6. Sandbox判定キャッシュへの書き込み（本ステップの確認結果を後続の auto-evidence-runner Step0 /
+# soql_evidence.py / anon_apex_runner.py が再利用できるようにする。実測11～20秒重複の一部を解消。
+# 書き込み失敗は無視。accessTokenはキャッシュしない。詳細: auto-evidence-runner.md Step0）
+mkdir -p "${PROJECT_DIR}/.sf" && python -c "import json,time; json.dump({'alias':'$SF_ALIAS','is_sandbox':True,'instance_url':'$INSTANCE_URL','checked_at':time.time()}, open(r'${PROJECT_DIR}/.sf/sandbox_check_cache.json','w',encoding='utf-8'))" 2>/dev/null || true
 echo "INSTANCE_URL=$INSTANCE_URL"
 
 # 5. xlsx_folder の確定（優先: investigation.md フロントマター → .backlog_config.yml → LOG_DIR）

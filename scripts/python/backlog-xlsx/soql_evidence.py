@@ -24,6 +24,7 @@ import re
 import subprocess
 import shutil
 import sys
+import time
 from pathlib import Path
 
 from simple_salesforce import Salesforce
@@ -39,12 +40,37 @@ SF_BIN = shutil.which("sf") or "sf"
 
 # ── sandbox 判定 ─────────────────────────────────────────────────────────────
 
-def assert_sandbox(alias: str) -> tuple:
+def _write_sandbox_cache(cache_path: str, alias: str, instance_url: str = ""):
+    """Sandbox確認済みの結果をキャッシュする（is_sandbox=True の場合のみ呼ぶ）。
+    本関数はこのスクリプト自身の sf org display 呼び出しを省略するためではない
+    （access_token の取得に毎回この呼び出しが必要なため省略不可・accessTokenは
+    キャッシュしない）。/test 1回の実行内で後続実行される anon_apex_runner.py の
+    Sandbox判定を省略させるための書き込み専用キャッシュ（実測11～20秒重複の一部を解消）。
+    書き込み失敗は本処理を止めない。
+    """
+    if not cache_path:
+        return
+    try:
+        Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(cache_path).write_text(
+            json.dumps({"alias": alias, "is_sandbox": True, "instance_url": instance_url,
+                        "checked_at": time.time()}, ensure_ascii=False),
+            encoding="utf-8"
+        )
+    except Exception:
+        pass
+
+
+def assert_sandbox(alias: str, cache_path: str = "") -> tuple:
     """alias が Sandbox であることを確認する。本番なら SystemExit。
     (alias, access_token, instance_url, api_version) を返す（sf org display 1回分の
     応答から REST 直叫び用の認証情報・API バージョンも併せて取り出す。SOQL 1件ごとの
     sf プロセス起動を避けるため、以降の SOQL 実行はこれらを使って simple_salesforce
     経由の REST API 呼び出しに切り替える）。
+
+    `cache_path` 指定時: access_token 取得のため `sf org display` は毎回実施するが
+    （キャッシュ省略不可）、成功後に is_sandbox=True の結果を書き込み、後続の
+    anon_apex_runner.py がこの呼び出しを省略できるようにする。
     """
     if not alias:
         result = subprocess.run(
@@ -99,6 +125,7 @@ def assert_sandbox(alias: str) -> tuple:
     # 古く固定されているため、明示的に揃えないと sf CLI 実行時と異なる挙動に
     # なりうる（新しい標準項目の非対応・将来の廃止バージョン化リスク等）。
     api_version = org_info.get("apiVersion", "")
+    _write_sandbox_cache(cache_path, alias, instance_url)
     return alias, access_token, instance_url, api_version
 
 
@@ -316,12 +343,15 @@ def main():
                         help="--queries-file 一括実行を強制的に逐次で実行（--max-workers を 1 に上書き）")
     parser.add_argument("--target-tc", default="", dest="target_tc",
                         help="差分再実行対象の TC 番号カンマ区切り（例: TC-003,TC-011）。省略時は全件")
+    parser.add_argument("--sandbox-cache", default="", dest="sandbox_cache",
+                        help="Sandbox確認結果の書き込み先キャッシュファイルパス（省略時は書き込まない）。"
+                             "access_token取得のため本スクリプト自身の sf org display は省略しない")
     args = parser.parse_args()
 
     # Sandbox 確認はループ前に1回だけ実施。同じ sf org display 応答から
     # REST 直叫び用の access_token/instance_url/api_version も取得する（SOQL
     # 1件ごとに sf プロセスを起動しないため、以降のクエリ実行はこれらを使い回す）。
-    alias, access_token, instance_url, api_version = assert_sandbox(args.alias)
+    alias, access_token, instance_url, api_version = assert_sandbox(args.alias, args.sandbox_cache)
 
     if args.queries_file:
         # 一括実行（並列 or 逐次）

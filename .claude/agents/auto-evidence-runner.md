@@ -21,9 +21,25 @@ tools:
 
 `{judgment_path}` が指定されている知見還流モード（Phase F）ではスキップする（Step 7 はローカルファイルの読み書きのみで Sandbox 接続を伴わないため。呼び出し元 `/test` の Phase A・Phase C で既に確認済み）。
 
+**Sandbox判定キャッシュの確認**（`/test` 1回の実行内での `sf org display` 再呼び出しコスト削減。実測11～20秒重複の一部を解消。キャッシュ不在・alias不一致・5分超過時は必ず下記の実チェックにフォールバックする＝フェイルクローズ。accessTokenは一切キャッシュしない）:
+
+```bash
+CACHE_CHECK=$(python -c "import json,time; d=json.load(open(r'{project_dir}/.sf/sandbox_check_cache.json',encoding='utf-8')); age=time.time()-float(d.get('checked_at',0)); print(f'HIT|{age:.0f}' if d.get('alias')=='{alias}' and d.get('is_sandbox') is True and 0<=age<=300 else 'MISS')" 2>/dev/null || echo "MISS")
+echo "$CACHE_CHECK"
+```
+
+- `HIT|N` の場合: 「OK: Sandbox 接続確認済み（キャッシュ再利用: N秒前に確認, alias={alias}）」と表示し、以下の「Sandbox 判定手順」の実施・キャッシュ書き込みをスキップして次に進む。
+- `MISS` の場合: 以下を実施する。
+
 > Sandbox 判定手順: [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) を Read して実施。
 
 本番組織（isSandbox=false）への接続が検出された場合は**即座に中止**し、ユーザーに Sandbox 認証を案内する。
+
+**（MISS だった場合のみ）実施が成功したらキャッシュに書き込む**（後続の Step 2 `soql_evidence.py` ・ Step 3 `anon_apex_runner.py` が再確認を省略できるようにする。書き込み失敗は本処理を止めない）:
+
+```bash
+mkdir -p "{project_dir}/.sf" && python -c "import json,time; json.dump({'alias':'{alias}','is_sandbox':True,'instance_url':'{instance_url}','checked_at':time.time()}, open(r'{project_dir}/.sf/sandbox_check_cache.json','w',encoding='utf-8'))" 2>/dev/null || true
+```
 
 呼び出し元から以下を受け取っていること（Phase C・Phase F 共通で渡されるもの）:
 - `{issueID}` — 課題 ID（例: GF-350）
@@ -146,8 +162,11 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
   --queries-file "{spec_path}" \
   --out-dir "{evidence_dir}/after/soql/" \
   --max-workers {max_workers_soql} \
-  --target-tc "{target_tc_list}"
+  --target-tc "{target_tc_list}" \
+  --sandbox-cache "{project_dir}/.sf/sandbox_check_cache.json"
 ```
+
+`--sandbox-cache` は access_token 取得のための `sf org display` 自体は省略しない（Step0のキャッシュ確認とは目的が異なる）。成功後に確認結果を書き込み、後続の `anon_apex_runner.py`（Step 3）がキャッシュを再利用できるようにする。
 
 `{serial}` が true の場合は `--serial` を追加する（`--max-workers` は無視され逐次動作）。
 
@@ -198,8 +217,11 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
   --alias "{alias}" \
   --cases-file "{log_dir}/tmp/anon_cases.json" \
   --max-workers {max_workers_anon} \
-  --serial-nos "{競合懸念TC番号のカンマ区切り（なければ省略）}"
+  --serial-nos "{競合懸念TC番号のカンマ区切り（なければ省略）}" \
+  --sandbox-cache "{project_dir}/.sf/sandbox_check_cache.json"
 ```
+
+`--sandbox-cache` が Step0 または Step2 の実施結果（5分以内・同一alias）と一致すれば `sf org display` を省略する。
 
 `{serial}` が true の場合は `--serial` を追加する。
 
