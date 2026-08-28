@@ -63,7 +63,7 @@ Phase 1 資材マニフェストに含まれる種別だけを release-plan.md �
 
 ### Apex クラス
 - **リリース前**: dry-run で 0 errors・ガバナ制限/FLS/CRUD 確認済み・テストクラス整備とカバレッジ（推奨 75%以上）
-- **リリース後検証**: 対象テストクラスを本番で再実行（`sf apex run test --class-names {テストクラス} --target-org <本番>`）。呼び出し元機能を UI/SOQL で実挙動確認
+- **リリース後検証**: 対象テストクラスを本番で再実行（`sf apex run test --class-names {テストクラス} --target-org {本番エイリアス}`）。呼び出し元機能を UI/SOQL で実挙動確認
 - **注意点**: `classAccesses` の権限付与（システム管理者必須・他プロファイルはユーザー確認）。バッチ/スケジューラの内部実行は直接アクセス不要
 
 ### Apex トリガー
@@ -75,7 +75,7 @@ Phase 1 資材マニフェストに含まれる種別だけを release-plan.md �
 - **リリース前**: dry-run・起動条件/参照先/API名確認・分岐各経路のテスト済み・Setup →「Automation」検索 → Process Automation Settings の「Deploy processes and flows as active」が本番組織で有効かを確認（無効な場合、デプロイ後は Draft のまま＝手動有効化が必須になる旨をリリース実施者に事前共有する）
 - **リリース後検証**: 本番で起動条件を満たす操作を行い、レコード作成/更新結果を SOQL で確認。画面フローは実画面で操作確認
 - **注意点**: **本番デプロイのデフォルトは Inactive**。Salesforce の仕様上、Sandbox で Active な Flow でも、本番デプロイ時は「Deploy processes and flows as active」設定が無効な限りデプロイ後は Draft のまま＝Metadata API が自動で有効バージョンに切り替えることはない（Sandbox/Dev org にはこの設定自体が存在せず常にソースの status 通りデプロイされるため、Sandbox テストでは気づけない）。
-  - **有効バージョン確認**: `sf data query -q "SELECT ApiName, ActiveVersionId, VersionNumber, IsActive FROM FlowDefinitionView WHERE ApiName='{Flow API名}'" --target-org <本番エイリアス>`
+  - **有効バージョン確認**: `sf data query -q "SELECT ApiName, ActiveVersionId, VersionNumber, IsActive FROM FlowDefinitionView WHERE ApiName='{Flow API名}'" --target-org {本番エイリアス}`
   - **Draft のままだった場合の手動有効化手順**: Setup → クイック検索「フロー」→ 対象フロー名をクリック →「バージョン履歴」で対象バージョンを開く → 右上「有効にする」をクリック
   - スケジュール実時刻起動は即時検証困難＝別途フォロー
 

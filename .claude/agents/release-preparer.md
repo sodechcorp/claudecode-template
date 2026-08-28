@@ -134,7 +134,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 > 詳細スペック: [option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md)
 > 事前ガード: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)（本番）・[sandbox-alias-check.md](../templates/common/sandbox-alias-check.md)（Tier 0 のみ・UAT/Sandbox）
 
-1. `prod-readonly-check.md` で本番組織への接続を確認する（read-only 前提の明示）。本番エイリアスが不明・未認証の場合はユーザーに確認する。**本番に接続できない/認証情報がない場合はこの Phase をスキップし、release-plan.md に「本番環境ドリフト確認: 未実施（接続情報なし）」と明記して Phase 5 へ進む**（リリース準備自体は続行可能）
+1. `prod-readonly-check.md` で本番組織への接続を確認する（read-only 前提の明示）。本番エイリアスが不明・未認証の場合はユーザーに確認する。**確認できた値は `{本番エイリアス}` として Phase 5 の release-plan.md 生成まで保持し、実値埋め込みに使う**。**本番に接続できない/認証情報がない場合はこの Phase をスキップし、release-plan.md に「本番環境ドリフト確認: 未実施（接続情報なし）」と明記して Phase 5 へ進む（`{本番エイリアス}` も未確定のまま Phase 5 に渡る）**（リリース準備自体は続行可能）
 2. **Tier 0（環境間実体差分チェック・マニフェスト非依存）**: Phase 1 の 1a（`.gitignore` 該当時のフォールバック）で前倒し実行済みの場合はここでは再実行せず、その結果を release-plan.md に転記する。未実施の場合はここで実施する。Tier 0 は UAT（Sandbox）との比較を伴うため、実施前に `sandbox-alias-check.md` で Sandbox 接続（`$SF_ALIAS`）も確認する（Sandbox に未接続/認証情報がない場合は Tier 0 のみスキップし、release-plan.md に「Tier 0: 未実施（Sandbox未接続）」と明記して Tier 1/2 は通常どおり実施する。未リリース積み残しを検知する Tier 0 を、記録なしに読み飛ばさない）
 3. Tier 1（軽量スキャン）: `sf org list metadata` で対象コンポーネントの最終更新日/更新者を確認し、base コミット日時より後に他者が触った痕跡を抽出する
 4. Tier 2（深掘り）: Tier 1 で痕跡ありのコンポーネントのみ、一時ディレクトリへ本番から retrieve して現在の force-app と diff する。**`force-app/` へは絶対に取得しない**
@@ -201,7 +201,7 @@ ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （未取得—デプ�
 
 # ② リリース実行（execution・人間が実行する。エージェントは実行しない）
 
-**具体的な実行コマンド・Step構成は本セクション（Step 1〜4）が正本**。matrix §B は同じ実行手順を人間向け参照用に保持しているが、`{issueID}`/`{test_level}` 等の実値埋め込みが必要な release-plan.md 生成は本セクションのテンプレートをそのまま使う（matrix §B からの転記は行わない）。
+**具体的な実行コマンド・Step構成は本セクション（Step 1〜4）が正本**。matrix §B は同じ実行手順を人間向け参照用に保持しているが、`{issueID}`/`{test_level}`/`{本番エイリアス}` 等の実値埋め込みが必要な release-plan.md 生成は本セクションのテンプレートをそのまま使う（matrix §B からの転記は行わない）。**`{本番エイリアス}` は Phase 4 で確認済みの値をそのまま埋め込む。Phase 4 をスキップした場合（未接続等）は値が確定していないため `{本番エイリアス}` の文字列のまま残し、直後に「⚠️ 本番エイリアス未確定: 実行前に対象組織のエイリアスへ置き換えてください」を明記する**。
 
 **`--test-level` の決定（Phase 1 で判定した `apex_in_scope` / `test_coverage_risk` / `target_test_classes` に基づく。固定で `RunLocalTests` にしない）**:
 
@@ -217,25 +217,25 @@ Salesforce はテストレベルによってカバレッジ計算方式が異な
 
 ### Step 1: 直前記録（ロールバック用バックアップ retrieve）
 ```bash
-sf project retrieve start --metadata "{リリース対象メタデータのAPI名一覧をType:Name形式で列挙}" --target-org <本番エイリアス> --output-dir docs/logs/{issueID}/rollback-backup
+sf project retrieve start --metadata "{リリース対象メタデータのAPI名一覧をType:Name形式で列挙}" --target-org {本番エイリアス} --output-dir docs/logs/{issueID}/rollback-backup
 ```
 → 取得完了を確認してから Step 2 へ進む（上記「事前記録: ロールバック用バックアップ」の `ROLLBACK_BACKUP_DIR` に取得済みである旨を記録する）。**新規追加コンポーネント**（本番に未存在）は retrieve 対象から除外する（存在しないためエラーになる。ロールバック時は削除で対応する旨をロールバック手順に明記する）。
 
 ### Step 2: dry-run で事前確認（必須）
 ```bash
-sf project deploy start --dry-run --source-dir force-app --target-org <本番エイリアス> --test-level {test_level}{tests_flag}
+sf project deploy start --dry-run --source-dir force-app --target-org {本番エイリアス} --test-level {test_level}{tests_flag}
 ```
 → **0 errors を確認できた場合のみ** Step 3 へ進む。エラーがあれば Step 3 は実行せず、下記「dry-run/デプロイが失敗した場合の切り分け」に従う。
 
 ### Step 3: 本番デプロイ
 ```bash
-sf project deploy start --source-dir force-app --target-org <本番エイリアス> --test-level {test_level}{tests_flag}
+sf project deploy start --source-dir force-app --target-org {本番エイリアス} --test-level {test_level}{tests_flag}
 ```
 → 完了後、Step 4 で結果を確認する。
 
 ### Step 4: デプロイ結果確認
 ```bash
-sf project deploy report --target-org <本番エイリアス>
+sf project deploy report --target-org {本番エイリアス}
 ```
 
 > `{tests_flag}`: `--test-level RunSpecifiedTests` の場合のみ `--tests {クラス1} --tests {クラス2} ...`（`target_test_classes` を1つずつ `--tests` で列挙）を付与する。`RunLocalTests` / `NoTestRun` では付与しない。
@@ -260,13 +260,13 @@ sf project deploy report --target-org <本番エイリアス>
 {matrix §C の共通チェック}
 
 ## 資材種別別・リリース後検証
-{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「リリース後検証方法」「注意点」を転記}
+{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「リリース後検証方法」「注意点」を転記。`{本番エイリアス}` は Step 1〜4 と同じ値を埋め込む（未確定の場合の扱いも同様）}
 
 ---
 
 ## ロールバック手順
 {option-rollback-strategy.md（approach-plan.md 記載があれば転記）+ option-rollback-readiness.md による最終確認}
-1. `sf project deploy start --source-dir {ROLLBACK_BACKUP_DIR} --target-org <本番エイリアス>` — 事前retrieve済みの変更前メタデータを本番へ再デプロイする（新規追加コンポーネントは対象外のため、該当分は Setup 画面から手動削除する）
+1. `sf project deploy start --source-dir {ROLLBACK_BACKUP_DIR} --target-org {本番エイリアス}` — 事前retrieve済みの変更前メタデータを本番へ再デプロイする（新規追加コンポーネントは対象外のため、該当分は Setup 画面から手動削除する）
 2. Sandbox で動作確認
 3. 本番の状態を確認
 
