@@ -229,15 +229,19 @@ python "{project_dir}/scripts/python/sf-doc-mcp/source_hash_checker.py" \
 
 ## Phase 1: ソース読み込み（グループごとに繰り返す）
 
-> 詳細手順（種別別読み方・画面コンポーネント・Apex 展開ルール）:
-> [.claude/templates/sf-detail-design-writer/source-reading-guide.md](../templates/sf-detail-design-writer/source-reading-guide.md)
+**詳細手順を読み込む（種別別読み方・画面コンポーネント・Apex 展開ルール）:**
+```
+Read: {project_dir}/.claude/templates/sf-detail-design-writer/source-reading-guide.md
+```
 
 ---
 
 ## Phase 2: 詳細設計 JSON を生成
 
-> JSON スキーマ・business_flow / data_flow_overview の書き方:
-> [.claude/templates/sf-detail-design-writer/json-format.md](../templates/sf-detail-design-writer/json-format.md)
+**JSON スキーマを読み込む（business_flow / data_flow_overview の書き方）:**
+```
+Read: {project_dir}/.claude/templates/sf-detail-design-writer/json-format.md
+```
 
 読み込んだ情報をもとに JSON を `{tmp_dir}/{group_id}_detail.json` に書き出す。
 
@@ -245,7 +249,10 @@ python "{project_dir}/scripts/python/sf-doc-mcp/source_hash_checker.py" \
 
 ## Phase 3: JSON チェックリスト
 
-> [.claude/templates/sf-detail-design-writer/json-checklist.md](../templates/sf-detail-design-writer/json-checklist.md)
+**チェックリストを読み込む:**
+```
+Read: {project_dir}/.claude/templates/sf-detail-design-writer/json-checklist.md
+```
 
 ---
 
@@ -294,4 +301,7 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate_detail_design.py" \
 
 ## 一時ファイルの禁止ルール（厳守）
 
-> [.claude/templates/common/tmp-file-rules.md](../templates/common/tmp-file-rules.md) 参照
+**ルールを読み込む:**
+```
+Read: {project_dir}/.claude/templates/common/tmp-file-rules.md
+```
