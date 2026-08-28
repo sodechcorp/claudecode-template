@@ -250,7 +250,7 @@ grep -h "^CREATED_RECORD|" "{evidence_dir}"/after/apex/*.txt 2>/dev/null \
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
 - `max_workers_ui`: `{serial}` が true の場合は `1`、それ以外は `{max_workers_ui}`（デフォルト 3）
-- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル・**確認ポイント（着眼点）**）
+- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル・**確認ポイント（着眼点）**・**対象画面**〔任意列。詳細は [test-spec-builder.md](test-spec-builder.md) 参照〕）
 
 `ui-evidence-runner` の返却（各 TC の証跡ファイル名・**画面URL**・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。**画面URL 列（`ok: true` の行のみ）は `{log_dir}/ui_screen_urls.txt` に `{No}|{観点}|{画面URL}` 形式で追記する**（Phase F で `generate_test_report.py` が目視ハンドオフブロック生成に使う）。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 本体の生成は Phase F で `generate_test_report.py` が `{judgment_path}` JSON から行う。
 
