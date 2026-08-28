@@ -170,7 +170,10 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 
 ### 5. Before / After の提示
 
-全ての変更ファイルについて、変更前後を提示する:
+「変更ファイル一覧」には全ての変更ファイルを記載する。個別の Before/After ブロックは以下の基準で出し分ける（[backlog.md Phase 4](../commands/backlog.md) の緩和ルールに準拠）:
+
+- **変更ファイルが 5 件以下**: 全ファイルについて個別の Before/After ブロックを提示する
+- **変更ファイルが 5 件を超える場合**: ロジック変更・public インターフェース変更・Apex/LWC/Flow のコード変更のみ個別の Before/After ブロックを提示する。設定ファイル・メタデータ（field-meta.xml / layout-meta.xml 等）・テストクラス以外の補助ファイルは「変更ファイル一覧」の概要欄への記載のみとし、個別ブロックは省略する
 
 ````
 ## 実装完了: {issueID}
@@ -179,7 +182,7 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 | ファイル | 変更種別 | 概要 |
 |---|---|---|
 
-### {ファイル名}
+### {ファイル名}（Before/After 提示対象のみ）
 
 **Before:**
 ```[apex/js/html]
