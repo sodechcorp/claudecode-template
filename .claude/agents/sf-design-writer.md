@@ -136,7 +136,10 @@ python -c "import pathlib; root = pathlib.Path(r'{output_dir}').parent; basic_di
 
 ## Phase 0.7: ハッシュチェック（全コンポーネント一括）
 
-> 共通手順: [.claude/templates/common/phase07-hash-check-by-feature.md]({project_dir}/.claude/templates/common/phase07-hash-check-by-feature.md)
+```
+Read: {project_dir}/.claude/templates/common/phase07-hash-check-by-feature.md
+```
+上記手順に従い、変更のないコンポーネントをスキップリストに追加してから Phase 1 へ進む。
 
 ---
 
