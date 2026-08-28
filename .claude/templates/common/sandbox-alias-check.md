@@ -37,13 +37,23 @@ echo "INSTANCE_URL=$INSTANCE_URL"
 承認プロセス（Approval Process）・ワークフロー/Process Builder のメールアラート・Flow の「メールを送信」アクションを起動しうる操作（**実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作**）の直前に必ず実施する。SOQL の SELECT・dry-run デプロイ等、レコードを変更しない操作では不要。
 
 ```bash
-sf data query --target-org "$SF_ALIAS" \
-  -q "SELECT Username, Email FROM User WHERE IsActive = true AND Email != null AND NOT Email LIKE '%.invalid'" -r csv
+QUERY_CSV=$(sf data query --target-org "$SF_ALIAS" \
+  -q "SELECT Username, Email FROM User WHERE IsActive = true AND Email != null AND NOT Email LIKE '%.invalid'" -r csv)
+echo "$QUERY_CSV"
+
+# Username,Email をソートして安定文字列化 → SHA256 でハッシュ化（機械的に算出する。LLMが暗算・独自判断で計算しない）
+QUERY_HASH=$(echo "$QUERY_CSV" | python -c "
+import sys, csv, hashlib, io
+rows = list(csv.reader(io.StringIO(sys.stdin.read())))[1:]  # ヘッダー除く
+stable = '\n'.join(sorted(','.join(r) for r in rows))
+print(hashlib.sha256(stable.encode('utf-8')).hexdigest())
+")
+echo "QUERY_HASH=$QUERY_HASH"
 ```
 
-**再確認スキップ判定（キャッシュ）**: クエリ結果が0件（該当ユーザーなし）の場合は確認不要でそのまま続行する。1件以上ある場合、Username・Email の組み合わせ（ソート済み）を安定した文字列にして SHA256 でハッシュ化し、キャッシュファイル（`{log_dir}/.email-safety-ack.json`。呼び出し元が `{log_dir}` を持たない場合は `docs/logs/{issueID}/.email-safety-ack.json`）と比較する:
-- キャッシュが存在し `hash` が一致する場合: 「前回確認済みの対象ユーザーリストと同一のため再確認をスキップします（前回確認: {キャッシュの `confirmed_at`}）」と表示して続行する（下記のユーザー確認は行わない）
-- キャッシュが不在、または `hash` が不一致（対象ユーザーが増減・変化した）の場合: 下記のとおり通常どおりユーザーに確認を取る。ユーザーが承認したら `{"hash": "{ハッシュ}", "confirmed_at": "{ISO日時}", "usernames": [{該当ユーザー一覧}]}` をキャッシュファイルに Write する
+**再確認スキップ判定（キャッシュ）**: クエリ結果が0件（該当ユーザーなし）の場合は確認不要でそのまま続行する。1件以上ある場合、上記 `QUERY_HASH` をキャッシュファイル（`{log_dir}/.email-safety-ack.json`。呼び出し元が `{log_dir}` を持たない場合は `docs/logs/{issueID}/.email-safety-ack.json`）の `hash` と比較する:
+- キャッシュが存在し `hash` が `QUERY_HASH` と一致する場合: 「前回確認済みの対象ユーザーリストと同一のため再確認をスキップします（前回確認: {キャッシュの `confirmed_at`}）」と表示して続行する（下記のユーザー確認は行わない）
+- キャッシュが不在、または `hash` が不一致（対象ユーザーが増減・変化した）の場合: 下記のとおり通常どおりユーザーに確認を取る。ユーザーが承認したら `{"hash": "$QUERY_HASH", "confirmed_at": "{ISO日時}", "usernames": [{該当ユーザー一覧}]}` をキャッシュファイルに Write する
 
 - **1件でも該当（`.invalid` が付いていない実アクティブユーザー）があれば、キャッシュ一致でない限り操作を中断してユーザーに確認を取る。無断で続行しない**
 - 該当ユーザーの Username・Email を一覧化した上で「これらのユーザーが承認者・関連ユーザーになっている操作を行うと、実アドレスへメールが送信される可能性があります。続行しますか？」と確認する
