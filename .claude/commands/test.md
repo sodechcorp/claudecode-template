@@ -328,23 +328,34 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
 
 ### Phase F: test-report.md 生成・後始末
 
-> **[auto-evidence-runner（レポート・後始末モード）へ委譲]**
+> **[ハーネス直接実行（レポート生成）＋ auto-evidence-runner（知見還流モード）へ委譲]**
+
+**手順1（レポート生成）**: test-report.md 生成・tmp/ 削除（決定論的変換のためスクリプト直接実行、サブエージェント不要）:
+
+```bash
+python "{project_dir}/scripts/python/backlog-xlsx/generate_test_report.py" \
+  --issue-id "{issueID}" \
+  --judgment "{judgment_path}" \
+  --spec "{spec_path}" \
+  --log-dir "{log_dir}" \
+  --alias "{alias}" \
+  --instance-url "{INSTANCE_URL}"
+```
+
+スクリプトの stdout（`生成完了: {出力パス}` / `テストケース: {N}件 (OK=.. / NG=.. / 要手動=.. / 対象外=..)` / `回次: {N}回`）をそのまま完了根拠とする。`judgment-result.json` が見つからない等の異常時はスクリプトが exit 1 で終了するため、正常終了＝test-report.md 生成済みが保証される。
+
+**手順2（知見還流）**: write-after、判断を要するため auto-evidence-runner へ委譲する（※ 直後の「Phase F-1」は本コマンドの独立した次フェーズであり、この手順2とは無関係）:
 
 `auto-evidence-runner` への委譲パラメータ:
 - `issueID`: `{issueID}`
-- `alias`: `{alias}`
-- `instance_url`: `{INSTANCE_URL}`（Phase A で取得済み。test-report.md の目視ハンドオフブロック生成に使う）
 - `project_dir`: `{project_dir}`
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
-- `xlsx_folder`: `{xlsx_folder}`
 - `spec_path`: `{spec_path}`
-- `judgment_path`: `{judgment_path}`（**必須**・Phase D の `judge_results.py` が生成した JSON）
-- ※ `target_tc_list` / `max_workers_*` / `serial` は不要（証跡採取を再実行しないため）
+- `judgment_path`: `{judgment_path}`（**必須**・Phase D の `judge_results.py` が生成した JSON。§ 2 レシピ還流の実行条件判定に使う）
+- ※ `alias` / `instance_url` / `xlsx_folder` / `target_tc_list` / `max_workers_*` / `serial` は不要（test-report.md 本体は F-0 で生成済み・証跡採取も再実行しないため）
 
-`{judgment_path}` が指定されているため auto-evidence-runner は**レポート・後始末モード**で起動する:
-1. `{judgment_path}` JSON を読み、test-report.md を `{log_dir}` に生成する（Step 6）
-2. 一時ファイル（`{log_dir}/tmp/`）を削除する（Step 5）
+`{judgment_path}` が指定されているため auto-evidence-runner は**知見還流モード**（Step 7 のみ）で起動する。手順1が生成した `{log_dir}/test-report.md` の「### テストデータ」セクションに、還流結果（または還流スキップの理由）を追記する。
 
 匿名 Apex で作成したテストデータ（`AUTOTEST_{issueID}_` プレフィックス）は削除しない。Sandbox に蓄積させ、目視確認にも使う方針。
 

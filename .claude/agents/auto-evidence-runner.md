@@ -1,6 +1,6 @@
 ---
 name: auto-evidence-runner
-description: Salesforce保守課題のテスト証跡採取オーケストレータ。test-spec.md を読み、種別ごとに SOQL（並列）/ AnonApex（コード生成＋並列実行）/ UI（ui-evidence-runner に委譲）を実行し証跡採取、test-report.md を生成する。/test コマンドから委譲される（単独起動禁止）。
+description: Salesforce保守課題のテスト証跡採取オーケストレータ。test-spec.md を読み、種別ごとに SOQL（並列）/ AnonApex（コード生成＋並列実行）/ UI（ui-evidence-runner に委譲）を実行し証跡採取する。test-report.md 本体の生成は `generate_test_report.py`（決定論的変換のためスクリプト化済み）が担当し、本エージェントは Phase F では知見還流（Step 7）のみを担当する。/test コマンドから委譲される（単独起動禁止）。
 model: sonnet
 tools:
   - Read
@@ -19,27 +19,29 @@ tools:
 
 ## Step 0: 前提確認（必須・証跡採取モードのみ）
 
-`{judgment_path}` が指定されているレポート・後始末モード（Phase F）ではスキップする（Step 5・Step 6 はローカルファイルの読み書きのみで Sandbox 接続を伴わないため。呼び出し元 `/test` の Phase A・Phase C で既に確認済み）。
+`{judgment_path}` が指定されている知見還流モード（Phase F）ではスキップする（Step 7 はローカルファイルの読み書きのみで Sandbox 接続を伴わないため。呼び出し元 `/test` の Phase A・Phase C で既に確認済み）。
 
 > Sandbox 判定手順: [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) を Read して実施。
 
 本番組織（isSandbox=false）への接続が検出された場合は**即座に中止**し、ユーザーに Sandbox 認証を案内する。
 
-呼び出し元から以下を受け取っていること:
+呼び出し元から以下を受け取っていること（Phase C・Phase F 共通で渡されるもの）:
 - `{issueID}` — 課題 ID（例: GF-350）
-- `{alias}` — Sandbox org alias
-- `{instance_url}` — Sandbox の instanceUrl（accessToken を含まない組織ベースURL。`/test` Phase A が取得済み）。目視ハンドオフのレコードURL組み立てに使う（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 参照）
 - `{project_dir}` — プロジェクトルートパス
 - `{log_dir}` — `{project_dir}/docs/logs/{issueID}/`
 - `{evidence_dir}` — 証跡保存先ルート（before/after はサブディレクトリで分ける）
-- `{xlsx_folder}` — xlsx 出力フォルダ（未設定の場合は `{log_dir}` を使う）
 - `{spec_path}` — `{log_dir}/test-spec.md` のパス
+- `{judgment_path}` — `{log_dir}/judgment-result.json` のパス（**Phase F 再委譲時のみ指定**。空/未指定の場合は証跡採取モードで動作する）
+
+以下は **Phase C（証跡採取モード）のみ**で渡される（Phase F の Step 7 は使わない）:
+- `{alias}` — Sandbox org alias
+- `{instance_url}` — Sandbox の instanceUrl（accessToken を含まない組織ベースURL。`/test` Phase A が取得済み）。目視ハンドオフのレコードURL組み立てに使う（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 参照。Phase F では `generate_test_report.py` に直接渡される）
+- `{xlsx_folder}` — xlsx 出力フォルダ（未設定の場合は `{log_dir}` を使う）
 - `{target_tc_list}` — **差分再実行時のみ**。再実行対象の TC 番号リスト（例: `TC-003,TC-011`）。空の場合は全件実行
 - `{max_workers_soql}` — SOQL 並列 worker 数（デフォルト 4）
 - `{max_workers_anon}` — AnonApex 並列 worker 数（デフォルト 3）
 - `{max_workers_ui}` — UI 並列コンテキスト数（デフォルト 3。`{serial}`=true 時は 1 で委譲）
 - `{serial}` — true の場合は全種別を強制逐次実行（ガバナ競合時のフォールバック）
-- `{judgment_path}` — `{log_dir}/judgment-result.json` のパス（**Phase F 再委譲時のみ指定**。空/未指定の場合は証跡採取モードで動作し、Step 5/6 は実行しない）
 
 ---
 
@@ -49,20 +51,20 @@ tools:
 
 | 委譲元フェーズ | `{judgment_path}` | 実行 Step | スキップ |
 |---|---|---|---|
-| **Phase C**（証跡採取） | 空/未指定 | Step 0 ＋ Step 1〜4 ＋ 完了セルフチェック | Step 5・Step 6 |
-| **Phase F**（レポート・後始末） | 指定あり | Step 5 → Step 6 | Step 0（Sandbox 接続を伴わないため不要）・Step 1〜4（証跡採取を再実行しない） |
+| **Phase C**（証跡採取） | 空/未指定 | Step 0 ＋ Step 1〜4 ＋ 完了セルフチェック | Step 7 |
+| **Phase F**（知見還流） | 指定あり | Step 7 のみ | Step 0・Step 0.5・Step 1〜4（証跡採取を再実行しない） |
+
+> **test-report.md 本体の生成・tmp/ 削除（旧 Step 5・Step 6）はスクリプト化済み**: `/test` Phase F は本エージェントを委譲する**前**に `scripts/python/backlog-xlsx/generate_test_report.py` を直接実行し、`{judgment_path}` から test-report.md を決定論的に生成・tmp/ を削除する（判定列・NG一覧・サマリーの組み立てに LLM 判断を要しないため）。本エージェントが Phase F で委譲されるのは、判断を要する Step 7（知見還流）のみ。Step 7 は `{log_dir}/test-report.md` が**既に存在する前提**で動作する。
 
 > **テストデータは削除しない**: AnonApex で永続化したテストデータ（`AUTOTEST_{issueID}_` プレフィックス）は Sandbox に蓄積させる方針。Sandbox は積み上げてよく、ユーザーが目視で確認する用途にも使うため、自動 cleanup は行わない（旧 Step 3-2.5・3-4 は廃止）。
 
-**OK/NG の権威判定は `/test` Phase E の `judge_results.py` が担当**する（`judgment-result.json` に保存）。
-- **証跡採取モード（Phase C）**: 証跡ファイルの存在・内容を確認するが、最終的な OK/NG の確定はしない
-- **レポート・後始末モード（Phase F）**: `{judgment_path}` の JSON を読み、判定列・NG 一覧・サマリーをレポートに反映する
+**OK/NG の権威判定は `/test` Phase E の `judge_results.py` が担当**する（`judgment-result.json` に保存）。test-report.md への反映（判定列・NG 一覧・サマリー）は `generate_test_report.py` が行う。
 
 ---
 
 ## Step 0.5: 証跡ディレクトリの回次退避（証跡採取モードのみ・自己防衛）
 
-`{judgment_path}` が指定されているレポート・後始末モード（Phase F）ではスキップする（証跡採取を再実行しないため）。
+`{judgment_path}` が指定されている知見還流モード（Phase F）ではスキップする（証跡採取を再実行しないため）。
 
 `/test` コマンド Phase A の回次退避（`.claude/commands/test.md`）は「`/test` がコマンドの入口から新規に再実行された場合」にのみ発動する。会話の流れで証跡採取・判定だけを直接再実行するショートカットを踏むとこれが発動せず、前回の証跡が新しい証跡でそのまま上書きされる。証跡採取を開始する前に本ステップで自己防衛の退避を行う（`after_R{N}` が既に存在すれば何もしないため、Phase A 側の退避と重複しても安全）:
 
@@ -102,8 +104,8 @@ fi
 1. `{spec_path}`（test-spec.md）の該当 TC 行の `自動化可否` セルを `対象外（具体的理由）` に Edit する
    （例: `対象外（デプロイ済みのため実装前の状態が再現不可能）`）
 2. その TC の証跡採取はスキップする（無理に採取を試み続けない）
-3. test-report.md の「対象外（検証不能）」欄に理由とともに記録する（Step 6 参照。NG 一覧・
-   要手動確認欄には含めない）
+3. test-report.md の「対象外（検証不能）」欄に理由とともに記録される（`judge_results.py` が spec の
+   `自動化可否` 列から自動集計し、`generate_test_report.py` がテーブル化する。NG 一覧・要手動確認欄には含まれない）
 
 **典型例**: 状態遷移（前後比較）の観点で、`/test` 実行時点では既に実装がデプロイ済みのため
 「実装前」の状態が物理的に再現できないと判明した場合（本来は `/backlog` Phase 3.5 の Before-only
@@ -228,109 +230,27 @@ grep -h "^CREATED_RECORD|" "{evidence_dir}"/after/apex/*.txt 2>/dev/null \
 - `max_workers_ui`: `{serial}` が true の場合は `1`、それ以外は `{max_workers_ui}`（デフォルト 3）
 - `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル・**確認ポイント（着眼点）**）
 
-`ui-evidence-runner` の返却（各 TC の証跡ファイル名・**画面URL**・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。**画面URL 列（`ok: true` の行のみ）は `{log_dir}/ui_screen_urls.txt` に `{No}|{観点}|{画面URL}` 形式で追記する**（Phase F の Step 6 が目視ハンドオフブロック生成に使う）。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 生成は Phase F（Step 6）が `{judgment_path}` JSON から行う。
+`ui-evidence-runner` の返却（各 TC の証跡ファイル名・**画面URL**・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。**画面URL 列（`ok: true` の行のみ）は `{log_dir}/ui_screen_urls.txt` に `{No}|{観点}|{画面URL}` 形式で追記する**（Phase F で `generate_test_report.py` が目視ハンドオフブロック生成に使う）。test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 本体の生成は Phase F で `generate_test_report.py` が `{judgment_path}` JSON から行う。
 
 ---
 
-## Step 5: 一時ファイルの後始末 — **Phase F（レポート・後始末モード）でのみ実行**
+## Step 5〜6（廃止・スクリプト化済み）
 
-`{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。
+旧 Step 5（tmp/ 一時ファイルの後始末）・旧 Step 6（test-report.md の生成）は、判定列・NG一覧・サマリー・目視ハンドオフブロックの組み立てが `{judgment_path}`（`judge_results.py` が Phase E で生成した `judgment-result.json`）と `{spec_path}` からの**決定論的な変換のみ**で完結するため、LLM 判断を要さない。`/test` Phase F は本エージェントを委譲する前に以下を直接実行し、この2ステップを完了させる:
 
 ```bash
-python -c "import shutil; shutil.rmtree(r'{log_dir}/tmp', ignore_errors=True)"
+python "{project_dir}/scripts/python/backlog-xlsx/generate_test_report.py" \
+  --issue-id "{issueID}" \
+  --judgment "{judgment_path}" \
+  --spec "{spec_path}" \
+  --log-dir "{log_dir}" \
+  --alias "{alias}" \
+  --instance-url "{instance_url}"
 ```
 
----
+出力フォーマット・省略ルール（`taigaigai_list` 空なら「対象外」節省略、目視ハンドオフ対象ゼロなら「🔎 目視確認のご案内」節省略 等）はスクリプト内部で本エージェントの旧 Step 6 仕様と同一に保つ（仕様を変更する場合は `generate_test_report.py` も同期して変更すること）。「操作手順」列は `{spec_path}` の「テスト手順」列（該当 No）があればそのまま転記し、無い場合は「前提・データ準備」＋「実行アクション」を機械的に連結する（LLM による自然文要約は行わない簡易フォールバック。台本どおりの体裁より確実な自動化を優先した設計判断）。
 
-## Step 6: test-report.md の生成 — **Phase F（レポート・後始末モード）でのみ実行**
-
-`{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。
-
-**生成元**: `{judgment_path}`（`judge_results.py` が Phase E で生成した `judgment-result.json`）。
-以下のキーを使って各列を組み立てる:
-- `results[].status` → 判定列（OK/NG/SKIP/対象外）・絵文字マッピング: OK=✅ / NG=❌ / SKIP=（要手動）/ 対象外=▲
-- `results[].actual` → 実際の結果列
-- `results[].label` + 種別は `{spec_path}` を照合して補完
-- `ng_list[].reason` → NG 一覧の理由
-- `skip_list` → 要手動確認テーブル（test-spec.md の観点・理由を補完）
-- `taigaigai_list[].reason` → 対象外（検証不能）テーブルの理由
-- `ok`/`ng`/`skip`/`taigaigai`/`total` → テスト実行サマリー
-
-**目視ハンドオフブロックの組み立て**（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）:
-1. `{log_dir}/created_records.txt`（存在する場合）を Read し、各行 `{SObject}|{Id}|{Name}|{TC/仮説番号}` の `{SObject}`・`{Id}` を `{instance_url}/lightning/r/{SObject}/{Id}/view` に変換する（`{Name}`・`{TC/仮説番号}` は表の「確認対象」「対象TC」列にそのまま使う）
-2. `{log_dir}/ui_screen_urls.txt`（存在する場合）を Read し、`{No}|{観点}|{画面URL}` の行をそのまま行に使う
-3. 「操作手順」列は `{spec_path}` の「テスト手順」列（該当 No）から転記。空なら「前提・データ準備」＋「実行アクション」から要約
-4. 該当ファイルが両方とも存在しない、または中身が空の場合は「目視確認のご案内」節ごと省略する（空リンクの表を出さない）
-
-`{log_dir}/test-report.md` に以下のフォーマットで保存する:
-
-```markdown
-## テスト結果: {issueID}
-
-### テスト実行サマリー
-- 実行日時: {YYYY-MM-DD HH:MM}
-- Sandbox alias: {alias}
-- テストケース合計: {total} 件
-- OK: {ok} 件 / NG: {ng} 件 / 要手動: {skip} 件 / 対象外: {taigaigai} 件
-- テスト実行回数: {N} 回目（NG 修正後の再実行回数）
-
-### 自動実行結果
-
-| No | 観点 | 種別 | 実際の結果 | 判定 |
-|---|---|---|---|---|
-| TC-001 | ... | SOQL | 3 件 | ✅ OK |
-| TC-002 | ... | UI | スクショ取得済 | ✅ OK |
-| TC-003 | ... | AnonApex | デバッグログに期待値なし | ❌ NG |
-
-### NG 一覧
-
-{ng_count} 件の NG が検出されました。
-
-| No | 観点 | NG 理由 |
-|---|---|---|
-| TC-003 | ... | {reason} |
-
-### 要手動確認（自動化不可ケース）
-
-| No | 観点 | 理由 |
-|---|---|---|
-| TC-005 | ... | ... |
-
-エビデンス.xlsx「証跡」シートの該当ケース枠にスクリーンショットを貼り付けてください。操作手順は `{spec_path}` の該当 No「テスト手順」列（無ければ「前提・データ準備」＋「実行アクション」）を参照。要手動ケースは Claude がレコードを作成していない（外部サービス通信・本番限定データ・実時刻起動が理由のため）ので、下記「🔎 目視確認のご案内」には通常含まれない。
-
-### 対象外（検証不能）
-
-{taigaigai_count} 件が対象外です。前提状態の消失等により、自動・手動を問わず今回のテストでは検証する手段がありません（NG・要手動確認のいずれにも含めていません）。
-
-| No | 観点 | 対象外の理由 |
-|---|---|---|
-| TC-007 | ... | {reason} |
-
-`taigaigai_list` が空の場合は本節ごと省略する（空テーブルを出さない）。
-
-### 網羅性チェック
-
-Phase B（test-spec-builder）で確認済み。
-
-### テストデータ
-- 削除は行わず Sandbox に保持（プレフィックス: `AUTOTEST_{issueID}_`）。対象レコードの直接URLは下記「🔎 目視確認のご案内」を参照。
-
-## 🔎 目視確認のご案内
-
-Sandbox（{alias}）に未ログインの場合は、リンククリック後にログイン画面が出ます。ログイン後に対象が表示されます。
-
-| 確認対象 | 画面/レコードURL | レコードID | 対象TC | 操作手順 |
-|---|---|---|---|---|
-| {ラベル（日本語表示名）} | {instance_url}/lightning/r/{SObject}/{Id}/view | {Id} | TC-00X | ①…→②… |
-| {画面ラベル} | {画面URL（クエリ除去済み）} | — | TC-00Y | ①…→②… |
-
-> `created_records.txt` / `ui_screen_urls.txt` が無い、または中身が空の場合は本節を省略する。
-
-### 総合判定
-{NG が 0 件なら「PASS — Phase 6 リリース準備へ進めます」、NG がある場合は「FAIL — Phase 4/3/2 に差し戻し」}
-```
-
-> この「総合判定」欄は本 Step（Phase F）完了後、test.md Phase F-1（受入基準再確認・blind 最終解決判定）で指摘があった場合に「条件付きPASS（要確認）」へ書き換えられることがある。本エージェントはその書き換えを行わない（Phase F-1 の責務）。
+> この「総合判定」欄は test.md Phase F-1（受入基準再確認・blind 最終解決判定）で指摘があった場合に「条件付きPASS（要確認）」へ書き換えられることがある。本エージェントも `generate_test_report.py` もその書き換えは行わない（Phase F-1 の責務）。
 
 ---
 
@@ -338,7 +258,9 @@ Sandbox（{alias}）に未ログインの場合は、リンククリック後に
 
 > `{judgment_path}` が空/未指定（Phase C）の場合はこのステップをスキップする。
 
-test-report.md 生成（Step 6）完了後、今回の実行で**新たに確立したテストデータレシピ**と**テスト環境固有の落とし穴**を `docs/knowledge/test-prerequisites.md` の § 2・§ 4 に還流する。
+**前提**: `{log_dir}/test-report.md` は `generate_test_report.py`（上記）により既に生成済みである。本エージェントは Phase F ではこの Step 7 のみを担当する。まず `{log_dir}/test-report.md` を Read して存在を確認する（存在しない場合は `generate_test_report.py` の実行漏れの疑いがあるため、その旨をユーザーに報告して停止する）。
+
+今回の実行で**新たに確立したテストデータレシピ**と**テスト環境固有の落とし穴**を `docs/knowledge/test-prerequisites.md` の § 2・§ 4 に還流する。
 
 ### 実行条件（§ 2 レシピ還流）
 
@@ -368,11 +290,11 @@ test-report.md 生成（Step 6）完了後、今回の実行で**新たに確立
    - **スキップ**: 登録済み・かつ非キー列も完全一致 → **何もしない**
    - **マージ更新**: 登録済み・かつ追加情報あり → 既存行を **Edit で置換**・確認日を更新
 4. **§ 2・§ 4 合算で最大5行まで**（超過は次回以降）
-5. 返却テキスト（test-report.md の末尾の「テストデータ」セクション）に `[前提還流] § 2 に {N} 行・§ 4 に {M} 行追記/更新` を明記する
+5. `{log_dir}/test-report.md` の「### テストデータ」セクション（`- 削除は行わず Sandbox に保持...` 行の直後・次の見出し（`## 🔎 目視確認のご案内` または `### 総合判定`）より前）に **Edit で** `[前提還流] § 2 に {N} 行・§ 4 に {M} 行追記/更新` の1行を追記する（他セクションの位置はずらさない）
 
 ### スキップ時の記録
 
-条件を満たさない場合は追記をスキップし、返却テキストに以下を明記する:
+条件を満たさない場合は追記をスキップし、`{log_dir}/test-report.md` の同じ位置に以下いずれかを **Edit で** 追記する:
 - `[前提還流スキップ: 今回の手順はすべて既登録かつ変更なし]`
 - `[前提還流スキップ: 機密値検出のため除外]`
 
@@ -380,8 +302,8 @@ test-report.md 生成（Step 6）完了後、今回の実行で**新たに確立
 
 ## 完了条件（セルフチェック）
 
-**証跡採取モード（Phase C・`{judgment_path}` 未指定）の完了条件**: 証跡ファイルの存在確認（下記 ☑ 項目）まで。test-report.md 生成・tmp 削除は実施しない。
-**レポート・後始末モード（Phase F・`{judgment_path}` 指定あり）の完了条件**: test-report.md 生成・tmp 削除まで（証跡採取は再実行しない）。テストデータの cleanup は行わない。
+**証跡採取モード（Phase C・`{judgment_path}` 未指定）の完了条件**: 証跡ファイルの存在確認（下記 ☑ 項目）まで。
+**知見還流モード（Phase F・`{judgment_path}` 指定あり）の完了条件**: Step 7（知見還流の実行またはスキップ記録の test-report.md への追記）まで。test-report.md 本体の生成・tmp 削除は `generate_test_report.py` が既に完了している前提のため、本エージェントはテストデータの cleanup も含め実施しない。
 
 ```bash
 ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/after/screen/" 2>/dev/null
@@ -390,8 +312,8 @@ ls "{evidence_dir}/after/soql/" "{evidence_dir}/after/apex/" "{evidence_dir}/aft
 - [ ] SOQL ケース: 全件 txt 出力あり
 - [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む）
 - [ ] UI ケース: ui-evidence-runner の返却で全件 OK（PNG 各 1KB 以上・DOM スナップショット txt あり）
-- [ ] （Phase F のみ）test-report.md が `{log_dir}` に存在すること
-- [ ] （Phase F のみ）tmp/ 一時ファイルが削除済み
+- [ ] （Phase F のみ）`{log_dir}/test-report.md` が存在すること（`generate_test_report.py` の実行漏れがないこと）
+- [ ] （Phase F のみ）Step 7 の追記（還流内容 or スキップ記録）が test-report.md に反映されていること
 - [ ] accessToken がいかなるファイル・ログにも出力されていない
 
 未充足項目があれば該当 Step に戻って完了させる。
