@@ -228,6 +228,7 @@ async function highlightTarget(page, targetLabel) {
   for (const loc of locators) {
     try {
       const el = loc.first();
+      if ((await el.count()) === 0) continue; // この候補は0件 → 3秒waitFor省略で次候補へ即スキップ（テスト時短）
       await el.waitFor({ state: 'visible', timeout: 3000 });
       await el.evaluate(node => {
         node.dataset._prevOutline = node.style.outline || '';
@@ -284,6 +285,7 @@ async (page) => {
     for (const loc of locators) {
       try {
         const el = loc.first();
+        if ((await el.count()) === 0) continue; // この候補は0件 → 3秒waitFor省略で次候補へ即スキップ（テスト時短）
         await el.waitFor({ state: 'visible', timeout: 3000 });
         await el.evaluate(node => {
           node.dataset._prevOutline = node.style.outline || '';
@@ -418,6 +420,8 @@ async (page) => {
 ## Step 3: 複数ユーザ（権限別）UI 証跡 — Login As バッチ
 
 「前提・データ準備」に「対象プロファイル: {プロファイル名}」または「確認ユーザ: {ユーザ名}」が記載されているケースを対象にする（グループ③）。
+
+**グループ①②が0件の場合の初回ログイン（必須）**: グループ①②のTC数が0件（＝ Step 2 がまるごとスキップされ、`page` が一度も FRONTDOOR_URL へ遷移していない）の場合は、このバッチの最初のコードブロック冒頭で `await page.goto(FRONTDOOR_URL); await waitSfReady(page);` を実行して認証済みセッションを確立してから、以下の Login As 前提チェック・実ユーザ名の解決に進む。グループ①②が1件以上処理済みの場合は `page` が既に認証済みのため、この初回ログインは不要（重複実行しない）。
 
 **バッチ化の原則**: `ui_cases` を対象ユーザ単位でグルーピングし、ユーザごとに `Login As 1回 → 当該ユーザの全 TC を連続撮影 → logout 1回` に収める。TC ごとに Login As/logout を往復しない。
 
