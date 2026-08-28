@@ -67,6 +67,8 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 3. Read `.claude/templates/common/answer-scope-spec.md` — 回答時のスコープ管理ルール（派生事項の分離・無断リファクタ禁止）
 4. Read `.claude/templates/common/uncertainty-marker-spec.md` — 確証なし時のマーカー規約（[推定]/[要確認]/[出典不明]の使い分け）
 
+> `{tmp_dir}`（Phase 1 1a-2 前倒し実行時・Phase 4 実行時のいずれで option-org-drift-check.md を呼び出す場合も、および本ファイル「Phase 最終: クリーンアップ」で共通参照する一時ディレクトリ）は `docs/logs/{issueID}/.tmp` に固定する（未定義のまま参照すると、作成した一時フォルダとクリーンアップ対象パスが食い違い、ゴミフォルダが残存する）。
+
 ---
 
 ## Phase 1: リリース資材の確定
@@ -133,7 +135,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 > 事前ガード: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)（本番）・[sandbox-alias-check.md](../templates/common/sandbox-alias-check.md)（Tier 0 のみ・UAT/Sandbox）
 
 1. `prod-readonly-check.md` で本番組織への接続を確認する（read-only 前提の明示）。本番エイリアスが不明・未認証の場合はユーザーに確認する。**本番に接続できない/認証情報がない場合はこの Phase をスキップし、release-plan.md に「本番環境ドリフト確認: 未実施（接続情報なし）」と明記して Phase 5 へ進む**（リリース準備自体は続行可能）
-2. **Tier 0（環境間実体差分チェック・マニフェスト非依存）**: Phase 1 の 1a（`.gitignore` 該当時のフォールバック）で前倒し実行済みの場合はここでは再実行せず、その結果を release-plan.md に転記する。未実施の場合はここで実施する。Tier 0 は UAT（Sandbox）との比較を伴うため、実施前に `sandbox-alias-check.md` で Sandbox 接続（`$SF_ALIAS`）も確認する（Sandbox に未接続/認証情報がない場合は Tier 0 のみスキップし、Tier 1/2 は通常どおり実施する）
+2. **Tier 0（環境間実体差分チェック・マニフェスト非依存）**: Phase 1 の 1a（`.gitignore` 該当時のフォールバック）で前倒し実行済みの場合はここでは再実行せず、その結果を release-plan.md に転記する。未実施の場合はここで実施する。Tier 0 は UAT（Sandbox）との比較を伴うため、実施前に `sandbox-alias-check.md` で Sandbox 接続（`$SF_ALIAS`）も確認する（Sandbox に未接続/認証情報がない場合は Tier 0 のみスキップし、release-plan.md に「Tier 0: 未実施（Sandbox未接続）」と明記して Tier 1/2 は通常どおり実施する。未リリース積み残しを検知する Tier 0 を、記録なしに読み飛ばさない）
 3. Tier 1（軽量スキャン）: `sf org list metadata` で対象コンポーネントの最終更新日/更新者を確認し、base コミット日時より後に他者が触った痕跡を抽出する
 4. Tier 2（深掘り）: Tier 1 で痕跡ありのコンポーネントのみ、一時ディレクトリへ本番から retrieve して現在の force-app と diff する。**`force-app/` へは絶対に取得しない**
 5. 一時ディレクトリは使用後に削除する（[cleanup-rules.md](../spec/cleanup-rules.md) 準拠）
