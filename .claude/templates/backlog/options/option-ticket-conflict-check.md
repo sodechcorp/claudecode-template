@@ -17,10 +17,11 @@
    mcp__backlog__get_issues（プロジェクトID指定・statusId で「処理中」「未対応」等の未完了ステータスに絞り込み・自課題 {issueID} は除外）
    ```
    - 件数が多い場合は直近更新順（`sort: updated`, `order: desc`）で上位 N 件（目安 30 件）に絞る。全件走査が必要な規模の場合はユーザーに絞り込み条件（担当者・カテゴリ等）を確認する
+   - `get_issues` のレスポンスには課題本文（`description`）が既に含まれる。**本文確認のためだけに `get_issue` を候補ごとに呼び直さない**（`get_issues` の結果をそのまま使う。二重取得はコストの無駄）
 
 3. **各候補課題の関連コミット・PR を確認する**（分かる範囲で）:
    - `mcp__backlog__get_git_repositories` / PR がある場合は `mcp__backlog__get_pull_requests` で該当課題番号を含む PR タイトル・ブランチ名を検索
-   - 課題本文・コメントに記載されたファイルパス・コンポーネント名を `mcp__backlog__get_issue` / `get_issue_comments` で確認する（本文からの手がかりに限る。Backlog に紐づく Git リポジトリの実ファイル差分までは追わない＝重すぎるため対象外）
+   - 課題本文（Step 2 で取得済みの `description`）とコメント（`mcp__backlog__get_issue_comments`）に記載されたファイルパス・コンポーネント名を確認する（Backlog に紐づく Git リポジトリの実ファイル差分までは追わない＝重すぎるため対象外）
 
 4. **突き合わせる**:
    - 自課題の変更対象ファイル/API名と、候補課題の言及ファイル/API名が一致 or 包含関係にあれば「競合候補」としてマークする
