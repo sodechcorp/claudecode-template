@@ -117,7 +117,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 > 詳細スペック: [option-ticket-conflict-check.md](../templates/backlog/options/option-ticket-conflict-check.md)
 
-Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Backlog read-only MCP で進行中の他課題と競合していないかを確認する。競合候補が見つかった場合は重大度（高/中/低/情報不足）を判定し、release-plan.md に記録する。
+Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Backlog read-only MCP で進行中の他課題と競合していないかを確認する。競合候補が見つかった場合は重大度（高/中/低/情報不足/未確認〔省略〕）を判定し、release-plan.md に記録する。
 
 ## Phase 4: 本番環境ドリフト検知（階層型）
 
