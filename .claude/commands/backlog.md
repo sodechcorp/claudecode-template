@@ -442,6 +442,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/create_records.py" \
    - label: `修正して再試行`、description: "エラー原因を修正してスクリプトを再実行する"
    - label: `中止`、description: "コマンドを終了する"
 3. 「xlsx なしで続行」が選ばれた場合: `{xlsx_folder}` = null として Phase 3.5 へ進む。create_records.py が途中成功してファイルが残っている可能性があるため、`{xlsx_folder}` 配下に生成済み xlsx（`{issueID}_対応記録.xlsx`）が存在する場合は削除する（破損ファイルが後続 Phase で誤参照されるのを防ぐため。エビデンス.xlsx はこの Phase では生成しないため削除対象外）
+4. この対処結果（選ばれた対応・エラー概要）は会話内で保持しておく（Phase 4 以降の xlsx スクリプト失敗ゲートで、同種のエラーが再発した際に文脈提示するために使う。新たな変数管理・永続化は不要）。
 
 生成完了後にファイルパスをユーザに提示する（`{xlsx_folder}` = null の場合はスキップ）:
 - `{xlsx_folder}/{issueID}_対応記録.xlsx`
@@ -535,7 +536,8 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 
 スクリプト失敗時の対処（エラー出力あり / 終了コード 非0）:
 1. エラー内容をユーザに提示する
-2. テキストで選択を確認する:「xlsx なしで続行」（xlsx_folder = null に変更して続行）/「修正して再試行」/「中止」
+2. **Phase 3 の xlsx スクリプト失敗ゲートが既にこのセッションで発生している場合**、そのときの対処結果を一言添える（例:「Phase3でも同種のエラーが発生し『修正して再試行』を選択済みです」）。判断の自動適用ではなく、ユーザが状況を思い出しやすくする文脈提示のみ。該当がなければこの手順は省略する。
+3. テキストで選択を確認する:「xlsx なしで続行」（xlsx_folder = null に変更して続行）/「修正して再試行」/「中止」
 
 **xlsx 充足確認（verify）**（`{xlsx_folder}` が設定されている場合のみ）
 
@@ -545,7 +547,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   verify --stage pre-release
 ```
 
-verify 結果が **NG（exit 2）** の場合: 未充足枠を提示し、テキストで対処を確認する:
+verify 結果が **NG（exit 2）** の場合: 未充足枠を提示する。**Phase 3 または直前の xlsx 一括記入ゲートが既にこのセッションで発生している場合**は、その経緯を一言添えてから（判断の自動適用ではなく文脈提示のみ）、テキストで対処を確認する:
 - 「自動補完」: `content-from-md` を再実行する（implementation-summary.md が存在する場合のみ）
 - 「手動修正後続行」: ユーザが xlsx を手動で修正してから続行
 - 「xlsx なしで続行」: `{xlsx_folder}` = null として Phase 5 へ進む
