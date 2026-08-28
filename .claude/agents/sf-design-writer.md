@@ -132,6 +132,11 @@ python -c "import pathlib; root = pathlib.Path(r'{output_dir}').parent; basic_di
 
 > 一時ファイルルール: [.claude/templates/common/tmp-file-rules.md]({project_dir}/.claude/templates/common/tmp-file-rules.md)
 
+**ルールを読み込む:**
+```
+Read: {project_dir}/.claude/templates/common/tmp-file-rules.md
+```
+
 ---
 
 ## Phase 0.7: ハッシュチェック（全コンポーネント一括）
