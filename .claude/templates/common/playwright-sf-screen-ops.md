@@ -33,11 +33,19 @@ Salesforce Setup 配下（`/_ui/`・`/lightning/setup/` 等）の URL は、**�
 
 **前提**: 対象エイリアスが sf CLI に有効な状態で認証済みであること。未確認の場合は `sandbox-alias-check.md` の「認証状態の確認」を先に実施する（未認証・期限切れのまま実行すると本コマンドが失敗する）。
 
+**1件目の遷移先（相対パス）が判明している場合（推奨）**: `--path` に渡すと `FRONTDOOR_URL` の `retURL` にその画面が埋め込まれ、ログイン直後に対象画面へ直接着地する（`--path` 省略時は既定の Lightning ホームに着地してから別途アプリ内遷移が必要になり、その分の画面読み込みが毎回無駄になる）。
+
+```bash
+sf org open --target-org "$SF_ALIAS" --url-only --json --path "{1件目の対象画面の相対パス}"
+```
+
+**1件目の遷移先が未確定、またはクリック操作でしか到達できない場合**: `--path` を省略する。
+
 ```bash
 sf org open --target-org "$SF_ALIAS" --url-only --json
 ```
 
-JSON の `result.url` を `FRONTDOOR_URL` として取得する。
+JSON の `result.url` を `FRONTDOOR_URL` として取得する。`--path` 指定時は `page.goto(FRONTDOOR_URL)` の1回で1件目の対象画面まで到達するため、直後に続けていた個別ナビゲーションは不要になる。
 
 **セキュリティ（必須）**: accessToken（FRONTDOOR_URL に含まれる）は以下に絶対に出力しない:
 - Write するファイル（証跡・ログ・レポート）
@@ -234,7 +242,7 @@ async (page) => {
       return await page.locator('body').innerText();
     }
   }
-  // 画面に遷移（1件目のみ: await page.goto(FRONTDOOR_URL) でログインしてもよい）
+  // 画面に遷移（1件目かつ --path 指定済みなら FRONTDOOR_URL 自体が対象画面。それ以外は対象URLへ直接遷移）
   await page.goto('{対象URL}');
   await waitSfReady(page);
   // before 撮影（fullPage: true で観点が viewport 外でも写る）+ before DOM 取得
