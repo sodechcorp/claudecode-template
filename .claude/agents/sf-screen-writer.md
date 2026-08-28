@@ -74,7 +74,7 @@ Phase 1 で `docs/design/` / `docs/requirements/` / `docs/catalog/` 等を参照
 
 ### API名 vs 日本語ラベルの使い分け（全箇所共通）
 
-> 共通ルール: [.claude/templates/common/naming-convention-api-vs-label.md](../templates/common/naming-convention-api-vs-label.md)
+> 共通ルール（自然言語テキスト項目での禁止事項を含む）は Phase 0 で読み込む `naming-convention-api-vs-label.md` を参照する。
 
 - **usecases**: 全ユースケースを記述する。「画面を表示する」のような抽象的な記述は禁止
   - `title` は操作名（例: 「保存ボタンを押す」「初期表示」「モーダルを開く」）
@@ -121,6 +121,12 @@ python -c "import pathlib; ddt = r'{detail_design_tmp}'; detail_dir = pathlib.Pa
 見つからない場合（フォールバックパスが存在しない場合を含む）は上位設計参照なしで続行する。
 
 > 一時ファイルルール: [.claude/templates/common/tmp-file-rules.md](../templates/common/tmp-file-rules.md)
+
+**参照リファレンスを読み込む（Phase 0 で1回のみ Read）:**
+```
+Read: {project_dir}/.claude/templates/common/naming-convention-api-vs-label.md
+```
+API名 vs 日本語ラベルの使い分け・自然言語テキスト項目での禁止事項を把握してから Phase 1 へ進む。
 
 ---
 

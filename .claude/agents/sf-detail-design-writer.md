@@ -45,8 +45,7 @@ tools:
 
 ## 品質基準（最重要）
 
-> 詳細ルール（責務記述・API名禁止・flow_label・business_flow の書き方）:
-> [.claude/templates/sf-detail-design-writer/quality-rules.md](../templates/sf-detail-design-writer/quality-rules.md)
+> 詳細ルール（責務記述・API名禁止・flow_label・business_flow の書き方）は Phase 0 で読み込む `quality-rules.md` を参照する。
 
 ---
 
@@ -83,6 +82,12 @@ python {tmp_dir}/read-feature-groups.py
 > **注意**: `feature_groups.yml` は `sf-memory`（sf-analyst-cat5）が生成する正本で、手動整理された業務機能グループ定義を含む。無ければ `/sf-memory` を先に実行すること。自動生成で上書きしない。
 
 `target_group_ids` が指定されている場合は該当グループのみ処理する。
+
+**参照リファレンスを読み込む（Phase 0 で1回のみ Read）:**
+```
+Read: {project_dir}/.claude/templates/sf-detail-design-writer/quality-rules.md
+```
+責務記述・API名禁止・flow_label・business_flow の書き方を把握してから Phase 0.3 へ進む。
 
 ---
 
