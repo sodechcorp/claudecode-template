@@ -318,9 +318,30 @@ async (page) => {
 
 コードブロックがロケータ不一致・タイムアウトで失敗した場合:
 
-1. `mcp__playwright__browser_snapshot` で現在の DOM を取得し、実際の aria-label・テキスト・ロール等を確認する
-2. コードブロックのロケータ・waitFor 条件を修正して `mcp__playwright__browser_run_code_unsafe` を再実行する
-3. 2 回目も失敗した場合は、個別の `mcp__playwright__browser_click` / `mcp__playwright__browser_type` 等を使って対話的に操作する
+1. まず `mcp__playwright__browser_run_code_unsafe` で軽量スキャン（下記コードブロック）を実行し、操作対象になりうる要素（button/a/input/select/textarea/role属性/aria-label属性を持つ要素）の tag・role・aria-label・テキストを一覧取得する。`page.locator()` は Shadow DOM を自動貫通するため LWC/Aura コンポーネント内部の要素も収集できる（`page.locator('.slds-spinner, lightning-spinner')` と同じ仕組み。「高速待機」セクション参照）。`mcp__playwright__browser_snapshot` のページ全体アクセシビリティツリー取得よりコストが小さい。
+
+   ```javascript
+   // フォールバック軽量スキャン（証跡保存なし・返却のみ）
+   async (page) => {
+     const selector = 'button, a, input, select, textarea, [role], [aria-label]';
+     const handles = await page.locator(selector).all();
+     const results = [];
+     for (const el of handles.slice(0, 150)) {
+       if (!(await el.isVisible().catch(() => false))) continue;
+       results.push({
+         tag: await el.evaluate(node => node.tagName.toLowerCase()),
+         role: await el.getAttribute('role'),
+         ariaLabel: await el.getAttribute('aria-label'),
+         text: (await el.innerText().catch(() => '')).trim().slice(0, 40),
+       });
+     }
+     return JSON.stringify(results);
+   }
+   ```
+
+2. 軽量スキャンの結果から対象要素が特定できれば、コードブロックのロケータ・waitFor 条件を修正して `mcp__playwright__browser_run_code_unsafe` を再実行する
+3. 軽量スキャンで対象要素が特定できない場合のみ `mcp__playwright__browser_snapshot` で現在の DOM 全体（アクセシビリティツリー）を取得し、実際の aria-label・テキスト・ロール等を確認する
+4. 2 回目も失敗した場合は、個別の `mcp__playwright__browser_click` / `mcp__playwright__browser_type` 等を使って対話的に操作する
 
 ---
 
