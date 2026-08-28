@@ -37,21 +37,38 @@ echo "INSTANCE_URL=$INSTANCE_URL"
 承認プロセス（Approval Process）・ワークフロー/Process Builder のメールアラート・Flow の「メールを送信」アクションを起動しうる操作（**実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作**）の直前に必ず実施する。SOQL の SELECT・dry-run デプロイ等、レコードを変更しない操作では不要。
 
 ```bash
-QUERY_CSV=$(sf data query --target-org "$SF_ALIAS" \
-  -q "SELECT Username, Email FROM User WHERE IsActive = true AND Email != null AND NOT Email LIKE '%.invalid'" -r csv)
-echo "$QUERY_CSV"
+# 該当件数を先に軽量取得（COUNT()）。0件ならUsername/Emailの全件取得自体を省略してテスト時短する。
+# 該当が1件以上ある場合は下記で必ずLIMITなしの全件取得に進む（安全確認の性質上、閾値超過分を切り捨てて見逃すことは禁止）。
+MATCH_COUNT=$(sf data query --target-org "$SF_ALIAS" \
+  -q "SELECT COUNT() FROM User WHERE IsActive = true AND Email != null AND NOT Email LIKE '%.invalid'" --json \
+  | python -c "import sys,json; print(json.load(sys.stdin)['result']['totalSize'])" 2>/dev/null || echo "0")
+echo "MATCH_COUNT=$MATCH_COUNT"
 
-# Username,Email をソートして安定文字列化 → SHA256 でハッシュ化（機械的に算出する。LLMが暗算・独自判断で計算しない）
-QUERY_HASH=$(echo "$QUERY_CSV" | python -c "
+if [ "$MATCH_COUNT" = "0" ]; then
+  echo "OK: 該当ユーザーなし。メール到達安全確認は不要のためスキップします。"
+else
+  QUERY_CSV=$(sf data query --target-org "$SF_ALIAS" \
+    -q "SELECT Username, Email FROM User WHERE IsActive = true AND Email != null AND NOT Email LIKE '%.invalid'" -r csv)
+  echo "$QUERY_CSV"
+
+  # 想定外の大量該当を検知（Sandbox作成時は通常 .invalid が全ユーザーへ一括付与されるため該当は少数のはず。
+  # 50件超は個別ユーザーの手動編集ミスではなく組織全体のメール保護設定が機能していない可能性を示す）
+  if [ "$MATCH_COUNT" -gt 50 ]; then
+    echo "WARN: 該当ユーザーが$MATCH_COUNT件と異常に多数です。Sandboxのメール保護設定（.invalid付与）が組織全体で機能していない可能性があります。"
+  fi
+
+  # Username,Email をソートして安定文字列化 → SHA256 でハッシュ化（機械的に算出する。LLMが暗算・独自判断で計算しない）
+  QUERY_HASH=$(echo "$QUERY_CSV" | python -c "
 import sys, csv, hashlib, io
 rows = list(csv.reader(io.StringIO(sys.stdin.read())))[1:]  # ヘッダー除く
 stable = '\n'.join(sorted(','.join(r) for r in rows))
 print(hashlib.sha256(stable.encode('utf-8')).hexdigest())
 ")
-echo "QUERY_HASH=$QUERY_HASH"
+  echo "QUERY_HASH=$QUERY_HASH"
+fi
 ```
 
-**再確認スキップ判定（キャッシュ）**: クエリ結果が0件（該当ユーザーなし）の場合は確認不要でそのまま続行する。1件以上ある場合、上記 `QUERY_HASH` をキャッシュファイル（`{log_dir}/.email-safety-ack.json`。呼び出し元が `{log_dir}` を持たない場合は `docs/logs/{issueID}/.email-safety-ack.json`）の `hash` と比較する:
+**再確認スキップ判定（キャッシュ）**: `MATCH_COUNT` が0件の場合は上記の通り確認不要でそのまま続行する（後続のユーザー確認は行わない）。1件以上ある場合、上記 `QUERY_HASH` をキャッシュファイル（`{log_dir}/.email-safety-ack.json`。呼び出し元が `{log_dir}` を持たない場合は `docs/logs/{issueID}/.email-safety-ack.json`）の `hash` と比較する:
 - キャッシュが存在し `hash` が `QUERY_HASH` と一致する場合: 「前回確認済みの対象ユーザーリストと同一のため再確認をスキップします（前回確認: {キャッシュの `confirmed_at`}）」と表示して続行する（下記のユーザー確認は行わない）
 - キャッシュが不在、または `hash` が不一致（対象ユーザーが増減・変化した）の場合: 下記のとおり通常どおりユーザーに確認を取る。ユーザーが承認したら `{"hash": "$QUERY_HASH", "confirmed_at": "{ISO日時}", "usernames": [{該当ユーザー一覧}]}` をキャッシュファイルに Write する
 
