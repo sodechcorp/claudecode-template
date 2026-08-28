@@ -252,6 +252,8 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 ### 3.6. 知見の自動還流（pitfalls.md + verify-spec 追加ルール欄）
 
+> **設計意図（他の知見還流 Step との非対称）**: pitfalls.md（本 Step）のみユーザー確認を必須とし、decisions.md（Step 3）・cases/{issueKey}.md（Step 3.8）・case-index.md（Step 4.5）は確認なしで自動追記する。理由は抽出元の確度の違い: 後者3つは approach-plan.md の採用方針・implementation-plan.md 等、**既にユーザーが承認済みの構造化セクション**からの転記・集約に留まる。一方 pitfalls.md は discussion-log.md の自然文からの発見的パターン抽出（フォールバック時は approach-plan.md/test-report.md の全文 Grep。§[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) も Phase 3.6 経由は常に `[fallback]` と明記）であり、**ユーザー未検証の新規の主張**を全案件が参照する共有知識ベースに書き込むことになる。誤検出が混入すると気づかれにくく将来の判断を誤らせるリスクがあるため、この Step のみ意図的にユーザー確認を挟んでいる（意図的設計であり非対称はバグではない）。
+
 > **スキップ判定**: `docs/logs/{issueID}/discussion-log.md` が存在しない場合は以下のフォールバック抽出を試みる:
 > 1. `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/test-report.md` が存在するか確認
 > 2. 両方とも存在しない場合は完全スキップ
