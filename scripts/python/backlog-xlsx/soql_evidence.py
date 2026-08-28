@@ -26,6 +26,10 @@ import shutil
 import sys
 from pathlib import Path
 
+from simple_salesforce import Salesforce
+from simple_salesforce.exceptions import SalesforceError
+import requests
+
 
 # sf CLI のフルパス解決（Windows で "sf" が .CMD の場合、shell=False の
 # subprocess.run は PATHEXT を自動解決せず FileNotFoundError になるため、
@@ -35,8 +39,13 @@ SF_BIN = shutil.which("sf") or "sf"
 
 # ── sandbox 判定 ─────────────────────────────────────────────────────────────
 
-def assert_sandbox(alias: str) -> str:
-    """alias が Sandbox であることを確認する。本番なら SystemExit。接続済み alias を返す。"""
+def assert_sandbox(alias: str) -> tuple:
+    """alias が Sandbox であることを確認する。本番なら SystemExit。
+    (alias, access_token, instance_url, api_version) を返す（sf org display 1回分の
+    応答から REST 直叫び用の認証情報・API バージョンも併せて取り出す。SOQL 1件ごとの
+    sf プロセス起動を避けるため、以降の SOQL 実行はこれらを使って simple_salesforce
+    経由の REST API 呼び出しに切り替える）。
+    """
     if not alias:
         result = subprocess.run(
             [SF_BIN, "config", "get", "target-org", "--json"],
@@ -76,28 +85,50 @@ def assert_sandbox(alias: str) -> str:
             f"[FATAL] 接続先が Sandbox ではありません ({alias})。\n"
             "        本番組織への SOQL 実行は禁止されています。"
         )
-    return alias
+
+    try:
+        access_token = org_info["accessToken"]
+        instance_url = org_info["instanceUrl"]
+    except KeyError:
+        raise SystemExit(
+            f"[FATAL] org display の応答に accessToken/instanceUrl がありません ({alias})。\n"
+            "        sf CLI のバージョンを確認してください。"
+        )
+    # apiVersion も同じ応答から取得する。simple_salesforce のデフォルト API
+    # バージョン（59.0 固定）は sf CLI が実際に使う組織の API バージョンより
+    # 古く固定されているため、明示的に揃えないと sf CLI 実行時と異なる挙動に
+    # なりうる（新しい標準項目の非対応・将来の廃止バージョン化リスク等）。
+    api_version = org_info.get("apiVersion", "")
+    return alias, access_token, instance_url, api_version
 
 
 # ── SOQL 実行 ────────────────────────────────────────────────────────────────
 
-def run_soql(alias: str, query: str) -> dict:
-    """sf data query を実行して JSON 結果を返す。エラー時は SystemExit。"""
-    result = subprocess.run(
-        [SF_BIN, "data", "query", "--target-org", alias, "--query", query,
-         "--result-format", "json"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace"
-    )
+def run_soql(access_token: str, instance_url: str, api_version: str, query: str) -> dict:
+    """SOQL を REST API 経由（simple_salesforce）で実行して JSON 結果を返す。
+    sf CLI を都度起動する旧実装（クエリ1件ごとに sf プロセス1個・Node.js起動
+    オーバーヘッドが件数分累積）を廃止し、assert_sandbox で1回だけ取得した
+    access_token/instance_url/api_version を使い回して REST を直接叩く。
+    api_version は sf org display の応答値をそのまま使う（simple_salesforce の
+    デフォルト API バージョンは 59.0 固定で古く、指定しないと sf CLI 実行時と
+    ズレるため）。取得できなかった場合のみ simple_salesforce 側の既定値に委ねる。
+    Salesforce クライアントは呼び出しごとに新規生成する（requests.Session は
+    スレッド間共有せず、ThreadPoolExecutor 並列実行時の競合を避けるため）。
+    生成コストは _generate_headers のみでネットワーク往復を伴わないため軽量。
+    エラー時は SystemExit（メッセージ形式は旧実装の "[FATAL] SOQL 実行失敗: ..." を維持し、
+    run_queries_parallel の REQUEST_LIMIT/429 検出との互換性を保つ）。
+    """
+    kwargs = {"session_id": access_token, "instance_url": instance_url}
+    if api_version:
+        kwargs["version"] = api_version
     try:
-        data = json.loads(result.stdout)
-    except json.JSONDecodeError:
-        raise SystemExit(
-            f"[FATAL] SOQL レスポンスの JSON パース失敗:\n{result.stdout[:500]}\n{result.stderr[:300]}"
-        )
-    if data.get("status") != 0 and "result" not in data:
-        msg = data.get("message") or result.stderr or "不明なエラー"
-        raise SystemExit(f"[FATAL] SOQL 実行失敗: {msg}")
-    return data
+        sf = Salesforce(**kwargs)
+        result = sf.query_all(query)
+    except SalesforceError as e:
+        raise SystemExit(f"[FATAL] SOQL 実行失敗 (status={e.status}): {e}")
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(f"[FATAL] SOQL 実行失敗（通信エラー）: {e}")
+    return {"status": 0, "result": result}
 
 
 # ── 証跡テキスト生成 ─────────────────────────────────────────────────────────
@@ -196,14 +227,15 @@ def parse_queries_from_spec(spec_path: str) -> list:
 
 # ── 並列実行ヘルパー ──────────────────────────────────────────────────────────
 
-def run_one_soql_case(alias: str, q: dict, out_dir: str) -> dict:
+def run_one_soql_case(access_token: str, instance_url: str, api_version: str,
+                      q: dict, out_dir: str) -> dict:
     """1 SOQL ケースを実行し証跡保存する。ThreadPoolExecutor から呼ぶ純関数。
     返り値: {"no","label","ok":bool,"count":int|None,"out":str,"error":str}
     """
     fname = f"{q['no']}_{re.sub(r'[^\w]', '_', q['label'])[:30]}.txt"
     out_path = os.path.join(out_dir, fname)
     try:
-        data = run_soql(alias, q["query"])
+        data = run_soql(access_token, instance_url, api_version, q["query"])
         total = to_text_evidence(data, out_path, q["query"], q["label"], q["no"])
         return {"no": q["no"], "label": q["label"], "ok": True,
                 "count": total, "out": out_path, "error": ""}
@@ -212,7 +244,8 @@ def run_one_soql_case(alias: str, q: dict, out_dir: str) -> dict:
                 "count": None, "out": out_path, "error": str(e)}
 
 
-def run_queries_parallel(alias: str, queries: list, out_dir: str,
+def run_queries_parallel(access_token: str, instance_url: str, api_version: str,
+                         queries: list, out_dir: str,
                          max_workers: int = 4,
                          target_tc: set = None) -> list:
     """SOQL ケース群を並列実行する。
@@ -243,13 +276,14 @@ def run_queries_parallel(alias: str, queries: list, out_dir: str,
 
     if max_workers <= 1:
         for q in targets:
-            r = run_one_soql_case(alias, q, out_dir)
+            r = run_one_soql_case(access_token, instance_url, api_version, q, out_dir)
             results.append(r)
             if not r["ok"] and ("REQUEST_LIMIT" in r["error"] or "429" in r["error"]):
                 limit_errors.append(r["no"])
     else:
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            futs = {ex.submit(run_one_soql_case, alias, q, out_dir): q for q in targets}
+            futs = {ex.submit(run_one_soql_case, access_token, instance_url, api_version, q, out_dir): q
+                    for q in targets}
             for fut in as_completed(futs):
                 r = fut.result()
                 results.append(r)
@@ -284,7 +318,10 @@ def main():
                         help="差分再実行対象の TC 番号カンマ区切り（例: TC-003,TC-011）。省略時は全件")
     args = parser.parse_args()
 
-    alias = assert_sandbox(args.alias)  # Sandbox 確認はループ前に1回だけ実施
+    # Sandbox 確認はループ前に1回だけ実施。同じ sf org display 応答から
+    # REST 直叫び用の access_token/instance_url/api_version も取得する（SOQL
+    # 1件ごとに sf プロセスを起動しないため、以降のクエリ実行はこれらを使い回す）。
+    alias, access_token, instance_url, api_version = assert_sandbox(args.alias)
 
     if args.queries_file:
         # 一括実行（並列 or 逐次）
@@ -300,7 +337,7 @@ def main():
                      if args.target_tc else None)
         mode = "逐次" if max_workers <= 1 else f"並列 (max_workers={max_workers})"
         print(f"[INFO] {len(queries)} 件の SOQL テストケースを{mode}で実行します。")
-        results = run_queries_parallel(alias, queries, args.out_dir,
+        results = run_queries_parallel(access_token, instance_url, api_version, queries, args.out_dir,
                                        max_workers=max_workers, target_tc=target_tc)
         ng_count = sum(1 for r in results if not r["ok"])
         if ng_count:
@@ -316,7 +353,7 @@ def main():
         if not args.out:
             print("[ERROR] --out が必要です。")
             sys.exit(1)
-        data = run_soql(alias, args.query)
+        data = run_soql(access_token, instance_url, api_version, args.query)
         to_text_evidence(data, args.out, args.query, args.label, args.tc_no)
 
 
