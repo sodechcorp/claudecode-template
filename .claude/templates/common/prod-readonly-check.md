@@ -37,11 +37,14 @@ sf org display --json
 1. プロジェクト CLAUDE.md（ルート）§Salesforce組織情報 に本番組織のエイリアス記載があれば参照する
 2. 記録がない・不明な場合はユーザーに確認する: 「本番組織のエイリアスを確認します。`sf org list` の出力から本番組織のエイリアスを教えてください」
 
+**`PROD_ALIAS` はプレースホルダ**: 上記で特定した実際のエイリアス文字列を指す。`{tmp_dir}` / `{issueID}` と同様、Claude が値を保持し、以下および他ファイル（`option-org-drift-check.md` 等）のコード例を実行する際にその都度リテラル値へ置き換える。シェル変数として `export` する・前段の Bash 呼び出しでの代入が後続の別 Bash 呼び出しに引き継がれることを前提にしない（Bash ツールは呼び出しごとに独立したシェルを起動し、環境変数を永続化しないため）。
+
 ## 本番判定
 
 > **※単一行限定**: 以下の `python -c` は改行・インデントを含まない単一物理行。多行ロジックへ拡張しない（詳細: [inline-script-hygiene.md](inline-script-hygiene.md)）。
 
 ```bash
+PROD_ALIAS="<上記で特定した本番組織のエイリアス>"
 IS_SANDBOX=$(sf org display --target-org "$PROD_ALIAS" --json | python -c "import sys,json; print(json.load(sys.stdin)['result'].get('isSandbox', False))" 2>/dev/null || echo "unknown")
 if [ "$IS_SANDBOX" = "unknown" ]; then
   echo "WARN: 接続確認に失敗しました。認証切れの可能性があります。sf org login web で再認証してください。"
