@@ -121,10 +121,12 @@ Grep で「実装方針まとめ」「Implementation Summary」「テストシ�
 | regression-guard 返却項目 | 記録先テーブル（validation-report.md） |
 |---|---|
 | 依存先 | Step 3 テーブル（追加発見した参照元・内容 列） |
-| テストカバレッジ | Step 2 テーブル（テストクラス・カバレッジ・PASS/FAIL 列） |
+| テストカバレッジ | Step 2 テーブル（テストクラス・カバーしているシナリオ・カバーされていないシナリオ 列） |
 | 影響範囲（再走査） | Step 3 テーブル（追加発見した参照元・対応 列） |
 | 過去修正履歴 | Step 3 テーブル（対応 列に「過去修正: {件数}件（{概要}）」として補足） |
 
+> **Step 2 は静的確認（実行なし）**: regression-guard の Step 2 は Grep/Read によるテストコード内容の確認のみで、実際に `sf apex run test` を実行しない。カバレッジ%・PASS/FAIL の実測値はここでは得られない（`existing-test-baseline` option 本来の実行結果とは性質が異なる代替のため、Step 2 テーブルにも実行系の列は設けない）。実測のカバレッジ・PASS/FAIL は Phase 5（backlog-tester の dry-run）で確定する。
+>
 > **`regression-guard確認結果` が渡されなかった場合**: 呼び出し元での regression-guard 起動が失敗・スキップされたと判断し、Step 2-3 セクションに「regression-guard 未実行（{渡された理由があれば記載}）」と記録する。NG 扱いにはしないが Phase 4 進行前にユーザへ一言申し添える。
 
 > **option との関係**: `existing-test-baseline` / `impact-rescan` は本 Step の `regression-guard` が代替実行する。Step 0b でこれらのオプションを「採用」と判定した場合も option ファイルを個別実行せず、`regression-guard確認結果` を当該オプションの実行結果として「採用したオプション」欄に記録する。
@@ -178,9 +180,9 @@ Before エビデンスの自動採取（UI 影響時の `ui-evidence-runner` 起
 |---|---|---|---|---|
 | SELECT X FROM Y WHERE Z | N | N | OK / NG | |
 
-## Step 2: 既存テスト ベースライン
+## Step 2: 既存テストカバレッジ確認（静的・regression-guard代替）
 
-| テストクラス | カバレッジ | PASS/FAIL | 備考 |
+| テストクラス | カバーしているシナリオ | カバーされていないシナリオ | 備考 |
 |---|---|---|---|
 | | | | |
 

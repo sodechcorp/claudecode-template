@@ -167,7 +167,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    完了報告に以下のチェックリストを必須化する:
    - [ ] デプロイ成功確認（`sf project deploy report` の結果記録）
    - [ ] UI 変更を含む場合: 上記「目視確認のご案内」のURLからユーザが画面を手動確認しリリース後エビデンスを確認済み（スクショはエビデンス.xlsx 側で管理）
-   - [ ] Apex 変更を含む場合: Sandbox 上で対象テストクラスを再実行（`sf apex run test --class-names {テストクラス}`）
+   - [ ] Apex 変更を含む場合: Sandbox 上で対象テストクラスを再実行（`sf apex run test --class-names {テストクラス} --target-org "$SF_ALIAS"`）
    - [ ] データ参照系変更を含む場合: 主要 SOQL を Sandbox で実行し、件数・代表データを記録
    - [ ] 権限・FLS・レイアウト・RecordType・共有ルール変更を含む場合: CLAUDE.md §実装裏付け・出典確認 内「権限系の完了判定」に従い、異なる権限経路の実ユーザーで Login As による UI 確認済み（単一経路組織・Login As 不可組織は同ルールのフォールバックに従い、完了報告に代替手段を明記した上でチェック可）
 
