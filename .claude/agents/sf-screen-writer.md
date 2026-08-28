@@ -124,9 +124,11 @@ python -c "import pathlib; ddt = r'{detail_design_tmp}'; detail_dir = pathlib.Pa
 
 **参照リファレンスを読み込む（Phase 0 で1回のみ Read）:**
 ```
+Read: {project_dir}/.claude/templates/sf-screen-writer/json-format.md
+Read: {project_dir}/.claude/templates/sf-screen-writer/type-rules.md
 Read: {project_dir}/.claude/templates/common/naming-convention-api-vs-label.md
 ```
-API名 vs 日本語ラベルの使い分け・自然言語テキスト項目での禁止事項を把握してから Phase 1 へ進む。
+usecase 内ステップの決定木（Q1〜Q5）・JSON フォーマット・種別別作成ルール・API名 vs 日本語ラベルの使い分け・自然言語テキスト項目での禁止事項を把握してから Phase 1 へ進む。
 
 ---
 
@@ -172,7 +174,10 @@ python "{project_dir}/scripts/python/sf-doc-mcp/extract_lwc_skeleton.py" \
 
 ## Phase 0.7: ハッシュチェック（全コンポーネント一括）
 
-> 共通手順: [.claude/templates/common/phase07-hash-check-by-feature.md](../templates/common/phase07-hash-check-by-feature.md)
+```
+Read: {project_dir}/.claude/templates/common/phase07-hash-check-by-feature.md
+```
+上記手順に従い、変更のないコンポーネントをスキップリストに追加してから Phase 1 へ進む。
 
 ---
 
@@ -216,18 +221,15 @@ JSON を `tmp_dir` に書き出してからメモリを解放して次のバッ�
 
 ### usecase 内ステップの決定木（必須）
 
-> 詳細（決定木 Q1〜Q5 + エラー処理ルール + コントローラー呼び出しスコープ）:
-> [.claude/templates/sf-screen-writer/json-format.md](../templates/sf-screen-writer/json-format.md)
+> Phase 0 で読み込んだ `json-format.md` の決定木 Q1〜Q5 + エラー処理ルール + コントローラー呼び出しスコープに従う（再読み不要）。
 
 ### 種別別 JSON 生成の注意点
 
-> 詳細（LWC / 画面フロー / Aura / Visualforce の各種作成ルール + XML 読み方ガイド）:
-> [.claude/templates/sf-screen-writer/type-rules.md](../templates/sf-screen-writer/type-rules.md)
+> Phase 0 で読み込んだ `type-rules.md` の LWC / 画面フロー / Aura / Visualforce 各種作成ルール + XML 読み方ガイドに従う（再読み不要）。
 
 ### JSON 生成フォーマット（画面設計書）
 
-> スキーマ定義・サンプル:
-> [.claude/templates/sf-screen-writer/json-format.md](../templates/sf-screen-writer/json-format.md)
+> Phase 0 で読み込んだ `json-format.md` のスキーマ定義・サンプルに従う（再読み不要）。
 
 **JSON を書き出したら即座にファイルに保存する**:
 ```bash
@@ -238,8 +240,10 @@ JSON を `tmp_dir` に書き出してからメモリを解放して次のバッ�
 
 ## Phase 1.5: 生成 JSON のセルフレビュー（スクリプト実行前に必ず実施）
 
-> チェックリスト（12項目）:
-> [.claude/templates/sf-screen-writer/json-checklist.md](../templates/sf-screen-writer/json-checklist.md)
+```
+Read: {project_dir}/.claude/templates/sf-screen-writer/json-checklist.md
+```
+上記ファイルのチェックリスト（12項目）を全件確認する。
 
 チェックリストの確認後、必ずスクリプトで機械チェックを実行する:
 
