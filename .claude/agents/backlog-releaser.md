@@ -188,7 +188,11 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 ### 2b. 管理画面直接操作の場合
 
-backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/templates/backlog/deploy-skip-judgment.md）で実装スキップが選ばれた場合、デプロイは行わず管理画面操作の引き渡し手順書を作成する。`docs/logs/{issueID}/manual-operation-steps.md` に保存したうえで、**全文をそのままチャットに提示する**（ファイルパスの案内のみで済ませない。担当者がこの場を見ながら画面操作するための手順書のため）。
+backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/templates/backlog/deploy-skip-judgment.md）で実装スキップが選ばれた場合、デプロイは行わず管理画面操作の引き渡し手順書を作成する。`docs/logs/{issueID}/manual-operation-steps.md` に保存する。
+
+> **全文提示はしない**: この場でチャットに全文を貼り付けない。ファイルパスと操作ステップ数の概要のみ完了報告に含める。Todo 化・ステップごとの逐次提示は呼び出し元（`backlog.md` Phase 6）の責務。仕様: [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md)。
+
+> **操作ステップは具体的に書く**: 「Setup → ...」のような抽象語で止めない。画面名・タブ名・ボタン/リンクのラベル文言・入力する値まで、担当者がこの手順書だけを見て迷わず操作できる粒度で1ステップ1アクションに分解する（例: 「Setup → クイック検索「オブジェクトマネージャー」→ {オブジェクト名} → 項目とリレーション → 「新規」をクリック」）。
 
 ```markdown
 ## 管理画面操作手順書
@@ -202,7 +206,7 @@ backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/te
 |---|---|---|
 
 ### 操作ステップ
-1. Setup → ...
+1. {画面名・タブ名・ボタン/リンクのラベル・入力値まで具体的に1アクション単位で記述}
 2. ...
 
 ### 確認事項
@@ -263,6 +267,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 | 「○○すると××が壊れる」「○○は気を付けないと」「バグる」等の落とし穴 | `docs/knowledge/pitfalls.md` |
 | 「ユーザーから流された→実コード Read で違うことが判明」の経緯 | `verify-implementation-spec.md` §追加ルール記入欄 |
 | 「出典を誤って引用→修正」の経緯 | `verify-source-attribution-spec.md` §追加ルール記入欄 |
+| 「質問外のリファクタ・派生事項混入を無断で実施→修正」の経緯 | `answer-scope-spec.md` §追加ルール記入欄 |
 
 **手順**:
 
@@ -444,7 +449,7 @@ children:
 
 ### 残作業
 - [ ]（Sandbox 接続の場合）動作確認結果を関係者に共有する
-- [ ]（管理画面操作の場合）上記の管理画面操作手順書（docs/logs/{issueID}/manual-operation-steps.md、全文提示済み）に従い担当者が操作を実施する
+- [ ]（管理画面操作の場合）管理画面操作手順書（docs/logs/{issueID}/manual-operation-steps.md）に従い担当者が操作を実施する（この後 backlog.md 側がステップごとに逐次提示する）
 - [ ]（`pending-signoff.md` がある場合）お客様確認サイン取得（Step 3.7 参照。取得後に報告いただければ xlsx タイムラインへ追記します）
 - [ ] 本番反映が必要な場合は /release {issueID} を実行する
 - 上記以外に残作業が無ければ「残作業なし」と記載する

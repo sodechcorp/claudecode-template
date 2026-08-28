@@ -265,9 +265,9 @@ sf project deploy report --target-org <本番エイリアス>
 
 ## Phase 6: 完了・引き渡し
 
-完了報告の**前に**、`release-plan.md` の全文をチャットにそのまま提示する（ファイルパスの案内のみで済ませない）。本番デプロイを人間が手動実行するための手順書であり、ファイルを別途開かせず、この場でコピペ実行できる状態にする。
+> **全文提示はしない**: `release-plan.md` の全文をこの場でチャットに貼り付けない。Todo 化・ステップごとの逐次提示は呼び出し元（`release.md` Step 4）の責務。仕様: [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md)。本エージェントは完了報告でファイルパスと構成概要（Step 数・管理画面手動操作の有無）のみ伝える。
 
-続けて完了報告を提示する:
+完了報告を提示する:
 
 ```
 ## {issueID} 本番リリース準備 完了
@@ -281,7 +281,7 @@ sf project deploy report --target-org <本番エイリアス>
 - 資材マニフェスト外で言及されているコンポーネント: なし / あり（{詳細}）
 
 ### 引き渡し
-本番リリース手順書: docs/logs/{issueID}/release-plan.md（① リリース前 → ② 実行 → ③ リリース後 の順・資材種別別チェック込み。全文は上記に提示済み）
+本番リリース手順書: docs/logs/{issueID}/release-plan.md（① リリース前 → ② 実行（Step {N}件） → ③ リリース後 の順・資材種別別チェック込み。管理画面手動操作: あり/なし）
 リリースノート: docs/logs/{issueID}/release-note.md
 
 ### 重要
@@ -290,6 +290,8 @@ sf project deploy report --target-org <本番エイリアス>
 - {競合・ドリフトの警告があればここに再掲}
 - 本番デプロイが完了したら、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください。リリース実施記録を decisions.md・changelog.md に記録します（Phase 7）
 ```
+
+この直後、呼び出し元（`release.md` Step 4）が `release-plan.md` を読み込み、① 確認 → ② Step ごとの逐次提示 → ③ 確認の順で引き渡しを続ける（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) 参照）。
 
 Notion タスクに紐づく作業であれば、完了後に「ナレッジ／タスクに登録しておきますか？」と一言提案する（WS 側の Notion 登録提案ルールと同旨。本テンプレートはプロジェクト側の運用のため深追いしない）。
 
