@@ -162,7 +162,7 @@ mkdir -p "{evidence_dir}/before"
 
 `playwright-sf-screen-ops.md` の「並列 UI 証跡（複数コンテキスト）」に従い、`{max_workers_ui}` 件ずつ `Promise.all` でチャンク処理する。読み取り専用 TC は before/after で画面状態が変わらないため **before は採取しない（after のみ）**（同ファイル「並列 UI 証跡」骨格コードの前提コメント参照）。
 
-- 各コンテキストが自前で `goto(FRONTDOOR_URL)` ログイン → TC 撮影 → コンテキストを閉じる
+- frontdoor 認証は最初に1回だけ行い、その `storageState`（Cookie 等）を全コンテキストの生成時（`newContext({storageState})`）に渡して使い回す（TC ごとの frontdoor 再ログインは行わない。`playwright-sf-screen-ops.md`「並列 UI 証跡（複数コンテキスト）」節参照）。各コンテキストは対象 URL へ直接遷移 → TC 撮影 → コンテキストを閉じる
 - DOM テキストは `saveText`（`playwright-sf-screen-ops.md`「DOM テキストの直接保存」節で定義するヘルパー。Blob download 経由でコードブロック内から `after/screen/{No}_{観点サニタイズ}.txt` へ直接保存し、DOM全文をLLM経由で書き戻さない）で保存する。保存失敗時のみ `text` フィールドにフォールバックとして本文を積む。
 - return 値は `JSON.stringify([{no, ok, url, textLen, thinDom, errorSignature, text?}, ...])` の配列（`text` は保存失敗時のみ存在。失敗要素は `{no, ok:false, error}`。グループ①は `highlightTarget` を使わないため `highlighted` は含まれない）。エージェントは各要素を以下の通り処理する:
   - `ok:true` の要素: `text` が存在する場合（保存失敗フォールバック）のみ `after/screen/{No}_{観点サニタイズ}.txt` に Write する（通常はコードブロック内で保存済みのため不要）。`url` は `.split('?')[0]` でクエリを除去した上で返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3。ユーザーの目視ハンドオフに使うため破棄しない）。`thinDom: true` は備考欄に `[空撮り疑い: DOM {textLen}文字]`、`errorSignature` が非 null は `[画面エラー検出: {errorSignature}]` を付記し NG 扱いにする（Step 2B と同一ルール。期待結果がそのエラー文言自体を検証する意図の TC は対象外）
