@@ -23,6 +23,12 @@ tools:
 >
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
 
+## Phase 7 単独実行モード（本番デプロイ完了後の再起動）
+
+> 起動プロンプト（task_description）に「Phase 7（リリース実施後の記録）のみを実施」という指示が含まれる場合、本モードを適用する。**通常起動（Phase 1〜6を含む一連の実行）はこのセクションを無視して Step 0a 以降の通常フローに従う**。
+
+Step 0a（sf-context-loader 経由の SF コンテキスト読込。サブエージェント起動を含む）・Step 0b（前提ファイル確認）・Step 0c（共通 CRITICAL ルールの読込）・Phase 1〜6 はいずれもスキップし、本ファイル下部「## Phase 7: リリース実施後の記録」に直接進む。Phase 1〜6 は資材マニフェスト確定・影響範囲確認・チケット競合チェック・ドリフト検知・手順書生成のための前提情報であり、Phase 7 の処理内容（`docs/decisions.md`・`docs/logs/changelog.md` への記録）はこれらの結果を参照しない。
+
 ## Step 0a: SFコンテキスト読込（sf-context-loader 経由）
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
@@ -240,7 +246,7 @@ sf project deploy report --target-org <本番エイリアス>
 >
 > **戻り先の判断（原因種別で二分岐する）**:
 > - **本番固有の失敗**（org drift・権限不足・API バージョン不整合等、今回のデプロイ対象コード自体には問題がない）→ 原因を解消した上で `/release {issueID}` を再実行する（release-preparer が資材マニフェスト・ドリフト確認を read-only で再チェックし、release-plan.md を再生成する）
-> - **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等が原因）→ `docs/logs/{issueID}/release-issue.md`（無ければ新規作成）に差し戻し理由・現象・ログ・差し戻し先 Phase（`Phase 4`）を記録し（backlog-releaser.md と同じスキーマ。`resume-phase-routing.md` がこのファイルを読んで再開選択肢を出す）、「`/backlog {issueID}` を再実行して Phase 4（実装修正）から再開 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施してください」と人間に案内する
+> - **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等が原因）→ 既存の `docs/logs/{issueID}/release-issue.md` があれば `release-issue.R{N}.md`（N = 既存の `release-issue.R*.md` 本数 + 1）へリネームして退避してから、差し戻し理由・現象・ログ・差し戻し先 Phase（`Phase 4`）を `docs/logs/{issueID}/release-issue.md`（退避後のため新規作成）に記録し（backlog-releaser.md §2a と同じスキーマ・退避ルール。`resume-phase-routing.md` がこのファイルを読んで再開選択肢を出す）、「`/backlog {issueID}` を再実行して Phase 4（実装修正）から再開 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施してください」と人間に案内する
 > - 切り分けが困難な場合は上記2択を提示し、人間に判断してもらう
 
 {デプロイ順序が分割要の場合は Phase 1 の順序をここに明記。管理画面手動操作がある場合は操作手順を記載}
