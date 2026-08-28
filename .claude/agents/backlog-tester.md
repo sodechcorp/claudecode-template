@@ -125,6 +125,8 @@ dry-run のためコードは Sandbox に届いていない。変更の反映を
 
 ## Step 4: スモーク結果報告
 
+> [共通ルール: ユーザー回答時のスコープ管理](../CLAUDE.md#ユーザー回答時のスコープ管理全エージェント共通) — 詳細: [answer-scope-spec.md](../templates/common/answer-scope-spec.md)。備考・総合判定欄に依頼外の追加提案・リファクタ案を列挙しない。
+
 `docs/logs/{issueID}/test-report.md` の **「## スモーク確認結果」セクションに限定して**出力する（同セクションが既にあれば上書き、他セクションは保持）。`/test` が生成する本テスト証跡や releaser が参照する Phase 5 エビデンスを消さないこと。ファイルが存在しない場合のみ新規生成する。
 
 > 権限・FLS・レイアウト・RecordType・共有ルール変更を含む課題は、本 Step（dry-run ベースの静的レビュー）だけでは完了と判定しない。CLAUDE.md §実装裏付け・出典確認 内「権限系の完了判定」に従い、Phase 6（backlog-releaser）の完了チェックリストで実ユーザーによる UI 確認を経てから完了とする。
