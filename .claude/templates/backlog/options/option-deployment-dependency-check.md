@@ -38,7 +38,9 @@
 
 ## 出力
 
-implementation-plan.md に追記:
+**呼び出し元によって出力先が異なる**:
+- `/backlog` Phase B（backlog-planner.md、`_index-phase3.md` 経由）から実行した場合: implementation-plan.md に追記
+- `/release`（release-preparer.md Phase 1）から実行した場合: implementation-plan.md への追記は行わず、release-plan.md「## デプロイ依存関係」に直接反映する
 
 ## デプロイ依存関係
 

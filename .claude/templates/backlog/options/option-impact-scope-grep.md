@@ -36,7 +36,9 @@
 
 ## 出力
 
-investigation.md「影響範囲」セクションに追記:
+**呼び出し元によって出力先が異なる**:
+- `/backlog` Phase 1（backlog-investigator.md）から実行した場合: investigation.md「影響範囲」セクションに追記
+- `/release`（release-preparer.md Phase 2 ①）から実行した場合: investigation.md への追記は行わず、release-plan.md「## 影響範囲サマリー」に直接反映する
 
 | メタデータ種別 | ファイルパス | 有効/無効（組織確認、無効判定時のみ必須） | 影響判定 | 対応要否 |
 |---|---|---|---|---|

@@ -28,7 +28,7 @@
 
 ## 出力
 
-test-report.md に追記:
+release-plan.md「## 影響範囲サマリー」に直接反映する（`/release`〔release-preparer.md Phase 2〕専用のオプションで `_index-phase1.md` にも登録がないため、test-report.md への追記は行わない）:
 
 ## 横断機能影響確認
 

@@ -23,7 +23,9 @@
 
 ## 出力
 
-investigation.md に追記:
+**呼び出し元によって出力先が異なる**:
+- `/backlog` Phase 1（backlog-investigator.md）から実行した場合: investigation.md に追記
+- `/release`（release-preparer.md Phase 2 ②）から実行した場合: investigation.md への追記は行わず、release-plan.md「## 影響範囲サマリー」に直接反映する
 
 ## 既存テストクラスへの影響
 
