@@ -25,19 +25,9 @@ Phase 1 で `docs/design/` / `docs/requirements/` / `docs/catalog/` 等を参照
 
 ### API名 vs 日本語ラベルの使い分け（全箇所共通）
 
-> 共通ルール（正本）: [.claude/templates/common/naming-convention-api-vs-label.md](../common/naming-convention-api-vs-label.md)
+> 共通ルール（正本・Phase 0 で Read 済み）: [.claude/templates/common/naming-convention-api-vs-label.md](../common/naming-convention-api-vs-label.md)
 
-| 記述対象 | 表記ルール | 例 |
-|---|---|---|
-| 自クラス名 | API名でOK | `RequestController`、`CommonUtil` |
-| 他クラスへの呼び出し | クラス名はAPI名でOK。**メソッド名は書かない** | `createQuoteController を呼び出す`（`createQuote()` は禁止） |
-| オブジェクト名 | **日本語表示ラベル** | `Quote__c` → 「見積」、`BusinessTraveler__c` → 「出張申請」 |
-| 項目名 | **日本語表示ラベル** | `Status__c` → 「ステータス」、`IsInvoiceContact__c` → 「請求先フラグ」 |
-| sub_steps の SOQL/DML | API名・コードのまま | `SELECT Id FROM Quote__c WHERE ...` |
-| calls / object_ref の図形ラベル | どちらでもOK | `CommonUtil`、`見積` |
-
-> ❌ 禁止例: 「createQuoteControllerはBusinessTraveler__cのStatus__cを更新しProductListConditionDetail__cからQuoteDetail__cを生成する」
-> ✅ 良い例: 「createQuoteControllerを呼び出し、出張申請のステータスを更新後、商品リスト条件明細から見積明細を生成する」
+表・禁止事項・良い例/悪い例は上記正本の記載をそのまま適用する（本ファイルでの再掲はしない。正本の更新時にここを個別更新する必要はない）。
 
 - **steps**: 処理の全ステップを記述する。「処理を実行」のような抽象的な記述は禁止
   - `title` は **日本語で何をする処理か**（自クラス名はOK・他クラスのメソッド名禁止・オブジェクト名は日本語ラベル）

@@ -58,6 +58,7 @@ tools:
 |---|---|---|---|
 | [`json-format.md`](../templates/sf-design-writer/json-format.md) | `.claude/templates/sf-design-writer/` | ステップ記述プロトコル（Q1〜Q5）・種別別注意点・JSON フォーマット例 | Phase 0 終了時（1回のみ Read） |
 | [`quality-rules.md`](../templates/sf-design-writer/quality-rules.md) | `.claude/templates/sf-design-writer/` | 品質基準・スケルトンモード・吸収コンポーネント処理ルール | Phase 0 終了時（1回のみ Read） |
+| [`naming-convention-api-vs-label.md`](../templates/common/naming-convention-api-vs-label.md) | `.claude/templates/common/`（正本） | API名 vs 日本語ラベルの使い分けルール | Phase 0 終了時（1回のみ Read） |
 | [`json-checklist.md`](../templates/sf-design-writer/json-checklist.md) | `.claude/templates/sf-design-writer/` | Phase 1.5 セルフレビューチェックリスト | Phase 1.5 開始時（1回のみ Read） |
 
 ---
@@ -104,10 +105,11 @@ python {tmp_dir}/check_templates.py
 
 `docs/design/` 配下の既存設計書 MD を一覧取得しておく（差分更新時の参照用）。
 
-**参照リファレンスを読み込む（Phase 0 で2ファイルを1回ずつ Read・以降のバッチで再読み不要）:**
+**参照リファレンスを読み込む（Phase 0 で3ファイルを1回ずつ Read・以降のバッチで再読み不要）:**
 ```
 Read: {project_dir}/.claude/templates/sf-design-writer/json-format.md
 Read: {project_dir}/.claude/templates/sf-design-writer/quality-rules.md
+Read: {project_dir}/.claude/templates/common/naming-convention-api-vs-label.md
 ```
 ステップ記述プロトコル（Q1〜Q5）・種別別注意点・JSON フォーマット例・品質基準・スケルトンモード・吸収コンポーネントルールを把握してから Phase 1 へ進む。
 
