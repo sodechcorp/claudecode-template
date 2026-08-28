@@ -328,6 +328,7 @@ decisions.md「リリース予定日 / 担当」欄・changelog.md に記録し�
 
 ```bash
 python -c "import shutil; shutil.rmtree(r'{tmp_dir}/prod-drift-check', ignore_errors=True); shutil.rmtree(r'{tmp_dir}/org-drift-tier0', ignore_errors=True)"
+python -c "import os; a=os.path.exists(r'{tmp_dir}/prod-drift-check'); b=os.path.exists(r'{tmp_dir}/org-drift-tier0'); print('削除成功' if not a and not b else f'削除失敗（残存: prod-drift-check={a} org-drift-tier0={b}）')"
 ```
 
 エラー終了時は削除しない（デバッグ用に残す）。

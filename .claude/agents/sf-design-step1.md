@@ -112,6 +112,7 @@ version_increment: {version_increment}
 
 ```bash
 python -c "import shutil; shutil.rmtree(r'{tmp_dir}', ignore_errors=True)"
+python -c "import os; print('削除成功' if not os.path.exists(r'{tmp_dir}') else '削除失敗（残存）')"
 ```
 
 ---

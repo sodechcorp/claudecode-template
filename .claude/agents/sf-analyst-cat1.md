@@ -494,11 +494,11 @@ python {project_dir}/scripts/python/sf-doc-mcp/build_context_cache.py {project_d
 ```bash
 # 例: システム Temp 配下の作業フォルダ（${TEMP}/<project_name>-cat1/ 等）
 python -c "import shutil; shutil.rmtree(r'<作成した作業フォルダの実パス>', ignore_errors=True)"
+python -c "import os; print('削除成功' if not os.path.exists(r'<作成した作業フォルダの実パス>') else '削除失敗（残存）')"
 ```
 
 - 作業フォルダを作成していなければスキップしてよい
 - エラー終了時は削除しない（デバッグ用に残す）
-- 削除後にシステム Temp 配下へ作業フォルダが残っていないことを確認
 
 ---
 
