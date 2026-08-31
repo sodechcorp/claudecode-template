@@ -17,8 +17,9 @@
 
 1. 担当エージェントが作業を完了
 2. 自動的にチェック担当エージェントの基準でレビューを実行
-3. 問題あり: 問題点一覧 → 修正案提示 → ユーザー確認（reviewer は指摘のみ。修正は担当エージェントが行う）
-4. 問題なし: 「品質チェック通過」で完了
+3. **reviewer が Critical 指摘を1件以上出した場合**、`Task(subagent_type="finding-verifier")` で指摘の反証検証を行う（誤検知の除外。詳細は [finding-verifier.md](../agents/finding-verifier.md)）。渡す情報は Critical 指摘一覧＋対象ファイルパス。`REJECTED` 判定の指摘はユーザー提示から除外し、`CONFIRMED`/`PLAUSIBLE` のみ次のステップに進める。CONFIRMED/REJECTED の件数は完了報告に記録する（除外が本物の Critical を消していないか人間が事後確認できるようにするため）。Critical 0件（Warning/Info のみ）の場合は起動しない。**finding-verifier が起動失敗・タイムアウト等で結果を返さなかった場合は fail-open とし、全 Critical 指摘をそのまま提示する**（完了報告に「反証検証: 実行不可（未検証）」と明記。検証できないことを理由に指摘を握りつぶさない）
+4. 問題あり: 問題点一覧 → 修正案提示 → ユーザー確認（reviewer / finding-verifier は指摘のみ。修正は担当エージェントが行う）
+5. 問題なし: 「品質チェック通過」で完了
 
 ## 例外
 

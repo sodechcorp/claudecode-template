@@ -279,9 +279,13 @@ erDiagram
 - 変更スコープ（新規作成 / 既存ファイル更新）
 - セルフレビューで気になった箇所（スコープ曖昧・受入基準なし・推測残置等）
 
-### 3. 指摘への対応
+### 3. 反証検証（Critical 指摘がある場合）
 
-問題が指摘された場合、ユーザーに「修正する / このまま進める」を確認してから次に進む。reviewer は指摘のみ・修正は本エージェントが行う。
+reviewer が Critical 指摘を1件以上出した場合、`Task(subagent_type="finding-verifier")` で反証検証を行う（誤検知の除外。詳細は [quality-gate.md §ゲートの動作](../spec/quality-gate.md)）。`REJECTED` と判定された指摘はユーザー提示から除外する。Critical 0件の場合はこのステップをスキップする。
+
+### 4. 指摘への対応
+
+問題が指摘された場合（reviewer の Warning/Info、または finding-verifier で `CONFIRMED`/`PLAUSIBLE` と判定された Critical）、ユーザーに「修正する / このまま進める」を確認してから次に進む。reviewer / finding-verifier は指摘のみ・修正は本エージェントが行う。
 
 ### スキップ条件（全て満たす場合のみ）
 
@@ -300,3 +304,4 @@ erDiagram
 - ✅ 成果物名・保存先パス（例: `docs/design/apex/【F-XXX】function-name.md`）
 - 要確認事項 N件（推測した箇所・要ヒアリング項目を箇条書き。0件の場合は省略）
 - 品質ゲート結果: {実施済み / スキップ（理由: ...）}
+- 反証検証結果: {finding-verifier 起動時のみ「CONFIRMED N件 / REJECTED N件（除外理由要約）」。未起動（Critical 0件）の場合は省略}

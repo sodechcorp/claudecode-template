@@ -241,7 +241,7 @@ sf-design-writer の完了を確認してから次のバッチへ進む。
 python -c "import pathlib; n = len(list(pathlib.Path(r'{tmp_dir}').glob('*_design.json'))); print(f'count:{n}')"
 ```
 
-`count:` の値が **30 件を超える場合**: reviewer への一括投入は context 破綻のリスクがあるため、このセクション以降（reviewer 起動）をスキップし、完了報告の品質ゲート欄に「スキップ（対象 {count} 件が上限 30 件を超過。target_group_ids / target_ids で対象を絞って再実行してください）」と記載する。**Phase 5.5 の 3. クリーンアップのみ実行**してから Phase 最終へ進む。
+`count:` の値が **30 件を超える場合**: reviewer への一括投入は context 破綻のリスクがあるため、このセクション以降（reviewer 起動）をスキップし、完了報告の品質ゲート欄に「スキップ（対象 {count} 件が上限 30 件を超過。target_group_ids / target_ids で対象を絞って再実行してください）」と記載する。**Phase 5.5 の 4. クリーンアップのみ実行**してから Phase 最終へ進む。
 
 30 件以下の場合は通常どおり以下の 1. へ進む。
 
@@ -254,11 +254,15 @@ python -c "import pathlib; n = len(list(pathlib.Path(r'{tmp_dir}').glob('*_desig
 - 変更スコープ: プログラム設計 JSON 生成（新規 / 既存更新は個別 JSON 次第）
 - 確認観点: reviewer.md「設計書 JSON（`*_design.json`）必須確認項目」節を参照（スコープ逸脱・スコープ不足・overview整合・calls/object_ref網羅性）。整合性・プレースホルダ残存は Phase 1.5 で `check_design_json.py`/スケルトン残存チェックにより機械検証済みのため reviewer の対象外
 
-### 2. 指摘への対応
+### 2. 反証検証（Critical 指摘がある場合）
 
-reviewer は指摘のみ・修正は行わない。指摘があれば完了報告に転記し、「指摘を反映する場合は `/sf-design` を再実行してください（設計 JSON → xlsx への再変換が必要なため）」と明記する。
+reviewer が Critical 指摘を1件以上出した場合、`Task(subagent_type="finding-verifier")` で反証検証を行う（誤検知の除外。詳細は [quality-gate.md §ゲートの動作](../spec/quality-gate.md)）。`REJECTED` と判定された指摘は完了報告への転記から除外する。Critical 0件の場合はこのステップをスキップする。
 
-### 3. クリーンアップ
+### 3. 指摘への対応
+
+reviewer / finding-verifier は指摘のみ・修正は行わない。指摘（reviewer の Warning/Info、または finding-verifier で `CONFIRMED`/`PLAUSIBLE` と判定された Critical）があれば完了報告に転記し、「指摘を反映する場合は `/sf-design` を再実行してください（設計 JSON → xlsx への再変換が必要なため）」と明記する。
+
+### 4. クリーンアップ
 
 reviewer 完了後（または 0. で上限超過スキップした場合はそのまま）、tmp_dir を step2 自身が削除する（全バッチ `skip_cleanup=true` のため writer は未削除）:
 ```bash
@@ -297,6 +301,7 @@ python "{project_dir}/scripts/python/sf-doc-mcp/cleanup_design_workspace.py" \
   画面系（LWC/VF/Aura/画面フロー）: {n} 件生成
   機能一覧: {output_dir}/01_基本設計/機能一覧.xlsx（生成した場合）
   品質ゲート: {run_reviewer=true の場合「実施済み（指摘 N件）」／false の場合「スキップ（任意ゲート・未起動）」}
+  反証検証結果: {finding-verifier 起動時のみ「CONFIRMED N件 / REJECTED N件（除外理由要約）」。未起動（Critical 0件 or run_reviewer=false）の場合は省略}
 
 ⚠️ 要確認:
 - {要確認事項}（なければ省略）
