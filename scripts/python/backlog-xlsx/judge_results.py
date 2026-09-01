@@ -272,9 +272,8 @@ def _validate_png(path: str) -> tuple:
         return True, "PIL未導入のため画像検証スキップ"
     try:
         with PILImage.open(path) as img:
-            img.verify()
-        with PILImage.open(path) as img:
             w, h = img.size
+            img.verify()
         if w < 50 or h < 50:
             return False, f"画像サイズが異常に小さい ({w}x{h})"
         return True, f"{w}x{h}"
