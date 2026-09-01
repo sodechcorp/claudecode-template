@@ -18,6 +18,21 @@
 // 根拠ルール: .claude/CLAUDE.md §環境スコープの確認
 // =============================================================================
 
+const fs = require('fs');
+
+// ---- .prod-aliases: プロジェクト固有の本番エイリアス追加パターン ----
+// pre-operation.js Check 1 と同じロジック。
+function loadCustomProdAliases() {
+  try {
+    const content = fs.readFileSync('.prod-aliases', 'utf8');
+    return content.split('\n')
+      .map(l => l.trim())
+      .filter(l => l && !l.startsWith('#'));
+  } catch (e) {
+    return [];
+  }
+}
+
 let buf = '';
 process.stdin.on('data', c => (buf += c));
 process.stdin.on('end', () => {
@@ -44,8 +59,12 @@ process.stdin.on('end', () => {
 
   const orgAlias = match[1].toLowerCase();
 
-  // prod / production 宛なら発火しない（pre-operation.js Check 1 と同じ部分一致判定に統一）
+  // prod / production 宛なら発火しない（pre-operation.js Check 1 と同じ判定ロジック）
   if (/prod|production/.test(orgAlias)) return;
+
+  // .prod-aliases に登録されたカスタム本番 alias にも発火しない
+  const customProdAliases = loadCustomProdAliases();
+  if (customProdAliases.length > 0 && customProdAliases.includes(match[1])) return;
 
   // ---- 非本番クエリ検知 → systemMessage でリマインダー注入 ----
   const message = [

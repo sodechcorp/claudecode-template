@@ -30,6 +30,7 @@
 |---|---|---|
 | `backlog-mcp-hygiene.md` | Backlog MCP 呼び出し時の作法（書き込み系ハードブロックとの付き合い方等） | ○ |
 | `knowledge-reflux-formats.md` | `backlog-releaser.md` / `backlog.md §中断時の知見還流` が共有する追記フォーマット | ○ |
+| `manual-steps-todo-handoff.md` | 手順書の Todo 化・逐次ハンドオフ共通仕様（`/release` Step 4・`/backlog` Phase 6 が使用） | ○ |
 | `cases-format.md` | `docs/knowledge/cases/<案件キー>.md` の出力構造 | ○ |
 | `completion-report-spec.md` | SF環境の状態に関わる完了報告のフォーマット | ○ |
 | `new-metadata-permissions-checklist.md` | 新規メタデータ作成時の権限・基本設定チェックリスト（正本） | ○ |

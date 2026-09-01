@@ -165,7 +165,7 @@ Bash ツール引数に改行・インデント付きの多行スクリプトを
 
 ```markdown
 ### Step 0b: 関連オプションの判定
-> 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
+> 共通手順: [.claude/templates/backlog/_README.md](.claude/templates/backlog/_README.md) §Step 0 を参照
 > 本 agent の Phase: {N}（_index-phase{N}.md を Read して判定）
 ```
 
