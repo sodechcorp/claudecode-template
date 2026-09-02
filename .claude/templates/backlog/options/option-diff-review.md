@@ -29,7 +29,7 @@ git diff HEAD -- <変更ファイル>
 
 ### 2. 計画整合チェック（正統性）
 
-`docs/logs/{issueID}/implementation-plan.md` の「確定した実装方針まとめ」と「判断ポイント一覧」を読み、diff と1件ずつ突き合わせる。
+`docs/logs/{issueID}/implementation-plan.md` の「実装方針まとめ」と「判断ポイント一覧」を読み、diff と1件ずつ突き合わせる。
 
 確認する観点:
 
