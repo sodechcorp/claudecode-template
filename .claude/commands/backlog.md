@@ -37,7 +37,7 @@ argument-hint: "[課題ID]"
 > **サブエージェントの二段ネストを避ける（`backlog-validator` は完全 leaf agent・`backlog-investigator` は部分的）**: サブエージェントがさらに別のサブエージェントを起動する二段ネストのうち、「同一メッセージでの複数 Agent/Task 同時発行」を伴う箇所は不安定化要因と特定し、本コマンド（メインスレッド）に引き上げた。単発・非並列の呼び出し（`backlog-planner → sf-effort-estimator` / `backlog-investigator → pattern-curator・backlog-blind-second-opinion` 等）は `auto-evidence-runner → ui-evidence-runner`（`/test`）と同型の安定パターンのため据え置いている。
 > - `backlog-validator`: `regression-guard`・`ui-evidence-runner`（Before-only）を本コマンドが Phase 3.5 開始時に直接 Task 起動（詳細は Phase 3.5 セクション参照）
 > - `backlog-planner`: `backlog-blind-validator`（`option-validator-blind` 採用時のみ）を本コマンドが Phase 3 完了直後に直接 Task 起動（詳細は Phase 3 セクション参照）
-> - `backlog-investigator`: `sf-context-loader`（knowledge-only + 通常モード。旧設計では同一メッセージ並列発行しており不安定化要因だった）を本コマンドが Phase 1 開始時に逐次 Task 起動（詳細は Phase 1 セクション参照）。詳細は `agent-routing.md` 参照
+> - `backlog-investigator`: `sf-context-loader`（knowledge-only + 通常モード。旧設計では同一メッセージ並列発行しており不安定化要因だった）を本コマンドが Phase 1 開始時に逐次 Task 起動（詳細は Phase 1 セクション参照）。詳細は [agent-routing.md](../spec/agent-routing.md) 参照
 
 **中間成果物の保存先**: `docs/logs/{issueID}/`
 - `investigation.md` — 調査レポート
@@ -64,7 +64,7 @@ argument-hint: "[課題ID]"
 >   5. ユーザの承認テキスト（「OK」「進んで」等）を確認してから次フェーズへ進む。**質問・相槌（「ha」「うん」等）・別タスク依頼（「工数計算して」「見積もって」等）は承認ではない**。工数・見積依頼は `sf-effort-estimator` 委譲対象で承認を兼ねない（タスク完了後に承認プロトコルを再提示する）。確信できなければ進まず確認を出し直す（詳細は `_README.md §承認判定` 参照）。
 > - 実装は Phase 4 以降。それ以前に実装コードを書くことは禁止。**Phase 3.5→4 の境界はファイル編集に入る唯一のゲートであり、特に厳格に明示承認を確認すること。**
 > - **軽量承認モード（低不可逆ゲート限定）**: 以下の条件を **全て満たす場合のみ**、フェーズ末の明示承認待ちを「異議がなければ次へ」に緩和してよい。1つでも崩れたら通常の明示承認プロトコル（上記 1〜5）に戻す。
->   - **適用条件**: ③ 次フェーズが read-only 解析または dry-run（永続副作用なし）の低不可逆ゲートであることを常に必須とする。加えて **Phase 4（実装）着手後の遷移**（現状 Phase 4→5 のみ該当）では ① 課題が `_README.md §典型的自明ケース定義` に該当（自明ケース判定 ON） ② `quality-gate.md §軽微修正の4条件` を全て満たす、の2条件もAND必須（実装で確定した差分を人間が確認しないまま次フェーズへ進めないため）。**Phase 4着手前の遷移**（Phase 1→1.6→1.5→2→3→3.5。コード・メタデータへの変更が一切発生していない）は①②不要、③のみで判定する
+>   - **適用条件**: ③ 次フェーズが read-only 解析または dry-run（永続副作用なし）の低不可逆ゲートであることを常に必須とする。加えて **Phase 4（実装）着手後の遷移**（現状 Phase 4→5 のみ該当）では ① 課題が `_README.md §典型的自明ケース定義` に該当（自明ケース判定 ON） ② [quality-gate.md §軽微修正の4条件](../spec/quality-gate.md) を全て満たす、の2条件もAND必須（実装で確定した差分を人間が確認しないまま次フェーズへ進めないため）。**Phase 4着手前の遷移**（Phase 1→1.6→1.5→2→3→3.5。コード・メタデータへの変更が一切発生していない）は①②不要、③のみで判定する
 >   - **挙動**: フェーズ末サマリー＋「特に確認したい点」を提示した上で、末尾に「**異議がなければこのまま Phase N に進みます**」と明示し、明示承認テキストを待たず次フェーズへ進んでよい（ユーザーはいつでも会話で異議・修正を差し込める）
 >   - **ループ上限（必須）**: 軽量承認による連続自動進行は**最大 2 フェーズまで**（`discussion-log.md` の改版履歴から通算カウント）。上限到達時は必ず通常の明示承認プロトコルへ戻す。軽量承認で進んだ際は discussion-log.md の該当エントリ冒頭に `[軽量承認]` タグを付記し、Phase 1.6／Phase 3 戻りループのカウントと混同しないようにする
 >   - **適用除外ゲート（軽量承認を絶対に適用しない・常に明示承認）**: Phase 3.5→4／Phase 5→6・Phase 6（Sandbox デプロイ）／本番デプロイ（後述）／お客様サイン（`customer-signoff.md`）／Backlog 投稿（`pre-operation.js` がハードブロック）
@@ -115,6 +115,8 @@ sf org display --json
 ```
 
 `isSandbox`・`Username`・`alias` を読み取る。
+
+**取得に失敗した場合（sf CLI 未認証・組織未接続等）**: エラー内容をユーザーに提示し、「接続組織を確認できません。`sf org login web --alias <alias>` 等で認証済みの組織を指定してください」とテキストで依頼してから次に進む（自動リトライ・推測での続行はしない）。
 
 **Sandbox 接続時（通知のみ・非ブロッキング）**: Backlog課題対応は Sandbox での実装・動作確認までがスコープであり、実データへの危険操作（DML・匿名Apex 実行等）自体は `sandbox-alias-check.md` の Sandbox 判定と settings.json/hook が別途ブロックする。よってここでのブロッキング確認は行わず、以下を一行通知して即座に次へ進む（ユーザーの返答を待たない）:
 
@@ -195,7 +197,8 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 **Step A: 課題本文の先行取得 + sf-context-loader（本コマンドが直接実行）**
 
-1. `mcp__backlog__get_issue` で課題のタイトル・本文を取得する。
+1. `mcp__backlog__get_issue` で課題のタイトル・本文を取得する（本文はコンテキスト生成用の先読み。`investigation.md` への逐語転記は `backlog-investigator` が Step A で別途取得する。重複取得は意図的な設計のため許容する）。
+   - **取得に失敗した場合（MCP サーバーダウン等）**: 「Backlog MCP が応答しません。課題本文（タイトル・詳細）をここに貼り付けてください」とユーザーに依頼し、貼り付けられた内容を課題タイトル・本文として扱って以降の手順を続行する（`backlog-investigator.md` の MCP フォールバックと同じ会話パターン）。
 2. `sf-context-loader` を **knowledge-only モード**で起動する:
    ```
    task_description: 「{課題タイトル + 本文の最初の200字}」
@@ -327,7 +330,7 @@ python -c "import yaml,pathlib; p=pathlib.Path('docs/.backlog_config.yml'); d=ya
 - **出力が `True` または `False` かつ `--reconfigure` 未指定**: 下記 AskUserQuestion をスキップし、出力値を `{xlsx_create}`（作成する/作成しない）に採用する。チャットに1行通知する:
   > xlsx: {作成する|作成しない}（プロジェクト設定 `xlsx_default` により自動継続。再選択は `--reconfigure`）
   そのまま「`{xlsx_create}` に応じた分岐」へ進む（config への再書き込みは不要）。
-- **出力が空、または `--reconfigure` 指定時**: 下記 AskUserQuestion を実行する。
+- **出力が空・`--reconfigure` 指定時・または `True`/`False` 以外の値**: 下記 AskUserQuestion を実行する。値が `True`/`False`/空 のいずれでもない場合は実行前に「`xlsx_default` の値が不正のため再選択します」と1行通知する。
 
 AskUserQuestion で作成有無を選択する:
 - label: `作成する`、description: "対応記録.xlsx を生成する（推奨）"
@@ -353,7 +356,7 @@ python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d
 
 ### Phase 2: 対応方針の確定（backlog-planner Phase A）
 
-> **`--light` フラグが設定されている場合**: Phase 2 をスキップして Phase 3（実装方針）へ直接進む。対応方針は「最小修正・既存パターン踏襲」固定とし、`approach-plan.md` を作成しない。Phase 3 開始時にその旨を 1 行通知する。
+> **`--light` フラグが設定されている場合**: 種別が「問い合わせ」の場合は本分岐を適用しない（下記「種別が「問い合わせ」の場合」節を優先し、回答ドラフトを生成して Phase 2 で完了する）。それ以外の種別では Phase 2 をスキップして Phase 3（実装方針）へ直接進む。対応方針は「最小修正・既存パターン踏襲」固定とし、`approach-plan.md` を作成しない。Phase 3 開始時にその旨を 1 行通知する。
 >
 > **xlsx 共通規則**: Phase 2 以降の全 xlsx 更新ブロックは `{xlsx_folder}` が null（Phase 1.5 で「作成しない」を選択）の場合スキップする。
 
@@ -420,6 +423,8 @@ default_stance: {バグ="最小修正＋既存への影響ゼロを最優先" / 
 default_stance: {Phase 2 と同じ値を引き継ぐ}
 ```
 
+> **`--light` の場合**: 採用方針 = 「最小修正・既存パターン踏襲」固定（Phase 2 をスキップしているため `{承認された案名}` は存在しない）。
+
 エージェントが `implementation-plan.md` を保存したら提示する。  
 全判断ポイントが確定するまで Phase 4 に進まない。
 
@@ -466,7 +471,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/create_records.py" \
 
 ### Phase 3.5: 実装前検証（backlog-validator）
 
-> **`--light` フラグが設定されている場合**: Phase 3.5 をスキップして Phase 4（実装）へ直接進む。
+> **`--light` フラグが設定されている場合**: Step A（regression-guard）・Step C（backlog-validator）はスキップして Phase 4（実装）へ直接進む。**ただし Step B（Before エビデンス自動採取）はスキップしない**。UI 影響判定（Step B 冒頭の判定基準）に該当する場合は light でも実行してから Phase 4 へ進む（Before 撮影は実装前限定・不可逆のため。Phase 1.6 の Sandbox 仮説検証と同じ扱い）。
 
 > **サブエージェントの二段ネストを避ける**: `backlog-validator` はサブエージェントを起動しない leaf agent。Phase 3.5 で必要な `regression-guard`（リグレッション確認）と `ui-evidence-runner`（Before エビデンス自動撮影）は、本コマンド（メインスレッド）が validator の起動前に直接 Task 起動し、結果を validator へ渡す。
 
@@ -583,10 +588,12 @@ xlsx_folder: {xlsx_folder}
 > `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 
 スモーク確認の結果を報告する:
-- **PASS** → Phase 6 へ進む（通常進行）
+- **PASS** → Phase 6 へ進む候補（下記「次に進む条件」の明示承認を経て進む。自動進行しない）
 - **条件付きPASS（NoTestRun フォールバック発生）** → 自動で Phase 6 に進めない。dry-run はコンパイル成功だが対応テストクラス未整備でカバレッジ未検証。ユーザーに「テスト追加（Phase 4 戻り）」または「カバレッジ未検証を承知で本デプロイ明示承認」を求めてから進む
 - **FAIL** → Phase 4 に差し戻す（明らかな壊れを修正してから再度スモーク確認）
 
+> **次に進む条件**: PASS の場合、`_README.md §Phase 末尾の確認プロトコル` に従い、サマリー・確認事項・「Phase 6（Sandbox リリース）に進んでよろしいですか？」をテキストで提示し、明示承認を得てから進む（Phase 5→6 は軽量承認の適用除外ゲート。「異議がなければ次へ」への緩和は行わない）
+>
 > **Phase 5 典型例（該当時のみ・0件が原則）**: 「dry-run で Apex コンパイルエラーが出る・テストが失敗する」→ Phase 4 差し戻し
 
 ---

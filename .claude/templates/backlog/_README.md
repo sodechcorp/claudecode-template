@@ -436,7 +436,7 @@ Phase 末尾確認プロトコルの出力ブロックを出力した**直後**�
 ```yaml
 ---
 issue_id: XXX-123
-issue_type: bug
+issue_type: バグ
 xlsx_folder: C:/work/output
 evidence_dir: docs/logs/XXX-123/evidence
 light_mode: false

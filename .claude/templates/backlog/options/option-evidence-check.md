@@ -30,7 +30,7 @@ implementation-plan.md の「変更対象ファイル」と実装方針を確認
    mode: before-capture
    issueID: {issueID}
    alias: {alias}
-   evidence_dir: {project_dir}/docs/logs/{issueID}/evidence
+   evidence_dir: {evidence_dir}
    target_screens: {target_screens リスト}
    ```
 
@@ -41,7 +41,7 @@ implementation-plan.md の「変更対象ファイル」と実装方針を確認
 
 implementation-plan.md の「対象オブジェクト・SOQL」を確認し、変更前データ状態の確認が必要な場合は SOQL / CLI で取得する:
 
-- 必要あり（データ件数・フィールド値の変化を確認する方針）: `sf data query --query "SELECT ..." --target-org {alias}` で取得し結果を `{project_dir}/docs/logs/{issueID}/evidence/before/{issueID}_data_before.txt` に保存
+- 必要あり（データ件数・フィールド値の変化を確認する方針）: `sf data query --query "SELECT ..." --target-org {alias}` で取得し結果を `{evidence_dir}/before/{issueID}_data_before.txt` に保存
 - 不要（文言変更・UI 表示のみ・データ変化なし）: 「不要」として記録
 
 ## 出力
