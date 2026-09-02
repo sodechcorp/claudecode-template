@@ -18,10 +18,10 @@ implementation-plan.md の「変更対象ファイル」と実装方針を確認
 1. `sandbox-alias-check.md` の手順で Sandbox alias を解決する。
    - Sandbox 未接続・alias 不明の場合: 「自動採取不可（Sandbox 未接続）」として記録し Step C へ。ユーザーへの手動取得依頼はしない。
 
-2. implementation-plan.md / investigation.md から変更対象 UI 画面名と遷移ヒントを抽出し、`{target_screens}` リストを組み立てる:
+2. implementation-plan.md / investigation.md から変更対象 UI 画面名と遷移ヒントを抽出し、`{target_screens}` リストを組み立てる。**画面が URL 直指定で到達可能な場合は nav_hint を相対パス形式で記述する**（`ui-evidence-runner` の frontdoor 認証時に `--path` 最適化が働き、1件目の遷移が短縮される。`playwright-sf-screen-ops.md`「frontdoor 認証」参照）:
    ```
    - name: <画面名（スペース・記号は除去し _ 区切り）>
-     nav_hint: <画面への遷移方法（例: 「コミュニティホーム → プリチェック をクリック」）>
+     nav_hint: <画面への遷移方法。URL 直指定で到達可能なら相対パスを優先（例: 「/lightning/r/Account/001.../view」）、クリック操作でしか到達できない場合はクリック手順（例: 「コミュニティホーム → プリチェック をクリック」）>
      target_label: <変更対象の表示文言（省略可。指定時は赤枠ハイライト）>
    ```
 
