@@ -16,7 +16,7 @@ Task(
 investigation.md の内容:
 {investigation.md のテキスト}
 
-approach-plan.md の採用方針（「採用方針:」行のみ。「### 判断ポイント一覧」以降は含めない）:
+approach-plan.md の採用方針（「採用方針:」行の1行のみ。それ以外の内容は含めない）:
 {採用方針テキスト}
 
 implementation-plan.md の内容は一切伝えない。あなたは上記情報だけで独立に実装案を生成してください。

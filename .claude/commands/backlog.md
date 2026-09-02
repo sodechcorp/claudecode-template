@@ -373,7 +373,7 @@ default_stance: {Phase 2 と同じ値を引き継ぐ}
 
 **`option-validator-blind` 採用時のみ（本コマンドが直接実行）**: implementation-plan.md の「Step 0b オプション判定結果」で `option-validator-blind` が採用されている場合、以下を実行する（二段ネストを避けるため backlog-planner ではなく本コマンドが直接行う）:
 1. investigation.md の「課題原文」セクションから課題本文の全文・全コメントのテキストを取得する（既に disk 上にあるため Read で取得。MCP 再取得は不要）。
-2. approach-plan.md の「採用方針:」行のみを取得する（「### 判断ポイント一覧」以降は含めない。blind 性維持のため）。
+2. approach-plan.md の「採用方針:」行の1行のみを取得する（それ以外の内容は一切含めない。blind 性維持のため）。
 3. `.claude/templates/backlog/blind-prompts/validator.md` の Task prompt テンプレートを Read し、プレースホルダー（`{issueID}` `{課題本文の全文}` `{全コメントのテキスト}` `{investigation.md のテキスト}` `{採用方針テキスト}`）を実行時の値で置換して `backlog-blind-validator` を起動する。
 4. 返却されたテキストを `## blind 実装案レビュー` セクションとして implementation-plan.md の末尾に追記する。
 

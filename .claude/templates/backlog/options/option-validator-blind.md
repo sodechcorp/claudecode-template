@@ -13,7 +13,7 @@ backlog.md（本体）が用意する引き渡し情報（investigation.md・app
 2. 課題本文の全文
 3. 全コメントのテキスト
 4. investigation.md の内容（調査結果）
-5. approach-plan.md の「採用方針」のみ（「採用方針:」行の記述。「### 判断ポイント一覧」以降の実装詳細は含めない）
+5. approach-plan.md の「採用方針」のみ（「採用方針:」行の1行のみ。それ以外の内容は含めない）
 6. 以下を明示する: 「implementation-plan.md の内容は一切伝えない。あなたは上記情報だけで独立に実装案を生成してください」
 
 **禁止事項**: prompt に implementation-plan.md の内容（ファイル本文・要約・参照のいずれも）を含めないこと。含めた時点で blind 性が崩壊する。
