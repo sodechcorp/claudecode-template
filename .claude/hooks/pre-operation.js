@@ -1,7 +1,7 @@
 // =============================================================================
 // pre-operation.js — Claude Code PreToolUse hook
 //
-// 4つの保護レイヤを提供する:
+// 5つの保護レイヤを提供する:
 //
 // (1) 本番組織へのコマンド: ハードブロック（permissionDecision: deny）
 //     sf project deploy / data ops / apex run / package / org delete を
@@ -20,6 +20,11 @@
 //     POSIX ドライブ形式（/c/Users/...AppData...）またはバックスラッシュ形式（C:\Users\...）を
 //     Bash に含む場合はブロック。C:\c フォルダや文字化けゴミファイルの生成を防ぐ。
 //     forward-slash 形式（C:/Users/...AppData/...）は通過。
+//
+// (5) Apex/LWC コード品質スキャン: 警告のみ（permissionDecision は返さず systemMessage のみ）
+//     Write / Edit / MultiEdit で .cls / .trigger / .page / lwc配下 .js を書く際、
+//     FLS/CRUD漏れ・SOQLインジェクション・ハードコードID・SOQL in loop を正規表現で簡易スキャン。
+//     処理は止めない（人間のレビュー・reviewer.md の詳細チェックを代替しない簡易検出）。
 // =============================================================================
 
 const fs = require('fs');
@@ -152,6 +157,88 @@ process.stdin.on('end', () => {
         }
       }));
       return;
+    }
+  }
+
+  // ---- Check 5: Apex/LWC コード品質スキャン（警告のみ・deny しない） ----
+  // Write/Edit/MultiEdit で .cls/.trigger/.page/.js（lwc配下）を書く際に、
+  // FLS/CRUD漏れ・SOQLインジェクション・ハードコードID・SOQL in loop を正規表現で簡易スキャンする。
+  // 検出しても処理は止めない（systemMessage のみ・permissionDecision は返さない）。
+  // 根拠: security-guidance(A2) / Salesforce Development Plugin(B28) のデプロイ検証Hookの思想。
+  // 制約: 正規表現ベースの簡易検出のため見逃し・誤検知があり得る。reviewer.md の詳細レビューを代替しない。
+  if (toolName === 'Write' || toolName === 'Edit' || toolName === 'MultiEdit') {
+    const filePath = input.file_path || '';
+    const isApexOrPage = /\.(cls|trigger|page)$/i.test(filePath);
+    const isLwcJs = /\.js$/i.test(filePath) && /[\\/]lwc[\\/]/i.test(filePath);
+
+    if (isApexOrPage || isLwcJs) {
+      let code = '';
+      if (toolName === 'Write') {
+        code = input.content || '';
+      } else if (toolName === 'Edit') {
+        code = input.new_string || '';
+      } else if (toolName === 'MultiEdit') {
+        code = (input.edits || []).map(e => e.new_string || '').join('\n');
+      }
+
+      const findings = [];
+
+      // (a) SOQLインジェクション: SELECT と FROM を含む行に + 連結があり、
+      //     escapeSingleQuotes による対策が見当たらない
+      //     （クォート境界の厳密パースはエスケープされた ' の扱いが崩れるため、行単位のキーワード共起で判定）
+      const soqlConcatLineRe = /^(?=.*\bSELECT\b)(?=.*\bFROM\b).*\+.*$/im;
+      if (soqlConcatLineRe.test(code) && !/escapeSingleQuotes/.test(code)) {
+        findings.push('SOQLインジェクションの疑い: SOQL文字列らしきリテラルが + で連結されており、String.escapeSingleQuotes が見当たりません');
+      }
+
+      // (b) ハードコードID: 標準オブジェクト(00始まり)/カスタムオブジェクト(a+数字始まり)の
+      //     15桁/18桁IDリテラル（reviewer.md パターン4と同一パターン）
+      const hardcodedIdRe = /['"](00[0-9A-Za-z]|a[0-9][0-9A-Za-z])[0-9A-Za-z]{12}([0-9A-Za-z]{3})?['"]/;
+      if (hardcodedIdRe.test(code)) {
+        findings.push('ハードコードIDの疑い: 15桁/18桁のSalesforce ID文字列リテラルが含まれています');
+      }
+
+      // (c) SOQL in loop: for/whileループの「本体」でSOQLクエリを発行している
+      //     （ループ宣言の for (x : [SELECT ...]) 形式は1回しか評価されないため対象外）
+      const lines = code.split('\n');
+      let depth = 0;
+      const loopStartDepths = [];
+      let soqlInLoop = false;
+      for (const line of lines) {
+        if ((/\[\s*SELECT\b/i.test(line) || /Database\.(?:query|getQueryLocator)\s*\(/.test(line)) && loopStartDepths.length > 0) {
+          soqlInLoop = true;
+        }
+        if (/\b(?:for|while)\s*\(/.test(line)) {
+          loopStartDepths.push(depth);
+        }
+        depth += (line.match(/\{/g) || []).length;
+        depth -= (line.match(/\}/g) || []).length;
+        while (loopStartDepths.length > 0 && depth <= loopStartDepths[loopStartDepths.length - 1]) {
+          loopStartDepths.pop();
+        }
+      }
+      if (soqlInLoop) {
+        findings.push('SOQL in loopの疑い: for/whileループの本体でSOQLクエリを発行しています');
+      }
+
+      // (d) FLS/CRUD漏れ: DML/SOQLがあるのに、ファイル内にFLS/CRUDチェックの形跡が見当たらない
+      const hasDml = /\b(?:insert|update|delete|upsert|undelete)\s+\w/.test(code) ||
+                     /Database\.(?:insert|update|delete|upsert|undelete)\s*\(/.test(code);
+      const hasSoql = /\[\s*SELECT\b/i.test(code) || /Database\.query\s*\(/.test(code);
+      const hasFlsCheck = /Security\.stripInaccessible|\.isAccessible\s*\(\)|\.isCreateable\s*\(\)|\.isUpdateable\s*\(\)|\.isDeletable\s*\(\)|WITH\s+SECURITY_ENFORCED|WITH\s+USER_MODE|AccessLevel\.USER_MODE/i.test(code);
+      if ((hasDml || hasSoql) && !hasFlsCheck) {
+        findings.push('FLS/CRUDチェック漏れの疑い: DML/SOQLがありますが、isAccessible等・WITH SECURITY_ENFORCED・Security.stripInaccessible等が見当たりません');
+      }
+
+      if (findings.length > 0) {
+        console.log(JSON.stringify({
+          hookSpecificOutput: {
+            hookEventName: 'PreToolUse',
+            systemMessage: '[Check5: コード品質スキャン警告] ' + filePath + '\n- ' + findings.join('\n- ') + '\n※ 正規表現ベースの簡易検出です。誤検知の可能性があり、人間のレビューを代替しません。'
+          }
+        }));
+        return;
+      }
     }
   }
 });
