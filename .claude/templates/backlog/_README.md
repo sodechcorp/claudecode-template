@@ -84,7 +84,7 @@
 
 種別が**バグかつ非自明**（タイポ修正・ラベル変更等の典型的自明ケース以外）の場合、以下が上記「迷ったら実行」より優先して適用される:
 
-- **原因特定系オプションは `auto-execute-when` ヒット有無に関わらず実行側へ倒す**: category A（常時実行寄り: option-symptom-reverification / option-multi-cause-hypothesis / option-counter-evidence-search / option-causal-chain-analysis / option-apex-debug-log / option-cross-record-comparison / option-error-message-reverse-lookup / option-assumption-listing）および option-reverse-grep は、明示的なキーワードシグナルがなくても実行する
+- **原因特定系オプションは `auto-execute-when` ヒット有無に関わらず実行側へ倒す**: category A（常時実行寄り: option-symptom-reverification / option-multi-cause-hypothesis / option-counter-evidence-search / option-causal-chain-analysis / option-apex-debug-log / option-cross-record-comparison / option-error-message-reverse-lookup / option-assumption-listing）および option-reverse-grep は、明示的なキーワードシグナルがなくても実行する。**ただし手法自体が成立しないことを示す `auto-skip-when` 条件（例: option-error-message-reverse-lookup の「エラー文言の記載がない」、option-cross-record-comparison の「比較対象となる正常レコードが存在しない」）は引き続き適用してスキップする**（「典型的自明ケース」「種別が追加要望・その他」由来の条件は本ゲート適用時は元々該当しないため対象外）
 - **カタログに無い調査手段も自律的に実行**: オプションは最低限の床。バグ非自明では、カタログ外の調査方法も investigator 自身が発想して実行してよい（「採用したオプション」欄に `adhoc-{名前}` で記録）
 - **コスト最適化の適用対象は「自明ケース・追加要望・その他」のみ**: `default-when-uncertain: skip` の軽量化バイアスはバグ非自明に適用しない（軽量課題・追加要望・その他は従来通り）
 
