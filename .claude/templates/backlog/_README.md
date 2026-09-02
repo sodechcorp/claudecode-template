@@ -21,6 +21,9 @@
 ├── _archive-production-release.md # 本番リリース手順書アーカイブ（資産保全のみ・実行時は非参照）
 ├── _partials/                    # 差分ベース定型チェックの部品（deploy-manifest-base.md 等）
 ├── xlsx-setup.md                 # Phase 1.5 xlsx フォルダ確定手順
+├── phase1-6-sandbox-verification.md # Phase 1.6 詳細手順（backlog.md からバグ系のみ条件付き Read）
+├── phase2-inquiry-mode.md        # Phase 2 問い合わせ専用モード詳細手順（backlog.md から条件付き Read）
+├── planner-phase-q.md            # backlog-planner Phase Q 詳細手順（backlog-planner.md から条件付き Read）
 ├── deploy-skip-judgment.md       # デプロイ適否の判定基準
 ├── resume-phase-routing.md       # 途中フェーズからの再開ルーティング
 ├── test-fail-routing.md          # Phase 5 NG 時の戻り先テーブル

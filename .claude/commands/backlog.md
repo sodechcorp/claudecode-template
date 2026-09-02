@@ -271,44 +271,8 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 ### Phase 1.6: Sandbox 仮説検証（バグ系のみ）
 
 > **実行条件**: `{issue_type}` = `バグ` の場合のみ実行する。追加要望・その他はこのセクションをスキップして Phase 1.5 へ進む。スキップ時は「追加要望・その他のため Sandbox 仮説検証は不要」と 1 行通知する。問い合わせは Phase 1 完了時点で Phase 2 へ直接進むため通常ここに到達しない（誤って到達した場合も本セクションをスキップし Phase 2 へ進む）。
->
-> **`--light` でもスキップしない**: Phase 1.6 は原因診断の正しさを確認する検証ゲートであり、light がスキップする Phase 2（方針の選択）/ Phase 3.5（実装前検証）とは性質が異なる。未検証の仮説のまま軽微修正を当てるのが最も危険なため、バグ系は light でも通常どおり実行する。
 
-`backlog-repro-runner` エージェントを起動する（実際に Sandbox 画面を操作してバグを再現する）:
-
-```
-課題ID: {issueID}
-プロジェクトルート: {カレントディレクトリ}
-調査レポート: docs/logs/{issueID}/investigation.md
-出力先: docs/logs/{issueID}/hypothesis-verification.md
-証跡保存先: docs/logs/{issueID}/repro
-```
-
-エージェントが `hypothesis-verification.md` を保存したら内容をユーザに提示する。
-
-**Phase 1.6 完了後の分岐**:
-
-| 結果 | 次の動作 |
-|---|---|
-| 再現仮説 ≥ 1 件 | Phase 1.5 へ（再現した仮説のみを Phase 2 で対象とする） |
-| 再現仮説 = 0 件 | Phase 1 に戻り investigator が新仮説を追加生成して再度 Phase 1.6 を実施（**最大 2 回まで・セッション跨ぎを含めて通算カウント**。カウントは discussion-log.md の改版履歴から復元する。3 回目は「仮説が尽きている可能性があります。業務側との打ち合わせを推奨します」とユーザーに伝え、継続・中止の判断を求める） |
-| 検証中に新事実発見 | investigator が `investigation.md` を更新して再度 Phase 1.6 を実施（ループカウントに含める） |
-| 仮説が「検証不可」（Sandbox にメタデータ・データなし、環境依存等） | **「未検証のまま」として記録。確定表現禁止。** 原因がリポジトリ未回収のメタ要素（入力規則・カスタム設定等）に依存する場合は、`sf project retrieve` で org から取得するかユーザーに実在・内容を確認してから Phase 2 へ。「Sandbox にないから飛ばす ＝ 確定扱い」は禁止。 |
-
-> **次に進む条件**: [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・「Phase 1.5 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
-
-#### Phase 1 再入（仮説補充）の起動方法
-
-「再現仮説 = 0 件」の場合、`backlog-investigator` を以下のプロンプトで再起動する（`検証結果:` キーが追加されることで investigator が再入モードで動作する）。**Step A（課題本文の先行取得 + sf-context-loader）は再実行しない**（context-digest.md が既に存在するため investigator が自分で Read する。`知識層コンテキスト`/`設計層コンテキスト` パラメータは渡さない）:
-
-```
-課題ID: {issueID}
-プロジェクトルート: {カレントディレクトリ}
-出力先: docs/logs/{issueID}/investigation.md
-検証結果: docs/logs/{issueID}/hypothesis-verification.md
-```
-
-investigator は `検証結果:` キーの有無で再入モードを自動判定する。再入モードでは hypothesis-verification.md を Read して反証済み仮説を除外し、新視点の仮説のみを investigation.md に追記する（通常フロー Step A〜H は実行しない）。通算ループカウントはこのコマンド側（discussion-log.md の改版履歴）が管理する。
+`{issue_type}` = `バグ` の場合、詳細手順（エージェント起動パラメータ・完了後の分岐・Phase 1 再入方法）を Read する: [.claude/templates/backlog/phase1-6-sandbox-verification.md](../templates/backlog/phase1-6-sandbox-verification.md)
 
 ---
 
@@ -362,28 +326,7 @@ python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d
 
 #### 種別が「問い合わせ」の場合（回答ドラフト・Phase A/B とは別モード）
 
-`backlog-planner` エージェントを以下のパラメータで起動する:
-
-```
-モード: 回答ドラフト（Phase Q）
-調査レポート: docs/logs/{issueID}/investigation.md
-出力先: docs/logs/{issueID}/answer-draft.md
-種別: 問い合わせ
-```
-
-エージェントが `answer-draft.md` を保存したら、**`docs/logs/{issueID}/answer-draft.md` を Read で読み込み**、**「### 回答本文（Backlog 投稿用ドラフト）」セクションのみを全文そのままチャットに提示**する（`backlog-planner` は Q-4 でこの提示を行わずコマンド本体に保存完了のみ報告する設計のため、コマンド本体がエージェントの完了報告テキストに頼らず自らファイルを読み込む必要がある。Backlog へ実際に投稿する対象はこの部分のみのため）。提示の冒頭に必ず次を明記する:
-
-> ※これはドラフトです。内容を確認のうえ、Backlog への投稿は人間が手動で行ってください（自動投稿はしません。`pre-operation.js` が Backlog 投稿をハードブロックしています）。
-
-回答本文の提示直後に「質問の要約・回答（結論）・根拠・[要確認]事項・補足は社内レビュー用として `answer-draft.md` に保存済みです（判断根拠を確認したい場合はファイルを参照）」と一言添える（内部レビュー用セクションはチャットに再掲しない）。
-
-ユーザの確認・修正依頼を受け付ける（自由テキスト）。修正依頼があれば `backlog-planner` を同じパラメータで再起動しドラフトを更新する。
-
-**Phase 3 以降には進まない。この課題は Phase 2 で完了とする**（実装を伴わないため）。ユーザの確認が済んだら以下で完了報告する:
-
-> 回答ドラフトを生成しました。内容をご確認のうえ、Backlog への投稿は手動でお願いします。
-
-完了時は `## §中断時の知見還流（部分還流）` は適用しない（Phase 6 到達前の中断ではなく、問い合わせ種別の正規完了経路のため）。
+`{issue_type}` = `問い合わせ` の場合、詳細手順（`backlog-planner` 起動パラメータ・回答提示手順・完了報告文言）を Read する: [.claude/templates/backlog/phase2-inquiry-mode.md](../templates/backlog/phase2-inquiry-mode.md)
 
 ---
 
