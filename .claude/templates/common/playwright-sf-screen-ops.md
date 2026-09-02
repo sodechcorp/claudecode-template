@@ -117,38 +117,7 @@ async function saveText(p, text, path) {
 
 **使い方**: `const saved = await saveText(page, text, '/絶対パス/xxx.txt'); results.push({..., ...(saved ? {} : { text })});`（`saved` が `false` の要素だけ、呼び出し元エージェントが受け取った `text` を Write する）。`errorSignature: ERROR_SIGNATURES.find(s => text.includes(s)) || null` と `thinDom: text.length < 200` もこの時点で計算し `results` に積む（旧来「エージェントが `text` を読んで Write 前に判定する」方式は、`text` がエージェントに渡らなくなったため機能しない。判定は必ずコードブロック側で行う）。
 
-**frontdoor 認証後、最初の Salesforce（Lightning）画面へ遷移した状態で 1 回だけ probe を実行して発火確認する**（`newContext` 不可時のフォールバックと同じ考え方）。**about:blank 等の CSP が適用されない画面で probe すると必ず `OK` になり検証にならない**ため、必ず対象組織の実画面上で実行すること。probe は他のコードブロックと独立したスコープで評価されるため `saveText` 定義をそのまま貼り込んで自己完結させる（外部定義への参照は不可。定義を省略すると `saveText is not defined` で必ず失敗する）:
-```javascript
-async (page) => {
-  async function saveText(p, text, path) {
-    try {
-      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
-      await p.evaluate(({ text, filename }) => {
-        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.download = filename;
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }, { text, filename: path.split(/[\\/]/).pop() });
-      const download = await downloadPromise;
-      if (!download) return false;
-      await download.saveAs(path);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-  // 保存先は証跡ディレクトリ外（各エージェントのログ／作業ディレクトリ: {log_dir} や {証跡保存先}/logs 等）にする。
-  // evidence 配下だと .txt 索引・Step 4 の find に混入するため
-  const ok = await saveText(page, 'probe', '{log_dir}/_saveText_probe.txt');
-  return ok ? 'saveText: OK' : 'saveText: NG（download 不発火。以降は text を直接 return してエージェント側 Write に統一する）';
-}
-```
-probe が NG だった場合、そのセッション内では `saveText` の呼び出し自体を省略し、最初から `text`/`beforeText` を `results` に積む（毎回 8 秒のタイムアウト待ちを繰り返さないため）。**Salesforce Lightning の実画面での発火は claude-temp 側では未検証**（about:blank での実機検証のみ実施済み）。CSP・iframe 構成等で発火しない場合はこの probe とフォールバックで自動的に旧方式（LLM 経由 Write）に切り替わり、性能は改善しないが証跡欠落は起きない。
+**Salesforce Lightning の実画面での発火は claude-temp 側では未検証**（about:blank での実機検証のみ実施済み）。CSP・iframe 構成等で発火しない場合は `saveText` 自体の try/catch が `false` を返し、呼び出し側は `text`/`beforeText` を `results` に積んでエージェントが Write でフォールバックする（保存経路が変わるだけで証跡欠落は起きない。発火しない環境では TC ごとに 8 秒のタイムアウト待ちが発生するが、機能面の実害はない）。
 
 ---
 
