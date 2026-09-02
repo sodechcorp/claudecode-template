@@ -323,10 +323,10 @@ A-3 の提示内容をユーザに見せたら、以下を必ず行う:
    - Q1 の回答が業務部門からまだ出ていない場合に方針 A と B のどちらを仮置きするか
    - 過去データの扱い・業務ルール解釈・受入条件・適用範囲
    - 不含: テストクラス追加要否・命名・既存パターン踏襲・カバレッジ要件・「採用案を確定してください」（次へ確認で兼ねる）
+   - **discussion-log.md 追記（確認プロトコル出力直後・ユーザー応答待ち前）**: `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 3 に進んでよろしいですか？」とテキストで確認する（**ここで承認が得られるまで Step 5 に進まない**）
 5. 承認後 → `docs/logs/{issueID}/approach-plan.md` に保存してユーザに提示する
-6. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）
 
 **方針確定後は、業務要件の Q への回答を approach-plan.md の「業務要件への回答」欄に記入してから次へ。**
 
@@ -593,10 +593,10 @@ B-3 の提示内容をユーザに見せたら、以下を必ず行う:
    - 過去データの扱い・業務ルール解釈・スコープ判断
    - Q 答えと方針の整合性（Q 番号は昇順で引用）
    - 不含: テストクラス追加要否・命名・カバレッジ要件・「採用案を確定してください」（次へ確認で兼ねる）
+   - **discussion-log.md 追記（確認プロトコル出力直後・ユーザー応答待ち前）**: `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 3.5 に進んでよろしいですか？」とテキストで確認する
 5. 承認後 → `docs/logs/{issueID}/implementation-plan.md` に保存してユーザに提示する
-5.5. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）
 6. **保存完了をコマンド本体（呼び出し元 /backlog）に明示報告する**: コマンド本体が Phase 3 末尾の xlsx 一括生成スクリプト（create_records.py）を実行するため、planner からは bash を実行しない（エビデンス.xlsx は /test が担当）。`option-validator-blind` 採用時は、コマンド本体がこの報告を受けて `backlog-blind-validator` を自ら起動する（B-3 末尾参照。planner は起動しない）
 
 **全判断ポイントの確認が取れるまで実装に進まない。**

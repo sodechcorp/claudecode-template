@@ -247,9 +247,10 @@ NG 項目（あれば）:
    - NG 判定が出た Step の対処方針
    - 追加発見した影響範囲（investigator 調査後の新規参照）
    - Q 答えと実装方針の整合性に関する懸念（Q 番号を昇順で引用）
+
+   出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 3 戻り判定が出た場合は戻り理由を必ず記録する。
 2. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
-3. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。Phase 3 戻り判定が出た場合は戻り理由を必ず記録する。
-4. やり取りが落ち着いたら「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？」とテキストで確認する。**Phase 3 に戻る場合**はユーザに「Phase 3（実装方針策定）に戻ります。/backlog を再実行して Phase 3 から進めてください（または同一セッション内で『Phase 3 に戻ってください』と指示）」と案内する。
+3. やり取りが落ち着いたら「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？」とテキストで確認する。**Phase 3 に戻る場合**はユーザに「Phase 3（実装方針策定）に戻ります。/backlog を再実行して Phase 3 から進めてください（または同一セッション内で『Phase 3 に戻ってください』と指示）」と案内する。
 
 **Phase 4 に進む前に必ずユーザの明示的な承認を得る。**
 

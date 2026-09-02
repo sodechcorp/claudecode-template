@@ -277,9 +277,10 @@ Before/After をユーザに提示した後、以下を必ず行う:
    - 実装中に計画書に記載のなかった構造 X を発見したため採用アプローチを変えた
    - implementation-plan.md の改版が必要な箇所の確認
    - 経路 2/3 で Phase 3/3.5 に戻った際の再確認ポイント
+
+   出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
 2. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 3. やり取りが落ち着いたら「Phase 5 に進んでよろしいですか？」とテキストで確認する
-4. `docs/logs/{issueID}/discussion-log.md` に当 Phase の議論を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
 
 > **auto_fix_mode: true の場合**: 上記 1〜3 の対話確認は行わず、変更ファイル数・主な変更点・経路 2/3 判定の有無を構造化して呼び出し元（/test）に返す（承認ガード例外 L90-94 と対称）。
 
