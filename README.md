@@ -20,7 +20,7 @@ Salesforce 開発プロジェクト向けの Claude Code テンプレート。
 
 ---
 
-## スラッシュコマンド（11個）
+## スラッシュコマンド（12個）
 
 ### セットアップ系
 
@@ -45,6 +45,7 @@ Salesforce 開発プロジェクト向けの Claude Code テンプレート。
 | `/backlog [課題ID]` | Backlog 課題の分析 → 対応方針提案 → 実装 → テスト → デプロイまで一気通貫 | ユーザー承認後に実装へ |
 | `/test [課題ID]` | 実装後テストを全自動実行し証跡採取・OK/NG判定・エビデンスExcel出力 | `/backlog` Phase 6（Sandboxデプロイ）後に実行 |
 | `/release [課題ID]` | 本番リリース準備（資材確定・影響範囲・ドリフト確認）を read-only で実行 | 本番へのデプロイ自体は行わない |
+| `/sf-code-analyze [対象]` | `sf code-analyzer`（PMD/CPD/regex）による実エンジン静的解析。Critical/Warning/Info で報告 | org 接続不要・reviewer.md の目視レビューと併用が前提 |
 
 ### ドキュメント生成系
 
