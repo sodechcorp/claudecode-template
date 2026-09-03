@@ -55,7 +55,13 @@ if [ ! -f "${LOG_DIR}/investigation.md" ]; then
   echo "[WARN] investigation.md が見つかりません。テスト仕様の展開精度が下がる可能性があります。"
 fi
 
-# 4. sandbox-alias-check（本番保護）
+# 4. sandbox-alias-check（本番保護。共通手順 .claude/templates/common/sandbox-alias-check.md の
+# 「エイリアス取得」「Sandbox 判定」を、Phase A 全体が単一 bash フェンスのハーネス直接実行で
+# 変数（SF_ALIAS 等）を後続ステップと共有する制約上、意図的にインライン複製している。
+# 共通テンプレート改修時は本ブロックとの整合を確認すること（test.md は同テンプレートの
+# 「参照元エージェント」一覧にも記載済み）。
+# 判定条件の isSandbox OR instanceUrl は test.md 固有の拡張（共通テンプレートは isSandbox のみ）。
+# 2026-06-23 導入時から意図的に付与されており、削除の要否は根拠不明のため現状維持。
 SF_ALIAS=$(sf config get target-org --json | python -c "import sys,json; print(json.load(sys.stdin)['result'][0]['value'])" 2>/dev/null || echo "")
 SF_ORG_JSON=$(sf org display --target-org "$SF_ALIAS" --json 2>/dev/null)
 IS_SANDBOX=$(echo "$SF_ORG_JSON" | python -c "import sys,json; d=json.load(sys.stdin)['result']; print(d.get('isSandbox')==True or 'sandbox.my.salesforce.com' in d.get('instanceUrl',''))" 2>/dev/null || echo "false")

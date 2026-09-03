@@ -116,5 +116,7 @@ Sandbox 操作（sf apex run test / sf project deploy / SOQL 等）の直前に�
 > このテンプレートを参照するエージェント: `backlog-tester.md` / `backlog-releaser.md` / `backlog-validator.md`（SOQL dryrun 時）/ `backlog-repro-runner.md`（バグ再現・仮説検証）/ `auto-evidence-runner.md`（テスト証跡採取）
 >
 > 上記のうち実データへの DML・匿名Apex 実行・UI 上での書き込み操作を行う `backlog-repro-runner.md` と `auto-evidence-runner.md` は、当該操作の直前に「メール到達安全確認」も追加で実施する（上記セクション参照）。
+>
+> **例外（インライン複製）**: `test.md` の Phase A は「エイリアス取得」「Sandbox 判定」のロジックを Read 参照ではなく意図的にインライン複製している（Phase A 全体が単一 bash フェンスのハーネス直接実行で、後続ステップと `SF_ALIAS` 等の変数を共有する構成のため）。判定条件に `instanceUrl` による OR 条件を独自に追加している点も含め、本テンプレートを改修する際は `test.md` 側との整合を確認すること。
 
 **`INSTANCE_URL` の再利用**: ユーザーへの目視確認ハンドオフ（レコードURL・画面URLの提示）が必要なエージェントは、ここで取得済みの `INSTANCE_URL` をそのまま使う（再取得しない）。組み立て方・出力フォーマットは [visual-confirmation-handoff.md](visual-confirmation-handoff.md) を参照。
