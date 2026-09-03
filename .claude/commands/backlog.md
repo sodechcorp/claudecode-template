@@ -375,7 +375,9 @@ default_stance: {Phase 2 と同じ値を引き継ぐ}
 1. investigation.md の「課題原文」セクションから課題本文の全文・全コメントのテキストを取得する（既に disk 上にあるため Read で取得。MCP 再取得は不要）。
 2. approach-plan.md の「採用方針:」行の1行のみを取得する（それ以外の内容は一切含めない。blind 性維持のため）。
 3. `.claude/templates/backlog/blind-prompts/validator.md` の Task prompt テンプレートを Read し、プレースホルダー（`{issueID}` `{課題本文の全文}` `{全コメントのテキスト}` `{investigation.md のテキスト}` `{採用方針テキスト}`）を実行時の値で置換して `backlog-blind-validator` を起動する。
-4. 返却されたテキストを `## blind 実装案レビュー` セクションとして implementation-plan.md の末尾に追記する。
+4. 返却されたテキストの先頭が `## エラー` 形式（backlog-blind-validator.md §異常時の挙動: missing-input / blind-leaked）かどうかを判定する。
+   - **エラー形式でない場合**: 返却されたテキスト（backlog-blind-validator.md の出力）と implementation-plan.md 本文（parent 案）を突き合わせ、`option-validator-blind.md` §出力 の形式（`## blind 実装案レビュー` → `### subagent 独立案の概要` + `### parent 案との相違点（blind 差異）`）で implementation-plan.md の末尾に追記する。比較表の「判断ポイント」行は blind 案側の小見出し（処理構造／データ設計／SOQL／エラーハンドリング／副作用対応。該当なしの項目は行ごと省略）を用い、「parent 案」列は implementation-plan.md 本文の対応箇所を要約する。「採用判断」列は空欄のまま残し、次の確認プロトコル（Phase 3 完了時のユーザー確認）でユーザーに判断を委ねる。
+   - **エラー形式の場合**: implementation-plan.md への追記を保留し、エラー内容（種別・詳細）をユーザに提示したうえで、対処（引き渡し情報を修正して再試行する／blind レビューなしで Phase 3.5 に進む）をテキスト会話で確認する（`_README.md` §AskUserQuestion の使用ルールに準拠し AskUserQuestion は使わない）。「レビューなしで進める」と回答された場合は `## blind 実装案レビュー` を追記せず Phase 3.5 へ進む。
 
 **xlsx 一括生成（対応記録 + エビデンス）**（`{xlsx_folder}` が設定されている場合のみ）
 

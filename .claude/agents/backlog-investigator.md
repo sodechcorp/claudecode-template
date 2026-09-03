@@ -383,7 +383,17 @@ B-1 で取得済みのファイルを除く以下の `docs/` を横断して読�
 - (A) 兄弟入口 → investigation.md「影響範囲」セクションに**入口名・ファイル:行・「同一症状が再現する根拠」**を区分S行として明記する。静的読解で確定できず(A)寄せで計上した場合は区分を「S（疑い・要確認）」と記載する。
 - (B) 派生事項 → 従来どおり「派生事項（本対応スコープ外）」セクションに記録のみ。
 
-**Step 0b で option-reverse-grep が「実行しない」と判定された場合**: root-cause-anchor モードでの発火も見送り、「兄弟入口チェック未実施（option-reverse-grep skip のため）」と記録して Step D に進む。ただし根本原因が明らかに共有コンポーネントに帰着する場合は、Step 0b の判定にかかわらず本 Step の発火条件（上記）を優先する（オプションカタログは床であって天井ではない原則に従う）。
+**Step 0b で option-reverse-grep が「実行しない」と判定された場合**: root-cause-anchor モードでの発火も見送り、「兄弟入口チェック未実施（option-reverse-grep skip のため）」と記録して Step C-3 に進む。ただし根本原因が明らかに共有コンポーネントに帰着する場合は、Step 0b の判定にかかわらず本 Step の発火条件（上記）を優先する（オプションカタログは床であって天井ではない原則に従う）。
+
+### Step C-3: 独立仮説の取得（option-second-opinion 該当時）
+
+**Step 0b で option-second-opinion の実行が決定された場合のみ実施**（Step C-2 完了後・Step D 着手前）。この時点で Step C により関連コンポーネントのファイルパス一覧が確定しているため、option-second-opinion.md が要求する引き渡し情報④（関連コンポーネントのファイルパス一覧）が揃う。
+
+`.claude/templates/backlog/options/option-second-opinion.md` の実行手順に従い、`backlog-blind-second-opinion` subagent を Task ツールで起動する（parent 内で直接実行しない・blind 性の保全のため）。引き渡す情報は同ファイル §実行手順（subagent への引き渡し情報 1〜5）に従う。
+
+subagent が返した仮説群は、後述「根本原因 / 要件の本質」節の原因仮説（多角分析）テーブルの参考材料として保持し、investigation.md に option-second-opinion.md §出力 の形式で「## blind second-opinion 結果」セクションを追記する。「parent 仮説との差異」列は、本 Step 完了後に investigator 自身が原因仮説（多角分析）と突き合わせて埋める。
+
+**Step 0b で option-second-opinion が「実行しない」と判定された場合は本 Step をスキップし、Step D に進む。**
 
 ### Step D: 類似する既存実装の特定
 
