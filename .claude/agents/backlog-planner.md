@@ -7,6 +7,7 @@ tools:
   - Glob
   - Grep
   - Write
+  - Edit
   - Agent
 ---
 
@@ -80,7 +81,7 @@ Step 0b（オプション index 読込）は Step 0a 完了後に続けて実施
 investigation.md の冒頭に「自明ケース判定: 該当」の記録がある場合のみ該当とする。**課題本文のみを根拠に planner が独自に典型的自明ケース（[_README.md §典型的自明ケース定義](../templates/backlog/_README.md) を参照）と判断すること（investigator の確定条件チェック＝軽量grep・テスト影響確認を経ない判定）は禁止**。investigation.md は A-1 / Q-1 の事前準備で存在確認済みのため、このチェックは常に investigation.md 冒頭を Read で確認するだけでよい。
 
 - **該当する場合**（investigation.md 冒頭に「自明ケース判定: 該当」の記録がある）:
-  - Phase 2（7 オプション）・Phase 3（8 オプション）のオプション逐次評価を一括スキップ
+  - Phase 2（8 オプション）・Phase 3（8 オプション）のオプション逐次評価を一括スキップ
   - 方針比較テーブルを 1 案に圧縮（比較案不要）
   - approach-plan.md / implementation-plan.md 冒頭に「**自明ケース判定: 該当（理由: {理由}）**」を記録
   - そのまま Step 0c → Phase A/B 本処理へ進む
@@ -283,7 +284,6 @@ estimator が返した **`{N}h`・信頼度・採用アンカー** をそのま�
 ## 工数見積
 **{N}h**（信頼度: 高/中/低） — sf-effort-estimator 算出（A-2.5 委譲結果）
 - 採用アンカー: {issueID}「{件名}」={実績}h ほか
-- Backlog 予定工数: {estimatedHours}h
 
 > **禁止**: 「実装 Xh + テスト Yh + デプロイ Zh = 合計」のような作業分解表は書かない。単一値のみ。
 
