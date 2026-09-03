@@ -33,7 +33,7 @@ Step 0a（sf-context-loader 経由の SF コンテキスト読込。サブエー
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
-まず `docs/logs/{issueID}/investigation.md` の「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Read し、件名 + 課題サマリー + 要件理解と対象 F-番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ（**判断ポイントが0件のケース**〔backlog-planner B-3 の設計により「### 実装方針まとめ」の代わりに「### 判断ポイントなし（全カテゴリ一意確定）」が出力されている場合〕は代わりに「## 関連コンポーネント一覧（変更対象ファイル）」を使う）→ 呼び出し元から渡された課題タイトルの順でフォールバックする。
+まず `docs/logs/{issueID}/investigation.md` の「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Read し、件名 + 課題サマリー + 要件理解と対象 F-番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ → 呼び出し元から渡された課題タイトルの順でフォールバックする。
 
 > **ダイジェスト優先（高速化）**: `docs/logs/{issueID}/context-digest.md` が存在する場合は Read してコンテキストを再利用し、Task tool の sf-context-loader 起動を省略する。
 
@@ -94,7 +94,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 5. **デプロイ元は常に `force-app` 本体**。他チケットとの競合解消やマージ検証のためにバックアップ/作業用フォルダ（例: `.release-backup/{issueID}/...`）を作った場合でも、そこを `release-plan.md` の `--source-dir` に指定しない。競合解消後の変更は必ず `force-app` にマージしてから 1. の diff 抽出・Phase 5 のデプロイコマンドに反映する（`force-app` 外のフォルダは source-tracking・metadata 構造の前提を満たさず `NothingToDeploy` 等の予期しないエラーを招く）
 6. **`apex_in_scope: true` の場合、`--test-level` 判定用にテストクラスを確定する**（目的: 無関係な既存テストを全件実行する `RunLocalTests` を既定にせず、Salesforce 公式仕様上カバレッジ要件が「デプロイ対象クラス単位」で完結する `RunSpecifiedTests` をデフォルトにするため。根拠: RunSpecifiedTests は対象クラス/トリガーごとに個別カバレッジ75%が要件で無関係な既存テストの合否を問わないが、RunLocalTests は組織内の全ローカルテストの実行・合格が要件になる）:
    - `test-report.md`「### dry-run デプロイ検証」の「指定テストクラス: ...」に具体的なクラス名の記載があれば（backlog-tester Step 2 で確定済み・値が「なし」以外）、それを `target_test_classes` としてそのまま転記し、以下の Glob/Grep 探索は行わない
-   - 上記に該当しない場合（「指定テストクラス:」の行自体が無い、または値が「なし」の場合〔対応テストクラス不在と backlog-tester 側で確定済みのケースを含む〕）、デプロイ対象の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`）で専用テストクラスを Glob/Grep で特定する
+   - 上記に該当しない場合（「指定テストクラス:」の行自体が無い、または値が「なし」の場合〔対応テストクラス不在と backlog-tester 側で確定済みのケースを含む〕）、デプロイ対象の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls`）で専用テストクラスを Glob/Grep で特定する（regression-guard.md Step 2 の候補パターンと一致）
    - `docs/logs/{issueID}/investigation.md` の「## 既存テストクラスへの影響」（option-test-class-impact.md が Phase 2 で作成済みの場合）に追加で挙がっているテストクラスがあれば取り込む
    - 全デプロイ対象クラスに専用テストクラスが見つかった場合 → `test_coverage_risk: false`、特定したテストクラス一覧を `target_test_classes` として記録
    - 1件でも専用テストクラスが見つからない場合 → `test_coverage_risk: true`、該当クラス名を記録（Phase 5 で `RunLocalTests` フォールバックの根拠にする）

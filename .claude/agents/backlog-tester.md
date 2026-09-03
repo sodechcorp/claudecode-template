@@ -106,7 +106,7 @@ Step 2（dry-run デプロイ）が `<alias>` を使うため、ここで先に�
 
 `implementation-plan.md` の変更対象ファイルに Apex クラス（`.cls`）またはトリガー（`.trigger`）が含まれるかで test-level を切り替える:
 
-**`<テストクラス名>` の特定方法**: `docs/logs/{issueID}/validation-report.md` の「## Step 2: 既存テストカバレッジ確認」表（regression-guard確認結果由来）に対応するテストクラス名の記載があれば、それを優先してそのまま使う。記載が無い、または表自体が存在しない場合のみ、変更対象クラス・トリガーごとに命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`。トリガーはファイル名（拡張子除く）を `{ClassName}` として同じ規則を適用する）で Glob/Grep して特定する（release-preparer.md Phase 6 と同じ特定方法に統一）。
+**`<テストクラス名>` の特定方法**: `docs/logs/{issueID}/validation-report.md` の「## Step 2: 既存テストカバレッジ確認」表（regression-guard確認結果由来）に対応するテストクラス名の記載があれば、それを優先してそのまま使う。記載が無い、または表自体が存在しない場合のみ、変更対象クラス・トリガーごとに命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls`。トリガーはファイル名（拡張子除く）を `{ClassName}` として同じ規則を適用する）で Glob/Grep して特定する（release-preparer.md Phase 1 と同じ特定方法に統一。regression-guard.md Step 2 の候補パターンとも一致）。
 
 **部分該当（変更対象の一部のクラス・トリガーだけ対応テストクラスが見つかった場合）**: 見つかった分のみをスペース区切りで `<テストクラス名>` に列挙し `RunSpecifiedTests` で実行する（下記の NoTestRun フォールバックは変更対象**全件**が不在の場合のみに適用し、部分該当では適用しない）。`RunSpecifiedTests` はデプロイ対象クラス・トリガーごとに個別 75% カバレッジを要求するため、テストクラスが見つからなかったクラス・トリガーがあれば dry-run 自体がそのクラスのカバレッジ不足で FAIL しうる（Step 4 の FAIL 分岐でそのまま報告すればよく、黙って見逃されない）。
 
