@@ -71,7 +71,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 **方式A（冒頭 80 行 + 末尾 30 行のみ Read。110 行未満なら全文。[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 方式A）を適用するファイル**（後続 Step が本文全体の精読までは必要としないもの）:
 
-- `docs/logs/{issueID}/implementation-plan.md`
+- `docs/logs/{issueID}/implementation-plan.md`（`deploy_route: manual-operation` の場合は Phase 3〜5 スキップにより存在しない。存在しない場合は「不在（Step 0d 確認済み）」として記録し、以降の Step で参照する箇所は「存在する場合のみ」の分岐に従う）
 
 **方式B（見出しを Grep で検索し該当セクションのみ Read。[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 方式B）を適用するファイル**（後続 Step が本文中盤の特定セクションを常時消費し、かつ見出し構成が案件間で安定しているため、冒頭+末尾読みに頼らず Grep 一本化できる。[pattern-curator.md](pattern-curator.md) Step 2 と同一見出しで、既存 `docs/logs/*/investigation.md` 16件中15件で実在確認済み）:
 
@@ -191,7 +191,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 ### 2b. 管理画面直接操作の場合
 
-backlog.md の「デプロイ適否の判定」（判定ロジック: .claude/templates/backlog/deploy-skip-judgment.md）で実装スキップが選ばれた場合、デプロイは行わず管理画面操作の引き渡し手順書を作成する。`docs/logs/{issueID}/manual-operation-steps.md` に保存する。
+起動パラメータ `deploy_route` が `manual-operation`（backlog.md の「デプロイ適否の判定」判定ロジック: .claude/templates/backlog/deploy-skip-judgment.md）の場合、デプロイは行わず管理画面操作の引き渡し手順書を作成する。`docs/logs/{issueID}/manual-operation-steps.md` に保存する。
 
 > **全文提示はしない**: この場でチャットに全文を貼り付けない。ファイルパスと操作ステップ数の概要のみ完了報告に含める。Todo 化・ステップごとの逐次提示は呼び出し元（`backlog.md` Phase 6）の責務。仕様: [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md)。
 

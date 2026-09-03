@@ -692,10 +692,7 @@ fi
 
 ## デプロイ適否判定
 
-- [ ] 変更対象はコード・メタデータで管理可能
-- [ ] 本番とリポジトリの乖離リスクなし
-
-→ 適否: デプロイ可 / 管理画面直接操作が適切
+（investigator はこの節を書かない。Phase 1 完了後、main thread が [deploy-skip-judgment.md](../templates/backlog/deploy-skip-judgment.md) の基準に照らして判定し、判定結果と根拠を Edit で追記する。`{deploy_route}` フロントマター記録と同時に実施）
 
 ## テストシナリオ
 

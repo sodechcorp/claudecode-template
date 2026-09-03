@@ -79,7 +79,7 @@ argument-hint: "[課題ID]"
 >   3. Phase 末尾の確認プロトコルを実行する
 >
 > **【再開・変数】**
-> - **compact 後の再開について**: 長尺セッションで /compact が発生した後に /backlog を継続する場合は、必ず /backlog コマンドを再起動して Phase 0d 経由でコンテキストを復元すること。エージェント実行途中で /compact が発生した場合も同様。investigation.md のフロントマターに記録した `issue_type` / `xlsx_folder` / `evidence_dir` / `light_mode` を Phase 0d で読み込んで変数を再設定する（フロントマター更新の義務・スキップ禁止・復元手順の詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照）
+> - **compact 後の再開について**: 長尺セッションで /compact が発生した後に /backlog を継続する場合は、必ず /backlog コマンドを再起動して Phase 0d 経由でコンテキストを復元すること。エージェント実行途中で /compact が発生した場合も同様。investigation.md のフロントマターに記録した `issue_type` / `xlsx_folder` / `evidence_dir` / `light_mode` / `deploy_route` を Phase 0d で読み込んで変数を再設定する（フロントマター更新の義務・スキップ禁止・復元手順の詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照）
 > - **種別変数 `{issue_type}` の管理**: Phase 1 完了時点で `investigation.md` の「種別」欄から `{issue_type}` = `バグ` / `追加要望` / `その他` / `問い合わせ` を確定し、会話の最後まで保持する。Phase 2（デフォルトスタンス／問い合わせ時は回答ドラフトモード分岐）・Phase 5（テスト観点）・Phase 6（お客様確認必須度）の分岐に使用する。種別欄が空欄・不明・記載なしの場合は「種別が判断できません。バグ / 追加要望 / その他 / 問い合わせ のどれに該当しますか？」とテキストで確認してから確定する
 >
 > **【環境・記録】**
@@ -172,7 +172,7 @@ New-Item -ItemType Directory -Force -Path "docs/logs/{issueID}" | Out-Null
 5. `validation-report.md` — 実装前検証結果
 6. `test-report.md` — テスト結果
 
-investigation.md を Read した際はフロントマター（`---` で囲まれた部分）から `issue_type` / `xlsx_folder` / `evidence_dir` / `light_mode` を変数として読み取り、以降のフェーズで使用する。
+investigation.md を Read した際はフロントマター（`---` で囲まれた部分）から `issue_type` / `xlsx_folder` / `evidence_dir` / `light_mode` / `deploy_route` を変数として読み取り、以降のフェーズで使用する。
 
 **分割読込ルール**: investigation.md・approach-plan.md・implementation-plan.md・validation-report.md・test-report.md は、**冒頭 80 行 + 末尾 30 行**を読めば十分（ファイルが 110 行未満の場合は全文）。フルが必要なフェーズ（実装フェーズなど）はエージェント側で個別に全文 Read すること（[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通)）。
 
@@ -226,17 +226,17 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 設計層コンテキスト: {design_context}
 ```
 
-エージェントが `investigation.md` を保存したら、内容をユーザに提示する。また、末尾の「[デプロイ適否の判定](#デプロイ適否の判定phase-1-終了時に適用)」セクションを参照してデプロイ可否を確定する。
+エージェントが `investigation.md` を保存したら、内容をユーザに提示する。また、末尾の「[デプロイ適否の判定](#デプロイ適否の判定phase-1-終了時に適用)」セクションを参照してデプロイ可否を確定し、結果を `{deploy_route}` = `manual-operation`（該当・管理画面直接操作）/ `normal`（非該当・通常デプロイ）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。判定根拠は investigation.md の「## デプロイ適否判定」セクション（investigator が空欄で出力済み）に Edit ツールで追記する。
 
 > **investigator の確認ゲート**: investigator は課題本文/コメント中の全URL・添付・スクショ・名指しレコードを確認（または取得不能をユーザーに委ねて承認を得る）するまで原因分析に進まない。この確認が完了するまで Step B（コード調査）以降には遷移しない。
 
-> **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `light_mode` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照):
+> **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `light_mode` / `deploy_route` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照):
 > ```bash
 > python - <<'PYEOF'
 > import pathlib, re
 > invest = pathlib.Path('docs/logs/{issueID}/investigation.md')
 > text = invest.read_text(encoding='utf-8') if invest.exists() else ''
-> keys = {'issue_type': '{issue_type}', 'light_mode': '{light_mode}'}
+> keys = {'issue_type': '{issue_type}', 'light_mode': '{light_mode}', 'deploy_route': '{deploy_route}'}
 > if text.startswith('---'):
 >     end = text.index('---', 3)
 >     front = text[3:end]
@@ -250,7 +250,7 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 > else:
 >     fm = '\n'.join(f'{k}: {v}' for k, v in keys.items())
 >     invest.write_text(f'---\n{fm}\n---\n\n{text}', encoding='utf-8')
-> print('[OK] investigation.md issue_type/light_mode 記録完了')
+> print('[OK] investigation.md issue_type/light_mode/deploy_route 記録完了')
 > PYEOF
 > ```
 
@@ -320,6 +320,15 @@ python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d
 
 ### Phase 2: 対応方針の確定（backlog-planner Phase A）
 
+> **`{deploy_route}` = `manual-operation` の場合（`--light` より優先。コード変更が発生せず軽量修正フローと無関係のため）**: `backlog-planner` は起動しない。本コマンドが直接 `docs/logs/{issueID}/approach-plan.md` に以下の最小内容を作成する:
+> ```
+> ## 対応方針: {issueID}
+>
+> ## 対応方針（結論）
+> 実装不要・管理画面直接操作（判定根拠: investigation.md「デプロイ適否判定」セクション参照）
+> ```
+> 作成後、ユーザに提示し「Phase 3〜5（実装関連フェーズ）をスキップして Phase 6（管理画面操作手順の作成）に進んでよろしいですか？」とテキストで確認する。承認後、Phase 1.6/1.5 は通常どおり実施済みの前提で、Phase 3・3.5・4・5 を全てスキップして Phase 6 へ直接進む。
+>
 > **`--light` フラグが設定されている場合**: 種別が「問い合わせ」の場合は本分岐を適用しない（下記「種別が「問い合わせ」の場合」節を優先し、回答ドラフトを生成して Phase 2 で完了する）。それ以外の種別では Phase 2 をスキップして Phase 3（実装方針）へ直接進む。対応方針は「最小修正・既存パターン踏襲」固定とし、`approach-plan.md` を作成しない。Phase 3 開始時にその旨を 1 行通知する。
 >
 > **xlsx 共通規則**: Phase 2 以降の全 xlsx 更新ブロックは `{xlsx_folder}` が null（Phase 1.5 で「作成しない」を選択）の場合スキップする。
@@ -558,9 +567,11 @@ xlsx_folder: {xlsx_folder}
 実装計画: docs/logs/{issueID}/implementation-plan.md
 project_dir: {プロジェクトルートパス}
 xlsx_folder: {xlsx_folder}
+deploy_route: {deploy_route}
 ```
 
 > `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
+> `{deploy_route}` = `manual-operation` の場合、実装計画（`implementation-plan.md`）は Phase 3〜5 スキップにより存在しない。この場合は実装計画行を省略してエージェントに渡す。
 
 **お客様確認サインの取得**
 
