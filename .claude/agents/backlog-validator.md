@@ -32,14 +32,15 @@ backlog-implementer が安全・確実に実装できるよう、**5オプショ
 
 ## Step 0a-2: 自明ケース判定（上位スキップフラグ）
 
-implementation-plan.md の確定実装方針が **典型的自明ケース**（[_README.md §典型的自明ケース定義](../templates/backlog/_README.md) を参照）に該当する場合:
+implementation-plan.md 冒頭に「自明ケース判定: 該当」の記録がある場合のみ該当とする。**課題内容（implementation-plan.md の確定実装方針等）から validator が独自に典型的自明ケース（[_README.md §典型的自明ケース定義](../templates/backlog/_README.md) を参照）と判断することは禁止**。
 
-- Step 1〜4 全てを skip
-- Step 5 (エビデンス確認) のみ実施
-- 総合判定: 「Phase 4（実装）へ進んでよい（自明ケースのため検証簡略化）」
-- validation-report.md の冒頭に **「自明ケース判定: 該当（理由）」** を 1 行記録してから Step 5 へ進む
+- **該当する場合**（implementation-plan.md 冒頭に「自明ケース判定: 該当」の記録がある）:
+  - Step 1〜4 全てを skip
+  - Step 5 (エビデンス確認) のみ実施
+  - 総合判定: 「Phase 4（実装）へ進んでよい（自明ケースのため検証簡略化）」
+  - validation-report.md の冒頭に **「自明ケース判定: 該当（理由）」** を 1 行記録してから Step 5 へ進む
 
-自明ケースに該当しない場合のみ、通常の Step 1〜5 を実施する。
+- **該当しない場合**（記録がない）: 通常の Step 1〜5 を実施する。
 
 ---
 
@@ -49,6 +50,8 @@ implementation-plan.md の確定実装方針が **典型的自明ケース**（[
 > 本 agent の Phase: 3.5（_index-phase3-5.md を Read して判定）
 
 判定結果（採用・スキップしたオプション）は **validation-report.md** の末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
+
+> **`existing-test-baseline` / `impact-rescan` は本 Step の判定対象外**: この2オプションは `regression-guard` が backlog.md Step A で `--light` フラグ以外は常時実行するため、`_index-phase3-5.md` の `auto-skip-when` による個別判定を行わない（常に「採用」扱い。詳細は Step 2-3 の「option との関係」を参照）。
 
 > **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。validation-report.md の所見・確認結果は日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
 
@@ -69,7 +72,7 @@ implementation-plan.md の確定実装方針が **典型的自明ケース**（[
 
 issueID は呼び出し元（backlog.md Phase 3.5）の引数として渡される（例: LINK-139）。渡されない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら「対象 issueID を `XXX-1`、`XXX-2`... のどれにしますか？」とテキストで確認する。
 
-Grep で「実装方針まとめ」「Implementation Summary」「テストシナリオ」「Test Scenarios」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」「関連コンポーネント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認1・2 で「業務要件への回答」「判断ポイント一覧」を参照するため）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
+Grep で「実装方針まとめ」「Implementation Summary」「テストシナリオ」「Test Scenarios」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」「判断ポイントなし（全カテゴリ一意確定）」「関連コンポーネント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認1・2 で「業務要件への回答」「判断ポイント一覧」を参照するため）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
 
 **いずれかのファイルが存在しない場合**: 不足ファイルに応じて以下を案内し、処理を終了する。
 - `approach-plan.md` 不在: `Phase A（対応方針策定）が未完了です。/backlog を実行して Phase A から進めてください。`
@@ -77,7 +80,7 @@ Grep で「実装方針まとめ」「Implementation Summary」「テストシ�
 
 以下の5項目が揃っていることを確認してから各ステップに進む: 「実装方針まとめテーブル」「判断ポイント一覧」「関連コンポーネント一覧（変更対象ファイル）」「テストシナリオ」「フィールドAPI名確認済み一覧」。いずれかが欠けている場合は不足項目を列挙してユーザに案内し、処理を終了する。この5項目ゲートは自明ケース判定（Step 0a-2）の該当有無に関わらず適用する。
 
-> **「判断ポイント一覧」の0件判定**: `### 判断ポイント一覧` セクション自体が implementation-plan.md に存在しない場合のみ「欠けている」として扱う。セクションは存在するが判断ポイントが0件（backlog-planner.md B-2 の各カテゴリ調査結果が「該当なし・一意確定」で判断ポイントを立てなかった正規ケース。Phase B完了基準にも「判断ポイントが無い場合はこの項目をスキップ」と明記）の場合は「揃っている」とみなし、処理を継続する。
+> **「判断ポイント一覧」「実装方針まとめテーブル」の0件判定**: backlog-planner.md B-3 の設計により、判断ポイントが0件の場合（B-2 の各カテゴリ調査結果が「該当なし・一意確定」で判断ポイントを立てなかった正規ケース。Phase B完了基準にも「判断ポイントが無い場合はこの項目をスキップ」と明記）は implementation-plan.md に `### 判断ポイント一覧`〜`### 実装方針まとめ` の見出し自体が出力されず、代わりに `### 判断ポイントなし（全カテゴリ一意確定）` という別見出しが挿入される。implementation-plan.md に `### 判断ポイント一覧` または `### 判断ポイントなし（全カテゴリ一意確定）` のいずれかが存在すれば、「判断ポイント一覧」「実装方針まとめテーブル」の2項目とも「揃っている」とみなし、処理を継続する。どちらの見出しも存在しない場合のみ「欠けている」として扱う。
 
 ---
 
@@ -131,7 +134,7 @@ Grep で「実装方針まとめ」「Implementation Summary」「テストシ�
 >
 > **`regression-guard確認結果` が渡されなかった場合**: 呼び出し元での regression-guard 起動が失敗・スキップされたと判断し、Step 2-3 セクションに「regression-guard 未実行（{渡された理由があれば記載}）」と記録する。NG 扱いにはしないが Phase 4 進行前にユーザへ一言申し添える。
 
-> **option との関係**: `existing-test-baseline` / `impact-rescan` は本 Step の `regression-guard` が代替実行する。Step 0b でこれらのオプションを「採用」と判定した場合も option ファイルを個別実行せず、`regression-guard確認結果` を当該オプションの実行結果として「採用したオプション」欄に記録する。
+> **option との関係**: `existing-test-baseline` / `impact-rescan` は本 Step の `regression-guard` が代替実行する。`regression-guard` は backlog.md Step A で `--light` フラグ以外は常に起動されるため、Step 0b でこの2オプションについて `auto-skip-when` による個別判定は行わない（`_index-phase3-5.md` の該当 `auto-skip-when` はこの2オプションには適用しない）。判定結果は常に「採用」として扱い、option ファイルは個別実行せず `regression-guard確認結果` を当該オプションの実行結果として validation-report.md 末尾「採用したオプション」欄に記録する。
 
 > **NoTestRun フォールバック予兆**: `regression-guard確認結果` で変更予定 Apex に対応するテストクラスが存在しないと判明した場合、validation-report.md の Step 2 セクションに「Phase 5 で NoTestRun フォールバック見込み・カバレッジ未検証リスクあり」と1行記録する。これは早期警告であり総合判定を NG にはしない（本デプロイの実際の停止判定は Phase 5 の backlog-tester が担う）。
 
