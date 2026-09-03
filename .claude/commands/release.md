@@ -45,13 +45,16 @@ issueID: {issueID}
 
 `release-preparer` の完了報告をそのままユーザーに提示する。
 
-続けて `docs/logs/{issueID}/release-plan.md` を Read し、[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従って引き渡しを行う（**手順書全文を一度に貼らない**）:
+`docs/logs/{issueID}/release-plan.md` の有無を確認する（`test-report.md` 不在時に続行を希望しなかった場合など、release-preparer が前提未達で中断した場合は生成されない）:
+- **存在しない場合**: 完了報告の提示のみで終了する（以降の手順は行わない）
+- **存在する場合**: 続けて Read し、[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従って引き渡しを行う（**手順書全文を一度に貼らない**）:
 
 1. 「① リリース前チェック」セクションをそのまま一度に提示する（チェックリスト。実行順序を強制しないため分解しない）
 2. 「② リリース実行」内の `### Step N: ...` 各項目（+ 管理画面手動操作の記載があればそれも1項目）を TodoWrite でタスク化する
 3. 先頭の未完了ステップのみ内容（コマンド）を提示し、「実行結果を教えてください」と添える。ユーザーの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. 実行完了の報告を受けたら該当 Todo を completed にし、次のステップへ進む。質問・エラー報告なら Todo を進めずその場で回答する
 5. ② の全 Todo が completed になったら「③ リリース後チェック」セクションを一度に提示する
+6. ③ 提示後、「本番デプロイが完了したら教えてください（Phase 7 のリリース実施記録を行います）」と改めて一言添える
 
 やり取りが落ち着いたら終了する。
 

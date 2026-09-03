@@ -56,7 +56,9 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 - `docs/logs/{issueID}/test-report.md`
 - `docs/decisions.md`（当課題のエントリのみ Grep）
 
-**`test-report.md` が存在しない場合**: Sandbox でのテスト証跡が未取得。「本番リリース準備には Sandbox でのテスト完了（`/test {issueID}`）が前提です。先に完了させてください」とユーザーに確認し、続行の可否を尋ねる（テスト未完のまま続行を希望された場合はその旨を release-plan.md 冒頭に警告として明記した上で続行する）。
+**`test-report.md` が存在しない場合**: Sandbox でのテスト証跡が未取得。「本番リリース準備には Sandbox でのテスト完了（`/test {issueID}`）が前提です。先に完了させてください」とユーザーに確認し、続行の可否を尋ねる:
+   - **続行を希望された場合**: その旨を release-plan.md 冒頭に警告として明記した上で続行する
+   - **続行を希望されなかった場合**: Phase 1 以降を実施せず、その旨をそのままユーザーに提示して終了する（release-plan.md は生成しない）
 
 ## Step 0c: 共通 CRITICAL ルールの読込（必須）
 
