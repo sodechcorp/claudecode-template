@@ -90,5 +90,6 @@ feature_list に `"absorb_into"` フィールドがある機能は**単独の設
 2. 親コンポーネントを処理するとき、その親の `absorb_into` 元となっている feature のソースも**必ず**読む
 3. 読んだ内容を親の JSON に取り込む（上表参照）
 4. 吸収対象の feature については Phase 2 でスクリプトを呼ばない（xlsx を作らない）
+5. **Phase 0.7 のハッシュチェックでは、親コンポーネントの `--source-paths` に吸収対象（Trigger 等）の `source_file` もカンマ区切りで追加する**（例: `"{親のsource_file},{吸収対象のsource_file}"`。`source_hash_checker.py` は複数パス指定に対応済み）。これを怠ると、吸収対象のソースだけを変更し親コンポーネント自体は無変更のケースで、親の設計書が「変更なし」として再生成されずスキップされる。
 
 > **例**: `consultationModal` の `absorb_into = "consultation"` → `consultation` を処理するとき `consultationModal/` も読み、「コンサルテーションモーダルを開く」ユースケースを `consultation` の画面設計書 JSON に追加する。モーダル単体の xlsx は作らない。
