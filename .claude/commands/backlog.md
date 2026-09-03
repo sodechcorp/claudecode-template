@@ -592,6 +592,39 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 
 > スキップ判定: [.claude/templates/backlog/_partials/xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) に従う。
 
+**調査段階の再現確認スクショ（repro/before, repro/after）を削除**（`{issue_type}` = バグ で Phase 1.6 の `backlog-repro-runner` が実行された場合のみ `{log_dir}/repro/` が存在する。仮説検証用スクショで、xlsx には統合されない一時証跡。結論は `hypothesis-verification.md` に記録済みのため、Phase 6 完了＝もう参照しないタイミングで画像のみ削除する。**`repro/logs/`（`created_records.txt` 等の監査記録。`backlog-releaser.md` §2a 5 が Phase 6 再実行時に参照するため）は削除対象から除外**する）:
+
+> **⚠️ 日本語パス注意**: `project_dir` が日本語ディレクトリ名を含む場合、`python -c "...{log_dir}..."` のようにソースコード文字列へ直接パスを埋め込むと Git Bash 経由の引数展開が文字化けし、存在しないパスに対して `rmtree` が呼ばれて何も削除されないことがある（2026-09-03 実測確認済み）。パスは環境変数経由で渡し、**`ignore_errors=True` を使わず**削除後に `os.path.exists` で成功を確認してから完了を報告する（詳細: `cleanup-rules.md` §`{tmp_dir}` 以外を削除する場合の注意）。
+
+```bash
+case "{log_dir}" in
+  *"{log_dir}"*)
+    echo "[ERROR] log_dir が未置換リテラルです。置換を確認してください（repro/ 削除はスキップ）。"
+    ;;
+  *)
+    if [ -d "{log_dir}/repro/before" ] || [ -d "{log_dir}/repro/after" ]; then
+      REPRO_SIZE=$(du -sh "{log_dir}/repro" 2>/dev/null | cut -f1)
+      REPRO_TARGET="{log_dir}/repro" python -c "
+import os, shutil
+base = os.environ['REPRO_TARGET']
+for sub in ('before', 'after'):
+    p = os.path.join(base, sub)
+    if os.path.isdir(p):
+        shutil.rmtree(p)
+        assert not os.path.exists(p), 'rmtree 後も残存: ' + p
+"
+      if [ -d "{log_dir}/repro/before" ] || [ -d "{log_dir}/repro/after" ]; then
+        echo "[WARN] repro/ 配下スクショの削除に失敗しました（残存: 約 ${REPRO_SIZE}）。手動確認してください。"
+      else
+        echo "[INFO] 調査段階の再現確認スクショ（repro/before, repro/after、約 ${REPRO_SIZE}）を削除しました。repro/logs（監査記録）・結論（hypothesis-verification.md）は残っています。"
+      fi
+    else
+      echo "[INFO] repro/ 配下のスクショは存在しないためスキップしました（Phase 1.6 未実行 or 削除済み）。"
+    fi
+    ;;
+esac
+```
+
 **xlsx 最終充足確認（verify final）**（`{xlsx_folder}` が設定されている場合のみ）
 
 ```bash

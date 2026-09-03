@@ -124,6 +124,17 @@ if [ ! -f "$SPEC_PATH" ]; then
   echo "[INFO] test-spec.md が見つかりません。Phase B でテスト仕様を展開します。"
 fi
 
+# 6.5. 証跡PNG削除マーカーの検出（cleanup_evidence.py 実行済みなら差分再実行モードを使わない）
+# 前回 NG=0（全件OK）だった場合は下記 7. の既存フォールバックで結果的に全量再実行されるが、
+# --force で新規 TC のみ追加された場合等は raw_target が空にならず差分モードに入りうる。
+# その場合に既存 OK 分の PNG が既に削除済みだと証跡ファイル不在で偽 NG になるため、
+# マーカーがあれば経路によらず確実に全量実行へ倒す（次回1回のみ・使用後は消費して削除）。
+if [ -f "${EVIDENCE_DIR}/.png-cleaned" ]; then
+  echo "[INFO] 証跡PNGが削除済み（cleanup_evidence.py 実行済み）を検出。差分再実行モードは使わず今回は全量実行します。"
+  FORCE_FULL=1
+  rm -f "${EVIDENCE_DIR}/.png-cleaned"
+fi
+
 # 7. 差分再実行モードの判定
 # 回次退避（前回データのアーカイブ）はここでは行わない。/test がコマンドの入口（本 Phase A）から
 # 新規に再実行された場合にしかここを通らないため、会話の流れで証跡採取・判定だけを直接再実行する
@@ -656,6 +667,11 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 {総合判定が PASS または 条件付きPASS（要確認）の場合}
 本番リリースを準備する場合は、別セッション（クリーンな会話）で以下を起動してください（/release が独立して本番リリース準備を担当します。/test 自身は本番へのデプロイ・準備を行いません）:
   /release {issueID}
+
+{総合判定が PASS（完全・要確認なし）かつ {xlsx_folder} が設定されている場合のみ}
+証跡クリーンアップ: 証跡スクショ（PNG）のうちxlsxに実際に格納済みのものはエビデンス.xlsxに残っています（before/等xlsx対象外のファイル・DOM テキスト・investigation.md 等は削除されません。埋め込み実数を検証してから削除する安全設計です）。本番リリース準備が完了し、この課題でもう /test を再実行しない見込みなら、以下でディスク容量を削減できます:
+  python "{project_dir}/scripts/python/backlog-xlsx/cleanup_evidence.py" --folder "{xlsx_folder}" --issue-id "{issueID}" --evidence-dir "{evidence_dir}" --judgment "{judgment_path}"
+※ 削除後に /test を再実行する場合は自動的に全量再実行になります（差分再実行モードは使われません）。
 
 {実装バグ NG が Phase F-2 で自動修正・再デプロイされた場合}
 自動修正: 完了（Phase F-2）
