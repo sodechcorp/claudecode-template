@@ -435,11 +435,11 @@ print(chr(10).join(lines) if lines else '(該当する実行結果なし)')
 
 #### 総合判定への反映
 
-F-1a の「最終判定」が「追加実装要」、または F-1b を実行して判定が「解決済み」以外だった場合、`{log_dir}/test-report.md` の「### 総合判定」欄を以下に書き換える:
+F-1a の「最終判定」が「追加実装要」、または F-1b を実行して判定が「解決済み」以外だった場合（**かつ `NG_COUNT` が 0 の場合に限る**）、`{log_dir}/test-report.md` の「### 総合判定」欄を以下に書き換える:
 ```
 条件付きPASS（要確認: 受入基準再確認・blind最終判定で指摘あり。詳細は「## 受入基準再確認」「## blind 最終解決判定」を参照）
 ```
-F-1a が「全項目 OK・リリース可」かつ（F-1b が「解決済み」または `NG_COUNT` 非0でスキップ）の場合は総合判定を変更しない。
+F-1a が「全項目 OK・リリース可」かつ（F-1b が「解決済み」または `NG_COUNT` 非0でスキップ）の場合、または `NG_COUNT` が 0 以外の場合（NG が残っているため Phase F が書き込んだ「FAIL」を維持する。F-1a の「追加実装要」判定は「## 受入基準再確認」セクションへの記録のみに留める）は総合判定を変更しない。
 
 > **キャッシュ済み**: F-1b は `.blind-verdict.json`（`judgment-result.json` の hash 紐付け）により、差分再実行で証跡・判定結果に変化がない場合は `option-final-verifier` の再起動をスキップし前回結果を再掲する（2026-08-18 実装）。
 
@@ -531,7 +531,7 @@ Task tool で `backlog-releaser` を起動する:
 ```
 task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox 軽量再デプロイ（確認なし・dry-run PASS 済み）。
   直前の F-2 Step 2（backlog-tester）で現在の force-app に対し dry-run PASS 済み・以降 force-app は無変更。
-  再 dry-run は不要のため、スキップ判定（backlog-releaser.md L110-128）に従い省略して本デプロイのみ実行する。」
+  再 dry-run は不要のため、backlog-releaser.md の『スキップ判定』セクション（auto_fix_mode+redeploy_no_confirm 例外を含む）に従い省略して本デプロイのみ実行する。」
 パラメータ:
   issueID: {issueID}
   project_dir: {project_dir}
@@ -580,7 +580,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    ```bash
    ls "{log_dir}"/judgment-result.R*.json 2>/dev/null | wc -l
    ```
-   3 回を超えている場合は 7 のユーザー提示に「繰り返し NG が続いています。業務担当者との打ち合わせを推奨します」を含める。
+   3 回以上の場合（Phase F-2 ガード①の `PREV_ROUND_F2 >= 3` と同じ基準）は 7 のユーザー提示に「繰り返し NG が続いています。業務担当者との打ち合わせを推奨します」を含める。
 
 3. `test-report.md` の「NG 一覧」と `.claude/templates/backlog/test-fail-routing.md` で戻り先 Phase を確定する
 
