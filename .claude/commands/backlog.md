@@ -471,6 +471,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 実装計画: docs/logs/{issueID}/implementation-plan.md
 調査レポート: docs/logs/{issueID}/investigation.md
 実装前検証結果: docs/logs/{issueID}/validation-report.md
+project_dir: {プロジェクトルートパス}
 xlsx_folder: {xlsx_folder}
 ```
 

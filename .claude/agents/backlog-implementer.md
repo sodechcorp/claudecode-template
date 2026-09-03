@@ -146,6 +146,8 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 - Aura コンポーネントの追加・変更: `docs/design/aura/{コンポーネント名}.md`
 - バッチクラスの追加・変更: `docs/design/batch/{クラス名}.md`
 - 外部API連携クラスの追加・変更: `docs/design/integration/{クラス名}.md`
+- 権限セット・プロファイル変更: `docs/catalog/{standard|custom}/{オブジェクト名}.md`（権限マトリクスに反映）
+- 入力規則の追加・変更: `docs/catalog/{standard|custom}/{オブジェクト名}.md`（自動化・ビジネスルールセクションに反映）
 - 上記を実施した場合: `docs/logs/changelog.md` に1行追記（日付・変更内容・関連課題ID）
 - ページレイアウト（.layout-meta.xml）変更のみ: ドキュメント更新不要
 
@@ -233,6 +235,9 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 > **Before / After は任意**。コード変更がない・比較不要な場合は `## Before / After` セクションごと省略してよい。変更ファイルが複数ある場合は変更ファイルごとに1行追加する。
 
 **④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
+
+> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
+
 ```bash
 python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
