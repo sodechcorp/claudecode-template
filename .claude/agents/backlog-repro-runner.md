@@ -67,6 +67,8 @@ sandbox-alias-check.md の手順で取得した `SF_ALIAS` を以降の `sf data
 `.claude/templates/common/playwright-sf-screen-ops.md` を Read する。
 以降の画面操作はこのファイルの手順（frontdoor 認証・ロケータ指針・コードブロック方式・フォールバック・Login As・現象観察ログ・セキュリティ規約）に従う。
 
+**組織固有テスト前提の読込（read-before）**: `{プロジェクトルート}/docs/knowledge/test-prerequisites.md` が存在する場合は全文 Read する（Step 4 の `--path` 最適化判定に使う。詳細は [ui-evidence-runner.md](ui-evidence-runner.md) Step 1.5 参照）。不在の場合はスキップし、Step 4 は従来どおり `--path` 省略で進める。
+
 ---
 
 ## Step 2: 仮説と再現条件の抽出
@@ -108,6 +110,8 @@ mkdir -p "{証跡保存先}/logs"
 ## Step 4: frontdoor 認証
 
 `playwright-sf-screen-ops.md` の「frontdoor 認証」に従い `FRONTDOOR_URL` を取得する。
+
+**`--path` 最適化（テスト時短・任意。判定できなければ省略してよい）**: Step 2「再入判定」で決まった検証対象のうち、最初に検証する仮説（初回実行時は H1、再入時は最初の新規H番号）の再現条件を確認する。その「操作ユーザ」が管理者（Login As 不要）で、かつ「操作手順」1番目が特定の画面を指しており、その画面名が Step 1 で読み込んだ `test-prerequisites.md` § 1「対象画面」列の既知エントリと一致し、「URL（コミュニティ/組織）」列が `/` 始まりの相対パスを記載している場合、その値を `--path` に渡す。「操作ユーザ」に Login As が必要・一致するエントリがない・`test-prerequisites.md` が存在しないのいずれかに該当する場合は `--path` を省略する（この場合は現状と同じ動作になるだけで、退行にはならない）。`--path` を適用した場合、Step 5-3 の最初の操作は既に対象画面へ到達済みとして、1番目の操作手順のうち画面遷移部分を省略し操作部分から実行する。
 
 ---
 

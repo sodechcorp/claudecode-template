@@ -120,13 +120,7 @@ mkdir -p "{evidence_dir}/before"
 
 ---
 
-## Step 1: 認証 URL 取得
-
-`playwright-sf-screen-ops.md` の「frontdoor 認証」に従い `FRONTDOOR_URL` を取得する（alias は `{alias}` を使う）。
-
----
-
-## Step 1.5: ケース分類（並列可 / 逐次 / Login As）
+## Step 1: ケース分類（並列可 / 逐次 / Login As）
 
 `{ui_cases}` の「実行アクション」と「前提・データ準備」を読み、各 TC を 3 グループに仕分ける:
 
@@ -140,6 +134,14 @@ mkdir -p "{evidence_dir}/before"
 - **「実行アクション」列のみ**に**書き込み動詞**（登録/作成/編集/更新/削除/保存/承認/入力/insert/update/delete/upsert）が 1 つでも含まれる場合は**逐次②**。「前提・データ準備」列はスキャン対象外とする（前提データ作成は AnonApex 側で実行アクションの前に完了済みという前提。test-spec-builder.md §「前提・データ準備」列の記述ルール参照）。
 - **読み取り専用シグナルのみ**（表示/参照/確認/閲覧/ラベル確認/件数確認/取得/開く/遷移する）の場合は**並列可①**に倒す。「開く/遷移する」はデータを変更しないナビゲーション操作のため読み取り専用シグナルに含める（実TCの「実行アクション」列はほぼ必ず「〜画面を開き…」の形で始まるため、この動詞を除外すると「のみ」要件を満たすTCがほとんど無くなり①が機能しなくなる）。**ボタンクリック・項目選択・入力等の操作動詞（クリックする/選択する/押す 等）はこの読み取り専用シグナルに含めない**（サーバー側処理を誘発しうるため次項の曖昧判定に回す）。
 - 書き込み動詞の有無が判断できない、または同一既存レコードを複数 TC が参照しつつ別 TC が更新する場合は**逐次②**（安全側）。Login As ③ は動詞によらず逐次扱い（Session 状態を持つため並列禁止）。
+
+---
+
+## Step 1.5: 認証 URL 取得
+
+`playwright-sf-screen-ops.md` の「frontdoor 認証」に従い `FRONTDOOR_URL` を取得する（alias は `{alias}` を使う）。
+
+**`--path` 最適化（テスト時短・任意。判定できなければ省略してよい）**: Step 1 の分類結果でグループ②（逐次）に 1 件以上 TC がある場合のみ判定する（グループ①は各 TC が個別 URL へ直接遷移するため対象外。グループ③は Login As 遷移を別途挟むため対象外）。グループ②の 1 件目 TC の `対象画面` 列が空でなく、`docs/knowledge/test-prerequisites.md`（「基盤手順の読込」節の read-before で存在すれば読込済み）§ 1 の「対象画面」列に同名の既知エントリがあり、かつ「URL（コミュニティ/組織）」列が `/` 始まりの相対パスを記載している場合、その値を `--path` に渡す。一致なし・値が空欄・グループ②が 0 件のいずれかに該当する場合は `--path` を省略する（この場合は現状と同じ動作になるだけで、退行にはならない）。
 
 ---
 
@@ -181,7 +183,7 @@ mkdir -p "{evidence_dir}/before"
 
 書き込み動詞（登録/更新/削除等）を伴う TC はレコード状態が操作前後で変化する。**before（操作直前状態）** は **after（操作後状態）** との差分を示す有意な証跡になるため、このグループのみ before/after を両方採取する。
 
-1件目の TC のみ `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用しアプリ内遷移のみ。
+1件目の TC のみ `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用しアプリ内遷移のみ。Step 1.5 で `--path` 最適化を適用済みの場合、この1回の goto で1件目の対象画面まで直接到達しているため、1件目自身の画面遷移（`実行アクション`のうち遷移部分）も省略する（後述の `prevScreen` 初期化を参照）。
 
 コードブロック構成（同一セッションの連続 TC を1コードブロックにまとめる）:
 
@@ -192,7 +194,7 @@ mkdir -p "{evidence_dir}/before"
 1. **before 撮影 + DOM取得（F-6/F-7）**:
    - スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true, animations: 'disabled', scale: 'css'})`
    - before DOM: `const beforeText = await getPageText(page)`（`playwright-sf-screen-ops.md`「DOM 本文取得」節。グローバルヘッダーのノイズを除去して取得する）を取得し、`saveText(page, beforeText, '/絶対パス/before/{No}_{観点サニタイズ}_before.txt')` で直接保存する（後述）。
-1.5. **画面遷移要否の判定（テスト時短・任意最適化）**: `const navSkipped = (前TCの対象画面 && 前TCの対象画面 === 当該TCの対象画面);` を判定する（`ui_cases` の `対象画面` 列が双方とも入力されており値が一致する場合のみ `true`）。`navSkipped` が `true` の場合、直前 TC 完了時点で既に対象画面にいるとみなし、当該 TC の「実行アクション」のうち画面遷移部分（画面を開く／メニューから遷移する等）を省略し、手順2は操作部分のみ実行する。`対象画面` が空欄・前 TC と不一致・当該 TC が1件目（`navSkipped: false`）の場合は省略せず従来どおり実行アクション全体（遷移含む）を実行する。**TC の実行順序（No 順）は変更しない**（`対象画面` は隣接 TC 間の遷移省略判定にのみ使う軸であり、TC を並べ替える軸ではない）。
+1.5. **画面遷移要否の判定（テスト時短・任意最適化）**: `const navSkipped = (前TCの対象画面 && 前TCの対象画面 === 当該TCの対象画面);` を判定する（`ui_cases` の `対象画面` 列が双方とも入力されており値が一致する場合のみ `true`）。`navSkipped` が `true` の場合、直前 TC 完了時点で既に対象画面にいるとみなし、当該 TC の「実行アクション」のうち画面遷移部分（画面を開く／メニューから遷移する等）を省略し、手順2は操作部分のみ実行する。`対象画面` が空欄・前 TC と不一致の場合は省略せず従来どおり実行アクション全体（遷移含む）を実行する。**当該 TC が1件目の場合**: Step 1.5 で `--path` 最適化を適用済みなら「直前 TC」を「`--path` で直接着地した対象画面」とみなして判定する（`prevScreen` の初期値が `tcs[0].screen` のため通常どおり比較式が成立し、一致すれば `navSkipped: true` になる）。`--path` 未適用の1件目は `prevScreen` が `null` のため必ず `navSkipped: false` となり、従来どおり実行アクション全体を実行する。**TC の実行順序（No 順）は変更しない**（`対象画面` は隣接 TC 間の遷移省略判定にのみ使う軸であり、TC を並べ替える軸ではない）。
 2. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で遷移・表示を待つ。
 3. **after 撮影（分岐ごと）＋ 確認対象の赤枠ハイライト**:
    - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。`target` 未記載の TC は `const highlightEl = null;` として明示する（ハイライトを試みない）。
@@ -368,7 +370,7 @@ async (page) => {
     //   action: async (page) => { await page.getByText('追加ボタン').click(); await waitSfReady(page); } },
   ];
 
-  let prevScreen = null; // 1.5 画面遷移要否の判定（テスト時短・任意最適化）に使う直前 TC の対象画面
+  let prevScreen = null; // 1.5 画面遷移要否の判定（テスト時短・任意最適化）に使う直前 TC の対象画面。Step 1.5 で --path 最適化を適用した場合はここを tcs[0].screen で初期化する（1件目 TC 自身も既存の navSkipped 判定に乗せて遷移を自動スキップさせるため。適用していない場合は null のまま）
 
   async function runTC(page, tc) {
     const navSkipped = !!(tc.screen && prevScreen && tc.screen === prevScreen);
