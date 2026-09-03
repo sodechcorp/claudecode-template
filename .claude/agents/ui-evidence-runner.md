@@ -76,12 +76,13 @@ Sandbox 確認は呼び出し元（auto-evidence-runner の Step 0 または bac
    mkdir -p "{evidence_dir}/before"
    ```
 
-2. **frontdoor 認証**: `playwright-sf-screen-ops.md` の「frontdoor 認証」に従い `FRONTDOOR_URL` を取得する。
+2. **frontdoor 認証**: `{target_screens}` の1件目（`target_screens[0]`）の `nav_hint` が `/` で始まる相対パスの場合、`playwright-sf-screen-ops.md`「frontdoor 認証」の `--path` 指定形式に従い、その値を `--path` に渡して `FRONTDOOR_URL` を取得する（ログイン直後に1件目の対象画面へ直接着地する）。1件目の `nav_hint` が `/` で始まらない（クリック手順）場合は `--path` を省略した通常形式で取得する。
 
 3. **各 target_screen を順次撮影**（`{target_screens}` リストを順番に処理）:
 
    各画面について（`playwright-sf-screen-ops.md`「DOM 本文取得（getPageText）」「DOM テキストの直接保存（saveText）」で定義済みの `getPageText`/`saveText`/`ERROR_SIGNATURES` をコードブロック内にインラインで定義して使う。テスト証跡モードとは独立した実行なので、この節だけで完結するコードブロックを組む）:
-   - `nav_hint` に従って遷移する（1件目のみ `page.goto(FRONTDOOR_URL)` でログイン、以降はアプリ内遷移）。`getByText` / `getByRole` / URL 直指定で遷移し、`waitSfReady(page)` で表示完了を待つ。
+   - **1件目かつ手順2で `--path` を指定した場合**: `page.goto(FRONTDOOR_URL)` の時点で既に対象画面に到達しているため、追加のアプリ内遷移は行わず `waitSfReady(page)` で表示完了を待つのみとする。
+   - **上記以外（1件目で `--path` 未指定、または2件目以降）**: `nav_hint` に従って遷移する（1件目のみ `page.goto(FRONTDOOR_URL)` でログイン、以降はアプリ内遷移）。`getByText` / `getByRole` / URL 直指定で遷移し、`waitSfReady(page)` で表示完了を待つ。
    - 遷移パスが特定できない・遷移後に画面が一致しない場合は**スキップ**し「遷移パス特定不可（{name}）」を返却テキストに記録する（ユーザー依頼はしない）。
    - `target_label` が指定されていれば `highlightTarget` で赤枠注入後に撮影し、`clearHighlight` で解除する。
    - スクショ（fullPage: true）: `await page.screenshot({path: '{evidence_dir}/before/{issueID}_{name_sanitized}_before.png', fullPage: true, animations: 'disabled', scale: 'css'})`
