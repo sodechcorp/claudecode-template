@@ -529,6 +529,7 @@ verify 結果が **NG（exit 2）** の場合: 未充足枠を提示する。**P
 調査レポート: docs/logs/{issueID}/investigation.md
 実装計画: docs/logs/{issueID}/implementation-plan.md
 種別: {issue_type}
+project_dir: {プロジェクトルートパス}
 xlsx_folder: {xlsx_folder}
 ```
 
@@ -555,6 +556,7 @@ xlsx_folder: {xlsx_folder}
 
 ```
 実装計画: docs/logs/{issueID}/implementation-plan.md
+project_dir: {プロジェクトルートパス}
 xlsx_folder: {xlsx_folder}
 ```
 
