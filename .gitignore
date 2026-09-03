@@ -64,6 +64,8 @@ docs/.sf/.author_tmp
 docs/.sf/.output_dir_tmp
 # 個人設定（作成者名・出力先パス）。各メンバーのローカル値を含むためコミット対象外
 docs/.sf/sf_config.yml
+# 個人設定（report_dir・xlsx_folder・evidence_dir 等のローカル絶対パス）。各メンバーのローカル値を含むためコミット対象外
+docs/.backlog_config.yml
 
 # ===== データ（機密情報を含む可能性） =====
 data/*.csv

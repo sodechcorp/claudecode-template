@@ -5,7 +5,7 @@ argument-hint: "[課題ID]"
 
 # /backlog [課題ID]
 
-**モード判定**: `--light` フラグが付いている場合（例: `/backlog GF-123 --light`）は軽微修正ショートカットで実行する（Phase 2 / Phase 3.5 をスキップ）。それ以外は通常フローを実行する。この判定結果を `{light_mode}` = `true`（--light 時）/ `false`（通常）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。
+**モード判定**: `--light` フラグが付いている場合（例: `/backlog GF-123 --light`）は軽微修正ショートカットで実行する（Phase 2 / Phase 3.5 をスキップ。詳細な例外規定は Phase 2・Phase 3.5 の各セクションを参照）。それ以外は通常フローを実行する。この判定結果を `{light_mode}` = `true`（--light 時）/ `false`（通常）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。
 
 **`--reconfigure` フラグ**: `.backlog_config.yml` に `xlsx_default` / `report_dir` が既に設定されていても、Phase 1.5 の xlsx 作成有無・フォルダパス確定を再確認し、回答で設定を上書きする（例: `/backlog GF-123 --reconfigure`）。手動での YAML 編集を不要にするための再設定用フラグ。
 
@@ -39,7 +39,7 @@ argument-hint: "[課題ID]"
 > - `backlog-planner`: `backlog-blind-validator`（`option-validator-blind` 採用時のみ）を本コマンドが Phase 3 完了直後に直接 Task 起動（詳細は Phase 3 セクション参照）
 > - `backlog-investigator`: `sf-context-loader`（knowledge-only + 通常モード。旧設計では同一メッセージ並列発行しており不安定化要因だった）を本コマンドが Phase 1 開始時に逐次 Task 起動（詳細は Phase 1 セクション参照）。詳細は [agent-routing.md](../spec/agent-routing.md) 参照
 
-**中間成果物の保存先**: `docs/logs/{issueID}/`
+**中間成果物の保存先**: `docs/logs/{issueID}/`（主要3ファイルを抜粋。全量は Phase 0d の既存ログ読込リストを参照）
 - `investigation.md` — 調査レポート
 - `approach-plan.md` — 対応方針
 - `implementation-plan.md` — 実装方針（全判断ポイント確定版）
