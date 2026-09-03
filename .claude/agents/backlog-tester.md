@@ -106,15 +106,17 @@ Step 2（dry-run デプロイ）が `<alias>` を使うため、ここで先に�
 
 `implementation-plan.md` の変更対象ファイルに Apex クラス（`.cls`）またはトリガー（`.trigger`）が含まれるかで test-level を切り替える:
 
-**`<テストクラス名>` の特定方法**: `docs/logs/{issueID}/validation-report.md` の「## Step 2: 既存テストカバレッジ確認」表（regression-guard確認結果由来）に対応するテストクラス名の記載があれば、それを優先してそのまま使う。記載が無い、または表自体が存在しない場合のみ、変更対象クラスごとに命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`）で Glob/Grep して特定する（release-preparer.md Phase 6 と同じ特定方法に統一）。
+**`<テストクラス名>` の特定方法**: `docs/logs/{issueID}/validation-report.md` の「## Step 2: 既存テストカバレッジ確認」表（regression-guard確認結果由来）に対応するテストクラス名の記載があれば、それを優先してそのまま使う。記載が無い、または表自体が存在しない場合のみ、変更対象クラス・トリガーごとに命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`。トリガーはファイル名（拡張子除く）を `{ClassName}` として同じ規則を適用する）で Glob/Grep して特定する（release-preparer.md Phase 6 と同じ特定方法に統一）。
 
-**Apex 変更あり**（`<テストクラス名>` は変更対象クラスに対応するテストクラスをスペース区切りで列挙）:
+**部分該当（変更対象の一部のクラス・トリガーだけ対応テストクラスが見つかった場合）**: 見つかった分のみをスペース区切りで `<テストクラス名>` に列挙し `RunSpecifiedTests` で実行する（下記の NoTestRun フォールバックは変更対象**全件**が不在の場合のみに適用し、部分該当では適用しない）。`RunSpecifiedTests` はデプロイ対象クラス・トリガーごとに個別 75% カバレッジを要求するため、テストクラスが見つからなかったクラス・トリガーがあれば dry-run 自体がそのクラスのカバレッジ不足で FAIL しうる（Step 4 の FAIL 分岐でそのまま報告すればよく、黙って見逃されない）。
+
+**Apex 変更あり**（`<テストクラス名>` は変更対象クラス・トリガーに対応するテストクラスをスペース区切りで列挙）:
 ```bash
 sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
   --test-level RunSpecifiedTests --tests <テストクラス名> --concise
 ```
 
-> **対応テストクラス不在の場合**: 変更 Apex に対応するテストクラスが存在せず `<テストクラス名>` が空になるときは `RunSpecifiedTests` ではなく `NoTestRun`（コンパイル検証のみ）にフォールバックする。Step 4 の報告に「対応テストクラス未整備（カバレッジ未検証・要テスト追加）」を明記する。この場合 Step 4 で必ず「NoTestRun フォールバック: 発生」フラグを立て、総合判定を自動 PASS にせず「条件付きPASS（ユーザー判断要）」とする。
+> **対応テストクラス不在の場合（変更対象の全クラス・トリガーに対応テストクラスが1件も見つからない場合）**: `<テストクラス名>` が空になるときは `RunSpecifiedTests` ではなく `NoTestRun`（コンパイル検証のみ）にフォールバックする。Step 4 の報告に「対応テストクラス未整備（カバレッジ未検証・要テスト追加）」を明記する。この場合 Step 4 で必ず「NoTestRun フォールバック: 発生」フラグを立て、総合判定を自動 PASS にせず「条件付きPASS（ユーザー判断要）」とする。
 
 **Apex 変更なし**（コンパイル検証のみ）:
 ```bash
