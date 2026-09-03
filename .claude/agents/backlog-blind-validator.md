@@ -27,7 +27,7 @@ tools:
 
 ## ミッション
 
-**起動契約**: 本エージェントは `option-validator-blind.md`（および backlog-planner Phase B-4）が Task ツール経由で起動する前提。Task 以外の直接呼び出しは blind 性が崩れるため非対応。
+**起動契約**: 本エージェントは `option-validator-blind.md` の実行手順に基づき backlog.md（本体）が Task ツール経由で起動する前提。backlog-planner Phase B-4 は implementation-plan.md 保存完了報告を行うのみで、本エージェントを直接起動しない（二段ネスト回避）。Task 以外の直接呼び出しは blind 性が崩れるため非対応。
 
 parent が渡した以下の情報だけを元に、独立した実装案を生成する:
 1. 課題 ID（Backlog issue key）
