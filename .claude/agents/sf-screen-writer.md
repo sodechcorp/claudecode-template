@@ -9,7 +9,6 @@ tools:
   - Grep
   - Bash
   - TodoWrite
-  - AskUserQuestion
 ---
 
 > **禁止事項**: `scripts/` 配下の Python スクリプトを修正・上書きしてはならない。エラーや不具合を発見した場合は修正せず、完了報告に「要修正: {ファイル名} — {問題の概要}」として報告するにとどめること。
@@ -40,7 +39,7 @@ tools:
 | `author` | 作成者名 |
 | `project_name` | プロジェクト名 |
 | `sf_alias` | Salesforce 組織エイリアス |
-| `feature_list` | scan_features.py の出力（LWC・画面フロー・Aura・Visualforce のみ抽出済み） |
+| `feature_list` | scan_features.py の出力（コンポーネント一覧 JSON。全件（Apex系含む）。Phase 1 開始前にエージェント自身が画面系 type でフィルタする） |
 | `target_ids` | 対象機能IDリスト |
 | `version_increment` | `"minor"` または `"major"`（初回生成時は `"minor"`） |
 | `detail_design_tmp` | 詳細設計の tmp フォルダパス（step1 連鎖時のみ渡される。省略された場合は上位設計参照なし） |
@@ -117,7 +116,7 @@ python -c "import pathlib; ddt = r'{detail_design_tmp}'; detail_dir = pathlib.Pa
 ```
 
 対象コンポーネントが属するグループの JSON が見つかった場合は Read ツールで読む。
-`purpose` / `screens[].items` （詳細設計）を参照して画面項目の業務意味・バリデーション仕様を補完する。
+`processing_purpose` / `screens[].items` （詳細設計）を参照して画面項目の業務意味・バリデーション仕様を補完する。
 見つからない場合（フォールバックパスが存在しない場合を含む）は上位設計参照なしで続行する。
 
 **参照リファレンスを読み込む（Phase 0 で1回のみ Read）:**
@@ -144,10 +143,22 @@ feature_list に `"absorb_into"` フィールドがある LWC は**単独の設�
 1. `absorb_into` が設定されている feature は「吸収対象」と記録。ただし親コンポーネント（`absorb_into` の値）が `target_ids` に含まれない場合は独立扱いとして通常処理する（吸収しない）
 2. 親コンポーネントを処理するとき、吸収対象のソースも**必ず**読む
 3. 吸収対象の feature は Phase 2 でスクリプトを呼ばない（xlsx を作らない）
+4. **Phase 0.7 のハッシュチェックでは、親コンポーネントの `--source-paths` に吸収対象（モーダル）の `source_file` もカンマ区切りで追加する**（例: `"{親のsource_file},{モーダルのsource_file}"`。`source_hash_checker.py` は複数パス指定に対応済み）。これを怠ると、モーダルの JS/HTML だけを変更し親LWC自体のソースは無変更のケースで、親の画面設計書が「変更なし」として再生成されずスキップされる。
+
+---
+
+## Phase 0.7: ハッシュチェック（全コンポーネント一括）
+
+```
+Read: {project_dir}/.claude/templates/common/phase07-hash-check-by-feature.md
+```
+上記手順に従い、変更のないコンポーネントをスキップリストに追加してから Phase 1 へ進む。
 
 ---
 
 ## Phase 0.5: LWC スケルトン事前生成（LWC が対象に含まれる場合のみ）
+
+> Phase 0.7 でスキップ判定されたコンポーネントはこのフェーズの対象外とする。スキップリストを確定してから対象コンポーネントに対して実行すること。
 
 feature_list に LWC が含まれる場合、JSON 生成前に**スケルトン抽出スクリプトを実行する**。
 これにより `calls` フィールド（Apex 呼び出し）が機械的に確定し、エージェントによる書き漏れを防ぐ。
@@ -168,15 +179,6 @@ python "{project_dir}/scripts/python/sf-doc-mcp/extract_lwc_skeleton.py" \
 スケルトンが生成できなかった場合:
 - `.js ファイルが存在しない場合`: そのコンポーネントは Phase 1 で通常通り生成する
 - スクリプトエラーの場合: エラー内容を確認し、解決できない場合は Phase 1 で通常通り生成する（完了報告に「要確認: extract_lwc_skeleton.py エラー」を含める）
-
----
-
-## Phase 0.7: ハッシュチェック（全コンポーネント一括）
-
-```
-Read: {project_dir}/.claude/templates/common/phase07-hash-check-by-feature.md
-```
-上記手順に従い、変更のないコンポーネントをスキップリストに追加してから Phase 1 へ進む。
 
 ---
 
@@ -217,6 +219,8 @@ JSON を `tmp_dir` に書き出してからメモリを解放して次のバッ�
 **Aura の判定**: `force-app/main/default/aura/{name}/` ディレクトリが存在する = Aura確定 → このエージェントが担当
 
 **Visualforce の判定**: `force-app/main/default/pages/{name}.page-meta.xml` が存在する = Visualforce確定 → このエージェントが担当
+
+> 🚫 **feature_list に画面系以外（Apex / Batch / Trigger / Integration / Flow（非画面））のエントリが含まれていた場合**: そのエントリは処理せずスキップし、完了報告に「要確認: {api_name} は{type}。sf-design-writer で処理が必要」と記載すること。画面設計書テンプレートで非画面種別を処理してはならない。
 
 ### usecase 内ステップの決定木（必須）
 
