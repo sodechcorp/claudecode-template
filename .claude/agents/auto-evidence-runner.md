@@ -188,7 +188,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 - **永続化するレコード（rollback しないもの）は必ず `System.debug('CREATED_RECORD|' + record.getSObjectType() + '|' + record.Id + '|' + record.Name + '|{No}');` 形式で1レコード1行 debug する**（末尾の `{No}` は生成中の当該 TC 番号をリテラルとして埋め込む。[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 の統一フォーマットに合わせるためのマーカー。3-4 で集約する。`rollback` する一時データは目視不可のため出力しない＝正しい挙動）。
 - `System.debug()` で結果・件数・フィールド値を出力し証跡に残す。**必ず「入力値→処理経路→結果値」を全て debug する**。
 - Flow 起動は `Flow.Interview.{Flow_API名}` または `Database.executeBatch` を使う。
-- **条件分岐の網羅（責務は spec 側に一本化・省略禁止）**: 分岐展開の要否は test-spec.md の「証跡取得」列（`分岐ラベル` フィールド）で判定する。当該 TC に `分岐ラベル` が列挙されている場合のみ、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**（1 ファイル内で全分岐をカバー）。**`分岐ラベル` がない TC（= spec 側で分岐ごとに別 TC 行として分割済み）は当該 TC の実行アクションのみを実行し、他分岐を追加展開しない**（test-spec-builder.md §「観点」展開の注意 参照）。
+- **条件分岐の網羅（責務は spec 側に一本化・省略禁止）**: 分岐展開の要否は test-spec.md の「証跡取得」列（`分岐ラベル` フィールド）で判定する。当該 TC に `分岐ラベル` が列挙されている場合のみ、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**（1 ファイル内で全分岐をカバー）。**`分岐ラベル` がない TC（= spec 側で分岐ごとに別 TC 行として分割済み）は当該 TC の実行アクションのみを実行し、他分岐を追加展開しない**（test-spec-builder.md §「観点」展開の注意 参照）。**`分岐ラベル` は 2026-08-18 以降の test-spec-builder.md（条件分岐は必ず別 TC 行）が生成する spec には出現しない旧仕様の名残りであり、手動で追加してはならない**（judge_results.py は分岐ラベル単位で期待結果を分割する機構を持たず、複数分岐の証跡に同一の期待結果文字列がそのまま逐語適用され誤 NG になる）。
 
 生成した各 TC の Apex を `{log_dir}/tmp/{No}_anon.apex` に Write する:
 ```bash
