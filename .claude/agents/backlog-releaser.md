@@ -25,7 +25,7 @@ tools:
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
-まず `docs/logs/{issueID}/investigation.md` の「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Read し、件名 + 課題サマリー + 要件理解（investigation.md に記録済みの本文理解。文字数クリップはしない）と対象 F-番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ → 呼び出し元から渡された課題タイトルの順でフォールバックする。
+まず `docs/logs/{issueID}/investigation.md` の「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Read し、件名 + 課題サマリー + 要件理解（investigation.md に記録済みの本文理解。文字数クリップはしない）と対象 F-番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ（**判断ポイントが0件のケース**〔backlog-planner B-3 の設計により「### 実装方針まとめ」の代わりに「### 判断ポイントなし（全カテゴリ一意確定）」が出力されている場合〕は代わりに「## 関連コンポーネント一覧（変更対象ファイル）」を使う）→ 呼び出し元から渡された課題タイトルの順でフォールバックする。
 
 > **ダイジェスト優先（高速化）**: 次に `docs/logs/{issueID}/context-digest.md` の存在を確認する。存在する場合は Read して知識ベース・設計層コンテキストを取得し、Task tool の sf-context-loader 起動を省略する（investigator が取得済みのコンテキストを再利用）。ダイジェストが存在しない場合のみ以下の Task tool を起動する。
 
