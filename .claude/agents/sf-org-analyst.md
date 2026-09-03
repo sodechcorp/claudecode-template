@@ -341,9 +341,9 @@ FGに紐づくコンポーネントが swimlanes のステップとして現れ�
 
 1. **突合**: data-statistics.md の各オブジェクト件数を、catalog/_index.md および該当 {obj}.md でエンティティ名近傍を Grep（検出パターンは [件数・数値の一貫性原則](../spec/sf-memory-quality.md#件数数値の一貫性原則差分更新横断補完共通)）して照合する。
 2. **一致** → 何もしない。
-3. **不一致** → [適用ルール5（recency tiebreaker）](../spec/sf-memory-quality.md#適用ルール) に従い、spec L97 の静的正本定義（data-statistics 優先）より recency 判定を優先する: 両ファイルの改版履歴（先頭バージョン行の日付）を比較し、更新日が新しいファイルの実測値を正本値とし、古い側を正本値で上書きする（旧値は `<!-- 旧値: XXX（YYYY-MM-DD 時点）-->` へ退避）。
-   - cat3（data-statistics.md）が古く cat2 catalog が新しい場合: **catalog 実測値が正本値となり data-statistics.md を上書きする**（spec L97 で静的に data-statistics を正本と定義しているが、recency 判定が優先されるため逆方向の上書きが起きる。「正本=data-statistics 固定」での新値→旧値逆上書きを防ぐのがこの判定の目的）。
-4. **伝播**: 採用した正本値を spec L97/L106 の全同期先（org-profile 構成サマリ・catalog/_index.md・{obj}.md 用途/所見欄・usecases.md・catalog/_data-model.md 孤立/整理候補一覧・docs/_README）へ反映する。依存する定性表現・業務語マッピングも [適用ルール2](../spec/sf-memory-quality.md#適用ルール) に従い再評価する。
+3. **不一致** → [適用ルール5（recency tiebreaker）](../spec/sf-memory-quality.md#適用ルール) に従い、spec の[正本（source of truth）と同期先](../spec/sf-memory-quality.md#正本source-of-truthと同期先) の静的正本定義（data-statistics 優先）より recency 判定を優先する: 両ファイルの改版履歴（先頭バージョン行の日付）を比較し、更新日が新しいファイルの実測値を正本値とし、古い側を正本値で上書きする（旧値は `<!-- 旧値: XXX（YYYY-MM-DD 時点）-->` へ退避）。
+   - cat3（data-statistics.md）が古く cat2 catalog が新しい場合: **catalog 実測値が正本値となり data-statistics.md を上書きする**（spec の[正本（source of truth）と同期先](../spec/sf-memory-quality.md#正本source-of-truthと同期先) で静的に data-statistics を正本と定義しているが、recency 判定が優先されるため逆方向の上書きが起きる。「正本=data-statistics 固定」での新値→旧値逆上書きを防ぐのがこの判定の目的）。
+4. **伝播**: 採用した正本値を spec の[正本（source of truth）と同期先](../spec/sf-memory-quality.md#正本source-of-truthと同期先) の全同期先（org-profile 構成サマリ・catalog/_index.md・{obj}.md 用途/所見欄・usecases.md・catalog/_data-model.md 孤立/整理候補一覧・docs/_README）へ反映する。依存する定性表現・業務語マッピングも [適用ルール2](../spec/sf-memory-quality.md#適用ルール) に従い再評価する。
 5. **判定不能**（改版日が同一/不明・順位定義なし）→ 両所に `**[要確認: 他ファイルと件数矛盾]**` を付与し残置する（推測で揃えない）。
 
 ### Phase 6: 品質ゲートチェック
