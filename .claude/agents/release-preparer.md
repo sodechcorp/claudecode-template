@@ -93,8 +93,8 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 4. [deploy-skip-judgment.md](../templates/backlog/deploy-skip-judgment.md) の考え方を適用し、ソースデプロイ不可・管理画面手動操作が必要な資材があれば分離して記録する
 5. **デプロイ元は常に `force-app` 本体**。他チケットとの競合解消やマージ検証のためにバックアップ/作業用フォルダ（例: `.release-backup/{issueID}/...`）を作った場合でも、そこを `release-plan.md` の `--source-dir` に指定しない。競合解消後の変更は必ず `force-app` にマージしてから 1. の diff 抽出・Phase 5 のデプロイコマンドに反映する（`force-app` 外のフォルダは source-tracking・metadata 構造の前提を満たさず `NothingToDeploy` 等の予期しないエラーを招く）
 6. **`apex_in_scope: true` の場合、`--test-level` 判定用にテストクラスを確定する**（目的: 無関係な既存テストを全件実行する `RunLocalTests` を既定にせず、Salesforce 公式仕様上カバレッジ要件が「デプロイ対象クラス単位」で完結する `RunSpecifiedTests` をデフォルトにするため。根拠: RunSpecifiedTests は対象クラス/トリガーごとに個別カバレッジ75%が要件で無関係な既存テストの合否を問わないが、RunLocalTests は組織内の全ローカルテストの実行・合格が要件になる）:
-   - `test-report.md`「### dry-run デプロイ検証」に「指定テストクラス: ...」の記載があれば（backlog-tester Step 2 で確定済み・空欄「なし」以外）、それを `target_test_classes` としてそのまま転記し、以下の Glob/Grep 探索は行わない
-   - 記載が無い場合のみ、デプロイ対象の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`）で専用テストクラスを Glob/Grep で特定する
+   - `test-report.md`「### dry-run デプロイ検証」の「指定テストクラス: ...」に具体的なクラス名の記載があれば（backlog-tester Step 2 で確定済み・値が「なし」以外）、それを `target_test_classes` としてそのまま転記し、以下の Glob/Grep 探索は行わない
+   - 上記に該当しない場合（「指定テストクラス:」の行自体が無い、または値が「なし」の場合〔対応テストクラス不在と backlog-tester 側で確定済みのケースを含む〕）、デプロイ対象の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`）で専用テストクラスを Glob/Grep で特定する
    - `docs/logs/{issueID}/investigation.md` の「## 既存テストクラスへの影響」（option-test-class-impact.md が Phase 2 で作成済みの場合）に追加で挙がっているテストクラスがあれば取り込む
    - 全デプロイ対象クラスに専用テストクラスが見つかった場合 → `test_coverage_risk: false`、特定したテストクラス一覧を `target_test_classes` として記録
    - 1件でも専用テストクラスが見つからない場合 → `test_coverage_risk: true`、該当クラス名を記録（Phase 5 で `RunLocalTests` フォールバックの根拠にする）
@@ -134,7 +134,11 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 > 詳細スペック: [option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md)
 > 事前ガード: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)（本番）・[sandbox-alias-check.md](../templates/common/sandbox-alias-check.md)（Tier 0 のみ・UAT/Sandbox）
 
-1. `prod-readonly-check.md` で本番組織への接続を確認する（read-only 前提の明示）。本番エイリアスが不明・未認証の場合はユーザーに確認する。**確認できた値は `{本番エイリアス}` として Phase 5 の release-plan.md 生成まで保持し、実値埋め込みに使う**。**本番に接続できない/認証情報がない場合はこの Phase をスキップし、release-plan.md に「本番環境ドリフト確認: 未実施（接続情報なし）」と明記して Phase 5 へ進む（`{本番エイリアス}` も未確定のまま Phase 5 に渡る）**（リリース準備自体は続行可能）
+1. `prod-readonly-check.md` で本番組織への接続を確認する（read-only 前提の明示）。本番エイリアスが不明・未認証の場合はユーザーに確認する。判定は prod-readonly-check.md の3分岐（OK/WARN/NOTE）に従う:
+   - **OK（本番組織を確認できた）**: 確認できた値を `{本番エイリアス}` として Phase 5 の release-plan.md 生成まで保持し、実値埋め込みに使う
+   - **WARN（接続確認に失敗・認証情報なし）**: この Phase をスキップし、release-plan.md に「本番環境ドリフト確認: 未実施（接続情報なし）」と明記して Phase 5 へ進む（`{本番エイリアス}` も未確定のまま Phase 5 に渡る）
+   - **NOTE（指定エイリアスの実体が Sandbox だった）**: 誤った組織を本番として扱わない。ユーザーに正しい本番エイリアスを再確認する。再確認できて OK 判定に切り替われば上記 OK と同様に扱う。再確認できない場合は WARN と同様「未実施（接続情報なし）」として Phase 5 へ進む
+   （リリース準備自体は続行可能）
 2. **Tier 0（環境間実体差分チェック・マニフェスト非依存）**: Phase 1 の 1a（`.gitignore` 該当時のフォールバック）で前倒し実行済みの場合はここでは再実行せず、その結果を release-plan.md に転記する。未実施の場合はここで実施する。Tier 0 は UAT（Sandbox）との比較を伴うため、実施前に `sandbox-alias-check.md` で Sandbox 接続（`$SF_ALIAS`）も確認する（Sandbox に未接続/認証情報がない場合は Tier 0 のみスキップし、release-plan.md に「Tier 0: 未実施（Sandbox未接続）」と明記して Tier 1/2 は通常どおり実施する。未リリース積み残しを検知する Tier 0 を、記録なしに読み飛ばさない）
 3. Tier 1（軽量スキャン）: `sf org list metadata` で対象コンポーネントの最終更新日/更新者を確認し、base コミット日時より後に他者が触った痕跡を抽出する
 4. Tier 2（深掘り）: Tier 1 で痕跡ありのコンポーネントのみ、一時ディレクトリへ本番から retrieve して現在の force-app と diff する。**`force-app/` へは絶対に取得しない**
@@ -283,6 +287,8 @@ sf project deploy report --target-org {本番エイリアス}
 
 > **全文提示はしない**: `release-plan.md` の全文をこの場でチャットに貼り付けない。Todo 化・ステップごとの逐次提示は呼び出し元（`release.md` Step 4）の責務。仕様: [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md)。本エージェントは完了報告でファイルパスと構成概要（Step 数・管理画面手動操作の有無）のみ伝える。
 
+完了報告の前に、下記「Phase 最終: クリーンアップ」を実施する（Phase 1/4 で `{tmp_dir}/prod-drift-check` ・ `{tmp_dir}/org-drift-tier0` を作成した場合のみ）。
+
 完了報告を提示する:
 
 ```
@@ -337,6 +343,8 @@ decisions.md「リリース予定日 / 担当」欄・changelog.md に記録し�
 
 ## Phase 最終: クリーンアップ
 [共通ルール参照](../spec/cleanup-rules.md)
+
+**実施タイミング**: 通常フロー（Phase 1〜6）では Phase 6 の完了報告直前に実施する。Phase 7 単独実行モードは Phase 1/4 を実行しないため対象の一時ディレクトリは通常存在せず、本節は実質 no-op（削除対象なし）となる。
 
 以下の一時ディレクトリを作成した場合は、成果物書き出し後・完了報告前に必ず削除する:
 - `{tmp_dir}/prod-drift-check`（Phase 4 Tier 2）
