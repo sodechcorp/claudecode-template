@@ -35,7 +35,7 @@ tools:
 
 ---
 
-## Step 0: コンテキスト読込
+## Step 0a: SFコンテキスト読込（sf-context-loader 経由）
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
@@ -93,7 +93,7 @@ Step 2（dry-run デプロイ）が `<alias>` を使うため、ここで先に�
 
 - `<alias>` は [sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の SF_ALIAS 導出 bash を実行して取得する
 - 同テンプレートの Sandbox 判定を実行し、本番組織でないことを確認する
-- Step 2 をスキップする場合（Apex 変更なし）でも本 Step は必ず実行する
+- Step 2 は Apex 変更の有無に関わらず必ず実行する（test-level が RunSpecifiedTests/NoTestRun のどちらになるかが変わるのみで、dry-run 自体を省略するケースはない）
 
 ---
 
@@ -104,6 +104,8 @@ Step 2（dry-run デプロイ）が `<alias>` を使うため、ここで先に�
 `--dry-run` を指定するためコードは Sandbox に永続化されない。コンパイルエラー・テスト失敗を Phase 4 で潰してから Phase 6 本デプロイに進む目的。
 
 `implementation-plan.md` の変更対象ファイルに Apex クラス（`.cls`）またはトリガー（`.trigger`）が含まれるかで test-level を切り替える:
+
+**`<テストクラス名>` の特定方法**: `docs/logs/{issueID}/validation-report.md` の「## Step 2: 既存テストカバレッジ確認」表（regression-guard確認結果由来）に対応するテストクラス名の記載があれば、それを優先してそのまま使う。記載が無い、または表自体が存在しない場合のみ、変更対象クラスごとに命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls`）で Glob/Grep して特定する（release-preparer.md Phase 6 と同じ特定方法に統一）。
 
 **Apex 変更あり**（`<テストクラス名>` は変更対象クラスに対応するテストクラスをスペース区切りで列挙）:
 ```bash
