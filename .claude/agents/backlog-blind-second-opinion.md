@@ -115,7 +115,7 @@ parent が渡した以下の情報だけを元に、課題の原因仮説を 3 �
 - {ファイルパス}: {なぜ確認が必要か}
 ```
 
-※ 呼び出し元（option-second-opinion）では出力テーブルに「parent 仮説との差異」列が追加される。この列は **parent 側が** blind 結果と自分の調査結果を比較して埋める。subagent はこの列を出力しない。差異列の記入責務については呼び出し元 `templates/backlog/options/option-second-opinion.md` も参照。
+※ 呼び出し元（option-second-opinion）では出力テーブルに「parent 仮説との差異」列が追加される。この列は **parent 側が** blind 結果と自分の調査結果を比較して埋める。subagent はこの列を出力しない。差異列の記入責務については呼び出し元 `.claude/templates/backlog/options/option-second-opinion.md` も参照。
 
 ---
 
