@@ -527,8 +527,7 @@ def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
         for fname in sorted(os.listdir(before_dir)):
             if "_resized." in fname:
                 continue
-            if (fname.startswith(no) or fname.startswith(no.replace("TC-", "tc-"))) \
-                    and fname.lower().endswith(".txt"):
+            if _tc_prefix_match(fname, no) and fname.lower().endswith(".txt"):
                 before_txts.append(os.path.join(before_dir, fname))
 
     # after DOM .txt を確認
