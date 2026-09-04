@@ -33,6 +33,7 @@ tools:
 
 **テスト証跡モード（mode 省略・通常）**:
 - `{issueID}` — 課題 ID（例: GF-350）
+- `{project_dir}` — プロジェクトルートパス（基盤手順の読込・Step 5 の test-prerequisites.md 参照先）
 - `{alias}` — Sandbox org alias（Sandbox 確認はオーケストレータ側で完了済み）
 - `{log_dir}` — `{project_dir}/docs/logs/{issueID}/`
 - `{evidence_dir}` — 証跡保存先ルート（`{xlsx_folder}/evidence`）
@@ -399,6 +400,8 @@ async (page) => {
       });
     } catch (e) {
       results.push({no: tc.no, ok: false, error: String(e)});
+      prevScreen = null; // 例外時は画面状態不明のため次TCの遷移スキップ判定に使わない
+      return;
     }
     prevScreen = tc.screen || null;
   }

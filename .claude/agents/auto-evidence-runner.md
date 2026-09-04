@@ -247,6 +247,7 @@ grep -h "^CREATED_RECORD|" "{evidence_dir}"/after/apex/*.txt 2>/dev/null \
 
 `ui-evidence-runner` への委譲パラメータ:
 - `issueID`: `{issueID}`
+- `project_dir`: `{project_dir}`
 - `alias`: `{alias}`（Sandbox 確認済み前提）
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
