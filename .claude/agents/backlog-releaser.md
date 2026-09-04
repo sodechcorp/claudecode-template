@@ -235,7 +235,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 ### 3.5. xlsx 対応記録の追記
 
-> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
+> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
 
 > **注**: 本番リリース実施記録（デプロイ日時・対象環境・結果）は対応記録.xlsx では管理しない（該当シートは `patch_template_v8` で廃止済み）。本番デプロイ後は `/release {issueID}` の Phase 7 が decisions.md「リリース予定日 / 担当」欄・changelog.md への記録を担当する（release-checklist-matrix.md §A 参照）。
 
@@ -306,7 +306,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
    - **この時点で既にユーザーから「サイン取得済み」「サイン不要」の報告がある場合**: 4. へ進み xlsx タイムラインに記録する
    - **まだ報告がない場合**（通常はこちら。顧客往復は非同期でセッション内に収まらないことが多い）: `docs/logs/{issueID}/pending-signoff.md` に「対象: {issue_type} / リマインド日時 / 確認対象（目視確認のご案内へのリンク）」を記録し、Step 4 完了報告の「残作業」に「[ ] お客様確認サイン取得（バグ、または権限・FLS・レイアウト・RecordType・共有ルール変更を含む場合は必須）。取得後、報告いただければ xlsx タイムライン「お客様確認」欄へ追記します（別セッションでも可）」を追加する
 4. ユーザーから報告を受けた場合（本 Step 内・別セッションのいずれでも）、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が設定されている場合のみ xlsx タイムラインに記録:
-   > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
+   > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定の場合はスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
 
 ```bash
 python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \

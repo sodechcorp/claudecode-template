@@ -236,7 +236,7 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 
 **④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
 
-> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定 / 変数名リテラルの場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照）。
+> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
 
 ```bash
 python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
