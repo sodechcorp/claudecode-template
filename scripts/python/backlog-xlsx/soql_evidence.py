@@ -31,6 +31,8 @@ from simple_salesforce import Salesforce
 from simple_salesforce.exceptions import SalesforceError
 import requests
 
+from _common import parse_test_spec
+
 
 # sf CLI のフルパス解決（Windows で "sf" が .CMD の場合、shell=False の
 # subprocess.run は PATHEXT を自動解決せず FileNotFoundError になるため、
@@ -208,36 +210,21 @@ def to_text_evidence(data: dict, out_path: str, query: str, label: str = "", no:
 # ── queries-file パーサ（test-spec.md の SOQL 行を抽出） ─────────────────────
 
 def parse_queries_from_spec(spec_path: str) -> list:
-    """test-spec.md の Markdown テーブルから 種別=SOQL の行を抽出する。
+    """test-spec.md の "No" 列を持つテストケース一覧テーブルから 種別=SOQL の行を抽出する。
+    テーブル選択は _common.parse_test_spec に統一する（C-3: 独自実装は最初に見つけた
+    テーブルで走査を打ち切るため、spec 冒頭に前提条件テーブル等があると本来の
+    TC 一覧テーブルへ到達できず SOQL を1件も抽出できなかった）。
     返り値: [{"no": "TC-001", "label": "...", "query": "SELECT ..."}]
     """
-    text = Path(spec_path).read_text(encoding="utf-8")
-    headers = []
-    rows = []
-    in_table = False
-
-    for line in text.splitlines():
-        line = line.strip()
-        if not line.startswith("|"):
-            if in_table:
-                break
-            continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if all(re.match(r"^[-: ]+$", c) for c in cells):
-            in_table = True
-            continue
-        if not headers:
-            headers = cells
-            in_table = True
-        else:
-            row = dict(zip(headers, cells))
-            rows.append(row)
+    rows = parse_test_spec(spec_path)
 
     queries = []
     for row in rows:
-        # 種別列の表記ゆれに対応
+        # 種別列の表記ゆれに対応。複合種別（例 "UI + SOQL"）は "+" 区切りで分割し
+        # 部分一致で判定する（C-4: 完全一致だと複合TCがSOQL実行から丸ごと落ちていた）。
         shubetsu = row.get("種別", row.get("実行種別", "")).strip()
-        if shubetsu.upper() != "SOQL":
+        shubetsu_parts = [p.strip().upper() for p in re.split(r"\s*\+\s*", shubetsu)]
+        if "SOQL" not in shubetsu_parts:
             continue
         action = row.get("実行アクション", row.get("確認手順", "")).strip()
         # SELECT から始まる SOQL を抽出

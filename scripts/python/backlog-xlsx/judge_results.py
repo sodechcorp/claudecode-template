@@ -67,6 +67,15 @@ for _label, _subdir in _SHUBETSU_SUBDIR.items():
     _SUBDIR_SHUBETSU_LABELS.setdefault(_subdir, []).append(_label)
 
 
+def _tc_prefix_match(fname: str, tc_no: str) -> bool:
+    """ファイル名が tc_no（大文字/小文字 TC- 両対応）で始まり、かつ直後が数字でない
+    （＝ TC-1 が TC-10 等の別 TC に誤マッチしない）ことを確認する境界チェック付き前方一致。"""
+    for prefix in (tc_no, tc_no.replace("TC-", "tc-")):
+        if prefix and re.match(rf"^{re.escape(prefix)}(?!\d)", fname):
+            return True
+    return False
+
+
 def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
     """証跡ディレクトリから TC-001 に対応する全ファイルを返す（複数証跡・分岐ラベル対応）。"""
     # " + " で分割して各サブディレクトリを収集（重複なし・順序維持）
@@ -90,7 +99,7 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
             # before / リサイズ済みサムネイルは対象外
             if "_before." in fname or "_resized." in fname:
                 continue
-            if fname.startswith(tc_no) or fname.startswith(tc_no.replace("TC-", "tc-")):
+            if _tc_prefix_match(fname, tc_no):
                 fpath = os.path.join(d, fname)
                 if fpath not in seen:
                     seen.add(fpath)
@@ -103,7 +112,7 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
             for fname in sorted(os.listdir(before_dir)):
                 if "_resized." in fname:          # サムネイルは除外
                     continue
-                if fname.startswith(tc_no) or fname.startswith(tc_no.replace("TC-", "tc-")):
+                if _tc_prefix_match(fname, tc_no):
                     fpath = os.path.join(before_dir, fname)
                     if fpath not in seen:
                         seen.add(fpath)
@@ -636,9 +645,14 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
             dirname = os.path.basename(os.path.dirname(fpath))
             candidate_labels = _SUBDIR_SHUBETSU_LABELS.get(dirname, [])
             matched = next((kiki_by_shubetsu[l] for l in candidate_labels if l in kiki_by_shubetsu), None)
-            # 種別ラベルが特定できない/kiki 側に該当ラベルが無い証跡は、無関係な他種別の
-            # 期待値を誤適用しないよう空文字（＝判定ヘッダのみで判定）にフォールバックする
-            kiki_for_file = matched if matched is not None else ""
+            if matched is None:
+                # 種別ラベルが特定できない/kiki 側に該当ラベルが無い証跡は、無関係な他種別の
+                # 期待値を誤適用せず、かつ空文字フォールバックによる無条件OK化も避ける
+                # （C-2: 未検証のまま偽OKになっていた）。要目視確認（SKIP）として独立評価する。
+                results.append({"ok": None, "actual": "要目視確認（期待値の割当なし）",
+                                 "reason": f"証跡 {os.path.basename(fpath)} の種別ラベルを期待結果から特定できません"})
+                continue
+            kiki_for_file = matched
         r = judge_single_evidence(fpath, kiki_for_file, judge_method, no)
         results.append(r)
 

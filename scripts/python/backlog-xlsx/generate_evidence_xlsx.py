@@ -172,11 +172,23 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: 
     seen = set()
 
     # ① judgment の evidence パスを最優先（正本が既にある場合は即採用）
+    # ただし、パスが当該回次の evidence_dir 配下であることを検証する（C-5）。
+    # 回次退避（cp -r evidence/after evidence/after_R1）は judgment-result.R{n}.json
+    # 内の絶対パスを更新しないため、退避前の after/ を指したまま残る。after/ が
+    # 現回次で上書きされると、この絶対パスが指す先も現回次の内容に化けており、
+    # 検証なしに採用すると過去回次の証跡シートに現回次の内容が混入してしまう。
     if judgment is not None:
         ev_path = judgment.get(tc_no, {}).get("evidence", "")
         if ev_path and os.path.isfile(ev_path) and ev_path not in seen:
-            seen.add(ev_path)
-            found.append(ev_path)
+            try:
+                ev_abs = os.path.abspath(ev_path)
+                dir_abs = os.path.abspath(evidence_dir)
+                is_under_dir = os.path.commonpath([ev_abs, dir_abs]) == dir_abs
+            except ValueError:
+                is_under_dir = False
+            if is_under_dir:
+                seen.add(ev_path)
+                found.append(ev_path)
 
     tc_num = _tc_normalize(tc_no)
     if tc_num < 0:
