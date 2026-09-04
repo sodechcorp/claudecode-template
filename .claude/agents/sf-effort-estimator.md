@@ -103,7 +103,7 @@ case-index からの採用アンカーが 2 件未満 かつ `global-calibration
 case-index に採用アンカーが 0 件かつ `mcp__backlog__get_issues` が利用可能な場合:
 - 同じ種別（バグ / 追加要望）のステータス=完了の課題を最大 20 件取得する
 - `actualHours > 0` の件のみ採用候補とし、件名テキスト jaccard 類似度で上位 3 件を保持する
-- この経路で取得した場合、信頼度は最大「中」（人間実績から取れた場合のみ）
+- この経路で取得した場合、`backlog_mcp_anchor=true` として記録する（信頼度の最終判定は Step 5 の決定リストに従う）
 
 **全ルートでアンカー 0 件の場合**（case-index も MCP 補完も 0 件）:
 - effort-calibration.md の該当帯（Step 3 で判定した「軽い/中程度/大きい」）の代表アンカー値の中央値をそのままベース値とする
@@ -145,18 +145,22 @@ Step 4 で計算した最終値を、実績レンジと照合して異常値を�
 
 ### no_calibration 時の扱い
 
-- `no_calibration=true`（effort-calibration.md が存在しない）の場合はこのステップをスキップし、信頼度=低のまま出力（既存挙動を維持）。
+- `no_calibration=true`（effort-calibration.md が存在しない）の場合はこのステップ（校正レンジ照合）をスキップする。信頼度の最終判定は Step 5 の決定リストに従う。
 
 ---
 
 ## Step 5: 信頼度の判定
 
-| 信頼度 | 条件 |
-|---|---|
-| 高 | case-index アンカー 3 件以上 かつ 種別 + コンポーネント種別 + 定型度が一致している |
-| 中 | case-index アンカー 1〜2 件、または calibration 帯のみ一致（case-index アンカー 0 件） |
-| 中（global） | case-index アンカー 0〜1 件 かつ global-calibration の対応コンポーネント種別帯を使用 |
-| 低 | アンカー 0 件 / calibration 無し / mode=quick / Backlog MCP 補完のみ |
+以下を**上から順に評価し、最初に条件を満たした行のみを採用する**（一度確定したら以降の行は評価しない）。Step 3・Step 4.5 で個別に言及される信頼度はすべてこの決定リストに従う（本 Step が唯一の決定箇所）。
+
+| 順位 | 条件 | 信頼度 |
+|---|---|---|
+| 1 | `mode=quick`、または参照データ（calibration・case-index・MCP）が一切確認できない | 低 |
+| 2 | case-index アンカー 3 件以上 かつ 種別 + コンポーネント種別 + 定型度が一致している | 高 |
+| 3 | case-index アンカー 1〜2 件 | 中 |
+| 4 | case-index アンカー 0〜1 件 かつ Step 3 の global-calibration フォールバックを使用した | 中（global） |
+| 5 | case-index アンカー 0 件 かつ Step 3 の Backlog MCP 補完でアンカーを取得した（`backlog_mcp_anchor=true`） | 中 |
+| 6 | 上記いずれにも該当しない（アンカー 0 件・calibration 帯の代表値のみ使用、または calibration 自体が無い） | 低 |
 
 ---
 
