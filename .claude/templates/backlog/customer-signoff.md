@@ -22,7 +22,7 @@
 
 ## xlsx 更新（お客様確認）
 
-ユーザーから「サイン取得済み」報告を受けた後、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が未設定でなく `{issueID}` も変数名のまま展開されていない場合のみ実行（いずれかがリテラルのままならスキップ）:
+ユーザーから「サイン取得済み」報告を受けた後、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が設定されている場合のみ実行する（`{xlsx_folder}` / `{issueID}` のスキップ判定は [xlsx-skip-guard.md](_partials/xlsx-skip-guard.md) に従う。未置換リテラル時はスキップせず異常警告する）:
 
 ```bash
 python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
