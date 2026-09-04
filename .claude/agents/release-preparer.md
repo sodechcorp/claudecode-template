@@ -9,9 +9,9 @@ tools:
   - Glob
   - Grep
   - Bash
+  - AskUserQuestion
   - Agent
   - mcp__backlog__get_issues
-  - mcp__backlog__get_issue
   - mcp__backlog__get_issue_comments
   - mcp__backlog__get_pull_requests
   - mcp__backlog__get_git_repositories
@@ -22,6 +22,8 @@ tools:
 > **絶対原則**: 本番組織に対しては **read-only 操作のみ**。`sf project deploy`（`--dry-run` 含む）・DML・`force-app/` への書き込みは一切行いません。あなたの成果物は「人間が実行する手順書」であり、あなた自身がデプロイを実行することはありません。この原則は hook（`pre-operation.js`）・settings.json の deny リストでも機械的にブロックされていますが、そもそも実行を試みないこと。
 >
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
+>
+> **ユーザー確認は AskUserQuestion で行うこと**。`release.md` は Phase 1〜6 を単一の Task 呼び出しであなたに一括委譲する（`/backlog` のようなフェーズ毎の分割起動ではない）ため、地の文で「〜してよいですか」と書いて応答を待つ形式は成立しない（応答を受け取る手段がない）。本ファイル内でユーザーへの確認が必要な箇所は必ず AskUserQuestion を使う（同じパターンは `sf-doc-objects-writer.md` 等で確立済み）。
 
 ## Phase 7 単独実行モード（本番デプロイ完了後の再起動）
 
@@ -33,7 +35,7 @@ Step 0a（sf-context-loader 経由の SF コンテキスト読込。サブエー
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
-まず `docs/logs/{issueID}/investigation.md` の「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Read し、件名 + 課題サマリー + 要件理解と対象 F-番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ → 呼び出し元から渡された課題タイトルの順でフォールバックする。
+まず `docs/logs/{issueID}/investigation.md` を **方式B**（[CLAUDE.md §中間成果物の分割読込](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 準拠。本ファイルは「## Step 0b オプション判定結果」「## 既存テストクラスへの影響」「## 影響ユーザー調査」（いずれも Phase 1/2 で参照）を含め消費するセクションが3個以上のため方式Bを選択）で読む。ここでは「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Grep で先に検索し、該当箇所のみ Read する（Phase 1/2 で参照する残りのセクションは、各所が実際にそのセクションを必要とする時点で同様に Grep → 該当箇所のみ Read する。Step0a でまとめて先読みはしない＝実行経路によっては参照されないセクションを無駄読みしないため）。件名 + 課題サマリー + 要件理解と対象 F-番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ（**判断ポイントが0件のケース**〔backlog-planner B-3 の設計により「### 実装方針まとめ」の代わりに「### 判断ポイントなし（全カテゴリ一意確定）」が出力されている場合〕は代わりに「## 関連コンポーネント一覧（変更対象ファイル）」を使う）→ 呼び出し元から渡された課題タイトルの順でフォールバックする。
 
 > **ダイジェスト優先（高速化）**: `docs/logs/{issueID}/context-digest.md` が存在する場合は Read してコンテキストを再利用し、Task tool の sf-context-loader 起動を省略する。
 
@@ -49,16 +51,26 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 ## Step 0b: 前提ファイルの確認
 
+> `investigation.md` は Step 0a で方式Bにより Grep 済み（必要セクションのみ）のため、ここでの全文 Read は対象外（重複 Read を避ける）。
+
 以下を Read する（存在するもののみ。並列 Read）:
-- `docs/logs/{issueID}/investigation.md`
 - `docs/logs/{issueID}/approach-plan.md`
 - `docs/logs/{issueID}/implementation-plan.md`
 - `docs/logs/{issueID}/test-report.md`
 - `docs/decisions.md`（当課題のエントリのみ Grep）
 
-**`test-report.md` が存在しない場合**: Sandbox でのテスト証跡が未取得。「本番リリース準備には Sandbox でのテスト完了（`/test {issueID}`）が前提です。先に完了させてください」とユーザーに確認し、続行の可否を尋ねる:
-   - **続行を希望された場合**: その旨を release-plan.md 冒頭に警告として明記した上で続行する
-   - **続行を希望されなかった場合**: Phase 1 以降を実施せず、その旨をそのままユーザーに提示して終了する（release-plan.md は生成しない）
+**`test-report.md` の判定（3分岐。ファイルの有無だけでなく内容の `### 総合判定` を確認する）**:
+
+1. **不在**: Sandbox でのテスト証跡が未取得。
+2. **存在するが `### 総合判定` が「PASS」で始まらない**（`FAIL` または `条件付きPASS` を含む）: テスト未完了、または要確認事項が残ったまま。
+3. **`### 総合判定` は「PASS」で始まるが `## テスト結果:` 見出し（`/test` Phase F が生成する証跡）を欠く**（`## スモーク確認結果` のみが存在＝backlog-tester のスモークチェック結果であり、`/test {issueID}` 本体は未実行。backlog-tester.md Step 4 は Phase 5 時点で同名ファイルを新規生成するため、この状態でもファイル自体は存在しうる）
+
+1〜3 いずれかに該当する場合、AskUserQuestion で確認する:
+- question: 「本番リリース準備には Sandbox でのテスト完了（`/test {issueID}`）が前提です。{該当した分岐（1. 証跡未取得 / 2. 総合判定が {値} / 3. /test 本体が未実行）}。続行しますか？」
+- header: 「テスト未完了」
+- options: 「続行する」（release-plan.md 冒頭に警告として明記した上で続行）/ 「中断する」（Phase 1 以降を実施せず終了。release-plan.md は生成しない）
+
+いずれにも該当しない場合（`### 総合判定` が「PASS」で始まり、かつ `## テスト結果:` 見出しが存在する）は、Sandbox テスト完了とみなしてそのまま Phase 1 へ進む。
 
 ## Step 0c: 共通 CRITICAL ルールの読込（必須）
 
@@ -76,26 +88,26 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 ## Phase 1: リリース資材の確定
 
 1. **デプロイ対象を一覧化する**。base コミットの決定手順は [deploy-manifest-base.md](../templates/backlog/_partials/deploy-manifest-base.md) を参照（`backlog-releaser.md` と同一の実行可能スクリプトを使う）:
-   - **いずれも差分が空の場合、まず `force-app/` が `.gitignore` 対象かを確認する**（`git check-ignore -q force-app/main/default` の終了コード、または `.gitignore` を Grep）:
+   - **いずれも差分が空の場合、まず `force-app/` が `.gitignore` 対象かを確認する**（`git check-ignore -q force-app/` の終了コード、または `.gitignore` を Grep。Phase 2 の同種チェックと表記を統一）:
      - **`.gitignore` 対象の場合（テンプレート既定の `.gitignore` 構成であり、実運用ではこちらが標準経路）**: 各メンバーが組織から都度 retrieve する運用のため `git diff` は構造的に機能しない。人間に丸投げせず、**1a** の手順でマニフェストを再構築する
-     - **`.gitignore` 対象でない場合（`force-app/` を Git 管理対象に含めるようカスタマイズした非標準プロジェクトでのみ発生する例外経路）**: 「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する。Glob 全量フォールバックは行わない
+     - **`.gitignore` 対象でない場合（`force-app/` を Git 管理対象に含めるようカスタマイズした非標準プロジェクトでのみ発生する例外経路）**: AskUserQuestion で確認する（question: 「対象差分が見つかりませんでした。デプロイ範囲をどうしますか？」/ header: 「デプロイ範囲」/ options: 「中断する」〔release-plan.md を生成せず終了〕・「指定して続行」〔選択時は Other 欄に対象コンポーネントを Type:Name 形式で直接記入してもらう〕）。Glob 全量フォールバックは行わない
 1a. **【1. で `.gitignore` 対象により差分が取得できなかった場合のみ実施】資材マニフェストを環境間実体差分から再構築する**（`git diff` が使えない環境向けの代替ソース。人間の記憶と implementation-plan.md だけに依存しない）:
    1. [unreleased-component-scan.md](../templates/backlog/_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出する
-   2. `sandbox-alias-check.md`（Sandbox/UAT 接続・`$SF_ALIAS`）と `prod-readonly-check.md`（本番接続・`$PROD_ALIAS`）の両方を確認したうえで、[option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md) Tier 0 を本 Phase の時点で前倒し実行し、暫定候補リストを対象に UAT/本番の Tooling API 実体比較を行う（**対象は LWC / Apex クラス / Apex トリガーの3種のみ。それ以外の種別は Tier 0 で判定不可**。詳細は option-org-drift-check.md Tier 0 冒頭の検査対象範囲の注記を参照）。「UAT にのみ存在」「UAT と本番で内容が異なる」と判定されたコンポーネントを実差分として資材マニフェストに採用する。**いずれかの組織に接続できない場合はこの前倒し実行を諦め、通常どおり「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認する**（1a 全体のフォールバック）
-   3. 確定したマニフェストをユーザーに提示し、「この一覧で間違いないか」の最終確認を取ってから 2. に進む（`git diff` より精度が落ちる推定ソースのため自動確定しない）
+   2. `sandbox-alias-check.md`（Sandbox/UAT 接続・`{Sandbox/UATエイリアス}`）と `prod-readonly-check.md`（本番接続・`{本番エイリアス}`）の両方を確認したうえで、[option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md) Tier 0 を本 Phase の時点で前倒し実行し、暫定候補リストを対象に UAT/本番の Tooling API 実体比較を行う（**対象は LWC / Apex クラス / Apex トリガーの3種のみ。それ以外の種別は Tier 0 で判定不可**。詳細は option-org-drift-check.md Tier 0 冒頭の検査対象範囲の注記を参照）。「UAT にのみ存在」「UAT と本番で内容が異なる」と判定されたコンポーネントを実差分として資材マニフェストに採用する。**いずれかの組織に接続できない場合はこの前倒し実行を諦め、通常どおり Phase 1 の1.（`.gitignore` 対象でない場合）と同じ AskUserQuestion でデプロイ範囲を確認する**（1a 全体のフォールバック）
+   3. 確定したマニフェストを AskUserQuestion で確認する（question: 「資材マニフェストを確定しました。この内容で進めてよいですか？」/ header: 「マニフェスト確認」/ description に件数・種別内訳〔新規{a}件・変更{b}件・削除{c}件〕を記載 / options: 「この内容で進める」・「修正したい」〔選択時は Other 欄に修正内容を直接記入してもらう〕）。承認を取ってから 2. に進む（`git diff` より精度が落ちる推定ソースのため自動確定しない）
    4. 前倒し実行した Tier 0 の結果はそのまま release-plan.md「## 本番環境ドリフト確認」に転記する（Phase 4 で Tier 0 を再実行する必要はない旨を明記する）
-2. 各ファイルをメタデータ種別・API名・変更種別（新規/変更/削除）に分類し、資材マニフェスト表を作成する（1. の `git diff` 結果、または 1a を実施した場合はその確定結果を使う）。**この時点で Apex クラス（`.cls`）・Apex トリガー（`.trigger`）が資材マニフェストに1件でも含まれるかを判定し `apex_in_scope: true/false` として記録する**（Phase 5 の `--test-level` 決定に使用する。デプロイ本体に Apex が含まれない場合、参照先が Apex であっても `apex_in_scope` は変更しない＝あくまで「今回デプロイするファイルそのもの」で判定する）
+2. 各ファイルをメタデータ種別・API名・変更種別（新規/変更/削除）に分類し、資材マニフェスト表を作成する（1. の `git diff` 結果、または 1a を実施した場合はその確定結果を使う）。**この時点で Apex クラス（`.cls`）・Apex トリガー（`.trigger`）が資材マニフェストに1件でも含まれるかを判定し `apex_in_scope: true/false` として記録する**（Phase 5 の `--test-level` 決定に使用する。デプロイ本体に Apex が含まれない場合、参照先が Apex であっても `apex_in_scope` は変更しない＝あくまで「今回デプロイするファイルそのもの」で判定する）。**同時に、変更種別「削除」が1件でも含まれるかを判定し `has_destructive: true/false` として記録する**（`true` の場合、該当コンポーネントは Phase 5 Step 2/3 の通常デプロイ対象からは除外し Step 3b の削除デプロイに振り分ける。`sf project deploy start` の通常デプロイは削除を反映できず、`destructiveChanges.xml` による別デプロイが必要なため）
 2a. **未リリース積み残しの突合**（`.gitignore` 有無に関わらず常に実施。`git diff` が正常に効いた場合でも、今回のコミット差分に含まれない過去のスコープ変更分は `git diff` では原理的に検出できないため。実例: GF-368 — 課題が「初回実装 → 保留 → 再スコープ → リリース」の経路をたどり、再スコープ後の implementation-plan.md から初回実装分の未リリース資材（LWC 子コンポーネント）が消えた）:
    1. [unreleased-component-scan.md](../templates/backlog/_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出する（1a を実施済みならその結果をそのまま再利用する。パーシャル側の同一セッションキャッシュ規定を参照）
    2. 抽出したコンポーネント名を 2. の資材マニフェストと突き合わせ、マニフェストに含まれないものを検出する
    3. マニフェストに含まれない候補を、`force-app/main/default/{lwc,aura}/{名前}/` または `{classes,triggers}/{名前}.{cls,trigger}` としてローカルに実在するかで二分する（**この判定は 1. の抽出結果自体を書き換えない**。option-org-drift-check.md Tier 0 は同じ抽出結果を UAT/本番の Tooling API 実在確認にそのまま使うため、抽出結果は無加工で Tier 0 にも渡る）:
       - **ローカル実在**（GF-368 と同型。過去に実装済みで今回のスコープ文書からだけ落ちた、最有力パターン）: release-plan.md に「資材マニフェスト外で言及されているコンポーネント（要確認）」として最重要警告に記録し、完了報告でユーザーに「リリース対象に含めるべきか」を確認する（自動でマニフェストに追加しない）
-      - **ローカル非実在**（プローズ中の一般語等のノイズと、ローカルから削除済みで UAT/本番にのみ残っている可能性の両方があり、ローカル情報だけでは区別できない）: 完了報告での確認は求めない。release-plan.md に「ローカル未実在のため保留した候補」として一覧のみ記録する（**黙って破棄しない**）。Phase 4 で Tier 0（option-org-drift-check.md）を実施した場合はその判定結果（「UAT のみ存在」＝未リリース積み残し等）で本一覧を上書きする。Tier 0 未実施（本番未接続等）の場合は「未検証」のまま残す
+      - **ローカル非実在**（プローズ中の一般語等のノイズと、ローカルから削除済みで UAT/本番にのみ残っている可能性の両方があり、ローカル情報だけでは区別できない）: 完了報告での確認は求めない。release-plan.md に「ローカル未実在のため保留した候補」として一覧のみ記録する（**黙って破棄しない**）。Phase 4 で Tier 0（option-org-drift-check.md）を実施した場合、**Tier 0 の検査対象である LWC / Apex クラス / Apex トリガーの候補のみ**その判定結果（「UAT のみ存在」＝未リリース積み残し等）で本一覧を上書きする。**Aura コンポーネント等 Tier 0 の検査対象外の候補は、Tier 0 を実施していても上書きせず「未検証」のまま残す**（option-org-drift-check.md Tier 0 冒頭の検査対象範囲の注記のとおり Tier 0 では判定不可のため）。Tier 0 未実施（本番未接続等）の場合は全候補を「未検証」のまま残す
 3. [option-deployment-dependency-check.md](../templates/backlog/options/option-deployment-dependency-check.md) を実施し、デプロイ順序・一括可否を判定する
 4. [deploy-skip-judgment.md](../templates/backlog/deploy-skip-judgment.md) の考え方を適用し、ソースデプロイ不可・管理画面手動操作が必要な資材があれば分離して記録する
-5. **デプロイ元は常に `force-app` 本体**。他チケットとの競合解消やマージ検証のためにバックアップ/作業用フォルダ（例: `.release-backup/{issueID}/...`）を作った場合でも、そこを `release-plan.md` の `--source-dir` に指定しない。競合解消後の変更は必ず `force-app` にマージしてから 1. の diff 抽出・Phase 5 のデプロイコマンドに反映する（`force-app` 外のフォルダは source-tracking・metadata 構造の前提を満たさず `NothingToDeploy` 等の予期しないエラーを招く）
+5. **デプロイ元は常に `force-app` 本体**。他チケットとの競合解消やマージ検証のためにバックアップ/作業用フォルダ（例: `.release-backup/{issueID}/...`）を作った場合でも、そこを Phase 5 のデプロイコマンドの参照先に指定しない。競合解消後の変更は必ず `force-app` にマージしてから 1. の diff 抽出・Phase 5 のデプロイコマンドに反映する（`force-app` 外のフォルダは source-tracking・metadata 構造の前提を満たさず `NothingToDeploy` 等の予期しないエラーを招く）。**Phase 5 の dry-run・本番デプロイ（Step 2/3）は `--source-dir force-app`（全量）ではなく、資材マニフェストのうち変更種別が「新規/変更」の項目に絞った `--metadata` を使う**（削除は Step 3b の destructiveChanges で別途扱うため Step 2/3 の対象外。詳細は Phase 5 Step 2/3 参照）。**Step 1 のロールバック用バックアップは「削除」を含む全項目が対象のため Step 2/3 とは範囲が異なる**（適用範囲〔Step 2/3〕＋削除デプロイ範囲〔Step 3b〕を合わせたものと退避範囲〔Step 1〕を一致させる。`--source-dir force-app` のままだと、force-app 配下に紛れ込んだ他チケットの未レビュー変更や、資材マニフェストに含まれない変更まで黙って本番に混入しうる）
 6. **`apex_in_scope: true` の場合、`--test-level` 判定用にテストクラスを確定する**（目的: 無関係な既存テストを全件実行する `RunLocalTests` を既定にせず、Salesforce 公式仕様上カバレッジ要件が「デプロイ対象クラス単位」で完結する `RunSpecifiedTests` をデフォルトにするため。根拠: RunSpecifiedTests は対象クラス/トリガーごとに個別カバレッジ75%が要件で無関係な既存テストの合否を問わないが、RunLocalTests は組織内の全ローカルテストの実行・合格が要件になる）:
-   - `test-report.md`「### dry-run デプロイ検証」の「指定テストクラス: ...」に具体的なクラス名の記載があれば（backlog-tester Step 2 で確定済み・値が「なし」以外）、それを `target_test_classes` としてそのまま転記し、以下の Glob/Grep 探索は行わない
+   - `test-report.md`「### dry-run デプロイ検証」の「指定テストクラス: ...」に具体的なクラス名の記載があれば（backlog-tester Step 2 で確定済み・値が「なし」以外）、**Phase 1 で確定した資材マニフェストの全 `.cls`/`.trigger` それぞれについて、命名規則（`{ClassName}Test.cls` 等。下記 Glob/Grep 探索と同一パターン）に合致する専用テストクラスが「指定テストクラス」一覧に含まれているかを確認する**（`test-report.md` は `/test` 実行時点のスナップショットであり、その後 force-app に新規/変更で Apex クラス・トリガーが加わっていても反映されないため）。全クラスが一覧に含まれていればそれを `target_test_classes` としてそのまま転記し、以下の Glob/Grep 探索は行わない。1件でも一覧に含まれないクラスがあれば（`/test` 後に追加・変更された Apex を検知）、転記せず以下の Glob/Grep 探索で全クラス分を再特定する
    - 上記に該当しない場合（「指定テストクラス:」の行自体が無い、または値が「なし」の場合〔対応テストクラス不在と backlog-tester 側で確定済みのケースを含む〕）、デプロイ対象の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls`）で専用テストクラスを Glob/Grep で特定する（regression-guard.md Step 2 の候補パターンと一致）
    - `docs/logs/{issueID}/investigation.md` の「## 既存テストクラスへの影響」（option-test-class-impact.md が Phase 2 で作成済みの場合）に追加で挙がっているテストクラスがあれば取り込む
    - 全デプロイ対象クラスに専用テストクラスが見つかった場合 → `test_coverage_risk: false`、特定したテストクラス一覧を `target_test_classes` として記録
@@ -122,7 +134,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 2. 差分が無い場合、①〜③は investigation.md の記載から Phase 1 で実行済みと判定できれば**無条件で転記し、option を実行しない**（未実行と判定した場合のみ実行する）。判定方法は項目ごとに異なる（各カッコ内の通り）:
    - ① [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルール・共通ユーティリティへの影響（investigation.md「## Step 0b オプション判定結果」→「### 採用したオプション」に `option-impact-scope-grep` の記載があれば実行済みと判定する。「### スキップしたオプション」側にある／同セクションが無い／自明ケース判定で Step 0b が一括スキップされている、のいずれかに該当する場合は未実行として扱い本 option を実行する。**「## 影響範囲」見出しの有無では判定しない**——同見出しは backlog-investigator.md の投稿テンプレートで常時必須出力されるため、option 実行有無の代理指標にならない）
    - ② [option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) — 既存テストクラスへの影響（investigation.md「## 既存テストクラスへの影響」の記載有無で判定）
-   - ③ [option-user-impact-survey.md](../templates/backlog/options/option-user-impact-survey.md) — 影響ユーザー数・部署の見積もり（investigation.md「## 影響ユーザー調査」の記載有無で判定）。**option-user-impact-survey.md 本体の手順に従う**（本番 SELECT は `option-prod-select-reference` のユーザー許可を得て実施。Sandbox のユーザーマスタは検証用アカウントのみで本番の実在ユーザー数を表さないため代替不可。許可が得られない場合のみ Sandbox 件数を参考値とし `[要確認: 本番データ未確認]` を付す）。本番接続は `prod-readonly-check.md` 通過後の read-only に限り Phase 1 以降で許可されている（Phase 1-1a-2 の Tier 0 前倒し実行と同じ原則）
+   - ③ [option-user-impact-survey.md](../templates/backlog/options/option-user-impact-survey.md) — 影響ユーザー数・部署の見積もり（investigation.md「## 影響ユーザー調査」の記載有無で判定）。**option-user-impact-survey.md 本体の手順に従う**（本番 SELECT は `option-prod-select-reference` のユーザー許可を得て実施。Sandbox のユーザーマスタは検証用アカウントのみで本番の実在ユーザー数を表さないため代替不可。許可が得られない場合のみ Sandbox 件数を参考値とし `[要確認: 本番データ未確認]` を付す）。本番接続は `prod-readonly-check.md` 通過後の read-only に限り Phase 1 以降で許可されている（Phase 1 1a-2 の Tier 0 前倒し実行と同じ原則）
 3. [option-cross-functional-impact.md](../templates/backlog/options/option-cross-functional-impact.md) — 横断機能・他チーム・データ整合性への影響は `_index-phase1.md` に存在しない（`/backlog` Phase 1 で実行されない）オプションのため、差分の有無によらず常に実行する
 
 ## Phase 3: チケット競合チェック
@@ -136,13 +148,13 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 > 詳細スペック: [option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md)
 > 事前ガード: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)（本番）・[sandbox-alias-check.md](../templates/common/sandbox-alias-check.md)（Tier 0 のみ・UAT/Sandbox）
 
-1. `prod-readonly-check.md` で本番組織への接続を確認する（read-only 前提の明示）。本番エイリアスが不明・未認証の場合はユーザーに確認する。判定は prod-readonly-check.md の3分岐（OK/WARN/NOTE）に従う:
+1. `prod-readonly-check.md` で本番組織への接続を確認する（read-only 前提の明示）。**Phase 1 の 1a-2（Tier 0 前倒し実行時）で既に確認済みの場合は再実行せず、その時点の判定結果（OK/WARN/NOTE）と `{本番エイリアス}` の値をそのまま使う**。本番エイリアスが不明・未認証の場合、同ファイルの確認手順は AskUserQuestion で行う（question: 「本番組織のエイリアスを確認します。`sf org list` の出力から本番組織のエイリアスを教えてください」/ header: 「本番エイリアス」/ options: 「WARN のまま進める」〔本番環境ドリフト確認を未実施のまま Phase 5 へ進む〕・「エイリアスを回答する」〔選択時は Other 欄にエイリアス名を直接記入してもらう〕）。判定は prod-readonly-check.md の3分岐（OK/WARN/NOTE）に従う:
    - **OK（本番組織を確認できた）**: 確認できた値を `{本番エイリアス}` として Phase 5 の release-plan.md 生成まで保持し、実値埋め込みに使う
    - **WARN（接続確認に失敗・認証情報なし）**: この Phase をスキップし、release-plan.md に「本番環境ドリフト確認: 未実施（接続情報なし）」と明記して Phase 5 へ進む（`{本番エイリアス}` も未確定のまま Phase 5 に渡る）
    - **NOTE（指定エイリアスの実体が Sandbox だった）**: 誤った組織を本番として扱わない。ユーザーに正しい本番エイリアスを再確認する。再確認できて OK 判定に切り替われば上記 OK と同様に扱う。再確認できない場合は WARN と同様「未実施（接続情報なし）」として Phase 5 へ進む
    （リリース準備自体は続行可能）
-2. **Tier 0（環境間実体差分チェック・マニフェスト非依存）**: Phase 1 の 1a（`.gitignore` 該当時のフォールバック）で前倒し実行済みの場合はここでは再実行せず、その結果を release-plan.md に転記する。未実施の場合はここで実施する。Tier 0 は UAT（Sandbox）との比較を伴うため、実施前に `sandbox-alias-check.md` で Sandbox 接続（`$SF_ALIAS`）も確認する（Sandbox に未接続/認証情報がない場合は Tier 0 のみスキップし、release-plan.md に「Tier 0: 未実施（Sandbox未接続）」と明記して Tier 1/2 は通常どおり実施する。未リリース積み残しを検知する Tier 0 を、記録なしに読み飛ばさない）
-3. Tier 1（軽量スキャン）: `sf org list metadata` で対象コンポーネントの最終更新日/更新者を確認し、base コミット日時より後に他者が触った痕跡を抽出する
+2. **Tier 0（環境間実体差分チェック・マニフェスト非依存）**: Phase 1 の 1a（`.gitignore` 該当時のフォールバック）で前倒し実行済みの場合はここでは再実行せず、その結果を release-plan.md に転記する。未実施の場合はここで実施する。Tier 0 は UAT（Sandbox）との比較を伴うため、実施前に `sandbox-alias-check.md` で Sandbox 接続（`{Sandbox/UATエイリアス}`）も確認する（Sandbox に未接続/認証情報がない場合は Tier 0 のみスキップし、release-plan.md に「Tier 0: 未実施（Sandbox未接続）」と明記して Tier 1/2 は通常どおり実施する。未リリース積み残しを検知する Tier 0 を、記録なしに読み飛ばさない）
+3. Tier 1（軽量スキャン）: `sf org list metadata` で対象コンポーネントの最終更新日/更新者を確認し、base コミット日時より後に他者が触った痕跡を抽出する（1a フォールバック使用時は base コミット日時が存在しないため、option-org-drift-check.md Tier 1 の安全側フォールバック〔全件を痕跡ありとして Tier 2 送り〕に従う）
 4. Tier 2（深掘り）: Tier 1 で痕跡ありのコンポーネントのみ、一時ディレクトリへ本番から retrieve して現在の force-app と diff する。**`force-app/` へは絶対に取得しない**
 5. 一時ディレクトリは使用後に削除する（[cleanup-rules.md](../spec/cleanup-rules.md) 準拠）
 6. 「未リリース積み残し」「未リリース積み残しの疑い」「競合・要人間判断」のいずれかが出た場合は release-plan.md に最重要警告として記録する
@@ -155,7 +167,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 
 **資材種別に応じた組み立て（重要）**: Phase 1 で確定した資材マニフェストに**実際に含まれる種別のみ**を §D 資材種別別チェックから転記する（含まれない種別の行は書かない）。マトリクスにない種別が出た場合はマトリクス §E に従い `[要確認]` 付きで検証方法を起案する（推測で断定しない）。「前・実行・後」の3段構成は資材の有無によらず必ず全て記載する。
 
-`docs/logs/{issueID}/release-plan.md` を新規作成する。構成（リリース前 → 実行 → 後の順を厳守）:
+`docs/logs/{issueID}/release-plan.md` が既に存在する場合（`/release {issueID}` の再実行。「本番固有の失敗」からの再試行等）は `release-plan.R{N}.md`（N = 既存の `release-plan.R*.md` 本数 + 1）へリネームして退避してから新規作成する（前回手順書を上書きで消さない。release-issue.md の退避規約と同じパターン）。`docs/logs/{issueID}/release-plan.md` を新規作成する。構成（リリース前 → 実行 → 後の順を厳守）:
 
 ```markdown
 # 本番リリース手順書
@@ -164,7 +176,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 作成日: {YYYY-MM-DD}
 作成者: release-preparer（Claude Code）
 
-{Phase 1 の 1a（資材マニフェストを環境間実体差分から再構築した場合）・2a（資材マニフェスト外で言及されているコンポーネントのうち**ローカル実在**と判定されたもの。ローカル非実在＝未検証のものは最重要警告に含めない）・Phase 3/4（「未リリース積み残し」「未リリース積み残しの疑い」「競合・要人間判断」）のいずれかが出た場合はここに最重要警告ブロックを挿入。**1a を実施した場合は必ず**「本手順書の②デプロイコマンドは `force-app` 配下を全量デプロイします。本資材マニフェストは Tooling API による環境間実体比較で再構築した値であり、ローカル `force-app` の実ファイルと自動的には一致しません。実行前に `force-app` 配下に本マニフェスト外の未レビュー変更が含まれていないことを目視確認してください」を記載する}
+{Phase 1 の 1a（資材マニフェストを環境間実体差分から再構築した場合）・2a（資材マニフェスト外で言及されているコンポーネントのうち**ローカル実在**と判定されたもの。ローカル非実在＝未検証のものは最重要警告に含めない）・Phase 3/4（「未リリース積み残し」「未リリース積み残しの疑い」「競合・要人間判断」「Phase 4 が未実施（本番環境ドリフト確認: 未実施）で本番現状を一切確認できていない」）のいずれかが出た場合はここに最重要警告ブロックを挿入。**1a を実施した場合は必ず**「本手順書の②デプロイコマンド（Step 2/3）は資材マニフェストに列挙されたコンポーネントのみを対象とします（`--metadata` 指定）。本資材マニフェストは Tooling API による環境間実体比較で再構築した値であり、ローカル `force-app` の実ファイルと自動的には一致しません。マニフェストに漏れがあると、その変更は本番に反映されないまま完了報告のみ成功します。実行前にこのマニフェストが実際の変更内容と過不足なく一致しているか目視確認してください」を記載する}
 
 ## リリース対象メタデータ
 | 種別 | API名 / ファイルパス | 変更種別 |
@@ -207,7 +219,7 @@ ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （未取得—デプ�
 
 # ② リリース実行（execution・人間が実行する。エージェントは実行しない）
 
-**具体的な実行コマンド・Step構成は本セクション（Step 1〜4）が正本**。matrix §B は同じ実行手順を人間向け参照用に保持しているが、`{issueID}`/`{test_level}`/`{本番エイリアス}` 等の実値埋め込みが必要な release-plan.md 生成は本セクションのテンプレートをそのまま使う（matrix §B からの転記は行わない）。**`{本番エイリアス}` は Phase 4 で確認済みの値をそのまま埋め込む。Phase 4 をスキップした場合（未接続等）は値が確定していないため `{本番エイリアス}` の文字列のまま残し、直後に「⚠️ 本番エイリアス未確定: 実行前に対象組織のエイリアスへ置き換えてください」を明記する**。
+**具体的な実行コマンド・Step構成は本セクション（Step 1〜4）が正本**。matrix §B は同じ実行手順を人間向け参照用に保持しているが、`{issueID}`/`{test_level}`/`{本番エイリアス}` 等の実値埋め込みが必要な release-plan.md 生成は本セクションのテンプレートをそのまま使う（matrix §B からの転記は行わない）。**`{本番エイリアス}` は Phase 4 で確認済みの値をそのまま埋め込む。Phase 4 をスキップした場合（未接続等）は値が確定していないため `{本番エイリアス}` の文字列のまま残す。この場合、「⚠️ 本番エイリアス未確定: 実行前に対象組織のエイリアスへ置き換えてください」を Step 1・2・3・3b・4 の各コードブロック直下に個別に挿入する**（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の逐次提示ではステップが1つずつ単独で提示され、他ステップの内容は見せないため、セクション冒頭に1回だけ書いても該当ステップ提示時にユーザーの目に入らない）。
 
 **`--test-level` の決定（Phase 1 で判定した `apex_in_scope` / `test_coverage_risk` / `target_test_classes` に基づく。固定で `RunLocalTests` にしない）**:
 
@@ -219,34 +231,42 @@ Salesforce はテストレベルによってカバレッジ計算方式が異な
 
 **今回の判定: {apex_in_scope / test_coverage_risk の値と根拠（含まれる Apex クラス/トリガー名、対応する target_test_classes、または test_coverage_risk の理由）を明記した上で `--test-level` と `{tests_flag}` を確定する}**
 
-> **実行方針（厳守）**: 以下の Step 1〜4 は必ず1つずつ実行し、各 Step の結果を確認してから次の Step に進む。**Step 2（dry-run）と Step 3（本番デプロイ）をまとめて流さない**。dry-run が 0 errors であることを目視確認できた場合のみ Step 3 に進むこと。
+> **実行方針（厳守）**: 以下の Step 1〜4（`has_destructive: true` の場合は Step 3b を含む）は必ず1つずつ実行し、各 Step の結果を確認してから次の Step に進む。**Step 2（dry-run）と Step 3（本番デプロイ）をまとめて流さない**。dry-run が 0 errors であることを目視確認できた場合のみ Step 3 に進むこと。
 
 ### Step 1: 直前記録（ロールバック用バックアップ retrieve）
 ```bash
 sf project retrieve start --metadata "{リリース対象メタデータのAPI名一覧をType:Name形式で列挙}" --target-org {本番エイリアス} --output-dir docs/logs/{issueID}/rollback-backup
 ```
-→ 取得完了を確認してから Step 2 へ進む（上記「事前記録: ロールバック用バックアップ」の `ROLLBACK_BACKUP_DIR` に取得済みである旨を記録する）。**新規追加コンポーネント**（本番に未存在）は retrieve 対象から除外する（存在しないためエラーになる。ロールバック時は削除で対応する旨をロールバック手順に明記する）。
+→ 取得完了を確認してから Step 2 へ進む（上記「事前記録: ロールバック用バックアップ」の `ROLLBACK_BACKUP_DIR` に取得済みである旨を記録する）。**新規追加コンポーネント**（本番に未存在）は retrieve 対象から除外する（存在しないためエラーになる。ロールバック時は削除で対応する旨をロールバック手順に明記する）。**変更種別「削除」のコンポーネントは retrieve 対象に含める**（Step 3b で本番から削除するため、ロールバック時に復元できるよう事前に退避しておく）。
 
 ### Step 2: dry-run で事前確認（必須）
 ```bash
-sf project deploy start --dry-run --source-dir force-app --target-org {本番エイリアス} --test-level {test_level}{tests_flag}
+sf project deploy start --dry-run --metadata "{リリース対象メタデータのうち変更種別が新規/変更のもののAPI名一覧をType:Name形式で列挙（削除は含めない。Step 3b で扱う）}" --target-org {本番エイリアス} --test-level {test_level}{tests_flag}
 ```
 → **0 errors を確認できた場合のみ** Step 3 へ進む。エラーがあれば Step 3 は実行せず、下記「dry-run/デプロイが失敗した場合の切り分け」に従う。
 
-### Step 3: 本番デプロイ
+### Step 3: 本番デプロイ（新規/変更）
 ```bash
-sf project deploy start --source-dir force-app --target-org {本番エイリアス} --test-level {test_level}{tests_flag}
+sf project deploy start --metadata "{リリース対象メタデータのうち変更種別が新規/変更のもののAPI名一覧をType:Name形式で列挙（削除は含めない。Step 3b で扱う）}" --target-org {本番エイリアス} --test-level {test_level}{tests_flag}
 ```
-→ 完了後、Step 4 で結果を確認する。
+→ 完了後、`has_destructive: true` の場合は Step 3b へ、`false` の場合は Step 4 へ進む。失敗した場合は下記「dry-run/デプロイが失敗した場合の切り分け」に従う。
+
+### Step 3b: 削除の適用（`has_destructive: true` の場合のみ実施）
+Phase 5 の手順書生成時に、変更種別「削除」のコンポーネントを列挙した `docs/logs/{issueID}/destructive-changes/destructiveChanges.xml` と、空の `docs/logs/{issueID}/destructive-changes/package.xml`（`<version>` タグのみ。バージョンは `sfdx-project.json` の `sourceApiVersion` を使う）を生成する。`sf project deploy start` の通常デプロイ（`--metadata`）は削除を反映できないため、この2ファイルを使って別デプロイで削除を適用する:
+```bash
+sf project deploy start --manifest docs/logs/{issueID}/destructive-changes/package.xml --post-destructive-changes docs/logs/{issueID}/destructive-changes/destructiveChanges.xml --target-org {本番エイリアス}
+```
+→ Step 3（新規/変更）の反映後に削除を適用する（`--post-destructive-changes`。削除対象が Step 3 の新規/変更コンポーネントから参照されたまま消えることを避ける）。完了後、Step 4 で結果を確認する。
 
 ### Step 4: デプロイ結果確認
 ```bash
 sf project deploy report --target-org {本番エイリアス}
 ```
+→ `--job-id` を指定しない場合は直近のデプロイジョブが対象になる。`has_destructive: true` の場合は Step 3b（削除）の結果が対象になるため、Step 3（新規/変更）の結果は Step 3 実行直後に別途 `sf project deploy report --target-org {本番エイリアス}` で確認しておく。
 
-> `{tests_flag}`: `--test-level RunSpecifiedTests` の場合のみ `--tests {クラス1} --tests {クラス2} ...`（`target_test_classes` を1つずつ `--tests` で列挙）を付与する。`RunLocalTests` / `NoTestRun` では付与しない。
+> `{tests_flag}`: `--test-level RunSpecifiedTests` の場合のみ `--tests {クラス1} --tests {クラス2} ...`（`target_test_classes` を1つずつ `--tests` で列挙）を付与する。`RunLocalTests` / `NoTestRun` では付与しない。`--post-destructive-changes`（Step 3b）は `--test-level` を指定しない（削除のみのデプロイのため対象外）。
 
-> **実行時の注意**: 各コマンドは1行のまま実行する（bash 風の `\` 行継続は PowerShell では動作しない）。`--source-dir` は必ず `force-app`。他チケットとの競合解消用に作ったバックアップ/マージ用フォルダを直接指定しない（force-app へマージ済みであることを確認してから実行する）。
+> **実行時の注意**: 各コマンドは1行のまま実行する（bash 風の `\` 行継続は PowerShell では動作しない）。Step 2/3 の `--metadata` 一覧は Phase 1 資材マニフェストのうち変更種別が「新規」「変更」の項目（削除を除く）をそのまま転記する。Step 1（ロールバックバックアップ retrieve）は「削除」を含む全項目が対象のため Step 2/3 とは範囲が異なる（削除予定コンポーネントもロールバック用に退避が必要なため）。他チケットとの競合解消用に作ったバックアップ/マージ用フォルダの内容は、force-app へマージ済みであることを確認してから実行する（force-app 以外を参照しない）。
 
 > **dry-run/デプロイが失敗した場合の切り分け**:
 > - **`RunSpecifiedTests` 使用時にデプロイ対象クラスのカバレッジ不足で失敗**: `target_test_classes` が対象クラスを実際にどれだけ網羅しているか確認し、テストケース追加または関連テストクラスの追加指定を検討する。無関係テストの合否は要件外のため、原因は必ず「今回のデプロイ対象クラスのカバレッジ不足」に絞られる
@@ -281,6 +301,7 @@ sf project deploy report --target-org {本番エイリアス}
 ```
 
 手順書生成時に以下を実施:
+- **`has_destructive: true` の場合**、`docs/logs/{issueID}/destructive-changes/destructiveChanges.xml`（削除対象を種別ごとに `<types><members>{API名}</members>...<name>{メタデータ種別}</name></types>` で列挙）と `docs/logs/{issueID}/destructive-changes/package.xml`（`<version>` タグのみの空マニフェスト。バージョンは `sfdx-project.json` の `sourceApiVersion` を使う）を生成する（Step 3b で使用）
 - [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) を参照し、①/③ の資材種別別セクションを Phase 1 資材マニフェストの含有種別に合わせて組み立てる
 - [option-rollback-strategy.md](../templates/backlog/options/option-rollback-strategy.md) / [option-rollback-readiness.md](../templates/backlog/options/option-rollback-readiness.md) の内容を統合してロールバック手順セクションを埋める
 - `docs/logs/{issueID}/release-note.md` の生成前に既存ファイルの有無を確認する。**既に存在する場合**（`/backlog` Phase 6 で option-release-note-generation が実行済みの可能性がある）は全文 Read し、「リリース日」欄を本番リリース予定日に更新し、「注意事項」に今回の `--test-level` 判定結果を追記する差分更新のみ行う（全面再生成しない。既存の変更内容・影響範囲の記述を消さない）。**存在しない場合のみ** [option-release-note-generation.md](../templates/backlog/options/option-release-note-generation.md) に従い新規生成する
@@ -297,8 +318,9 @@ sf project deploy report --target-org {本番エイリアス}
 ## {issueID} 本番リリース準備 完了
 
 ### サマリー
-- リリース対象: {N} 件のコンポーネント
-- --test-level: {test_level}（判定根拠: apex_in_scope={true/false}, test_coverage_risk={true/false}）
+- リリース対象: {N} 件のコンポーネント（新規 {a} 件・変更 {b} 件・削除 {c} 件）
+- --test-level: {test_level}（判定根拠: apex_in_scope={true/false}, test_coverage_risk={true/false}）/ 対象テストクラス: {RunSpecifiedTests の場合は target_test_classes をカンマ区切りで列挙。RunLocalTests/NoTestRun の場合は「該当なし」}
+- 削除デプロイ（Step 3b）: 不要 / 要（has_destructive: true。{c} 件を destructiveChanges.xml で別デプロイ）
 - 影響範囲: {概要}
 - チケット競合: なし / あり（{issueID} を確認してください）
 - 本番環境ドリフト: なし / あり（{詳細}） / 未リリース積み残しあり（{詳細}） / 未実施（接続情報なし） / 一部未実施（Tier 0 のみ Sandbox未接続のため未実施。Tier 1/2 は実施済み）
@@ -313,11 +335,30 @@ sf project deploy report --target-org {本番エイリアス}
 - リリース後チェック（③）は本番で人間が実施する検証です。資材種別ごとに検証方法が異なるため手順書の該当セクションに従ってください
 - {競合・ドリフトの警告があればここに再掲}
 - 本番デプロイが完了したら、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください。リリース実施記録を decisions.md・changelog.md に記録します（Phase 7）
+{Phase 1 2a で「要確認（ローカル実在）」の候補が検出された場合}- **要確認**: 「資材マニフェスト外で言及されているコンポーネント」の {検出コンポーネント名} をリリース対象に含めるべきですか？含める場合は資材マニフェストへ追加のうえ `/release {issueID}` を再実行してください（release-plan.md を再生成します）
 ```
 
 この直後、呼び出し元（`release.md` Step 4）が `release-plan.md` を読み込み、① 確認 → ② Step ごとの逐次提示 → ③ 確認の順で引き渡しを続ける（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) 参照）。
 
 Notion タスクに紐づく作業であれば、完了後に「ナレッジ／タスクに登録しておきますか？」と一言提案する（WS 側の Notion 登録提案ルールと同旨。本テンプレートはプロジェクト側の運用のため深追いしない）。
+
+---
+
+## Phase 最終: クリーンアップ
+[共通ルール参照](../spec/cleanup-rules.md)
+
+**実施タイミング**: 通常フロー（Phase 1〜6）では Phase 6 の完了報告直前に実施する（上記の通り）。Phase 7 単独実行モードは Phase 1/4 を実行しないため対象の一時ディレクトリは通常存在せず、本節は実質 no-op（削除対象なし）となる。
+
+以下の一時ディレクトリを作成した場合は、成果物書き出し後・完了報告前に必ず削除する:
+- `{tmp_dir}/prod-drift-check`（Phase 4 Tier 2）
+- `{tmp_dir}/org-drift-tier0`（Phase 1 1a-2 前倒し実行時、または Phase 4 Tier 0 実行時）
+
+```bash
+python -c "import shutil; shutil.rmtree(r'{tmp_dir}/prod-drift-check', ignore_errors=True); shutil.rmtree(r'{tmp_dir}/org-drift-tier0', ignore_errors=True)"
+python -c "import os; a=os.path.exists(r'{tmp_dir}/prod-drift-check'); b=os.path.exists(r'{tmp_dir}/org-drift-tier0'); print('削除成功' if not a and not b else f'削除失敗（残存: prod-drift-check={a} org-drift-tier0={b}）')"
+```
+
+エラー終了時は削除しない（デバッグ用に残す）。
 
 ---
 
@@ -327,9 +368,13 @@ Notion タスクに紐づく作業であれば、完了後に「ナレッジ／�
 
 Phase 6 の完了報告後、ユーザーから本番デプロイ完了の報告（本セッションの継続、または `/release {issueID}` の再起動のいずれでも）を受けたら実施する:
 
-1. デプロイ日時・対象環境（本番エイリアス）・結果（成功 / 一部失敗等）をユーザーに確認する（未回答の項目があれば分かる範囲で記録し、断定しない）
-2. `docs/decisions.md` の当該課題エントリ（`## {issueID}:` 見出し。存在しなければ [knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリの書式で新規追記）の「リリース予定日 / 担当」欄を実施日・実施者に更新する
-3. `docs/logs/changelog.md` に本番リリース済みである旨がまだ反映されていなければ「日付 / 変更内容 / 関連課題ID」の1行を追記する（changelog.md が存在しない場合は `# Changelog` ヘッダー＋空行を作成してから追記。書式は [backlog-releaser.md](backlog-releaser.md) §3 changelog.md フォールバックと同じ）
+1. デプロイ日時・対象環境（本番エイリアス）・結果（成功 / 一部失敗等）を確認する。**対象環境（本番エイリアス）は `docs/logs/{issueID}/release-plan.md`「② リリース実行」Step 1 の `--target-org` を Grep して取得する**（Phase 4/5 で既に確認済みの値がそのまま埋め込まれているため、Phase 7 で改めてユーザーに聞き直さない。埋め込まれず `{本番エイリアス}` のプレースホルダのままの場合のみ次点で確認する）。**デプロイ日時・結果は `release.md` が起動時に渡す「デプロイ完了報告: {ユーザーからの報告内容}」パラメータを一次情報源とする**（release.md 側でユーザーの自由記述を受け取り済みのため、本 Phase 内で改めてユーザーに問い返さない）。渡された報告文からこれらの項目を過不足なく抽出できない場合のみ AskUserQuestion で個別に確認する。AskUserQuestion でも未回答の項目があれば、分かる範囲で記録し `[要確認]` を付す（断定しない。Phase 7 単独実行モードは Step 0c〔`uncertainty-marker-spec.md` 読込〕をスキップするため、本 Phase では `[要確認]` のみを使う簡易運用とする）
+2. **結果が「成功」の場合のみ**、`docs/decisions.md` の当該課題エントリ（`## {issueID}:` 見出し。存在しなければ [knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリの書式で新規追記）の「リリース予定日 / 担当」欄を実施日・実施者に更新する
+3. **結果が「成功」の場合のみ**、`docs/logs/changelog.md` に本番リリース済みである旨がまだ反映されていなければ「日付 / 変更内容 / 関連課題ID」の1行を追記する（changelog.md が存在しない場合は `# Changelog` ヘッダー＋空行を作成してから追記。書式は [backlog-releaser.md](backlog-releaser.md) §3 changelog.md フォールバックと同じ）
+3b. **結果が「一部失敗」「失敗」等、成功以外の場合**、decisions.md・changelog.md へは「リリース済み」の体裁で記録しない（実態と乖離した完了記録を残さない）。代わりに以下を行う:
+   - ロールバック実施状況（Step 2/3 の「dry-run/デプロイが失敗した場合の切り分け」でのロールバック手順を実施済みか、一部コンポーネントのみ適用された状態で残っているか）を確認する
+   - 既存の `docs/logs/{issueID}/release-issue.md` があれば `release-issue.R{N}.md` へリネームして退避してから、今回の一部失敗の内容（デプロイ日時・結果・ロールバック実施状況）を `docs/logs/{issueID}/release-issue.md`（退避後のため新規作成）に記録する（Step 2/3 の失敗時と同じ退避ルール）
+   - decisions.md の当該課題エントリには「本番リリース: 一部失敗（{日時}）。ロールバック状況: {内容}。詳細は release-issue.md 参照」と追記する（「リリース予定日 / 担当」欄は更新しない＝未完了のため）
 4. 完了を報告する:
 ```
 ## {issueID} 本番リリース実施記録
@@ -338,23 +383,8 @@ Phase 6 の完了報告後、ユーザーから本番デプロイ完了の報告
 - 対象環境: {本番エイリアス}
 - 結果: {成功 / 一部失敗等}
 
-decisions.md「リリース予定日 / 担当」欄・changelog.md に記録しました。
+{結果が成功の場合}decisions.md「リリース予定日 / 担当」欄・changelog.md に記録しました。
+{結果が一部失敗・失敗の場合}decisions.md に一部失敗の旨・ロールバック状況を追記しました（リリース予定日/担当欄・changelog.md は未更新）。詳細: docs/logs/{issueID}/release-issue.md
 ```
 
 ---
-
-## Phase 最終: クリーンアップ
-[共通ルール参照](../spec/cleanup-rules.md)
-
-**実施タイミング**: 通常フロー（Phase 1〜6）では Phase 6 の完了報告直前に実施する。Phase 7 単独実行モードは Phase 1/4 を実行しないため対象の一時ディレクトリは通常存在せず、本節は実質 no-op（削除対象なし）となる。
-
-以下の一時ディレクトリを作成した場合は、成果物書き出し後・完了報告前に必ず削除する:
-- `{tmp_dir}/prod-drift-check`（Phase 4 Tier 2）
-- `{tmp_dir}/org-drift-tier0`（Phase 1-1a-2 前倒し実行時、または Phase 4 Tier 0 実行時）
-
-```bash
-python -c "import shutil; shutil.rmtree(r'{tmp_dir}/prod-drift-check', ignore_errors=True); shutil.rmtree(r'{tmp_dir}/org-drift-tier0', ignore_errors=True)"
-python -c "import os; a=os.path.exists(r'{tmp_dir}/prod-drift-check'); b=os.path.exists(r'{tmp_dir}/org-drift-tier0'); print('削除成功' if not a and not b else f'削除失敗（残存: prod-drift-check={a} org-drift-tier0={b}）')"
-```
-
-エラー終了時は削除しない（デバッグ用に残す）。

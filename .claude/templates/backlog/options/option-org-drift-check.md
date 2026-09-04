@@ -67,10 +67,11 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
    sf org list metadata --metadata-type Flow --target-org "$PROD_ALIAS" --json
    # リリース対象に含まれる種別のみ実行（全種別を舐めない）
    ```
-3. 出力の `lastModifiedDate` / `lastModifiedByName` を確認し、以下のいずれかに該当するコンポーネントを「痕跡あり」としてマークする:
+3. **base コミット日時が確定できる場合**（release-preparer Phase 1 で通常の `git diff` パスを使った場合。1a フォールバック未使用）: 出力の `lastModifiedDate` / `lastModifiedByName` を確認し、以下のいずれかに該当するコンポーネントを「痕跡あり」としてマークする:
    - 最終更新日が **base コミット日時（release-preparer Phase 1 で特定した差分起点）より後**
    - 最終更新者が **今回のリリース担当者・実装者以外**
-4. 痕跡なしのコンポーネントは Tier 2 をスキップして「ドリフトなし」と記録する
+   **base コミット日時が確定できない場合**（release-preparer Phase 1 で 1a フォールバックを使った標準経路。`.gitignore` 対象のため git diff ベースの base コミットが存在しない）: 上記の日時比較は行わず、資材マニフェストの全コンポーネントを「痕跡あり」として扱う（安全側フォールバック。見逃しより誤検知〔Tier 2 での無駄な深掘り〕を許容する）
+4. 痕跡なしのコンポーネントは Tier 2 をスキップして「ドリフトなし」と記録する（上記フォールバック時は全件が痕跡ありのため本項は適用されない）
 
 ### Tier 2: 深掘り（Tier 1 で痕跡ありのコンポーネントのみ）
 
