@@ -248,8 +248,9 @@ Q 番号は **investigator が起点で生成し、後続エージェントが�
 | 2 | planner (Phase A) | 各 Q に仮説を当て、対応方針案ごとに「前提となる Q」を明記。確定時に Q 答えを `approach-plan.md` 末尾に記録 |
 | 3 | planner (Phase B) | Phase B-1 冒頭で `approach-plan.md` の Q 答えを読み込み、未確定 Q があれば再確認。`implementation-plan.md` の前提条件セクションに Q 答えを転記 |
 | 3.5 | validator | `implementation-plan.md` の Q 答えが投入される前提と矛盾しないか Step 4（cross-review）で確認。矛盾があれば Phase 3 戻り |
-| 5 | tester | Q 答えに依存するシナリオを test-report.md のシナリオ表で明示（「前提: Q1 答え=○○」） |
 | blind 系 | blind-second-opinion / blind-validator | blind 性確保のため Q は受け取らない（投入禁止） |
+
+> **Phase 4（implementer）・Phase 5（tester）に明示的な Q 番号責務がない理由**: Q 答えは Phase 3（planner Phase B）の時点で `implementation-plan.md` の前提条件セクションに転記済みのため、Phase 4 以降は実装計画を実装・検証する通常フローの中で Q 答えが自然に反映される。個別の Q トレーサビリティ表は持たない。
 
 ### Q を起票する基準
 

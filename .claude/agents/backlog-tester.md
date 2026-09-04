@@ -204,22 +204,39 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 ## 完了の提示
 
-> **`auto_fix_mode: true` の場合**: `/test` F-2 自動修正ループから起動されているため、`/backlog` 向けの次工程案内（「Phase 6 へ進んでください」「/backlog Phase 4 で修正後」）は**出力しない**。PASS/FAIL と dry-run 結果のみ返し、次工程の判断は `/test` コマンド側が行う。
+> **`auto_fix_mode: true` の場合**: `/test` F-2 自動修正ループから起動されているため、`/backlog` 向けの次工程案内（「Phase 6 へ進んでください」「/backlog Phase 4 で修正後」）は**出力しない**。PASS/FAIL と dry-run 結果のみ返し、次工程の判断は `/test` コマンド側が行う。以下の Phase 末尾確認プロトコル（3ブロック構造・discussion-log 追記）も適用しない。
+
+**`auto_fix_mode` が `false`（通常の `/backlog` Phase 5）の場合**、`_README.md §Phase 末尾の確認プロトコル` に従い、以下を単一ブロックで出力する:
 
 ```
+【Phase 5 完了サマリー】
 スモーク確認: {PASS / 条件付きPASS（NoTestRun フォールバック） / FAIL}
 
 {PASSの場合}
 dry-run デプロイ・Apex テストともに問題なし。
-→ Phase 6（Sandbox リリース）へ進んでください。ユーザーの確認後 backlog-releaser を起動します。
 
 {条件付きPASS（NoTestRun フォールバック）の場合}
-dry-run はコンパイル成功だが、対応テストクラス未整備のため NoTestRun にフォールバックしカバレッジ未検証。自動で Phase 6 には進めません。
-→ (a) テストクラスを追加して Phase 4 に戻り再度スモーク確認を実行する、または (b) カバレッジ未検証を承知の上で本デプロイを明示承認する、のどちらかをご判断ください。
+dry-run はコンパイル成功だが、対応テストクラス未整備のため NoTestRun にフォールバックしカバレッジ未検証。
 
 {FAILの場合}
 NG: {原因を1行で}
-→ /backlog Phase 4 で修正後、再度スモーク確認を実行してください。
+
+【確認事項】
+{PASSの場合}
+特に確認事項はありません
+
+{条件付きPASS（NoTestRun フォールバック）の場合}
+①テストクラス未整備でカバレッジ未検証です。テストを追加して再確認しますか、未検証のまま本デプロイを承認しますか（テスト追加して再確認/未検証のまま承認）
+
+{FAILの場合}
+特に確認事項はありません
+
+【次へ】
+{PASSの場合} Phase 6（Sandbox リリース）に進んでよろしいですか？
+{条件付きPASS（NoTestRun フォールバック）の場合} 上記確認事項のご判断に従い、Phase 6 に進むか Phase 4 に戻ります
+{FAILの場合} Phase 4（backlog-implementer）に戻って修正しますか？
 ```
 
-> Phase 6 は自動実行しない。`_README.md §Phase 末尾の確認プロトコル` に従い、ユーザー確認後に進む。
+出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` へ当 Phase のエージェント内部イベント（発見・落とし穴・ハマり等。FAIL・NoTestRun フォールバックの原因を含む）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。
+
+> Phase 6 は自動実行しない。ユーザーの明示承認後、backlog.md 側が Phase 6（backlog-releaser）または Phase 4（backlog-implementer）を起動する。
