@@ -14,12 +14,14 @@ Phase 5 Step 2（実装レビュー）が「ガバナ・FLS・ハードコード
 
 **git が利用可能な場合**（`git status` が正常応答）:
 
+base コミットの決定手順は [deploy-manifest-base.md](../_partials/deploy-manifest-base.md) の「base 取得」を参照する（`option-progressive-commits` 採用時は段階コミット一覧の先頭コミットの親を base にし、未採用時は `HEAD` を base にする。`git diff HEAD~1 HEAD` は複数コミットのうち直近 1 件しか見えず、中間コミットのみで変更されたファイルが diff から漏れるため使わない）。
+
 ```bash
-git diff HEAD --stat
-git diff HEAD -- <変更ファイル>
+git diff {base} --stat
+git diff {base} -- <変更ファイル>
 ```
 
-`git diff HEAD` で実装前コミット（Phase 4 着手前）との全差分を確認する。コミット済みの場合は `git diff HEAD~1 HEAD` で直近コミットとの差分を取得する。
+`{base}` は上記手順で決定した値（段階コミット一覧が存在しない標準フローでは `{base}` = `HEAD`）。
 
 **git が利用できない場合**（GAS 等の git 管理外プロジェクト）:
 

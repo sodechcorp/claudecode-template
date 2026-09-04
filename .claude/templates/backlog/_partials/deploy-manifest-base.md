@@ -13,3 +13,4 @@ python -c "import re,os; p=os.path.join('docs/logs/{issueID}','implementation-pl
 呼び出し元（利用箇所）:
 - [backlog-releaser.md](../../../agents/backlog-releaser.md) §2a. Sandbox の場合
 - [release-preparer.md](../../../agents/release-preparer.md) Phase 1
+- [option-diff-review.md](../options/option-diff-review.md) §1. diff の取得
