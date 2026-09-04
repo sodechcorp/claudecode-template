@@ -398,7 +398,11 @@ def _read_md(path):
 
 
 def _extract_section_md(md, *headings):
-    """## または ### 見出しのセクション本文を返す（最初にマッチしたもの）。"""
+    """## または ### 見出しのセクション本文を返す（最初にマッチしたもの）。
+    終端は全レベルの見出し（#〜）で判定する（同レベル以上でしか止まらないと
+    配下の ###/#### 小見出しが本文に混入するため）。直後の見出しとの間が
+    空になる場合は、本文が非空になる次の見出しまで探索を続ける。
+    """
     for h in headings:
         parts = re.split(r" +", h)
         kw = r"\s*".join(re.escape(p) for p in parts)
@@ -409,10 +413,12 @@ def _extract_section_md(md, *headings):
         if m:
             start = m.end()
             rest = md[start:]
-            level = len(re.match(r"^#+", md[m.start():]).group(0))
-            end_pat = rf"^#{{1,{level}}}\s"
-            end_m = re.search(end_pat, rest, re.MULTILINE)
-            body = rest[: end_m.start()] if end_m else rest
+            body = rest
+            for end_m in re.finditer(r"^#+\s", rest, re.MULTILINE):
+                candidate = rest[: end_m.start()]
+                if candidate.strip():
+                    body = candidate
+                    break
             stripped = body.strip()
             if stripped:
                 return stripped
