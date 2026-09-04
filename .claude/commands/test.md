@@ -558,7 +558,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
   redeploy_no_confirm: true
 ```
 
-`test-report.md` は Phase F で生成済みのため、releaser のモード判定（test-report.md 存在 → 軽量再デプロイ）が自動適用される（お客様確認・知見還流をスキップ）。
+上記で渡した `auto_fix_mode: true` により、releaser のモード判定（`auto_fix_mode: true` → 軽量再デプロイ）が自動適用される（お客様確認・知見還流をスキップ）。
 
 #### F-2 完了報告
 
