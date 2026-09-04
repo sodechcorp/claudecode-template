@@ -6,7 +6,7 @@ Usage:
     python create_records.py \\
       --folder FOLDER --issue-id ID \\
       --investigation PATH \\
-      [--approach-plan PATH]
+      [--approach-plan PATH] [--force]
 
   --approach-plan は任意。指定した場合、approach-plan.md の4固定見出し
   （課題の内容・詳細 / 原因・現状 / 対応方針（結論）/ 方針決定の経緯・根拠）
@@ -63,6 +63,9 @@ def extract_section(md, *headings):
     """指定見出し（## または ###）のセクション本文を返す。
     複数見出しは先にマッチしたものを使用。本文が空のセクションはスキップ。
     見出し揺れ吸収: 先頭「■ 」等の記号・末尾の「:」「テーブル」等・括弧付記を許容。
+    終端は全レベルの見出し（#〜）で判定する（同レベル以上でしか止まらないと
+    配下の ###/#### 小見出しが本文に混入するため）。直後の見出しとの間が
+    空になる場合は、本文が非空になる次の見出しまで探索を続ける。
     """
     for h in headings:
         pat = (
@@ -77,10 +80,12 @@ def extract_section(md, *headings):
         if m:
             start = m.end()
             rest = md[start:]
-            level = len(re.match(r"^#+", md[m.start():]).group(0))
-            end_pat = rf"^#{{1,{level}}}\s"
-            end_m = re.search(end_pat, rest, re.MULTILINE)
-            body = rest[: end_m.start()] if end_m else rest
+            body = rest
+            for end_m in re.finditer(r"^#+\s", rest, re.MULTILINE):
+                candidate = rest[: end_m.start()]
+                if candidate.strip():
+                    body = candidate
+                    break
             stripped = body.strip()
             if stripped:
                 return stripped
@@ -342,6 +347,33 @@ def fill_header(ws, args, inv_md, approach_md):
             wset(ws, row, 2, text)
             auto_fit_row(ws, row, max_height=300)
 
+    # 対応経緯タイムライン No1-3（調査/対応方針/実装方針）
+    # Phase 3 末尾に到達している時点で investigation.md（Phase1）・approach-plan.md（Phase2）・
+    # implementation-plan.md（Phase3）は全て完了済み。No4 以降は各Phaseエージェントが
+    # update_records.py timeline で追記する（本関数はNo1-3のみ担当）。
+    # 実装方針（Phase3）の内容は「実装方針まとめ」節がテーブル形式・判断ポイント有無で
+    # 構造が変わり一意な安全な1行要約ができないため、本スクリプトは implementation-plan.md
+    # を読み込まず完了マーカーのみを記す（詳細抽出は行わない）。
+    tl_section_row = find_header_row(ws, ("■ 対応経緯タイムライン",))
+    if tl_section_row is not None:
+        data_start = tl_section_row + 2  # 列ヘッダー行の次
+        approach_summary = extract_section_fallback(approach_md, inv_md, "対応方針（結論）")
+        approach_content = "approach-plan.md の対応方針を確定"
+        if approach_summary:
+            first_line = next((ln.strip(" 　■").strip() for ln in approach_summary.splitlines() if ln.strip()), "")
+            if first_line:
+                approach_content = first_line[:60] + ("…" if len(first_line) > 60 else "")
+        seed_rows = [
+            ("調査",     "investigation.md を完了" + (f"（{title}）" if title else "")),
+            ("対応方針", approach_content),
+            ("実装方針", "implementation-plan.md の実装方針を確定"),
+        ]
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        for i, (phase, content) in enumerate(seed_rows):
+            fill = _stripe_fill(i)
+            for col, value in enumerate([i + 1, now, "Claude", phase, content, ""], start=1):
+                wset(ws, data_start + i, col, value, stripe=fill)
+
     # 後処理: 全セル行高・枠線補完
     for r in range(1, ws.max_row + 1):
         h = ws.row_dimensions[r].height
@@ -364,6 +396,9 @@ def main():
                         help="docs/logs/{issueID}/investigation.md のパス")
     parser.add_argument("--approach-plan",  default="", dest="approach_plan",
                         help="docs/logs/{issueID}/approach-plan.md のパス（任意）")
+    parser.add_argument("--force",          action="store_true",
+                        help="出力先に既存の対応記録.xlsx があっても上書きする"
+                             "（update_records.py が追記した timeline/cell 等は失われる）")
     args = parser.parse_args()
     args.folder = validate_folder(args.folder)
 
@@ -400,6 +435,14 @@ def main():
         _ensure_borders(ws)
 
     path = os.path.join(args.folder, f"{args.issue_id}_対応記録.xlsx")
+    if os.path.exists(path) and not args.force:
+        print(f"[ERROR] 既存の対応記録.xlsx が既にあります（無警告上書き防止）: {path}")
+        print("        - Phase 3.5 以降で update_records.py により timeline/cell 等が追記済みの場合:")
+        print("          --force は使わず、不足枠は update_records.py cell で個別に埋めてください。")
+        print("        - まだ update_records.py を実行していない（Phase 3 内の再試行等）場合:")
+        print("          --force を付けて再実行してください。")
+        print("        - Excel でファイルを開いたまま実行した場合: ファイルを閉じてから再実行してください。")
+        sys.exit(1)
     try:
         wb.save(path)
         print(f"[OK] 生成完了: {path}")
@@ -410,7 +453,8 @@ def main():
     if unfilled:
         print(f"  シート ①「課題と対応方針」: メタ情報＋4本文"
               f"（プレースホルダ {len(unfilled)} 枠: {', '.join(unfilled)}）")
-        print(f"  ※ プレースホルダ枠は approach-plan.md 生成後に create_records.py を再実行するか、xlsx を直接更新してください。")
+        print(f"  ※ プレースホルダ枠は update_records.py cell --sheet 課題と対応方針 --label \"{{ラベル}}\" --col 2 --value \"...\" --force で個別に埋めてください。"
+              f"（create_records.py の再実行は --force が必要な上、update_records.py の追記内容も消えるため非推奨）")
     else:
         print(f"  シート ①「課題と対応方針」: メタ情報＋4本文（全枠記入済み）")
     print(f"  シート ②「対応内容」: implementation-summary.md 書き出し後に Phase 4 ハーネスが update_records.py で記入")

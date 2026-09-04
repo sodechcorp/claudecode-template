@@ -154,6 +154,28 @@ def _reserve_ba_rows(ws, next_row):
     return next_row
 
 
+def _alloc_section_row(ws, data_start):
+    """data_start から、次の■セクション見出しに当たるまでの範囲内で書き込み可能な行を返す。
+
+    find_next_empty_row は「A列が空の最初の行」まで際限なく下り続けるため、
+    セクションの予約行を使い切ると後続セクション（■ Before / After 等）の
+    結合セル領域まで進んでしまい、非アンカー列への書き込みで
+    AttributeError('MergedCell' object attribute 'value' is read-only) を起こす。
+    本関数はセクション境界（次の■見出し）内でのみ空行を探し、
+    範囲内に空行がなければ境界の直前に1行挿入して確保する
+    （_shift_rows_down で後続セクション・結合セルごと押し下げる）。
+    """
+    r = data_start
+    while True:
+        v = ws.cell(r, 1).value
+        if v and str(v).strip().startswith("■"):
+            _shift_rows_down(ws, r, 1)
+            return r
+        if v is None or str(v).strip() == "":
+            return r
+        r += 1
+
+
 def cmd_timeline(args, wb):
     """課題と対応方針 シートのタイムラインに1行追加する"""
     sheet_name = "課題と対応方針"
@@ -306,7 +328,7 @@ def cmd_content_list(args, wb):
         elif isinstance(v, str) and str(v).strip().isdigit():
             max_no = max(max_no, int(str(v).strip()))
 
-    next_row = find_next_empty_row(ws, col=1, start_row=data_start)
+    next_row = _alloc_section_row(ws, data_start)
     new_no = max_no + 1
     fill = _stripe_fill(new_no - 1)
 
@@ -482,7 +504,7 @@ def cmd_content_from_md(args, wb):
             detail = row_data.get("変更内容", "")
             if not label:
                 continue
-            next_row = find_next_empty_row(ws, col=1, start_row=data_start)
+            next_row = _alloc_section_row(ws, data_start)
             max_no += 1
             fill = _stripe_fill(max_no - 1)
             for col, value in enumerate([max_no, label, kind, detail], start=1):
@@ -586,7 +608,17 @@ def cmd_verify(args, wb):
     section_row = find_header_row(ws2, ("■ 変更を加えた資材一覧",))
     if section_row is not None:
         data_start = section_row + 2  # ヘッダ行の次
-        has_data = any(ws2.cell(r, 1).value for r in range(data_start, data_start + 10))
+        # 固定幅 range だと後続セクションヘッダー（■ Before / After 等）まで
+        # 走査範囲に入り込み、そのラベル文字列を「データあり」と誤検知するため、
+        # 次の■セクション見出しに到達したら走査を打ち切る。
+        has_data = False
+        for r in range(data_start, ws2.max_row + 1):
+            v = ws2.cell(r, 1).value
+            if v and str(v).strip().startswith("■"):
+                break
+            if v and str(v).strip():
+                has_data = True
+                break
         if not has_data:
             issues.append("②シート: '変更を加えた資材一覧' にデータ行がありません（最低1行必要）")
 
