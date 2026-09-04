@@ -54,12 +54,6 @@ python -c "import yaml,pathlib; p=pathlib.Path('docs/.backlog_config.yml'); d=ya
   - label: `別のパスを指定する`、description: "新しいフォルダパスを絶対パスで入力する"
   - 「別のパスを指定する」が選ばれた場合はチャットで絶対パスを入力してもらう
 
-確定したパスを `docs/.backlog_config.yml` の `report_dir` に保存する（既存エントリを保持してマージ）:
-
-```bash
-python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; d['report_dir'] = '{確定したパス}'; p.write_text(yaml.dump(d, allow_unicode=True), encoding='utf-8')"
-```
-
 `{件名}` から Windows 禁則文字を除去した `{件名_sanitized}` を生成する（出力値を変数として保持すること）:
 
 ```bash
@@ -88,6 +82,12 @@ python -c "import re,sys; print(re.sub(r'[/\\\\:*?\"<>|]', '_', sys.argv[1]))" "
   ```
 
 すべて OK の場合のみ次へ進む。
+
+確定したパスを `docs/.backlog_config.yml` の `report_dir` に保存する（既存エントリを保持してマージ）。**1.5.2 の 4 点確認をすべて通過してから実行する**（検証 NG のパスを永続化して silent 再利用ループに陥らないため）:
+
+```bash
+python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; d['report_dir'] = '{確定したパス}'; p.write_text(yaml.dump(d, allow_unicode=True), encoding='utf-8')"
+```
 
 ---
 
