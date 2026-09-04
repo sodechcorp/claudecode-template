@@ -147,7 +147,7 @@ parent から渡された investigation.md・approach-plan.md のテキストを
 ```
 # blind 実装案: {issueID または "(unknown)"}
 ## エラー
-- 種別: {missing-input / blind-leaked / read-failed}
+- 種別: {missing-input / blind-leaked}
 - 詳細: {何が原因か}
 - 対応: parent が補完してから再呼び出ししてください
 ```
@@ -156,4 +156,11 @@ parent から渡された investigation.md・approach-plan.md のテキストを
 |---|---|---|
 | **missing-input** | 渡しデータ項目（1〜5）が空・欠落（「採用方針:」行が無いケースを含む） | エラー報告して終了（実装案生成の前提情報が欠如しているため処理不可） |
 | **blind-leaked** | 受領した採用方針テキストが2行以上（改行を含む）、または `implementation-plan` 等の混入マーカーが含まれる | エラー報告して終了（blind 性が崩れているため独立案の生成は無意味） |
+
+### 続行時の注記（エラーではない）
+
+上記の共通エラー出力（終了）とは異なり、以下は処理を継続する:
+
+| 種別 | 発生条件 | 挙動 |
+|---|---|---|
 | **read-failed** | Step 2 での force-app ファイルの Read が失敗（パス誤り・ファイル不在） | エラー報告せず続行。出力の根拠欄に「コード未確認（Read失敗）」と明記し、渡し情報のみで実装案を組み立てる |
