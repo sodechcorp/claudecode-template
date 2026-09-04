@@ -8,6 +8,7 @@ tools:
   - Grep
   - Bash
   - Write
+  - Edit
   - mcp__playwright__browser_navigate
   - mcp__playwright__browser_snapshot
   - mcp__playwright__browser_click
@@ -44,7 +45,7 @@ tools:
 直接の呼び出しはサポートしていません。
 ```
 
-**Write ツールは `{出力先}`・`{証跡保存先}/` 配下・`docs/logs/{issueID}/.email-safety-ack.json`（Step 4.5 のメール到達安全確認キャッシュ）への出力のみに使用する。`force-app/` 等その他のファイルへの書き込みは禁止。**
+**Write・Edit ツールは `{出力先}`・`{証跡保存先}/` 配下・`docs/logs/{issueID}/.email-safety-ack.json`（Step 4.5 のメール到達安全確認キャッシュ）への出力のみに使用する。`force-app/` 等その他のファイルへの書き込みは禁止。**
 
 ---
 
@@ -134,11 +135,23 @@ Step 2「再入判定」で特定した**検証対象の仮説のみ**（初回�
 
 再現条件の「前提データ」に従い Sandbox を準備する:
 
-1. **既存レコードは read-only 優先**: 名指しレコード（ID付き）があれば SOQL で存在確認してから使う。**状態変更を伴う再現はできる限り REPRO_ 新規レコードで行う**。やむを得ず既存レコードを更新する場合は、更新前に対象フィールドの原値を SOQL で取得し `{証跡保存先}/logs/restore_H{N}.txt` に記録する（Step 6 で原値に戻す）。
+1. **既存レコードは read-only 優先**: 名指しレコード（ID付き）があれば SOQL で存在確認してから使う。**状態変更を伴う再現はできる限り REPRO_ 新規レコードで行う**。やむを得ず既存レコードを更新する場合は、更新前に対象フィールドの原値を SOQL で取得し `{証跡保存先}/logs/restore_H{N}.json` に JSON で記録する（Key=Value のテキスト形式は原値に `=` や改行を含む場合に壊れるため使わない。書式は Step 6-2 参照。Step 6 で原値に戻す）。**既存レコードを確認・使用した場合（更新の有無を問わず）も、Step 8 の目視確認ハンドオフ対象にするため `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名}|{Id}|{Name}|H{仮説番号}` を Bash の `>>` で追記する**（新規作成分と同一フォーマット。[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 参照）。
 2. **新規作成が必要な場合**:
    - Sandbox 限定
    - 名称に `REPRO_{issueID}_H{仮説番号}_` プレフィックスを付与する
-   - 作成直後に `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名}|{Id}|{Name}|H{仮説番号}` を追記する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 のフォーマット。作成物の記録用・削除はしない。目視確認ハンドオフのレコードURL組み立てに使う）
+   - **作成手段は `sf data create record` を既定とする**（Id は `--json` 出力から取得する）:
+     ```bash
+     CREATE_RESULT=$(sf data create record --sobject {SObjectAPI名} \
+       --values "{FieldAPIName1}={Value1} {FieldAPIName2}={Value2}" \
+       --target-org "$SF_ALIAS" --json)
+     NEW_ID=$(echo "$CREATE_RESULT" | python -c "import sys, json; print(json.load(sys.stdin)['result']['id'])")
+     ```
+     複雑な入力規則・Flow 経由必須等で `sf data create record` では作成できない場合のみ、UI 操作または匿名Apexでの作成に切り替える。
+   - `Name` 項目が存在しない・自動採番のみのオブジェクト（`CaseNumber` のみを持つ Case、Task/Event 等）の場合は、`created_records.txt` の `{Name}` 欄に代表識別値（`CaseNumber` の値等。無ければ `NEW_ID` そのもの）を使う（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 の「Name または識別値」に該当）。
+   - 作成直後に `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名}|{Id}|{Name}|H{仮説番号}` を追記する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 のフォーマット。作成物の記録用・削除はしない。目視確認ハンドオフのレコードURL組み立てに使う）。**Write ツールでの上書きは前の H 番号の記録を消すため使わず、Bash の `>>` で追記する**:
+     ```bash
+     echo "{SObjectAPI名}|{Id}|{Name}|H{仮説番号}" >> "{証跡保存先}/logs/created_records.txt"
+     ```
 3. **本番への INSERT / UPDATE / DELETE / Apex 実行は絶対禁止**（本番組織は Step 0 でブロック済み）
 
 ### 5-2. 操作ユーザのログイン
@@ -150,7 +163,7 @@ Step 2「再入判定」で特定した**検証対象の仮説のみ**（初回�
 
 ### 5-3. 再現操作の実行（1ステップずつ）
 
-`playwright-sf-screen-ops.md` の「1 コードブロック画面操作」「ロケータ指針」「フォールバック手順」に従う:
+`playwright-sf-screen-ops.md` の「1 コードブロック画面操作」「ロケータ指針」「フォールバック手順」に従う。**パス指定**: `page.screenshot({path: ...})`・`saveText` にはいずれも`playwright-sf-screen-ops.md`「パス指定」節のとおり**絶対パス**（`{証跡保存先}` をプロジェクトルートからの実パス文字列に展開したもの）を使う（相対パスのままだと Playwright 実行プロセスの CWD 次第で保存失敗・意図しない場所への保存が起きうる）。
 
 1. **操作前スクショ**: `{証跡保存先}/before/H{N}_{手順概要}_before.png`
 2. **再現手順を 1 ステップずつ実施**（`getByText`/`getByRole`/`getByLabel` でロケータ）
@@ -176,7 +189,7 @@ Step 2「再入判定」で特定した**検証対象の仮説のみ**（初回�
 | ⚠️ 検証不可 | Sandbox にメタデータ・データなし / 環境依存 / 前提データ準備困難 |
 
 **「Sandbox にないから飛ばす = 確定扱い」は禁止**。
-検証不可は必ず ⚠️ で記録し「未検証」として扱う。原因がリポジトリ未回収のメタ要素（入力規則・カスタム設定等）に依存する場合は、`sf project retrieve` で org から取得するかユーザに実在・内容を確認するよう求める。
+検証不可は必ず ⚠️ で記録し「未検証」として扱う。原因がリポジトリ未回収のメタ要素（入力規則・カスタム設定等）に依存する場合は、**まず `sf project retrieve` で org から取得を試み、それでも判明しない場合にのみ**ユーザに実在・内容を確認するよう求める。
 
 ---
 
@@ -185,25 +198,42 @@ Step 2「再入判定」で特定した**検証対象の仮説のみ**（初回�
 ### 6-1. REPRO_ 新規レコードは削除しない
 
 Step 5-1 で作成した REPRO_ プレフィックスの新規レコードは削除しない。Sandbox に蓄積させ、ユーザーが目視で確認できるようにする。
-`{証跡保存先}/logs/created_records.txt` は「何を作成したか」の記録として残す（クリーンアップ用途では使わない）。
+`{証跡保存先}/logs/created_records.txt` は「目視確認ハンドオフの対象レコード（新規作成・既存使用の両方）」の記録として残す（クリーンアップ用途では使わない）。
 
-### 6-2. 既存レコードの原値復元（restore_H*.txt がある場合のみ）
+### 6-2. 既存レコードの原値復元（restore_H*.json がある場合のみ）
 
-Step 5-1 で `{証跡保存先}/logs/restore_H{N}.txt` に原値を記録した場合は、`sf data update record` で元の値に戻す。ファイルが存在しない場合はこのステップをスキップする。
+Step 5-1 で `{証跡保存先}/logs/restore_H{N}.json` に原値を記録した場合は、`sf data update record` で元の値に戻し、**復元後に同じ Id を SOQL で再取得して `fields` の各値と一致するか検証する**。ファイルが存在しない場合はこのステップをスキップする。
 
-```bash
-# restore_H{N}.txt の形式（1行1フィールド）:
-#   SObject={SObjectAPI名}
-#   Id={RecordId}
-#   {FieldAPIName}={OriginalValue}
-# 内容に従い sf data update record で原値に復元する
+`restore_H{N}.json` の形式:
+```json
+{"SObject": "{SObjectAPI名}", "Id": "{RecordId}", "fields": {"{FieldAPIName}": "{OriginalValue}"}}
 ```
 
-復元完了後、`{証跡保存先}/logs/cleanup.txt` に「原値復元: H{N} {件数} 件」を追記する。
+```bash
+# restore_H{N}.json の fields をスペース区切りの key=value に変換し sf data update record に渡す
+RESTORE_VALUES=$(python -c "
+import json
+d = json.load(open(r'{証跡保存先}/logs/restore_H{N}.json', encoding='utf-8'))
+print(' '.join(f'{k}={v}' for k, v in d['fields'].items()))
+")
+sf data update record --sobject {SObjectAPI名} --record-id {RecordId} \
+  --values "$RESTORE_VALUES" --target-org "$SF_ALIAS" --json
+
+# 復元後、同じ Id を SOQL で再取得し、fields の各値と一致することを確認する
+# 不一致があれば restore_H{N}.json を削除せず、Step 8 のフェーズ完了報告に [WARN] 原値未復元 を明記する
+```
+
+復元完了後、`{証跡保存先}/logs/cleanup.txt` に「原値復元: H{N} {件数} 件」を Bash の `>>` で追記する（Write ツールでの上書きは前の H 番号の記録を消すため使わない）:
+
+```bash
+echo "原値復元: H{N} {件数} 件" >> "{証跡保存先}/logs/cleanup.txt"
+```
 
 ---
 
 ## Step 7: ブラウザセッションの終了
+
+**Step 5〜6 のいずれかで想定外のエラー・タイムアウト等により処理を中断する場合も、ユーザーへの中断報告の前に必ず本 Step を実行する**（ブラウザセッション・Login As プロキシを残したまま報告しない）。Login As 中に中断した場合は、`browser_close` の前に `playwright-sf-screen-ops.md`「Login As」の手順に従い `/secur/logout.jsp` でプロキシ解除する。
 
 ```tool
 mcp__playwright__browser_close
@@ -213,7 +243,20 @@ mcp__playwright__browser_close
 
 ## Step 8: hypothesis-verification.md の出力
 
-`{出力先}` に以下の形式で保存する。**Step 2「再入判定」で既検証と判定したH番号がある場合**、その「検証手順と結果」セクション・「検証サマリー」の該当行は前回の `{出力先}` からそのまま転記する（Step 5 で再検証していないため）。「検証対象仮説」「検証手順と結果」「検証サマリー」「結論」は初回から今回までの**全H番号**を含む形にする（過去の検証結果を失わないため。backlog-planner が「検証サマリー」の❌仮説を除外仮説として参照するのに必須）。
+**証跡ファイルの存在セルフチェック**: 証跡パスを本文に記載する前に、今回検証した各 H 番号について採取したはずのファイルが実在するか確認する:
+```bash
+ls "{証跡保存先}/before/" "{証跡保存先}/after/" "{証跡保存先}/logs/" 2>/dev/null
+```
+一覧に現れないファイルは、以下の「証跡」欄に実在しないパスを記載せず `[未取得]` と明記する（存在しないファイルへのリンクを証跡として提示しない）。
+
+`{出力先}` に以下の形式で保存する。「検証対象仮説」「検証手順と結果」「検証サマリー」「結論」は初回から今回までの**全H番号**を含む形にする（過去の検証結果を失わないため。backlog-planner が「検証サマリー」の❌仮説を除外仮説として参照するのに必須）。
+
+**`{出力先}` が既に存在する場合（再入時）**: 既検証と判定したH番号の内容を LLM が記憶から書き直すとドリフトしうるため、Write による全文再生成ではなく **Edit で差分更新する**（tools の Edit 参照）:
+- 「検証手順と結果」: 既存 H 番号のセクション本文には一切触れず、新規 H 番号の `### Hn: ...` セクションのみを `## 検証サマリー` 見出しの直前に Edit で挿入する（既存セクションの逐語転記・再入力をしない）
+- 「検証対象仮説」表・「検証サマリー」表・「🔎 目視確認のご案内」表: 新規 H 番号の行のみを Edit で末尾に追加する（既存行はそのまま）
+- 「結論」「テストデータ」: 全 H 番号を踏まえた再集計が必要なため、該当セクションを Edit で置換する
+
+**作成日時**は `date "+%Y-%m-%d %H:%M"` で実時刻を取得して埋め込む（プレースホルダのまま出力しない）。
 
 ```markdown
 # Phase 1.6 Sandbox 仮説検証結果
@@ -263,17 +306,17 @@ mcp__playwright__browser_close
 
 ## テストデータ
 - 作成レコード: {件数} 件（プレフィックス: REPRO_{issueID}_、削除せず Sandbox に保持）
-{restore_H*.txt がある場合のみ: - 既存レコードの原値復元: {件数} 件}
+{restore_H*.json がある場合のみ: - 既存レコードの原値復元: {件数} 件}
 
 ## 🔎 目視確認のご案内
 
 Sandbox（{SF_ALIAS}）に未ログインの場合は、リンククリック後にログイン画面が出ます。ログイン後に対象が表示されます。
 
-| 確認対象 | レコードURL | レコードID | 対象仮説 | 操作手順 |
+| 確認対象 | 画面/レコードURL | レコードID | 対象仮説 | 操作手順 |
 |---|---|---|---|---|
 | {ラベル（日本語表示名）} | {INSTANCE_URL}/lightning/r/{SObject}/{Id}/view | {Id} | H1 | ①…→②…→③… |
 
-> `{証跡保存先}/logs/created_records.txt` の全行を変換して列挙する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）。操作手順は Step 2 で抽出した各仮説の「操作手順」を転記する。created_records.txt が無い・空の場合（既存レコードのみで再現した等）は本節を省略する。
+> `{証跡保存先}/logs/created_records.txt` の全行を変換して列挙する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠。Step 5-1 で新規作成・既存使用いずれのレコードも記録される）。操作手順は Step 2 で抽出した各仮説の「操作手順」を転記する。created_records.txt が無い・空の場合（全仮説が検証不可等で確認対象レコードが一切ない場合）は本節を省略する。列名「対象仮説」は共通仕様（visual-confirmation-handoff.md §4）の「対象TC」に対応する本エージェント固有の呼称（本エージェントは TC ではなく H 番号の仮説を扱うため）。
 ```
 
 ---
