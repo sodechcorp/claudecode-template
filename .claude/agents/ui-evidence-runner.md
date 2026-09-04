@@ -193,7 +193,8 @@ mkdir -p "{evidence_dir}/before"
 各 TC はブロック内で以下 1〜4 を行い、結果を配列 `results` へ push する。TC ごとに `try/catch` で囲み、失敗した TC が後続 TC の証跡採取を止めないようにする:
 
 1. **before 撮影 + DOM取得（F-6/F-7）**:
-   - スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true, animations: 'disabled', scale: 'css'})`
+   - **例外（Phase3 Before参照）**: `ui_cases` の「証跡取得」列に `[Phase3 Before参照: ...]` の記載がある TC（`test-spec-builder.md` §展開の注意「タイミング=実装前のTC」参照）は、この手順のスクショ・DOM取得を**実行せず**、`{evidence_dir}/before/{issueID}_{対象画面サニタイズ}_before.png` と `.txt` を Read し、内容をそのまま `{evidence_dir}/before/{No}_{観点サニタイズ}_before.png` / `.txt` としてコピー保存する（Phase 3.5 `option-evidence-check.md` が採取済みの実装前状態が正本のため、`/test` 実行時点で新規撮影しない）。コピー元ファイルが存在しない場合はスクショ・DOM取得ともスキップし、当該 No を返却テーブルに「Phase3 Before証跡が見つかりません」と記録する（この場合の可否判定は Phase E `judge_results.py` 側で `対象外` 記載に従う）。
+   - **通常ケース**: スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true, animations: 'disabled', scale: 'css'})`
    - before DOM: `const beforeText = await getPageText(page)`（`playwright-sf-screen-ops.md`「DOM 本文取得」節。グローバルヘッダーのノイズを除去して取得する）を取得し、`saveText(page, beforeText, '/絶対パス/before/{No}_{観点サニタイズ}_before.txt')` で直接保存する（後述）。
 1.5. **画面遷移要否の判定（テスト時短・任意最適化）**: `const navSkipped = (前TCの対象画面 && 前TCの対象画面 === 当該TCの対象画面);` を判定する（`ui_cases` の `対象画面` 列が双方とも入力されており値が一致する場合のみ `true`）。`navSkipped` が `true` の場合、直前 TC 完了時点で既に対象画面にいるとみなし、当該 TC の「実行アクション」のうち画面遷移部分（画面を開く／メニューから遷移する等）を省略し、手順2は操作部分のみ実行する。`対象画面` が空欄・前 TC と不一致の場合は省略せず従来どおり実行アクション全体（遷移含む）を実行する。**当該 TC が1件目の場合**: Step 1.5 で `--path` 最適化を適用済みなら「直前 TC」を「`--path` で直接着地した対象画面」とみなして判定する（`prevScreen` の初期値が `tcs[0].screen` のため通常どおり比較式が成立し、一致すれば `navSkipped: true` になる）。`--path` 未適用の1件目は `prevScreen` が `null` のため必ず `navSkipped: false` となり、従来どおり実行アクション全体を実行する。**TC の実行順序（No 順）は変更しない**（`対象画面` は隣接 TC 間の遷移省略判定にのみ使う軸であり、TC を並べ替える軸ではない）。
 2. **操作**: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で遷移・表示を待つ。
