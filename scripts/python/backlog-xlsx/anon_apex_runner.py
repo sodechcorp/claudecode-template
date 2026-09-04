@@ -164,6 +164,12 @@ def run_anonymous(alias: str, apex_file: str) -> dict:
     if apex_result.get("success") is False:
         exc = apex_result.get("exceptionMessage", "") or apex_result.get("exceptionStackTrace", "")
         raise SystemExit(f"[FATAL] Apex 実行時例外:\n{exc}")
+    if apex_result.get("success") is not True:
+        # result/success キー欠落など想定外の形状（malformed/truncated response 等）。
+        # フェイルクローズし、「実行できていない証跡」が [OK] として生成されるのを防ぐ（C-2 修正）。
+        raise SystemExit(
+            f"[FATAL] Apex run レスポンスが想定外の形状です（result/success キー欠落）:\n{result.stdout[:500]}"
+        )
     return data
 
 

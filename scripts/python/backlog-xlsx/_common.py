@@ -194,7 +194,12 @@ def parse_test_spec(spec_path: str) -> list:
                 candidate_rows = []
                 in_table = False
             continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
+        # 未エスケープの `|` のみで分割する（セル内に `\|` で埋め込まれた
+        # リテラルなパイプ文字（例: CREATED_RECORD|SObject|Id マーカーへの言及）
+        # が誤って列区切りとして扱われるのを防ぐ。分割後は `\|` を `|` に
+        # 戻して元の文字列に復元する（C-1 修正）。
+        cells = [c.strip().replace("\\|", "|")
+                 for c in re.split(r"(?<!\\)\|", line.strip("|"))]
         if all(re.match(r"^[-: ]+$", c) for c in cells):
             in_table = True
             continue
