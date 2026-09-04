@@ -29,10 +29,10 @@
 
    → **「1 回限りの判断」や「この課題固有の事情」は記録不要**（decisions.md が肥大化するため）
 
-4. `docs/decisions.md` に追記する（最上部に降順で追加）:
+4. `docs/decisions.md` に追記する（最上部に降順で追加）。見出しフォーマット: [../../common/knowledge-reflux-formats.md](../../common/knowledge-reflux-formats.md) §decisions.md エントリ
 
    ```markdown
-   ## {YYYY-MM-DD}: {判断テーマ} ({issueID})
+   ## {issueID}: {判断テーマ}（{YYYY-MM-DD}）
 
    **判断**: {採用した方針・実装パターン}
    **却下案**: {検討したが却下した案と却下理由}（なければ省略）

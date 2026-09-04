@@ -228,7 +228,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 > **changelog.md フォールバック**: `docs/logs/changelog.md` に当該 issueID のエントリが既に存在するか Grep で確認する。存在しなければ「日付 / 変更内容 / 関連課題ID」の1行を追記する（管理画面操作のみで対応した場合・implementer を通らなかった場合の取りこぼし防止）。changelog.md 自体が存在しない場合は `# Changelog` ヘッダー＋空行を作成してから追記する。
 
-> **decisions.md 重複ガード（Phase 5 との二重書き込み防止・必須）**: Phase 5 の `option-knowledge-extraction`（バグ・追加要望では原則常時実行）が既に当課題のエントリを `docs/decisions.md` に追記済みの場合がある。本 Step の見出し形式（`## {issueID}: ...`）と option-knowledge-extraction の見出し形式（`## {YYYY-MM-DD}: ... ({issueID})`）は異なるため、以下のように両方の形をカバーして追記前に確認する:
+> **decisions.md 重複ガード（Phase 5 との二重書き込み防止・必須）**: Phase 5 の `option-knowledge-extraction`（バグ・追加要望では原則常時実行）が既に当課題のエントリを `docs/decisions.md` に追記済みの場合がある。見出し形式は `## {issueID}: ...`（[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリ）に統一済みだが、統一前に option-knowledge-extraction が書いた旧形式（`## {YYYY-MM-DD}: ... ({issueID})`）のエントリも後方互換で検出するため、以下のように両方の形をカバーして追記前に確認する:
 > ```bash
 > grep -E "^## (${issueID}:|.*\(${issueID}\))" docs/decisions.md
 > ```
