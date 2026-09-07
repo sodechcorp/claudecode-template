@@ -22,6 +22,12 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 ---
 
+## compact 跨ぎの復元
+
+Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順9・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `light_mode` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定・xlsx_folder 確定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。
+
+---
+
 ## フェーズ構成
 
 ### Phase A: 前提検証・接続確認
@@ -191,6 +197,11 @@ echo "TARGET_TC_LIST=$TARGET_TC_LIST"
 if [ -d "${EVIDENCE_DIR}/after" ]; then
   echo "[INFO] ${EVIDENCE_DIR}/after が既に存在します。差分再実行モードでは非対象 TC の既存証跡を維持します。"
 fi
+
+# 9. compact 跨ぎ復元用コンテキストの保存（本 Phase A 確定値のスナップショット。
+# Phase B 以降で /compact が発生した場合、本ファイルがあれば Phase A を再実行せず変数を復元できる。
+# 書き込み失敗は無視・後続処理をブロックしない）
+python -c "import json; json.dump({'issue_id':'$ISSUE_ID','project_dir':r'$PROJECT_DIR','log_dir':r'$LOG_DIR','xlsx_folder':r'$XLSX_FOLDER','evidence_dir':r'$EVIDENCE_DIR','spec_path':r'$SPEC_PATH','judgment_path':r'$JUDGMENT_PATH','light_mode':'$LIGHT_MODE','alias':'$SF_ALIAS','instance_url':'$INSTANCE_URL'}, open(r'${LOG_DIR}/.test-context.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=2)" 2>/dev/null || true
 ```
 
 > **⚠️ `[XLSX_FOLDER_UNRESOLVED]` が出力された場合（xlsx_folder 未設定）**:  
@@ -259,6 +270,15 @@ python -c "import PIL" 2>/dev/null || {
 - `light_mode`: `{LIGHT_MODE}`（`/backlog --light` で対応した課題かどうか。investigation.md フロントマターから読み取り済み）
 
 `test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。返却に `[WARN]` 行（investigation.md 不在による軸1・軸3スキップ、軸3 消費者リスト source 不在等）が含まれる場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
+
+`target=` 必須ルールのバックストップ自己チェック（test-spec-builder Step 4 の抜け漏れ検知）:
+```bash
+MISSING_TARGET=$(python "$(pwd -W)/scripts/python/backlog-xlsx/check_target_required.py" --spec "{spec_path}" 2>/dev/null || echo "")
+if [ -n "$MISSING_TARGET" ]; then
+  echo "[WARN] target= 未付記の UI TC があります: $MISSING_TARGET（test-spec-builder Step 4 で追記されているはずです。test-spec.md を確認してください）"
+fi
+```
+`[WARN]` が出た場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
 
 > **仕様スキーマ（参考）**: 11 列 — No / 観点 / 種別 / 前提・データ準備 / 実行アクション / テスト手順 / 期待結果 / 判定方法 / 証跡取得 / 自動化可否 / 確認ポイント（着眼点）。`テスト手順` と `確認ポイント（着眼点）` は任意列（詳細は `test-spec-builder.md` §Step 2 参照）。  
 > 詳細な展開ルール・種別選択肢・自動化可否判断基準・網羅性チェック手順は `test-spec-builder.md` に定義されている。  
@@ -709,13 +729,10 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 NG 一覧:
   - TC-00X: {観点} — {理由}（種別: 未実行 / 要確認 / 画面エラー / 実装バグ のいずれか。`ng_type` が空欄の場合は「実装バグ」と表示する）
 
-修正手順（この順番で実施してください）:
-  1. implementation-plan.md の改版履歴にNG原因と修正方針を追記
-     （何をなぜ変えるかを記録してから手を動かす。investigation.md は変更しない）
-  2. 対応記録.xlsx の「NG対応履歴」に回次・TC・原因・修正内容を記録
-  3. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run）
-  4. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
-  5. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用・前回結果は自動退避）
+修正手順（この順番で実施してください。NG原因・修正方針の記録は上記「NG があった場合の差し戻し」手順5〜6で記録済みです）:
+  1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run）
+  2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
+  3. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用・前回結果は自動退避）
 
 {要手動がある場合}
 要手動確認:
