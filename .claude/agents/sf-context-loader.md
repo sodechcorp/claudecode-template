@@ -83,19 +83,19 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / assista
 | キーワード（連携系） | API, 連携, 外部, callout | `docs/architecture/system.json` |
 | キーワード（要件系） | スコープ, 要件, `BR-\d+`, ビジネスルール | `docs/requirements/requirements.md` |
 | キーワード（マスタ系） | マスタ, ピックリスト, 選択リスト, 商品 | `docs/data/master-data.md` |
-| キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md` + `docs/knowledge/pitfalls.md`（全文 Read） |
-| キーワード（工数系） | 工数, effort, 見積, 何時間, calibration | `docs/knowledge/effort-calibration.md`（全文 Read） + `docs/knowledge/global-calibration.md`（全文 Read・存在する場合のみ） + `docs/knowledge/case-index.md`（工数列 Grep） |
-| `[A-Z]{2,}-\d+`（issueID） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（課題サマリーセクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（`## 対応方針（結論）` セクションのみ Grep） |
-| キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件を Grep） + `docs/knowledge/case-index.md`（症状列を Grep）→ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md` |
-| キーワード（変更履歴系） | 変更履歴, changelog, 最近の変更, デプロイ, リリース | `docs/logs/changelog.md`（末尾30行 Tail Read） |
-| キーワード（落とし穴・注意） | 落とし穴, ハマる, ハマった, 気を付ける, 気をつけて, 注意, 地雷, 壊れる, 想定外, 罠 | `docs/knowledge/pitfalls.md`（全文 Read）+ `docs/knowledge/global-pitfalls.md`（全文 Read・存在する場合のみ） |
+| キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md` + `docs/knowledge/pitfalls.md`（先頭150行 Read） |
+| キーワード（工数系） | 工数, effort, 見積, 何時間, calibration | `docs/knowledge/effort-calibration.md`（先頭150行 Read） + `docs/knowledge/global-calibration.md`（先頭100行 Read・存在する場合のみ） + `docs/knowledge/case-index.md`（工数列 Grep） |
+| `[A-Z]{2,}-\d+`（issueID。ただし `UC-` / `CMP-` / `BR-` で始まるものは既存の他パターン専用のため除外） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（課題サマリーセクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（`## 対応方針（結論）` セクションのみ Grep） |
+| キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件: 先頭200行を Read・降順管理のため最新が先頭） + `docs/knowledge/case-index.md`（症状列を Grep）→ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md` |
+| キーワード（変更履歴系） | 変更履歴, changelog, 最近の変更, デプロイ, リリース | `docs/logs/changelog.md`（先頭30行 Read。先頭挿入運用のため直近分が先頭） |
+| キーワード（落とし穴・注意） | 落とし穴, ハマる, ハマった, 気を付ける, 気をつけて, 注意, 地雷, 壊れる, 想定外, 罠 | `docs/knowledge/pitfalls.md`（先頭150行 Read）+ `docs/knowledge/global-pitfalls.md`（先頭100行 Read・存在する場合のみ） |
 | キーワード（レポート/ダッシュボード系） | レポート, ダッシュボード, report, dashboard | `docs/data/reports-dashboards.md` |
 | キーワード（キュー/承認/割り当て系） | キュー, 承認, 承認プロセス, 割り当て, アサインメントルール | `docs/data/automation-config.md` |
 | キーワード（データ品質系） | データ品質, 空欄, 空欄率, 重複, 重複率, クレンジング | `docs/data/data-quality.md` |
 | キーワード（データ統計系） | データ統計, レコード件数, レコード数, 件数, 活用率, 利用率, 入力率, 分布, 月次作成数, データ量, ボリューム, 統計 | `docs/data/data-statistics.md` |
 | キーワード（Salesforce標準仕様） | ガバナ制限, API制限, API上限, SOQL上限, SOQL制限, リストビュー上限, レポート上限, トリガ順序, トリガ実行順序, sharing, FLS評価, PermissionSet優先, 標準仕様, governor, 制限値, 何件まで, 何行まで | `docs/knowledge/sf-standard.md`（該当セクションのみ Grep） |
 | キーワード（ドメイン固有知識） | RevenueCloud, Revenue Cloud, SBQQ, blng, CPQ, Billing, AccountEngagement, Account Engagement, Pardot, `pi__`, ドメイン, 固有仕様, 初導入, サブスクリプション, 請求, インボイス | `docs/knowledge/domain/*.md`（存在するファイルに Grep、最大2件を詳細 Read） |
-| キーワード（テスト/動作確認系） | テスト, 動作確認, ログイン手順, Login As, テストデータ, 証跡, エビデンス, コミュニティURL, Experience Cloud ログイン, 画面確認, エビデンス取得 | `docs/knowledge/test-prerequisites.md`（全文 Read・存在する場合のみ） |
+| キーワード（テスト/動作確認系） | テスト, 動作確認, ログイン手順, Login As, テストデータ, 証跡, エビデンス, コミュニティURL, Experience Cloud ログイン, 画面確認, エビデンス取得 | `docs/knowledge/test-prerequisites.md`（先頭150行 Read・存在する場合のみ） |
 
 `{project_dir}/docs/overview/org-profile.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（用語集・命名規則の共通参照として）。
 
@@ -105,7 +105,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / assista
 > - **除外判定**: `task_description` 冒頭や `「{issueID} の対応をする/実装する/調査する」` のように、処理主体として言及されている ID が自課題。  
 > - **除外しない**: `focus_hints` で明示された別 ID、または `task_description` 中で「過去に GF-xxx で同様の問題が…」のように明確に過去事例として言及されている別 ID は従来どおり過去課題として読む。
 
-**マッチが全くない場合**: Phase 2.5 へ進む。
+**マッチが全くない場合**: `org-profile.md` または `sf-standard.md`（常時読込対象）が存在する場合は、それらのみを読込対象として Phase 3 へ進み要約を返す。**いずれも存在しない場合のみ** Phase 2.5 へ進む。
 
 ---
 
@@ -132,7 +132,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / assista
 - `docs/catalog/_index.md` — オブジェクト名一覧（存在する場合）
 - `docs/.sf/feature_list.json` — F-xxx（または旧 CMP-xxx）・api_name のマッチングに Grep を使う（存在する場合）
 
-インデックスの Read または JSON パースが失敗した場合は「該当コンテキストなし（docs/ 不整合）」を返して終了する。
+インデックスの Read または JSON パースが失敗した場合はそのインデックスをスキップし、もう一方のインデックスおよび Phase 2 でマッチした他のファイル群で要約を生成する（Phase 3 の「失敗ファイルはスキップして継続」方針に合わせる）。**両インデックスとも失敗した場合のみ**「該当コンテキストなし（docs/ 不整合）」を返して終了する。
 
 ### ステップ3-2: 詳細ファイルを必要な分だけ Read
 
@@ -141,15 +141,29 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / assista
 **内訳ガード**（合計7ファイルの内訳上限）:
 - F-ID・オブジェクト関連: 最大4ファイル（同優先度内は F-ID 番号昇順・オブジェクトは `_index.md` 出現順）
 - logs/{issueID}/ 関連: 最大2ファイル（investigation.md / approach-plan.md）
-- effort 関連: 最大3ファイル（effort-calibration.md は全文・global-calibration.md は全文（存在時のみ）・case-index.md は工数列 Grep のみ）
-- decisions.md: 1ファイル（Grep による部分抽出のみ・全文 Read しない）
-- changelog.md: 1ファイル（末尾30行 Tail Read のみ）
+- effort 関連: 最大3ファイル（effort-calibration.md は先頭150行・global-calibration.md は先頭100行（存在時のみ）・case-index.md は工数列 Grep のみ）
+- decisions.md: 1ファイル（issueID 関連は該当行+前後20行を Grep、過去判断関連は先頭200行 Read。全文 Read はしない）
+- changelog.md: 1ファイル（先頭30行 Read のみ）
 - case-index.md: 1ファイル（Grep による症状列マッチのみ）+ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md` を最大2ファイル Read（存在時のみ・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出。cases ファイルの2件は合計7の内数）
+- org-profile.md: 1ファイル（マッチ件数に関わらず常時読込対象・存在する場合のみ）
 - sf-standard.md: 1ファイル（Grep による該当セクション抽出のみ）
-- pitfalls.md: 1ファイル（全文 Read・小さいため）
-- test-prerequisites.md: 1ファイル（全文 Read・小さいため）
+- pitfalls.md: 1ファイル（先頭150行 Read。先頭挿入運用のため直近分を優先取得）+ global-pitfalls.md: 1ファイル（先頭100行 Read・存在する場合のみ）
+- test-prerequisites.md: 1ファイル（先頭150行 Read）
+- domain/*.md: 最大2ファイル（ドメイン固有知識キーワードマッチ時のみ・存在するファイルに Grep 後 Read）
 - `_README.md` フォールバック由来: 最大 2 ファイル（Phase 2.5 経由のみ）
-→ 上記の合算が7を超えた場合: CMP/オブジェクト → 過去課題 → 標準仕様 → `_README.md` 由来 の優先順で打ち切る
+→ 上記の合算が7を超えた場合、以下の優先順位（数字が小さいほど優先・優先度の低い系統から打ち切る）で調整する:
+  1. F-ID・オブジェクト関連
+  2. logs/{issueID}/ 関連
+  3. decisions.md
+  4. case-index.md（+ cases/{issueKey}.md）
+  5. effort 関連
+  6. org-profile.md
+  7. sf-standard.md
+  8. pitfalls.md・global-pitfalls.md
+  9. changelog.md
+  10. domain/*.md
+  11. test-prerequisites.md
+  12. `_README.md` フォールバック由来
 
 | マッチ種別 | 読むファイル |
 |---|---|
@@ -161,19 +175,19 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / assista
 | 通知キーワード | `docs/data/email-templates.md` |
 | 連携キーワード | `docs/architecture/system.json` |
 | 要件キーワード | `docs/requirements/requirements.md`（先頭100行程度） |
-| 工数キーワード | `docs/knowledge/effort-calibration.md`（全文 Read） + `docs/knowledge/global-calibration.md`（全文 Read・存在する場合のみ） + `docs/knowledge/case-index.md`（工数列 Grep） |
+| 工数キーワード | `docs/knowledge/effort-calibration.md`（先頭150行 Read） + `docs/knowledge/global-calibration.md`（先頭100行 Read・存在する場合のみ） + `docs/knowledge/case-index.md`（工数列 Grep） |
 | issueID マッチ | `docs/logs/{issueID}/investigation.md`（`^## 課題サマリー` セクションのみ Grep） + `docs/decisions.md`（issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（`^## 対応方針（結論）` セクションのみ Grep）。**自課題 ID は読込対象から除外**（→ Phase 2 の自課題除外ルール参照） |
 | 過去判断キーワード | `docs/decisions.md`（直近10件: 先頭200行を Read・降順管理のため最新が先頭）+ `docs/knowledge/case-index.md`（症状列を Grep）+ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md`（存在すれば最大2件 Read・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出） |
-| 変更履歴キーワード | `docs/logs/changelog.md`（末尾30行 Read） |
-| 落とし穴キーワード | `docs/knowledge/pitfalls.md`（全文 Read）+ `docs/knowledge/global-pitfalls.md`（全文 Read・存在する場合のみ） |
-| 権限キーワード | `docs/knowledge/pitfalls.md`（全文 Read。org-profile.md は Phase 2 の常時読込ルールで別途対応済みのため本行では扱わない） |
+| 変更履歴キーワード | `docs/logs/changelog.md`（先頭30行 Read。先頭挿入運用のため直近分が先頭） |
+| 落とし穴キーワード | `docs/knowledge/pitfalls.md`（先頭150行 Read）+ `docs/knowledge/global-pitfalls.md`（先頭100行 Read・存在する場合のみ） |
+| 権限キーワード | `docs/knowledge/pitfalls.md`（先頭150行 Read。org-profile.md は Phase 2 の常時読込ルールで別途対応済みのため本行では扱わない） |
 | レポート/ダッシュボードキーワード | `docs/data/reports-dashboards.md` |
 | キュー/承認/割り当てキーワード | `docs/data/automation-config.md` |
 | データ品質キーワード | `docs/data/data-quality.md` |
 | データ統計キーワード | `docs/data/data-statistics.md` |
 | SF標準仕様キーワード | `docs/knowledge/sf-standard.md`（該当セクションを Grep: `^## ` パターンで章を特定してセクション抽出） |
 | ドメイン固有知識キーワード | `docs/knowledge/domain/` 配下の存在するファイルに対してキーワード Grep → マッチしたファイルを最大2件 Read（「## 判明した仕様」「## ハマりポイント」「## 注意事項」セクション抽出。ファイル不存在はスキップ） |
-| テスト/動作確認キーワード | `docs/knowledge/test-prerequisites.md`（全文 Read。ファイル不存在はスキップ） |
+| テスト/動作確認キーワード | `docs/knowledge/test-prerequisites.md`（先頭150行 Read。ファイル不存在はスキップ） |
 
 各ファイルの Read / Grep が失敗した場合はそのファイルをスキップし、残りの成功したファイルで要約を生成する。スキップしたファイルは **Phase 4 の出力末尾に列挙する**（親エージェントが知識欠落に気付けるようにする）。
 
