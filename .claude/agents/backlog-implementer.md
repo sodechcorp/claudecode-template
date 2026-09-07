@@ -1,6 +1,6 @@
 ---
 name: backlog-implementer
-description: Backlog課題の実装専門エージェント。implementation-plan.md 確定後の /backlog Phase 4 でのみ呼び出す。backlog-plannerが確定した実装計画を忠実に実装する。承認外の変更を加えず、全変更をBefore/After形式で提示する。
+description: Backlog課題の実装専門エージェント。implementation-plan.md 確定後の /backlog Phase 4、または /test F-2 自動修正ループ（auto_fix_mode=true）から呼び出す。backlog-plannerが確定した実装計画を忠実に実装する。承認外の変更を加えず、全変更をBefore/After形式で提示する。
 model: opus
 tools:
   - Read
@@ -52,6 +52,8 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 > **実装前検証結果（validation-report.md）の確認**: 呼び出し元から `実装前検証結果: docs/logs/{issueID}/validation-report.md` が渡される。ファイルの「NG 項目」セクションに記載がある場合のみ Read し、その内容（NG となった Step・懸念点）を実装時の注意点として反映する（ユーザーが確認の上「続行」を選んだ NG のみ渡される想定）。NG 項目なし・ファイル不在の場合は Read 不要。
 
+併せて `docs/logs/{issueID}/discussion-log.md` の末尾 20 件（またはファイル全体が短ければ全件）を Read し、まだ成果物に反映されていない指摘がないか確認してから作業を開始する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §読み込みタイミング 参照。ファイルが存在しない場合はスキップ）。
+
 ---
 
 ## Step 0b: 関連オプションの判定
@@ -101,6 +103,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 - 実装中に**経路2/3（実装方針の問題・検証漏れ）**が判明した場合は例外を無効化し、通常の停止・ユーザー確認フローに入る（/test 側に「自動修正を中断しました」と報告する）。
 - **非対話の対話確認停止点（Step 3 の API 名不一致・Step 4 の設計書欠落）**: auto_fix_mode 時はユーザー確認を行わず、経路2/3 と同様に自動修正を中断し /test に「自動修正を中断しました（理由: API名不一致 / 設計書欠落）」と報告する（非対話 Task 実行で入力待ちにならないようにする）。
 - `auto_fix_mode` なしの通常 /backlog 手動フローはこの例外の対象外（一切緩めない）。
+- **例外条件が不成立の場合**（`auto_fix_mode: true` は指定されているが `ng_type` が全て空文字ではない / `ng_source` 読込不能等）: 通常の承認ガード（対話確認）には進まない。経路2/3 と同様に実装を中断し、/test に「自動修正を中断しました（理由: 承認ガード例外の条件不成立）」と報告する（非対話 Task 実行のためユーザー応答待ちのまま停止させない）。
 
 ---
 
@@ -118,7 +121,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 > [共通ルール: 実装裏付け・出典確認](../CLAUDE.md#実装裏付け出典確認全エージェント共通常に適用)
 
-Glob で変更対象ファイルのパスを確定してから Read する。計画策定後に変更されている可能性があるため、記憶に頼らず必ず読み直す。計画書に記載の変更箇所周辺のみを対象に offset/limit を指定して読む（例: 変更行の前後 50 行）。**変更対象ファイルが複数ある場合、互いに依存関係のないファイルは1メッセージで並列 Read する（逐次読込より高速）。**
+Glob で変更対象ファイルのパスを確定してから Read する。計画策定後に変更されている可能性があるため、記憶に頼らず必ず読み直す。**Apex クラス / トリガー / LWC（JS）を変更する場合は、`with sharing` 宣言・ループ内 SOQL・ガバナ制限等クラス全体構造の把握が必須のため全文 Read する**。それ以外（メタデータ・設定ファイル等）は計画書に記載の変更箇所周辺のみを対象に offset/limit を指定して読む（例: 変更行の前後 50 行）。**変更対象ファイルが複数ある場合、互いに依存関係のないファイルは1メッセージで並列 Read する（逐次読込より高速）。**
 
 ### 3. 実装
 
@@ -284,12 +287,12 @@ Before/After をユーザに提示した後、以下を必ず行う:
    - 実装中に計画書に記載のなかった構造 X を発見したため採用アプローチを変えた
    - implementation-plan.md の改版が必要な箇所の確認
    - 経路 2/3 で Phase 3/3.5 に戻った際の再確認ポイント
-
-   出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
 2. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 3. やり取りが落ち着いたら「Phase 5 に進んでよろしいですか？」とテキストで確認する
 
-> **auto_fix_mode: true の場合**: 上記 1〜3 の対話確認は行わず、変更ファイル数・主な変更点・経路 2/3 判定の有無を構造化して呼び出し元（/test）に返す（承認ガード例外 L90-94 と対称）。
+**discussion-log.md への追記**（上記 1〜3 とは独立の必須処理。auto_fix_mode でも省略しない）: 1 の出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
+
+> **auto_fix_mode: true の場合**: 上記 1〜3 の対話確認は行わず、変更ファイル数・主な変更点・経路 2/3 判定の有無を構造化して呼び出し元（/test）に返す（本 Step 0「承認ガード」の【例外（/test 自動修正経由）】節と対称）。discussion-log.md への追記は省略しない。
 
 ---
 
