@@ -173,10 +173,10 @@ Step 2「再入判定」で特定した**検証対象の仮説のみ**（初回�
 
 ### 5-4. 現象観察ログの採取
 
-症状が現れた（または現れるはずの）タイミングで `playwright-sf-screen-ops.md` の「現象観察ログ」に従い採取する:
+症状が現れた（または現れるはずの）タイミングで `playwright-sf-screen-ops.md` の「現象観察ログ」に従い採取する。**エラー・失敗リクエストの有無にかかわらず必ずファイルを作成する**（該当なしの場合も「エラーなし」「該当なし」と明記して保存する。該当なしでファイルを作らないと、Step 8 の証跡ファイル存在チェックが「正常でエラーなし」と「採取失敗」を区別できず `[未取得]` と誤記されるため）:
 
-- `mcp__playwright__browser_console_messages` — JS エラー・LWC コンポーネントエラーを `{証跡保存先}/logs/H{N}_console.txt` に Write
-- `mcp__playwright__browser_network_requests` — status ≥ 400 のリクエストを `{証跡保存先}/logs/H{N}_network.txt` に Write
+- `mcp__playwright__browser_console_messages` — JS エラー・LWC コンポーネントエラーを `{証跡保存先}/logs/H{N}_console.txt` に Write（エラーがない場合も「エラーなし」と記載する）
+- `mcp__playwright__browser_network_requests` — status ≥ 400 のリクエストを `{証跡保存先}/logs/H{N}_network.txt` に Write（該当リクエストがない場合も「該当なし」と記載する）
 
 ### 5-5. 判定と記録
 
