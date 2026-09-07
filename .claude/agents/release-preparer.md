@@ -167,7 +167,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 
 **資材種別に応じた組み立て（重要）**: Phase 1 で確定した資材マニフェストに**実際に含まれる種別のみ**を §D 資材種別別チェックから転記する（含まれない種別の行は書かない）。マトリクスにない種別が出た場合はマトリクス §E に従い `[要確認]` 付きで検証方法を起案する（推測で断定しない）。「前・実行・後」の3段構成は資材の有無によらず必ず全て記載する。
 
-`docs/logs/{issueID}/release-plan.md` が既に存在する場合（`/release {issueID}` の再実行。「本番固有の失敗」からの再試行等）は `release-plan.R{N}.md`（N = 既存の `release-plan.R*.md` 本数 + 1）へリネームして退避してから新規作成する（前回手順書を上書きで消さない。release-issue.md の退避規約と同じパターン）。`docs/logs/{issueID}/release-plan.md` を新規作成する。構成（リリース前 → 実行 → 後の順を厳守）:
+`docs/logs/{issueID}/release-plan.md` が既に存在する場合（`/release {issueID}` の再実行。「本番固有の失敗」からの再試行等）は `release-plan.R{N}.md`（N = 既存の `release-plan.R*.md` 本数 + 1）へリネームして退避してから新規作成する（前回手順書を上書きで消さない。`prod-release-issue.md` の退避規約と同じパターン）。`docs/logs/{issueID}/release-plan.md` を新規作成する。構成（リリース前 → 実行 → 後の順を厳守）:
 
 ```markdown
 # 本番リリース手順書
@@ -274,7 +274,7 @@ sf project deploy report --target-org {本番エイリアス}
 >
 > **戻り先の判断（原因種別で二分岐する）**:
 > - **本番固有の失敗**（org drift・権限不足・API バージョン不整合等、今回のデプロイ対象コード自体には問題がない）→ 原因を解消した上で `/release {issueID}` を再実行する（release-preparer が資材マニフェスト・ドリフト確認を read-only で再チェックし、release-plan.md を再生成する）
-> - **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等が原因）→ 既存の `docs/logs/{issueID}/release-issue.md` があれば `release-issue.R{N}.md`（N = 既存の `release-issue.R*.md` 本数 + 1）へリネームして退避してから、差し戻し理由・現象・ログ・差し戻し先 Phase（`Phase 4`）を `docs/logs/{issueID}/release-issue.md`（退避後のため新規作成）に記録し（backlog-releaser.md §2a と同じスキーマ・退避ルール。`resume-phase-routing.md` がこのファイルを読んで再開選択肢を出す）、「`/backlog {issueID}` を再実行して Phase 4（実装修正）から再開 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施してください」と人間に案内する
+> - **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等が原因）→ 既存の `docs/logs/{issueID}/prod-release-issue.md` があれば `prod-release-issue.R{N}.md`（N = 既存の `prod-release-issue.R*.md` 本数 + 1）へリネームして退避してから、差し戻し理由・現象・ログ・差し戻し先 Phase（`Phase 4`）を `docs/logs/{issueID}/prod-release-issue.md`（退避後のため新規作成）に記録し（backlog-releaser.md §2a の `release-issue.md` と同じスキーマ・退避ルールだが、**ファイル名は `prod-release-issue.md` とし `release-issue.md`〔Sandbox 段階・backlog-releaser 用〕とは分ける**＝本番段階とSandbox段階の差し戻し回数カウンタ・resume-phase-routing.md の案内文言が混線しないようにする。`resume-phase-routing.md` がこのファイルを読んで再開選択肢を出す）、「`/backlog {issueID}` を再実行して Phase 4（実装修正）から再開 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施してください」と人間に案内する
 > - 切り分けが困難な場合は上記2択を提示し、人間に判断してもらう
 
 {デプロイ順序が分割要の場合は Phase 1 の順序をここに明記。管理画面手動操作がある場合は操作手順を記載}
@@ -373,8 +373,8 @@ Phase 6 の完了報告後、ユーザーから本番デプロイ完了の報告
 3. **結果が「成功」の場合のみ**、`docs/logs/changelog.md` に本番リリース済みである旨がまだ反映されていなければ「日付 / 変更内容 / 関連課題ID」の1行を追記する（changelog.md が存在しない場合は `# Changelog` ヘッダー＋空行を作成してから追記。書式は [backlog-releaser.md](backlog-releaser.md) §3 changelog.md フォールバックと同じ）
 3b. **結果が「一部失敗」「失敗」等、成功以外の場合**、decisions.md・changelog.md へは「リリース済み」の体裁で記録しない（実態と乖離した完了記録を残さない）。代わりに以下を行う:
    - ロールバック実施状況（Step 2/3 の「dry-run/デプロイが失敗した場合の切り分け」でのロールバック手順を実施済みか、一部コンポーネントのみ適用された状態で残っているか）を確認する
-   - 既存の `docs/logs/{issueID}/release-issue.md` があれば `release-issue.R{N}.md` へリネームして退避してから、今回の一部失敗の内容（デプロイ日時・結果・ロールバック実施状況）を `docs/logs/{issueID}/release-issue.md`（退避後のため新規作成）に記録する（Step 2/3 の失敗時と同じ退避ルール）
-   - decisions.md の当該課題エントリには「本番リリース: 一部失敗（{日時}）。ロールバック状況: {内容}。詳細は release-issue.md 参照」と追記する（「リリース予定日 / 担当」欄は更新しない＝未完了のため）
+   - 既存の `docs/logs/{issueID}/prod-release-issue.md` があれば `prod-release-issue.R{N}.md` へリネームして退避してから、今回の一部失敗の内容（デプロイ日時・結果・ロールバック実施状況）を `docs/logs/{issueID}/prod-release-issue.md`（退避後のため新規作成）に記録する（Step 2/3 の失敗時と同じ退避ルール・ファイル名）
+   - decisions.md の当該課題エントリには「本番リリース: 一部失敗（{日時}）。ロールバック状況: {内容}。詳細は prod-release-issue.md 参照」と追記する（「リリース予定日 / 担当」欄は更新しない＝未完了のため）
 4. 完了を報告する:
 ```
 ## {issueID} 本番リリース実施記録
@@ -384,7 +384,7 @@ Phase 6 の完了報告後、ユーザーから本番デプロイ完了の報告
 - 結果: {成功 / 一部失敗等}
 
 {結果が成功の場合}decisions.md「リリース予定日 / 担当」欄・changelog.md に記録しました。
-{結果が一部失敗・失敗の場合}decisions.md に一部失敗の旨・ロールバック状況を追記しました（リリース予定日/担当欄・changelog.md は未更新）。詳細: docs/logs/{issueID}/release-issue.md
+{結果が一部失敗・失敗の場合}decisions.md に一部失敗の旨・ロールバック状況を追記しました（リリース予定日/担当欄・changelog.md は未更新）。詳細: docs/logs/{issueID}/prod-release-issue.md
 ```
 
 ---

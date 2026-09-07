@@ -2,7 +2,15 @@
 
 `docs/logs/{issueID}/` 配下の既存成果物の有無に応じて再開可能フェーズをテキストで列挙して選択を促す:
 
-- `release-issue.md` 存在 → まず `release-issue.md` を Read し、記録されている差し戻し先 Phase（Phase 4 または Phase 5）を確認したうえで選択肢を出す:
+**`prod-release-issue.md` が存在する場合（本番リリース段階の差し戻し。`release-issue.md` より優先して判定し、存在すればこちらのみ処理する。両方存在する場合、`release-issue.md` は Sandbox 段階で既に解消済みの過去記録のため案内対象にしない）**: 本ファイルの他の分岐と異なり `/backlog` 内のフェーズではなく別コマンド（`/release`）への案内になるため、末尾の「選択されたフェーズの該当節へ進む」の対象にせずここで完結させる:
+- `prod-release-issue.md` を Read し、記録されている差し戻し先（本番固有の失敗／実装起因の失敗。release-preparer.md Phase 5 Step 2/3 の切り分けと同じ区分）を確認する
+- **本番固有の失敗**（org drift・権限不足・API バージョン不整合等）: 「原因を解消した上で `/release {issueID}` を再実行してください（release-preparer が資材マニフェスト・ドリフト確認を再チェックします）」と案内する。`/backlog` の再開は行わない
+- **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等）: 「Phase 4（実装修正）から / 中止 のどれにしますか？」と確認する。選択後は Phase 4 実施 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施するよう案内する
+- 分岐を提示する前に `docs/logs/{issueID}/` 配下の `prod-release-issue.R{N}.md` 本数（＝本番リリースからの過去の差し戻し回数）を確認する。現在の `prod-release-issue.md`（今回分）を含めた通算差し戻し回数が4回目以上に達している場合は「本番リリースの差し戻しが繰り返されています。業務担当者との打ち合わせを推奨します」を添えて提示する
+
+`prod-release-issue.md` が存在しない場合、以下の分岐（いずれも `/backlog` 内のフェーズへの再開）に進む:
+
+- `release-issue.md` 存在 → まず `release-issue.md` を Read し、記録されている差し戻し先 Phase（Phase 4 または Phase 5）を確認したうえで選択肢を出す（**Sandbox リリース段階〔backlog-releaser.md〕の差し戻し専用。本番リリース段階〔release-preparer.md〕の差し戻しは上記 `prod-release-issue.md` を参照**）:
   - 差し戻し先が Phase 4（実装ロジック起因の挙動不良） → 「Phase 4（実装修正）から / Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
   - 差し戻し先が Phase 5（デプロイ失敗等・dry-run で検知可能な問題） → 「Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
   - 分岐を提示する前に `docs/logs/{issueID}/` 配下の `release-issue.R{N}.md` 本数（＝ Phase 6 からの過去の差し戻し回数）を確認する。現在の `release-issue.md`（今回分）を含めた通算差し戻し回数が4回目以上に達している場合は「Phase 6 からの差し戻しが繰り返されています。業務担当者との打ち合わせを推奨します」を添えて提示する。
