@@ -76,6 +76,8 @@ Step 0b（オプション index 読込）は Step 0a 完了後に続けて実施
 
 > **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。概要・メリット・デメリット・懸念事項 等の文章欄は日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
 
+併せて `docs/logs/{issueID}/discussion-log.md` の末尾 20 件（またはファイル全体が短ければ全件）を Read し、まだ成果物に反映されていない指摘がないか確認してから作業を開始する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §読み込みタイミング（各エージェント Step 0a）参照。ファイルが存在しない場合はスキップ）。
+
 ---
 
 ## Step 0a-2: 自明ケース判定（上位スキップフラグ）

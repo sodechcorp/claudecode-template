@@ -48,6 +48,8 @@ project_dir: {プロジェクトルートパス}
 focus_hints: ["{関連コンポーネント一覧から抽出したキーワード}"]
 ```
 
+併せて `docs/logs/{issueID}/discussion-log.md` の末尾 20 件（またはファイル全体が短ければ全件）を Read し、まだ成果物に反映されていない指摘がないか確認してから作業を開始する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §読み込みタイミング（各エージェント Step 0a）参照。ファイルが存在しない場合はスキップ）。
+
 ---
 
 ## Step 0b: 関連オプションの判定
