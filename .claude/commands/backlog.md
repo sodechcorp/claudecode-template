@@ -343,6 +343,8 @@ python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d
 
 ```
 モード: 対応方針（Phase A）
+issueID: {issueID}
+project_dir: {プロジェクトルートパス}
 調査レポート: docs/logs/{issueID}/investigation.md
 仮説検証レポート: docs/logs/{issueID}/hypothesis-verification.md（バグ系のみ。ファイルが存在する場合）
 出力先: docs/logs/{issueID}/approach-plan.md
@@ -368,6 +370,8 @@ default_stance: {バグ="最小修正＋既存への影響ゼロを最優先" / 
 
 ```
 モード: 実装方針（Phase B）
+issueID: {issueID}
+project_dir: {プロジェクトルートパス}
 採用方針: {承認された案名}
 調査レポート: docs/logs/{issueID}/investigation.md
 出力先: docs/logs/{issueID}/implementation-plan.md
