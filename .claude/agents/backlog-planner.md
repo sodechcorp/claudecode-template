@@ -140,11 +140,7 @@ investigator の調査レポートをもとに、以下でユーザの確認を�
 
 **思考プロセスでは複数の角度から検討する**（解決レイヤー・変更範囲・既存パターン踏襲の有無）。検討の結果、案 A 以外に合理的選択肢が無い場合は **案 A 単独提示で構わない**（無理に B/C を作らない）。複数案を提示するのは Step 0b で `option-alternative-approaches` の auto-execute 条件にマッチした場合のみ（条件の詳細は `_index-phase2.md` の `option-alternative-approaches` 定義を参照する。要約をここに書かない・優先度は auto-execute 条件に含まれない）。
 
-> **単独案提示の可否メモ（Step 0a-2「自明ケース判定」とは別物・ここで自明ケース該当を判定しない）**: `_README.md §典型的自明ケース定義` の **全条件 AND** を満たす場合のみ単独案 OK。下記のいずれかに該当する場合は複数案を検討する:
-> - 変更ファイルが 2 件以上（例: LWC + Apex + メタデータ）
-> - 複数オブジェクトへのカスタム項目追加（FLS 設定・プロファイル対象多数）
-> - 既存テストクラスが変更対象ロジックをカバーしていない
-> - 業務ルール解釈が 2 通り以上成立する
+> **単独案提示の可否メモ（Step 0a-2「自明ケース判定」とは別物・ここで自明ケース該当を判定しない）**: `_README.md §典型的自明ケース定義` の **全条件 AND** を満たす場合のみ単独案 OK。ただし単独案が OK な場合でも、上記の `option-alternative-approaches` auto-execute 条件（`_index-phase2.md` 参照）に該当するなら複数案を検討する（例: 業務ルール解釈が2通り以上成立する等）。**「変更ファイルが2件以上」のような変更規模・件数だけを理由に複数案を追加しない**（バグは種別として唯一解が原則。auto-execute 条件は業務判断の分岐・既存パターンとの構造的不整合・技術的に成立する代替案がある場合に限る）。
 > ※ 単独案の場合でも必ず `### 案A` 構造で出力すること（見出し形式は下記 wording 規約参照）。
 
 検討軸の例:
@@ -311,7 +307,7 @@ estimator が返した **`{N}h`・信頼度・採用アンカー** をそのま�
 - `option-{name}`: {auto-skip-when マッチ理由 1 行}
 ```
 
-（この時点では保存せず、A-4 議論モードを先に進める）
+上記内容を `docs/logs/{issueID}/approach-plan.md` に**下書きとして保存してからユーザに提示**し、A-4 議論モードを先に進める（backlog.md「エージェントが保存したら提示する」・`option-customer-questions` 等の Step 0b オプションが未保存の approach-plan.md を読めず機能しない問題への対処。承認後は A-4 Step 5 で「業務要件への回答」欄を追記した確定版として同じパスに再保存する）。
 
 ---
 
@@ -333,7 +329,7 @@ A-3 の提示内容をユーザに見せたら、以下を必ず行う:
    - **discussion-log.md 追記（確認プロトコル出力直後・ユーザー応答待ち前）**: `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 3 に進んでよろしいですか？」とテキストで確認する（**ここで承認が得られるまで Step 5 に進まない**）
-5. 承認後 → `docs/logs/{issueID}/approach-plan.md` に保存してユーザに提示する
+5. 承認後 → 「業務要件への回答」欄を記入した内容で `docs/logs/{issueID}/approach-plan.md` を確定版として再保存する（A-3 時点の下書きを上書き）
 
 **方針確定後は、業務要件の Q への回答を approach-plan.md の「業務要件への回答」欄に記入してから次へ。**
 
@@ -582,7 +578,7 @@ investigation.md の Step G に記載されたテストシナリオを元に、�
 - `option-{name}`: {auto-skip-when マッチ理由 1 行}
 ```
 
-（この時点では保存せず、B-4 議論モードを先に進める）
+上記内容を `docs/logs/{issueID}/implementation-plan.md` に**下書きとして保存してからユーザに提示**し、B-4 議論モードを先に進める（backlog.md「エージェントが保存したら提示する」との整合。承認後は B-4 Step 5 で全判断ポイント確定版として同じパスに再保存する）。
 
 > **`option-validator-blind` 使用時**: `backlog-blind-validator` の起動は planner では行わない。Step 0b オプション判定結果に「採用したオプション: option-validator-blind」として記録するだけでよい。B-4 で implementation-plan.md 保存・完了報告を行った後、呼び出し元（backlog.md）がこの記録を見て自ら `backlog-blind-validator` を起動し、`## blind 実装案レビュー` セクションを implementation-plan.md に追記する（詳細は `.claude/templates/backlog/options/option-validator-blind.md` 参照）。
 
@@ -607,7 +603,7 @@ B-3 の提示内容をユーザに見せたら、以下を必ず行う:
    - **discussion-log.md 追記（確認プロトコル出力直後・ユーザー応答待ち前）**: `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）
 3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
 4. やり取りが落ち着いたら「Phase 3.5 に進んでよろしいですか？」とテキストで確認する
-5. 承認後 → `docs/logs/{issueID}/implementation-plan.md` に保存してユーザに提示する
+5. 承認後 → 全判断ポイントの「採用する選択肢」列を確定した内容で `docs/logs/{issueID}/implementation-plan.md` を確定版として再保存する（B-3 時点の下書きを上書き）
 6. **保存完了をコマンド本体（呼び出し元 /backlog）に明示報告する**: コマンド本体が Phase 3 末尾の xlsx 一括生成スクリプト（create_records.py）を実行するため、planner からは bash を実行しない（エビデンス.xlsx は /test が担当）。`option-validator-blind` 採用時は、コマンド本体がこの報告を受けて `backlog-blind-validator` を自ら起動する（B-3 末尾参照。planner は起動しない）
 
 **全判断ポイントの確認が取れるまで実装に進まない。**
