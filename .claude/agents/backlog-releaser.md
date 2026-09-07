@@ -19,7 +19,7 @@ tools:
 >
 > **`mcp__notion__API-post-page`（Step 3.9 専用）**: プロジェクトの `.mcp.json` に `notion` サーバーが未設定の環境ではツール自体が接続されない。Step 3.9 は呼び出し前に `.mcp.json` の存在確認をスキップ判定に組み込んでおり、未接続でも Phase 6 全体は失敗しない。
 
-> **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
+> **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。この規約は `python -c` のインラインスクリプト内で `pathlib.Path(...)` 等がファイルパスを扱う場合にも適用され、CWD 相対パスは使わない。
 
 ## Step 0a: SFコンテキスト読込（sf-context-loader 経由）
 
@@ -102,6 +102,8 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 ## リリース手順
 
 ### 1. 接続先確認
+
+> **スキップ判定**: `deploy_route` が `manual-operation`（2b. 管理画面直接操作）の場合、この Step は実施せず 2b へ直接進む（デプロイ・Sandbox 接続自体が発生しないため、本番/Sandbox 判定は不要）。
 
 > 共通手順: [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) を参照してSandbox判定を実施する。
 
@@ -234,7 +236,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 > ```
 > マッチする行があれば「Phase 5 で decisions.md に追記済みのため本 Step は重複追記をスキップします」と1行通知し、以降の追記処理を行わない。マッチなし（`docs/decisions.md` が未作成の場合を含む）の場合のみ以下を実行する。
 
-`docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）から採用方針・判断ポイント・業務要件回答を把握し、`docs/decisions.md` に判断記録を追記する。前工程ファイルが存在しない場合は「approach-plan.md / implementation-plan.md が見つかりません」とユーザに通知して続行し、decisions.md の対応する空欄（採用方針・実装の主な判断・業務要件への回答）は「不明（前工程ファイルなし）」と記入する。
+`docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）から採用方針・判断ポイント・業務要件回答を把握し、`docs/decisions.md` の**最上部に先頭挿入**（降順管理・最新が先頭。下流の sf-context-loader.md / regression-guard.md / pattern-curator.md / sf-effort-estimator.md / backlog.md が先頭 N 行のみ Read/Grep する前提のため、末尾追加は不可）して判断記録を追記する。前工程ファイルが存在しない場合は「approach-plan.md / implementation-plan.md が見つかりません」とユーザに通知して続行し、decisions.md の対応する空欄（採用方針・実装の主な判断・業務要件への回答）は「不明（前工程ファイルなし）」と記入する。
 
 > 追記フォーマット: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリ
 
@@ -371,7 +373,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 1. `docs/knowledge/cases/{issueKey}.md` が存在しない（Step 3.8 がスキップ済み）
 2. `.mcp.json` に `notion` サーバー定義が存在しない:
    ```bash
-   python -c "import json,pathlib; p=pathlib.Path('.mcp.json'); d=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {}; print('notion' in d.get('mcpServers', {}))"
+   python -c "import json,pathlib; p=pathlib.Path(r'{project_dir}/.mcp.json'); d=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {}; print('notion' in d.get('mcpServers', {}))"
    ```
    出力が `False` の場合はスキップし、「Notion MCP 未設定のため全社共有ナレッジ登録をスキップしました（設定するには `/setup-mcp`）」と1行通知する。
 3. `docs/knowledge/cases/{issueKey}.md` 内に既に `全社共有ナレッジ登録済み:` の行がある（重複登録防止。通知不要）
@@ -417,7 +419,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 送信先 DB ID の確定（`docs/.backlog_config.yml` に `company_knowledge_notion_db_id` があれば優先。会社の Notion ナレッジ DB 構成が変わった場合の上書き用）:
 
 ```bash
-python -c "import yaml,pathlib; p=pathlib.Path('docs/.backlog_config.yml'); d=yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; print(d.get('company_knowledge_notion_db_id','337632d4-cc0b-8006-a0d7-f9c1b4c8229a'))"
+python -c "import yaml,pathlib; p=pathlib.Path(r'{project_dir}/docs/.backlog_config.yml'); d=yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; print(d.get('company_knowledge_notion_db_id','337632d4-cc0b-8006-a0d7-f9c1b4c8229a'))"
 ```
 
 `mcp__notion__API-post-page` を実行する:
@@ -449,10 +451,10 @@ children:
 > フォーマット: [CLAUDE.md §Output Format](../CLAUDE.md#output-format)「完了報告」行 / 詳細: [completion-report-spec.md](../templates/common/completion-report-spec.md) に従う。
 
 ```
-## {issueID} {alias} Sandbox で対応完了（本番未反映）
+## {issueID} {alias} {deploy_route が `manual-operation` の場合: 管理画面操作手順書の作成完了（デプロイなし・操作は未実施） / それ以外（`normal`）の場合: Sandbox で対応完了（本番未反映）}
 
 ### 確認環境
-- {alias}（Sandbox）
+- {deploy_route が `manual-operation` の場合: 未実施（Sandbox デプロイ・操作ともに未実施。担当者が手順書に従い別途操作） / それ以外の場合: {alias}（Sandbox）}
 
 ### 本番反映状況
 **未反映**（本番リリースは別途 /release {issueID} で準備・人間が実施）
@@ -471,9 +473,11 @@ children:
 {あれば列挙。無ければ「未確認事項なし」}
 ```
 
+> **見出し・確認環境の条件分岐**: 見出し行・確認環境欄の `{A の場合: X / それ以外の場合: Y}` は `deploy_route` を評価し、該当する枝の文言のみを出力する（`{}` や `/` 区切りをそのまま出力しない）。
+
 > **残作業の条件付き出力**: 上記テンプレートの `（〜の場合）` 接頭辞が付いた残作業項目は適用条件を示す（出力テキストではない）。各条件を評価し、該当する項目のみ条件接頭辞を除いて出力する。全条件が非該当の場合も「本番反映が必要な場合は〜」は常時含めるため「残作業なし」にはならない。
 
-> ⚠️ 上記の完了報告を出力したら、続けて Step 4.4（effort-log 追記）→ 4.5（case-index 追記）→ 4.6（自己点検）→ 5（サマリー・確認プロトコル・実績工数の任意反映）を同じ応答内で必ず実行する（4.4〜4.6 はユーザー向け出力を伴わない内部処理）。**この完了報告を Step 5 以降で再度出力しない**（本文の完了報告はここで確定・単一のみ）。
+> ⚠️ 上記の完了報告を出力したら、続けて Step 4.4（effort-log 追記）→ 4.5（case-index 追記）→ 4.6（自己点検）→ 5（サマリー・確認プロトコル・実績工数の任意反映）を同じ応答内で必ず実行する（4.4〜4.6 はユーザー向け出力を伴わない内部処理）。**この完了報告を Step 5 以降で全文再出力しない**（本文の完了報告はここで確定・単一のみ。ただし Step 4.6 のセルフチェックで完了報告本体の記載内容に不足が見つかった場合は、Step 5-5 と同様に不足箇所を「訂正: {項目名}」の差分提示で補う。全文の再掲は禁止）。
 
 ---
 
@@ -525,7 +529,7 @@ children:
 
 Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質問・確認に対応するフェーズ）に進む前に以下を自己点検する:
 
-- [ ] デプロイ対象一覧が手順書に記録されているか
+- [ ] デプロイ対象一覧が手順書に記録されているか（2b. 管理画面直接操作の場合は「操作対象」一覧〔管理画面操作手順書内〕の記録を指す）
 - [ ] effort-log.md に見込み工数（単一値）が追記されているか（旧2列形式や内訳再掲になっていないか）
 - [ ] decisions.md が更新されているか（または更新不要の判定がされているか）
 - [ ] 全社共有ナレッジ登録（Step 3.9）の要否判定が実施されたか（スキップした場合、理由が「Notion MCP 未設定」または「共有不可判定」のいずれかで説明できるか）
@@ -545,7 +549,7 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 >    ```
 > 4. 手順2の期待パスのうち手順3の一覧に含まれないものを「未更新の可能性」として記録する。**内容の正しさまでは検証しない存在+更新有無の機械確認であり、ブロッキングしない**（WARNING 扱い）。1件以上あれば完了報告の「未確認事項」に `⚠ catalog/design 未更新の可能性: {パス一覧}` として明記する。0件なら内部記録のみで完了報告への記載は不要。
 
-未充足項目があれば該当 Step に戻って完了させる。
+未充足項目があれば該当 Step に戻って完了させる（Step 4 本体〔完了報告テキスト〕自体の記載不足は、全文再出力ではなく上記「⚠️」注記の差分提示で補う）。
 
 ---
 

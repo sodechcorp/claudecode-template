@@ -566,6 +566,7 @@ xlsx_folder: {xlsx_folder}
 
 ```
 実装計画: docs/logs/{issueID}/implementation-plan.md
+種別: {issue_type}
 project_dir: {プロジェクトルートパス}
 xlsx_folder: {xlsx_folder}
 deploy_route: {deploy_route}

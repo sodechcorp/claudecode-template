@@ -7,7 +7,7 @@
 
 ## decisions.md エントリ
 
-`docs/decisions.md` に追記するエントリのフォーマット:
+`docs/decisions.md` の**最上部に先頭挿入**するエントリのフォーマット（降順管理・最新が先頭。下流の sf-context-loader.md 等が先頭 N 行のみ Read/Grep する前提のため末尾追加は不可）:
 
 ```markdown
 ## {issueID}: {件名}（{YYYY-MM-DD}）

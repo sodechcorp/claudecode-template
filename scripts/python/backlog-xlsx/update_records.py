@@ -207,16 +207,17 @@ def cmd_timeline(args, wb):
     # 次の空行を取得
     next_row = find_next_empty_row(ws, col=1, start_row=data_start)
 
-    # 重複検出: 直前の非空行と phase + content が一致する場合はスキップ
+    # 重複検出: セクション内の既存行を全件走査し phase + content が一致するものがあればスキップ
+    # （直前1行のみの比較だと、フェーズ再開等で間に別フェーズの追記が挟まった場合に重複を見逃すため全件走査する）
     if not getattr(args, "force", False):
-        for r in range(next_row - 1, data_start - 1, -1):
-            if ws.cell(r, 1).value is not None:
-                existing_phase = str(ws.cell(r, 4).value or "").strip()
-                existing_content = str(ws.cell(r, 5).value or "").strip()
-                if existing_phase == str(args.phase).strip() and existing_content == str(args.content).strip():
-                    print(f"[SKIP] 重複: phase={args.phase}, content={args.content[:30]}... （--force で強制追記）")
-                    return
-                break
+        for r in range(data_start, next_row):
+            if ws.cell(r, 1).value is None:
+                continue
+            existing_phase = str(ws.cell(r, 4).value or "").strip()
+            existing_content = str(ws.cell(r, 5).value or "").strip()
+            if existing_phase == str(args.phase).strip() and existing_content == str(args.content).strip():
+                print(f"[SKIP] 重複: phase={args.phase}, content={args.content[:30]}... （--force で強制追記）")
+                return
 
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     fill = _stripe_fill(no - 1)
