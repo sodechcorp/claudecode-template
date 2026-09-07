@@ -113,10 +113,13 @@ Step 2（dry-run デプロイ）が `<alias>` を使うため、ここで先に�
 **Apex 変更あり**（`<テストクラス名>` は変更対象クラス・トリガーに対応するテストクラスをスペース区切りで列挙）:
 ```bash
 sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
-  --test-level RunSpecifiedTests --tests <テストクラス名> --concise
+  --test-level RunSpecifiedTests --tests <テストクラス名> --concise \
+  --coverage-formatters json-summary --results-dir docs/logs/{issueID}/coverage
 ```
 
 > **対応テストクラス不在の場合（変更対象の全クラス・トリガーに対応テストクラスが1件も見つからない場合）**: `<テストクラス名>` が空になるときは `RunSpecifiedTests` ではなく `NoTestRun`（コンパイル検証のみ）にフォールバックする。Step 4 の報告に「対応テストクラス未整備（カバレッジ未検証・要テスト追加）」を明記する。この場合 Step 4 で必ず「NoTestRun フォールバック: 発生」フラグを立て、総合判定を自動 PASS にせず「条件付きPASS（ユーザー判断要）」とする。
+
+> **変更クラスカバレッジ%の取得方法**: `--concise` はクラス別カバレッジ%を標準出力に表示しないため（`--verbose` と排他）、上記コマンドの `--coverage-formatters json-summary --results-dir` オプションが出力するレポートから読み取る。実行後 `docs/logs/{issueID}/coverage/` 配下を Glob（`**/coverage-summary.json`）で検索し、見つかったファイルを Read して変更対象クラスに対応するカバレッジ%を Step 4「変更クラスカバレッジ」欄に転記する。ファイルが見つからない場合は「取得失敗（要確認）」と記録し、数値を推測で記入しない。
 
 **Apex 変更なし**（コンパイル検証のみ）:
 ```bash
@@ -127,7 +130,7 @@ sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
 確認:
 - dry-run が 0 errors で成功すること（デプロイ可能）
 - Apex 変更ありの場合: 指定テストが全 PASS すること
-- Apex 変更ありの場合: 変更クラスのカバレッジが適切であること（目安: 75% 以上）
+- Apex 変更ありの場合: 変更クラスのカバレッジが適切であること（目安: 75% 以上。coverage-summary.json 参照）
 
 ---
 
@@ -149,6 +152,16 @@ dry-run のためコードは Sandbox に届いていない。変更の反映を
 
 > **Phase 3.5 のクロスレビューとの違い**: Phase 3.5（backlog-validator Step 4）の権限/FLS 確認は実装前の既存コード・実装計画を対象とする。以下の「実装レビュー」表の FLS/CRUD 項目は、Phase 4 で実際に書かれた新規コードそのものを対象とする（Phase 3.5 時点では存在しなかったコードの検証のため重複ではない）。
 
+---
+
+## 総合判定の優先順位ルール（エージェント判断用・出力に転記しない）
+
+総合判定は以下の優先順位で確定する: ① 実装レビュー表（ガバナ制限・FLS/CRUD・エラーハンドリング・実装計画との整合）に FAIL が1件でもある → 最優先で「FAIL（Phase 4 に差し戻す）」（dry-run が 0 errors でも自動 PASS にしない） / ② ①非該当かつ NoTestRun フォールバック発生（対応テストクラス未整備） → 「条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要）」固定とし、ユーザー判断（テスト追加 or 明示スキップ承認）を待つ / ③ ①②いずれも非該当 → 「PASS（Phase 6 へ進む）」。
+
+test-report.md の「### 総合判定」セクションには、上記ルールで確定した**結果のみ**を記載する。本ルールの説明文自体は転記しない。
+
+---
+
 ```
 ## スモーク確認結果: {issueID}
 
@@ -169,8 +182,6 @@ NoTestRun フォールバック: なし / 発生（対応テストクラス未�
 
 ### 総合判定
 PASS（Phase 6 へ進む） / 条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要） / FAIL（Phase 4 に差し戻す）
-
-> NoTestRun フォールバック発生時は dry-run が 0 errors でも自動 PASS にしない。「条件付きPASS」固定とし、ユーザー判断（テスト追加 or 明示スキップ承認）を待つ。
 
 FAIL の場合:
 - NG 原因: {1行で記述}
