@@ -87,7 +87,7 @@
 
 ## test-prerequisites.md 追記フォーマット
 
-`docs/knowledge/test-prerequisites.md` への追記ルール。このファイルは **`/upgrade`（docs-scaffold）が初回配布**する（既存は上書きしない）。`ui-evidence-runner`（§1）・`auto-evidence-runner`（§2/§4）が実測値を **Edit で差分追記**する。**Write による全文上書きは禁止**。
+`docs/knowledge/test-prerequisites.md` への追記ルール。このファイルは **`/upgrade`（docs-scaffold）が初回配布**する（既存は上書きしない）。`ui-evidence-runner`（§1）・`auto-evidence-runner`（§2/§4）・`backlog-repro-runner`（§1/§4 のみ。詳細は下記）が実測値を **Edit で差分追記**する。**Write による全文上書きは禁止**。
 
 ### ファイル不在時の create-if-absent（runner フォールバック）
 
@@ -137,6 +137,7 @@
 ### 追記上限・安全弁
 
 - **1回の /test で最大5行**（§1/§2/§4 合算）。超過した場合は優先度の高いもの（§1 > §2 > §4）を選んで残りは次回以降。
+- **1回の /backlog Phase 1.6（backlog-repro-runner）で最大2行**（§1/§4 合算。§2 は対象外 — §2 の追記フォーマットは `AUTOTEST_{issueID}_{TC_No}_` という /test 側の命名規則が前提で、Phase 1.6 は `REPRO_{issueID}_H{仮説番号}_` 命名・H 番号管理のため § 2 とはキー体系が合わない）。**/test の 5 行クォータとは独立**（Phase 1.6 と /test は同一課題内でも別タイミングで実行されるため合算しない）。
 - 追記は `## {セクション見出し}` の直後・表ヘッダーの直後に先頭挿入（最新が先頭）。
 - Edit 直前に機密チェック（frontdoor URL・accessToken・パスワードが含まれていないことを確認）。
 - ファイルが不在の場合は上記 create-if-absent 手順でファイルを生成してから追記する。
