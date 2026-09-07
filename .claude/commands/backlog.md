@@ -382,7 +382,7 @@ default_stance: {Phase 2 と同じ値を引き継ぐ}
 
 **`option-validator-blind` 採用時のみ（本コマンドが直接実行）**: implementation-plan.md の「Step 0b オプション判定結果」で `option-validator-blind` が採用されている場合、以下を実行する（二段ネストを避けるため backlog-planner ではなく本コマンドが直接行う）:
 1. investigation.md の「課題原文」セクションから課題本文の全文・全コメントのテキストを取得する（既に disk 上にあるため Read で取得。MCP 再取得は不要）。
-2. approach-plan.md の「採用方針:」行の1行のみを取得する（それ以外の内容は一切含めない。blind 性維持のため）。
+2. approach-plan.md の「採用方針:」行の1行のみを取得する（それ以外の内容は一切含めない。blind 性維持のため）。**`--light` の場合は approach-plan.md が存在しないため（L378 と同じ理由）、ファイルは読まず採用方針テキストを「最小修正・既存パターン踏襲」固定値とする。**
 3. `.claude/templates/backlog/blind-prompts/validator.md` の Task prompt テンプレートを Read し、プレースホルダー（`{issueID}` `{課題本文の全文}` `{全コメントのテキスト}` `{investigation.md のテキスト}` `{採用方針テキスト}`）を実行時の値で置換して `backlog-blind-validator` を起動する。
 4. 返却されたテキストの先頭が `## エラー` 形式（backlog-blind-validator.md §異常時の挙動: missing-input / blind-leaked）かどうかを判定する。
    - **エラー形式でない場合**: 返却されたテキスト（backlog-blind-validator.md の出力）と implementation-plan.md 本文（parent 案）を突き合わせ、`option-validator-blind.md` §出力 の形式（`## blind 実装案レビュー` → `### subagent 独立案の概要` + `### parent 案との相違点（blind 差異）`）で implementation-plan.md の末尾に追記する。比較表の「判断ポイント」行は blind 案側の小見出し（処理構造／データ設計／SOQL／エラーハンドリング／副作用対応。該当なしの項目は行ごと省略）を用い、「parent 案」列は implementation-plan.md 本文の対応箇所を要約する。「採用判断」列は空欄のまま残し、次の確認プロトコル（Phase 3 完了時のユーザー確認）でユーザーに判断を委ねる。

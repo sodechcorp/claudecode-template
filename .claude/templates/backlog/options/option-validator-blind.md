@@ -19,8 +19,9 @@ backlog.md（本体）が用意する引き渡し情報（investigation.md・app
 **禁止事項**: prompt に implementation-plan.md の内容（ファイル本文・要約・参照のいずれも）を含めないこと。含めた時点で blind 性が崩壊する。
 
 subagent が返す内容:
-- 独立に生成した実装案（処理構造・データ設計・SOQL・エラーハンドリング）
-- parent の implementation-plan との相違点（blind 差異）
+- 独立に生成した実装案の主要ポイント（処理構造・データ設計・SOQL・エラーハンドリング・副作用対応）
+
+> parent 案との相違点（blind 差異）は subagent ではなく本コマンド（呼び出し元）が implementation-plan.md 本文と突き合わせて作成する。subagent は implementation-plan.md を受け取らないため相違点そのものを生成できない（blind 性の保全）。
 
 ## 出力
 
