@@ -2,7 +2,7 @@
 
 ユーザーに「目視確認・再現確認・手動確認・お客様確認」を促す全ての箇所は、本テンプレートの手順で **レコードURL・レコードID・操作手順を準備した状態で渡す**。「Sandbox 上でプレフィックス検索してください」のような丸投げは禁止。
 
-> 参照元エージェント: `backlog-repro-runner.md`（Phase 1.6）/ `auto-evidence-runner.md`・`ui-evidence-runner.md`（/test）/ `backlog-releaser.md`（Phase 6）
+> 参照元: `backlog-repro-runner.md`（Phase 1.6）/ `auto-evidence-runner.md`・`ui-evidence-runner.md`（/test）/ `backlog-releaser.md`（Phase 6）/ `test.md`（完了報告の「要手動確認」節）
 
 ---
 

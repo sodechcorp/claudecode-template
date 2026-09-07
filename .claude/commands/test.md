@@ -1,13 +1,13 @@
 ---
 description: "Salesforce 保守課題の実装後テストを全自動実行し、証跡採取・OK/NG判定・エビデンスExcel出力まで行う。/backlog Phase 6（Sandboxデプロイ）後に /test [課題ID] で実行。"
-argument-hint: "[課題ID]"
+argument-hint: "[課題ID] [--full] [--force] [--serial]"
 ---
 
 # /test [課題ID]
 
 Salesforce 保守課題の実装後テストを全自動実行し、エビデンスを証跡採取・Excel 出力する。
 
-`/backlog` Phase 6（Sandbox デプロイ）完了後に実行する網羅的テスト工程。デプロイ済み Sandbox を前提として証跡を自動採取し Excel 出力する（本コマンドはデプロイしない）。
+`/backlog` Phase 6（Sandbox デプロイ）完了後に実行する網羅的テスト工程。デプロイ済み Sandbox を前提として証跡を自動採取し Excel 出力する（通常フローではデプロイしない。例外: Phase F-2 の NG 自動修正ループが発動した場合のみ、修正後の軽量再デプロイを実施する）。
 
 ---
 
@@ -36,15 +36,23 @@ if [ -z "$ISSUE_ID" ]; then
   exit 1
 fi
 
-# オプション（/test {issueID} [--full] [--force]）— アシスタントが起動引数から置換
+# オプション（/test {issueID} [--full] [--force] [--serial]）— アシスタントが起動引数から置換
 #   --full 指定時 → FORCE_FULL=1 / 未指定 → 空
 #   --force 指定時 → FORCE_SPEC=true / 未指定 → false
+#   --serial 指定時 → FORCE_SERIAL=true / 未指定 → false（低速組織・API 制限時の全逐次フォールバック。Phase C の serial パラメータに渡す）
 FORCE_FULL="{force_full}"
 FORCE_SPEC="{force_spec}"
+FORCE_SERIAL="{force_serial}"
 
 # 2. プロジェクトルート・ログディレクトリの確定
 PROJECT_DIR="$(pwd -W)"
 LOG_DIR="${PROJECT_DIR}/docs/logs/${ISSUE_ID}"
+
+# 2.5. プロジェクトルート判定（SFDX プロジェクト外での誤実行を早期検知。sf-setup.md と同一パターン）
+if [ ! -f "${PROJECT_DIR}/sfdx-project.json" ]; then
+  echo "[FATAL] sfdx-project.json が見つかりません（${PROJECT_DIR}）。SFDX プロジェクトのルートで実行してください。"
+  exit 1
+fi
 
 # 3. 必須ファイルの存在確認
 if [ ! -f "${LOG_DIR}/implementation-plan.md" ]; then
@@ -101,11 +109,19 @@ if [ -z "$XLSX_FOLDER" ]; then
 fi
 
 # ③ xlsx_folder 未設定 — 自動フォールバック禁止。ユーザー確認待ちマーカーを出力する
-if [ -z "$XLSX_FOLDER" ]; then
+#    ただし --light（xlsx 非対応で意図的に null）または xlsx-setup.md「作成しない」選択
+#    （investigation.md フロントマターへ evidence_dir 書き戻し済み）は正規の未作成選択のため、
+#    Phase 1.5 未実行の誤診断（[XLSX_FOLDER_UNRESOLVED]）を出さず INFO 表示に留める。
+if [ -z "$XLSX_FOLDER" ] && [ "$LIGHT_MODE" != "true" ] && [ -z "$EVIDENCE_DIR" ]; then
   echo "[XLSX_FOLDER_UNRESOLVED] investigation.md の xlsx_folder 欄が空で、.backlog_config.yml にも記録がありません。"
   echo "  【診断】原因の可能性: /backlog の Phase 1.5（xlsx_folder 確定ステップ）が未実行、または compact 再開時に investigation.md のフロントマターへ xlsx_folder が書き戻されていない可能性があります。"
   echo "  → investigation.md の frontmatter に 'xlsx_folder:' 行があり値が入っているか確認してください。空なら /backlog を再開してフォルダを確定させると解消します。"
   echo "  対応記録フォルダを特定できません。このまま続行するか、正しいパスを指定してください。"
+elif [ -z "$XLSX_FOLDER" ]; then
+  echo "[INFO] xlsx_folder は未設定です（--light または『xlsx 作成しない』選択のため想定内）。証跡は xlsx を使わず evidence_dir 配下に保存します。"
+  if [ -z "$EVIDENCE_DIR" ]; then
+    EVIDENCE_DIR="${LOG_DIR}/evidence"
+  fi
 fi
 if [ -n "$XLSX_FOLDER" ] && [ -z "$EVIDENCE_DIR" ]; then
   EVIDENCE_DIR="${XLSX_FOLDER}/evidence"
@@ -113,6 +129,8 @@ fi
 SPEC_PATH="${LOG_DIR}/test-spec.md"
 JUDGMENT_PATH="${LOG_DIR}/judgment-result.json"
 LIGHT_MODE="${LIGHT_MODE:-false}"
+echo "PROJECT_DIR=$PROJECT_DIR"
+echo "LOG_DIR=$LOG_DIR"
 echo "XLSX_FOLDER=$XLSX_FOLDER"
 echo "EVIDENCE_DIR=$EVIDENCE_DIR"
 echo "SPEC_PATH=$SPEC_PATH"
@@ -157,23 +175,7 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   # ただし除外した結果リストが空になる場合（残り NG が要確認のみ）は「空リスト＝全件再実行」の
   # 既存フォールバックに落ちて無関係な OK 済み TC まで巻き込んでしまうため、その場合のみ除外前の
   # リストにロールバックする（=除外前と同じ挙動に留め、退化させない）。
-  TARGET_TC_LIST=$(python -c "
-import json, os, sys
-sys.path.insert(0, os.path.join(os.getcwd(), 'scripts', 'python', 'backlog-xlsx'))
-from _common import parse_test_spec
-d = json.load(open(r'$JUDGMENT_PATH'))
-prev = {r['no']: r.get('status') for r in d.get('results', [])}
-prev_ng_type = {r['no']: r.get('ng_type', '') for r in d.get('results', [])}
-try:
-    spec_nos = [tc.get('No', '') for tc in parse_test_spec(r'$SPEC_PATH')]
-except Exception:
-    spec_nos = list(prev.keys())
-raw_target = [no for no in spec_nos if prev.get(no, 'NEW') in ('NG', 'SKIP', 'NEW')]
-capture_target = [no for no in raw_target
-                   if not (prev.get(no) == 'NG' and prev_ng_type.get(no, '') == '要確認')]
-target = capture_target if capture_target else raw_target
-print(','.join(target))
-" 2>/dev/null || echo "")
+  TARGET_TC_LIST=$(python "$(pwd -W)/scripts/python/backlog-xlsx/resolve_target_tcs.py" --judgment "$JUDGMENT_PATH" --spec "$SPEC_PATH" 2>/dev/null || echo "")
   if [ -z "$TARGET_TC_LIST" ]; then
     echo "[INFO] 前回 NG・SKIP・新規 TC なし（前回全件 OK）。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
   else
@@ -183,6 +185,7 @@ print(','.join(target))
 else
   echo "[INFO] 全量実行モード（初回または --full 指定）"
 fi
+echo "TARGET_TC_LIST=$TARGET_TC_LIST"
 
 # 8. 再開確認
 if [ -d "${EVIDENCE_DIR}/after" ]; then
@@ -197,7 +200,7 @@ fi
 > - **「docs/logs/ に出力する」**: `XLSX_FOLDER = docs/logs/{issueID}/`、`EVIDENCE_DIR = docs/logs/{issueID}/evidence` として続行する  
 > - **パス入力**: そのパスを `XLSX_FOLDER`・`EVIDENCE_DIR = {パス}/evidence` として設定してから続行する
 
-**実行内容の提示**（提示のみ・停止しない。ユーザーは `/test {issueID}` を明示入力済みで課題ID・Sandbox は確定済みのため。実データへの書き込みを伴う操作の承認は Step 1.5 メール到達安全確認ゲートに集約する）:
+**実行内容の提示**（提示のみ・停止しない。ユーザーは `/test {issueID}` を明示入力済みで課題ID・Sandbox は確定済みのため。実データへの書き込みを伴う操作の承認は auto-evidence-runner.md Step 1.5（メール到達安全確認）に集約する）:
 
 ```
 === /test 実行内容 ===
@@ -218,7 +221,7 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
   Phase E: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
   Phase F: test-report.md 生成・一時ファイル後始末（テストデータは削除せず Sandbox に保持）
 ```
-上記を表示したうえで確認を待たずそのまま Phase A に進む。
+上記を表示したうえで確認を待たずそのまま Phase A-2（環境準備）に進む。
 
 > **[ハーネス直接実行（A-2: 環境準備）]**
 
@@ -255,7 +258,7 @@ python -c "import PIL" 2>/dev/null || {
 - `validation_report_path`: `{log_dir}/validation-report.md`（Phase 3.5 regression-guard の逆参照結果。軸3消費者リスト source・省略可）
 - `light_mode`: `{LIGHT_MODE}`（`/backlog --light` で対応した課題かどうか。investigation.md フロントマターから読み取り済み）
 
-`test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。
+`test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。返却に `[WARN]` 行（investigation.md 不在による軸1・軸3スキップ、軸3 消費者リスト source 不在等）が含まれる場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
 
 > **仕様スキーマ（参考）**: 11 列 — No / 観点 / 種別 / 前提・データ準備 / 実行アクション / テスト手順 / 期待結果 / 判定方法 / 証跡取得 / 自動化可否 / 確認ポイント（着眼点）。`テスト手順` と `確認ポイント（着眼点）` は任意列（詳細は `test-spec-builder.md` §Step 2 参照）。  
 > 詳細な展開ルール・種別選択肢・自動化可否判断基準・網羅性チェック手順は `test-spec-builder.md` に定義されている。  
@@ -283,7 +286,7 @@ python -c "import PIL" 2>/dev/null || {
 - `max_workers_soql`: 4（低速組織や API 制限が疑われる場合は 1 で逐次 / `--serial` を渡す）
 - `max_workers_anon`: 3（同上）
 - `max_workers_ui`: 3（UI 並列コンテキスト数。`--serial` 指定時は 1 で逐次フォールバック）
-- `serial`: false（`--serial` 指定時は true で全逐次フォールバック）
+- `serial`: `${FORCE_SERIAL:-false}`（`--serial` 指定時は true で全逐次フォールバック）
 - ※ `judgment_path` は **渡さない**（= 証跡採取モードで起動。後始末・test-report.md 生成は Phase F が担当）
 
 **実行の流れ**（`auto-evidence-runner` 内部・証跡採取モード）:
@@ -293,10 +296,14 @@ python -c "import PIL" 2>/dev/null || {
 4. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）。読み取り専用ケースは複数コンテキスト並列（max_workers_ui=3）、データ更新/Login As ケースは逐次
 5. 証跡存在確認（後始末・test-report.md 生成は Phase F が担当）
 
-実行後に証跡ファイルの存在確認:
+実行後に証跡ファイルの存在確認（0件ゲート・早期検知）:
 ```bash
 echo "=== 証跡ファイル一覧 ==="
 ls -lhR "{evidence_dir}/after/" 2>/dev/null | grep -E "\.(txt|png)$"
+EVIDENCE_COUNT=$(find "{evidence_dir}/after" -type f \( -name "*.txt" -o -name "*.png" \) 2>/dev/null | wc -l)
+if [ "$EVIDENCE_COUNT" -eq 0 ]; then
+  echo "[WARN] 証跡ファイルが1件も見つかりません。auto-evidence-runner が正常に完了したか確認してください（このまま Phase D に進むと全 TC が「証跡ファイルが見つかりません」で NG になります）。"
+fi
 ```
 
 ---
@@ -307,12 +314,13 @@ ls -lhR "{evidence_dir}/after/" 2>/dev/null | grep -E "\.(txt|png)$"
 
 ```bash
 # 差分再実行時は前回判定を --prev で渡して前回 OK をマージする（.prev は毎回最新 judgment へ更新）
-PREV_ARG=""
+# 配列で保持する（プレーン文字列 + 非クォート展開だとパスに空白を含む場合に単語分割で壊れる）
+PREV_ARGS=()
 if [ -f "{judgment_path}" ]; then
   cp "{judgment_path}" "{judgment_path}.prev"
 fi
 if [ -f "{judgment_path}.prev" ]; then
-  PREV_ARG="--prev {judgment_path}.prev"
+  PREV_ARGS=(--prev "{judgment_path}.prev")
 fi
 
 python "$(pwd -W)/scripts/python/backlog-xlsx/judge_results.py" \
@@ -321,7 +329,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/judge_results.py" \
   --spec "{spec_path}" \
   --evidence-dir "{evidence_dir}/after" \
   --out "{judgment_path}" \
-  $PREV_ARG
+  "${PREV_ARGS[@]}"
 
 # judge_results.py は exit 1 で NG を報告する。同一ブロック内で終了コードを確認（別ブロックだと Bash の新シェル起動により $? が無効化される）
 RC=$?
@@ -355,7 +363,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
 **手順1（レポート生成）**: test-report.md 生成・tmp/ 削除（決定論的変換のためスクリプト直接実行、サブエージェント不要）:
 
 ```bash
-python "{project_dir}/scripts/python/backlog-xlsx/generate_test_report.py" \
+python "$(pwd -W)/scripts/python/backlog-xlsx/generate_test_report.py" \
   --issue-id "{issueID}" \
   --judgment "{judgment_path}" \
   --spec "{spec_path}" \
@@ -375,7 +383,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/generate_test_report.py" \
 - `evidence_dir`: `{evidence_dir}`
 - `spec_path`: `{spec_path}`
 - `judgment_path`: `{judgment_path}`（**必須**・Phase D の `judge_results.py` が生成した JSON。§ 2 レシピ還流の実行条件判定に使う）
-- ※ `alias` / `instance_url` / `xlsx_folder` / `target_tc_list` / `max_workers_*` / `serial` は不要（test-report.md 本体は F-0 で生成済み・証跡採取も再実行しないため）
+- ※ `alias` / `instance_url` / `xlsx_folder` / `target_tc_list` / `max_workers_*` / `serial` は不要（test-report.md 本体は本 Phase の手順1で生成済み・証跡採取も再実行しないため）
 
 `{judgment_path}` が指定されているため auto-evidence-runner は**知見還流モード**（Step 7 のみ）で起動する。手順1が生成した `{log_dir}/test-report.md` の「### テストデータ」セクションに、還流結果（または還流スキップの理由）を追記する。
 
@@ -426,12 +434,7 @@ echo "JUDGMENT_HASH=${JUDGMENT_HASH} / CACHED_HASH=${CACHED_HASH}"
 
 1. **After 状態のテキスト要約を自動生成する**（`{judgment_path}` の `results[]` から機械的に組み立てる。LLM 生成ではなく決定的な変換）:
    ```bash
-   python -c "
-import json
-d = json.load(open(r'{judgment_path}', encoding='utf-8'))
-lines = [f\"- {r['label']}: {r['actual']}\" for r in d.get('results', []) if r.get('status') in ('OK', '対象外')]
-print(chr(10).join(lines) if lines else '(該当する実行結果なし)')
-"
+   python "$(pwd -W)/scripts/python/backlog-xlsx/summarize_after.py" --judgment "{judgment_path}"
    ```
 2. **実施日時を取得する**: `TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M JST'`
 3. **課題本文・全コメント**: F-1a の手順2でキャッシュ不一致となり全コメントを取得済みならそれを再利用する。F-1a がキャッシュヒットして軽量フェッチ（最新コメント1件のみ）で終わっていた場合は、ここで改めて `mcp__backlog__get_issue_comments`（引数なし＝全コメント）を実行する
@@ -452,11 +455,20 @@ print(chr(10).join(lines) if lines else '(該当する実行結果なし)')
 
 #### 総合判定への反映
 
-F-1a の「最終判定」が「追加実装要」、または F-1b を実行して判定が「解決済み」以外だった場合（**かつ `NG_COUNT` が 0 の場合に限る**）、`{log_dir}/test-report.md` の「### 総合判定」欄を以下に書き換える:
+`{log_dir}/test-report.md` の「### 総合判定」欄を以下の組み合わせで判定する:
+
+| `NG_COUNT` | F-1a 最終判定 | F-1b 判定 | 総合判定欄 |
+|---|---|---|---|
+| ≠ 0 | （不問。F-1b は未実行） | （不問） | 変更しない（Phase F が書き込んだ「FAIL」を維持） |
+| = 0 | 追加実装要 | （不問） | 「条件付きPASS」に書き換え |
+| = 0 | リリース可 | 解決済み以外 | 「条件付きPASS」に書き換え |
+| = 0 | リリース可 | 解決済み | 変更しない（Phase F が書き込んだ「PASS」を維持） |
+
+「条件付きPASS」への書き換え内容:
 ```
 条件付きPASS（要確認: 受入基準再確認・blind最終判定で指摘あり。詳細は「## 受入基準再確認」「## blind 最終解決判定」を参照）
 ```
-F-1a が「全項目 OK・リリース可」かつ（F-1b が「解決済み」または `NG_COUNT` 非0でスキップ）の場合、または `NG_COUNT` が 0 以外の場合（NG が残っているため Phase F が書き込んだ「FAIL」を維持する。F-1a の「追加実装要」判定は「## 受入基準再確認」セクションへの記録のみに留める）は総合判定を変更しない。
+「変更しない」の場合も、F-1a の「追加実装要」判定自体は「## 受入基準再確認」セクションへの記録として残る（総合判定欄には反映しないだけ）。
 
 > **キャッシュ済み**: F-1b は `.blind-verdict.json`（`judgment-result.json` の hash 紐付け）により、差分再実行で証跡・判定結果に変化がない場合は `option-final-verifier` の再起動をスキップし前回結果を再掲する（2026-08-18 実装）。
 
@@ -484,9 +496,12 @@ echo "その他のNG（要確認/未実行）: ${OTHER_NG:-なし}"
 **`AUTO_FIX_TCS` が非空の場合**: 以下のガードを確認する。
 
 ```bash
-# ループ上限チェック（退避済み R{N}.json 本数で通算カウント。退避自体は次回 /test Phase A が実施・ここでは読むだけ）
+# ループ上限チェック（退避済み R{N}.json の最大回次番号 N で通算カウント。欠番があっても
+# 本数（ファイル数）ではなく最大値を基準にする＝過少カウントで上限判定が緩まないようにする。
+# 退避自体は次回 /test 実行時に judge_results.py の _archive_previous_round（判定）/
+# auto-evidence-runner Step 0.5（証跡）が実施する。Phase A では行わない・ここでは読むだけ）
 PREV_ROUND_F2=$(python -c "import glob, re; base = r'{judgment_path}'.replace('.json',''); files = glob.glob(base + '.R*.json'); nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]; print(max(nums) if nums else 0)" 2>/dev/null || echo "0")
-echo "これまでの NG 修正回数（退避済み R{N} 本数）: ${PREV_ROUND_F2} 回"
+echo "これまでの NG 修正回数（退避済み R{N}.json の最大回次番号）: ${PREV_ROUND_F2} 回"
 
 # 前提ファイルの存在確認（backlog-implementer が必須とするファイル）
 PLAN_EXISTS=$([ -f "{log_dir}/implementation-plan.md" ] && echo "true" || echo "false")
@@ -495,7 +510,7 @@ echo "implementation-plan.md: ${PLAN_EXISTS} / investigation.md: ${INVEST_EXISTS
 ```
 
 **ガード①: ループ上限到達（`PREV_ROUND_F2 >= 3`）**:
-→ 自動修正をスキップ。後続「NG があった場合の差し戻し」セクションで「繰り返し NG が続いています。業務担当者との打合せを推奨します。」を提示して停止する。
+→ 自動修正をスキップ。後続「NG があった場合の差し戻し」セクションで「繰り返し NG が続いています。業務担当者との打合せを推奨します。」を提示し、ユーザーに継続・中止の判断を求める（`test-fail-routing.md` §「ループ上限」と同一の扱い）。
 
 **ガード②: 前提ファイル欠落**（`PLAN_EXISTS` または `INVEST_EXISTS` が false）:
 → 自動修正不可。「`implementation-plan.md` / `investigation.md` が見つかりません。`/backlog` Phase 1〜3 を先に完了させてください。」を提示し、後続の手動案内に移行する。
@@ -569,7 +584,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 
 次のステップ（別セッションで実施）:
   /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC のみ再テスト）。
-  次回 /test 起動時に今回の judgment-result.json と証跡が自動的に R{N+1} として退避されます。
+  次回 /test 起動時に今回の judgment-result.json と証跡が自動的に次の回次として退避されます。
   ⚠ 差分モードは今回の修正が前回 OK だった他 TC に影響していないか（回帰）までは検出しません。
     修正がバグ再現 TC 以外のコンポーネントにも及ぶ場合は --full での全件再テストを検討してください。
 ```
@@ -593,11 +608,12 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 
    NG 種類が混在している場合は、実装バグ（ng_type 空）を最優先で修正してから再テストする。
 
-2. **ループ回次を確認する**（`judgment-result.R{N}.json` のファイル数 = これまでの NG 修正回数。`test-fail-routing.md` §「ループ上限」のセッション跨ぎ通算カウント基準と同一）:
+2. **ループ回次を確認する**（`judgment-result.R{N}.json` の最大回次番号 N = これまでの NG 修正回数。欠番があってもファイル数ではなく最大値を基準にする＝ Phase F-2 ガード①の `PREV_ROUND_F2` と同一の算出方法。`test-fail-routing.md` §「ループ上限」のセッション跨ぎ通算カウント基準と同一）:
    ```bash
-   ls "{log_dir}"/judgment-result.R*.json 2>/dev/null | wc -l
+   PREV_ROUND=$(python -c "import glob, re; base = r'{log_dir}/judgment-result'; files = glob.glob(base + '.R*.json'); nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]; print(max(nums) if nums else 0)")
+   echo "PREV_ROUND=$PREV_ROUND"
    ```
-   3 回以上の場合（Phase F-2 ガード①の `PREV_ROUND_F2 >= 3` と同じ基準）は 7 のユーザー提示に「繰り返し NG が続いています。業務担当者との打ち合わせを推奨します」を含める。
+   3 回以上の場合（Phase F-2 ガード①の `PREV_ROUND_F2 >= 3` と同じ基準）は 7 のユーザー提示に「繰り返し NG が続いています。業務担当者との打ち合わせを推奨します」を含め、継続・中止の判断を求める（`test-fail-routing.md` §「ループ上限」と同一の扱い）。
 
 3. `test-report.md` の「NG 一覧」と `.claude/templates/backlog/test-fail-routing.md` で戻り先 Phase を確定する
 
@@ -609,13 +625,14 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    | {YYYY-MM-DD} | /test NG差し戻し | {NGのTC番号・観点} | {NGの原因（実際の結果）} | {修正方針（何をどう変えるか）} | investigation.md §{対応する要求} |
    ```
    これにより「何をなぜ変えたか」が記録に残り、NG 修正ループで実装の方向が課題の真因から静かにずれるのを防ぐ。
-6. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ）:
+6. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ。`--round` は手順2で確認した `PREV_ROUND`（これまでの NG 修正回数）に +1 した今回の回次番号 `CURRENT_ROUND = PREV_ROUND + 1` を使う）:
    ```bash
+   CURRENT_ROUND=$((PREV_ROUND + 1))
    python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
      --folder "{xlsx_folder}" --issue-id "{issueID}" ng-history \
-     --round "R{N}" --tc "{TC番号}" --reason "{NG原因}" --fix "{修正方針}"
+     --round "R${CURRENT_ROUND}" --tc "{TC番号}" --reason "{NG原因}" --fix "{修正方針}"
    ```
-   複数 NG TC がある場合は TC ごとに1回ずつ呼ぶ。
+   複数 NG TC がある場合は TC ごとに1回ずつ呼ぶ（`CURRENT_ROUND` は同一）。
 
 7. ユーザーに戻り先 Phase・NG 原因・修正方針（上記で記録した内容）・（該当時）ループ回次警告・影響範囲 TC 候補を提示する
 
@@ -625,7 +642,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
      1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run 確認）
      2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
      3. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用・取り直しなし）
-        次回 /test 起動時に judgment-result.json と証跡が自動的に R{N} として退避されます
+        次回 /test 起動時に judgment-result.json と証跡が自動的に次の回次として退避されます
    ```
 
 #### xlsx 対応記録の更新（タイムライン）
@@ -634,7 +651,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   --folder "{xlsx_folder}" --issue-id "{issueID}" \
   timeline --phase "テスト" --source "Claude" \
-  --content "Phase C-F 完了: 全{total}件 {NG=0なら'全件PASS' / NG>0なら 'NG={ng}件'}"
+  --content "Phase C〜F-2 完了: 全{total}件 {NG=0なら'全件PASS' / NG>0なら 'NG={ng}件'}"
 ```
 
 ---
@@ -655,9 +672,11 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 ```
 === /test {issueID} 完了 ===
 
+確認環境: Sandbox（{alias}）
+本番反映状況: 未 ⚠️（Sandbox 検証までの完了。本番反映は別セッションで /release {issueID} を実施）
 対応方式: {LIGHT_MODE=true なら "--light（軽微修正）" / false なら "通常"}
 テスト結果: {OK=N / NG=N / 要手動=N}
-総合判定: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認・blind最終判定で指摘あり） / FAIL ❌ （NG が {N} 件）
+総合判定: {実際の判定結果に応じて次の1つを選んで記載: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認・blind最終判定で指摘あり） / FAIL ❌ （NG が {N} 件）}
 
 成果物:
   エビデンス.xlsx : {xlsx_folder}/{issueID}_エビデンス.xlsx
@@ -677,7 +696,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 自動修正: 完了（Phase F-2）
   修正 TC: {auto_fix_tcs}
   次のステップ: 別セッションで /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC のみ再テスト）。
-               次回 /test 起動時に今回の証跡が自動的に R{N} として退避されます。
+               次回 /test 起動時に今回の証跡が自動的に次の回次として退避されます。
                ⚠ 差分モードは今回の修正が前回 OK だった他 TC に影響していないか（回帰）までは検出しません。
                  修正がバグ再現 TC 以外のコンポーネントにも及ぶ場合は --full での全件再テストを検討してください。
 
@@ -688,7 +707,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 
 {手動対応が必要な NG がある場合（要確認/未実行 / 自動修正のガードで止まった場合 / dry-run FAIL の場合）}
 NG 一覧:
-  - TC-00X: {観点} — {理由}（ng_type: {値}）
+  - TC-00X: {観点} — {理由}（種別: 未実行 / 要確認 / 画面エラー / 実装バグ のいずれか。`ng_type` が空欄の場合は「実装バグ」と表示する）
 
 修正手順（この順番で実施してください）:
   1. implementation-plan.md の改版履歴にNG原因と修正方針を追記
@@ -703,6 +722,8 @@ NG 一覧:
   - TC-00X: {観点} — エビデンス.xlsx「証跡」シートに手動でスクショを貼り付けてください。
     確認対象: {ラベル（日本語表示名）} / URL: {instance_url}/lightning/r/{SObject}/{Id}/view または {画面URL（クエリ除去済み）} / 操作手順: {test-spec.mdの「テスト手順」列 or 要約}
     ※ 対象レコード・URLが特定できない TC は URL 行を省略する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）
+
+未確認事項: {Phase B（test-spec-builder）返却の [WARN] 行があれば列挙 ＋ 要手動確認 TC があれば「上記「要手動確認」参照（Playwright では機械判定できない画面のため目視確認が必要）」を追記 / いずれもなければ「未確認事項なし」}
 ```
 
 test-report.md の「🔎 目視確認のご案内」に全対象の一覧（レコードURL・操作手順つき）がまとまっている。要手動・NG（画面エラー含む）ともにここから直接開いて確認できる。
@@ -714,5 +735,5 @@ test-report.md の「🔎 目視確認のご案内」に全対象の一覧（レ
 - **本番組織への操作は Phase A で物理ブロック**。Sandbox alias でのみ実行可。
 - accessToken は一切ファイルに保存しない（`sf org open --url-only` のワンタイム URL のみ使用）。
 - テストデータ（`AUTOTEST_{issueID}_` プレフィックス）は削除しない。Sandbox に蓄積させ、ユーザーが目視で確認できるようにする。
-- `/backlog` Phase 6（Sandbox デプロイ）完了後の後続工程。デプロイ済み Sandbox を前提として網羅的テストを実施する（本コマンドはデプロイしない）。
+- `/backlog` Phase 6（Sandbox デプロイ）完了後の後続工程。デプロイ済み Sandbox を前提として網羅的テストを実施する（通常フローではデプロイしない。例外: Phase F-2 の NG 自動修正ループが発動した場合のみ、修正後の軽量再デプロイを実施する）。
 - **`/test` は共有コンポーネント修正漏れの二次防御（バックストップ）**: 同一根本原因が複数入口に fan-out するケースは、修正が共有メソッド自体に入った場合のみ軸3（consumer fan-out）で検出できる。修正が呼び出し元側だけに入った場合は /test では検出できない。一次防御は `/backlog` 調査段階（backlog-investigator の根本原因特定＋ option-reverse-grep / regression-guard の逆参照で全消費者を修正スコープに含める判断。Step C-2 参照）である。

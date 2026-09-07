@@ -75,7 +75,7 @@ mkdir -p "{project_dir}/.sf" && python -c "import json,time; json.dump({'alias':
 
 > **テストデータは削除しない**: AnonApex で永続化したテストデータ（`AUTOTEST_{issueID}_` プレフィックス）は Sandbox に蓄積させる方針。Sandbox は積み上げてよく、ユーザーが目視で確認する用途にも使うため、自動 cleanup は行わない（旧 Step 3-2.5・3-4 は廃止）。
 
-**OK/NG の権威判定は `/test` Phase E の `judge_results.py` が担当**する（`judgment-result.json` に保存）。test-report.md への反映（判定列・NG 一覧・サマリー）は `generate_test_report.py` が行う。
+**OK/NG の権威判定は `/test` Phase D の `judge_results.py` が担当**する（`judgment-result.json` に保存）。test-report.md への反映（判定列・NG 一覧・サマリー）は `generate_test_report.py` が行う。
 
 ---
 
@@ -331,13 +331,13 @@ EOF
 
 **Login As 降格（要手動）の spec 反映（必須）**: `ui-evidence-runner` の返却テーブルで「要手動」（Login As 不可による降格）と記録された TC がある場合、`{spec_path}`（test-spec.md）の該当 TC 行の `自動化可否` セルを `要手動（Login As不可）` に Edit する（Step 1 の「実行時に判明する『対象外』の扱い」と同じ Edit 方式）。**これを行わないと `judge_results.py` は spec 上「自動」のままの当該 TC の証跡を探しに行き、証跡が存在しないため「要手動確認」ではなく誤って NG（未実行）と判定する**（`judge_results.py` は `自動化可否` セルに `要手動` を含む TC のみ判定をスキップする仕様）。
 
-test-report.md の最終的な OK/NG 判定は Phase E の `judge_results.py` が行い、test-report.md 本体の生成は Phase F で `generate_test_report.py` が `{judgment_path}` JSON から行う。
+test-report.md の最終的な OK/NG 判定は Phase D の `judge_results.py` が行い、test-report.md 本体の生成は Phase F で `generate_test_report.py` が `{judgment_path}` JSON から行う。
 
 ---
 
 ## Step 5〜6（廃止・スクリプト化済み）
 
-旧 Step 5（tmp/ 一時ファイルの後始末）・旧 Step 6（test-report.md の生成）は、判定列・NG一覧・サマリー・目視ハンドオフブロックの組み立てが `{judgment_path}`（`judge_results.py` が Phase E で生成した `judgment-result.json`）と `{spec_path}` からの**決定論的な変換のみ**で完結するため、LLM 判断を要さない。`/test` Phase F は本エージェントを委譲する前に以下を直接実行し、この2ステップを完了させる（**本エージェントはこのコマンドを実行しない**。呼び出し元 `/test` の実行内容を参考掲載しているのみ）:
+旧 Step 5（tmp/ 一時ファイルの後始末）・旧 Step 6（test-report.md の生成）は、判定列・NG一覧・サマリー・目視ハンドオフブロックの組み立てが `{judgment_path}`（`judge_results.py` が Phase D で生成した `judgment-result.json`）と `{spec_path}` からの**決定論的な変換のみ**で完結するため、LLM 判断を要さない。`/test` Phase F は本エージェントを委譲する前に以下を直接実行し、この2ステップを完了させる（**本エージェントはこのコマンドを実行しない**。呼び出し元 `/test` の実行内容を参考掲載しているのみ）:
 
 ```bash
 python "{project_dir}/scripts/python/backlog-xlsx/generate_test_report.py" \
@@ -415,7 +415,7 @@ find "{evidence_dir}/after/screen" -name "*.png" -size -1k 2>/dev/null
 
 - [ ] SOQL ケース: 全件 txt 出力あり（Step 2 の `[WARN]` で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する）
 - [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む。Step 3-3 のコンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する）
-- [ ] UI ケース: ui-evidence-runner の返却で対象 TC 全件について結果行（OK / NG / 要手動）が返っている（PNG 各 1KB 以上・DOM スナップショット txt ありは `ok: true` 分のみ対象。**正当な NG（画面エラー検知等）・要手動（Login As 降格）は証跡採取の試行自体は完了しているため、この項目の未充足とはしない**。SOQL/AnonApex 項目と同様「証跡取得を試行し結果が出ているか」を基準とし、OK/NG 自体の最終判定は Phase E `judge_results.py` に委ねる）
+- [ ] UI ケース: ui-evidence-runner の返却で対象 TC 全件について結果行（OK / NG / 要手動）が返っている（PNG 各 1KB 以上・DOM スナップショット txt ありは `ok: true` 分のみ対象。**正当な NG（画面エラー検知等）・要手動（Login As 降格）は証跡採取の試行自体は完了しているため、この項目の未充足とはしない**。SOQL/AnonApex 項目と同様「証跡取得を試行し結果が出ているか」を基準とし、OK/NG 自体の最終判定は Phase D `judge_results.py` に委ねる）
 - [ ] （Phase F のみ）`{log_dir}/test-report.md` が存在すること（`generate_test_report.py` の実行漏れがないこと）
 - [ ] （Phase F のみ）Step 7 の追記（還流内容 or スキップ記録）が test-report.md に反映されていること
 - [ ] accessToken がいかなるファイル・ログにも出力されていない（確認コマンド例。出力が空なら OK）:
