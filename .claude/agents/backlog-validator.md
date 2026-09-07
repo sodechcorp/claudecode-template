@@ -36,6 +36,7 @@ backlog-implementer が安全・確実に実装できるよう、**5オプショ
 implementation-plan.md 冒頭に「自明ケース判定: 該当」の記録がある場合のみ該当とする。**課題内容（implementation-plan.md の確定実装方針等）から validator が独自に典型的自明ケース（[_README.md §典型的自明ケース定義](../templates/backlog/_README.md) を参照）と判断することは禁止**。
 
 - **該当する場合**（implementation-plan.md 冒頭に「自明ケース判定: 該当」の記録がある）:
+  - **本判定が Step 0b（オプションの auto-skip-when 判定）に優先する。Step 0b の個別判定は行わない**（`option-evidence-check` の auto-skip-when「typo 修正・ラベル変更のみ」は典型的自明ケースと重なり、そのまま評価すると Step 5 の要否が本 Step の結論と矛盾するため）
   - Step 1〜4 全てを skip
   - Step 5 (エビデンス確認) のみ実施
   - 総合判定: 「Phase 4（実装）へ進んでよい（自明ケースのため検証簡略化）」
@@ -71,7 +72,7 @@ implementation-plan.md 冒頭に「自明ケース判定: 該当」の記録が�
 
 ## 事前準備
 
-issueID は呼び出し元（backlog.md Phase 3.5）の引数として渡される（例: LINK-139）。渡されない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら「対象 issueID を `XXX-1`、`XXX-2`... のどれにしますか？」とテキストで確認する。
+issueID は呼び出し元（backlog.md Phase 3.5 Step C）から渡される `実装計画: docs/logs/{issueID}/implementation-plan.md` 等のパスに埋め込まれた値から特定する（例: LINK-139。独立した引数として渡されるわけではない）。パスから特定できない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら「対象 issueID を `XXX-1`、`XXX-2`... のどれにしますか？」とテキストで確認する。
 
 Grep で「実装方針まとめ」「Implementation Summary」「テストシナリオ」「Test Scenarios」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」「判断ポイントなし（全カテゴリ一意確定）」「関連コンポーネント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認1・2 で「業務要件への回答」「判断ポイント一覧」を参照するため）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
 
@@ -169,7 +170,7 @@ Step 0a で取得したコンテキスト（context-digest.md または直接 Re
 
 > option: [option-evidence-check](../templates/backlog/options/option-evidence-check.md)（採取手順の定義。実行は呼び出し元が行う）
 
-Before エビデンスの自動採取（UI 影響時の `ui-evidence-runner` 起動を含む）は本エージェントでは行わない。呼び出し元（backlog.md）が Phase 3.5 の冒頭で option-evidence-check の手順を実行し、その結果を本エージェントの起動パラメータ `Beforeエビデンス採取結果:` として渡してくる。**その内容をそのまま validation-report.md の Step 5 セクションに転記する**。パラメータが渡されなかった場合は「該当なし（非UI変更）」として記録する。**ユーザーへの手動取得依頼は行わない**。自動採取不可の場合は理由を事実として記録し、Phase 4 進行をブロックしない。
+Before エビデンスの自動採取（UI 影響時の `ui-evidence-runner` 起動を含む）は本エージェントでは行わない。呼び出し元（backlog.md）が Phase 3.5 の冒頭で option-evidence-check の手順を実行し、その結果を本エージェントの起動パラメータ `Beforeエビデンス採取結果:` として渡してくる。**その内容をそのまま validation-report.md の Step 5 セクションに転記する**（option-evidence-check.md の出力は Before スクリーンショットが「取得済み（{path}）」「該当なし（非UI変更）」「自動採取不可（{理由}）」、Before データ値・ログが「取得済み（{path}）」「不要」「自動採取不可（{理由}）」を区別済みのため、その区別を保ったまま転記する）。**パラメータのキー自体が渡されなかった場合**（呼び出し元での実行漏れの可能性がある想定外ケース）は「該当なし（非UI変更）」と決め打ちせず「エビデンス結果未受領（呼び出し元の実行漏れの可能性）」として記録し、Phase 末尾の確認事項に含める。**ユーザーへの手動取得依頼は行わない**。自動採取不可の場合は理由を事実として記録し、Phase 4 進行をブロックしない。
 
 ---
 
@@ -227,8 +228,8 @@ validation-report.md の「## 総合判定」セクションには、上記ル�
 
 ## Step 5: Before エビデンス自動採取状況
 
-- Before スクリーンショット（自動採取）: {取得済み（{path}） / 該当なし（非UI変更） / 自動採取不可（{理由}）}
-- Before データ値・ログ（SOQL/CLI）: {取得済み（{path}） / 不要 / 自動採取不可（{理由}）}
+- Before スクリーンショット（自動採取）: {Step 5 の指示（上記）で判定した結果}
+- Before データ値・ログ（SOQL/CLI）: {Step 5 の指示（上記）で判定した結果}
 
 ## 総合判定
 

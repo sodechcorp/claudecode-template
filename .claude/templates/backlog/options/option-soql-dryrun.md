@@ -7,16 +7,17 @@
 ## 実行手順
 
 1. implementation-plan.md から実装予定の SOQL を全て抽出する
-2. 各 SOQL を Sandbox で実行する:
+2. Sandbox alias を導出・接続確認する: [sandbox-alias-check.md](../../common/sandbox-alias-check.md) を参照。本番組織での実行は禁止。
+3. 各 SOQL を Sandbox で実行する:
    ```bash
    sf data query --query "{SOQL文}" --target-org {sandbox-alias} --json
    ```
-3. 以下を確認する:
+4. 以下を確認する:
    - 取得件数が想定通りか（多すぎる / 少なすぎる）
    - WHERE 条件の精度（絞りすぎ / 絞り不足）
    - SOQL の実行時間（遅い場合はインデックスの有無を確認）
    - LIMIT の設定が必要かどうか
-4. 問題がある SOQL については implementation-plan.md で修正案を提示する:
+5. 問題がある SOQL については implementation-plan.md で修正案を提示する:
    - WHERE 条件の追加・変更
    - LIMIT の追加
    - インデックス対象フィールドへの変更
