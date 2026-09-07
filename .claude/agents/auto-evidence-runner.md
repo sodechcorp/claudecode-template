@@ -180,7 +180,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 
 `{target_tc_list}` が空文字でもそのまま渡してよい（soql_evidence.py は空文字を全件実行として扱う）。
 
-**`[FATAL]`/`[WARN]` の扱い**: `[WARN] N 件の SOQL ケースでエラーが発生しました。` は個別 TC の失敗（NG）を表すだけで、スクリプト自体は正常終了している。**中断せず Step 3 に進む**（失敗した TC は証跡 txt が生成されないため、完了条件チェックで欠落に気づいた場合は当該 TC を NG として扱う）。一方 `[FATAL]`（Sandbox 接続確認失敗・org display 応答異常等）はスクリプト自体が異常終了（非ゼロ終了コード・トレースバック）しており、SOQL 証跡が一切採取できていない状態のため、**このエラー内容をユーザーに報告して停止する**（Step 0 の Sandbox 判定が通過した直後の失敗は環境側の一時的な問題の可能性があるため、原因を確認してから再試行の要否を判断する）。
+**`[FATAL]`/`[WARN]` の扱い**: `[WARN] N 件の SOQL ケースでエラーが発生しました。` は個別 TC の失敗（NG）を表すだけで、スクリプト自体は正常終了している。**中断せず Step 3 に進む**（失敗した TC も実行失敗内容を記録した証跡 txt が生成されるため、`judge_results.py` が自動で NG 判定する）。一方 `[FATAL]`（Sandbox 接続確認失敗・org display 応答異常等）はスクリプト自体が異常終了（非ゼロ終了コード・トレースバック）しており、SOQL 証跡が一切採取できていない状態のため、**このエラー内容をユーザーに報告して停止する**（Step 0 の Sandbox 判定が通過した直後の失敗は環境側の一時的な問題の可能性があるため、原因を確認してから再試行の要否を判断する）。
 
 ---
 
@@ -237,7 +237,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 
 `{serial}` が true の場合は `--serial` を追加する。
 
-**exit code 1 は想定内（異常終了ではない）**: `run-batch` は対象 TC に 1 件でも失敗（コンパイルエラー・Apex 実行時例外・NG）があると exit code 1 を返す仕様。これは「1件以上 NG があった」ことを表すだけで、コマンド自体の失敗ではない。**exit code を理由に処理を中断せず、そのまま 3-4 に進む**（NG の内容は標準出力の `[NG] {No} ({観点}): {error}` 行で確認できる。コンパイルエラー・実行時例外で失敗した TC は証跡 txt ファイル自体が生成されないため、完了条件チェックで欠落に気づいた場合は当該 TC を NG として扱う）。
+**exit code 1 は想定内（異常終了ではない）**: `run-batch` は対象 TC に 1 件でも失敗（コンパイルエラー・Apex 実行時例外・NG）があると exit code 1 を返す仕様。これは「1件以上 NG があった」ことを表すだけで、コマンド自体の失敗ではない。**exit code を理由に処理を中断せず、そのまま 3-4 に進む**（NG の内容は標準出力の `[NG] {No} ({観点}): {error}` 行で確認できる。コンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した証跡 txt が生成されるため、`judge_results.py` が自動で NG 判定する）。
 
 #### 3-4: 作成レコードの目視URL集約 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
@@ -304,7 +304,7 @@ fi
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
 - `max_workers_ui`: `{serial}` が true の場合は `1`、それ以外は `{max_workers_ui}`（デフォルト 3）
-- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡命名・分岐ラベル・**確認ポイント（着眼点）**・**対象画面**〔任意列。詳細は [test-spec-builder.md](test-spec-builder.md) 参照〕）
+- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡取得・分岐ラベル・**確認ポイント（着眼点）**・**対象画面**〔任意列。詳細は [test-spec-builder.md](test-spec-builder.md) 参照〕）
 
 `ui-evidence-runner` の返却（各 TC の証跡ファイル名・**画面URL**・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。**画面URL 列（`ok: true` の行のみ）は `{log_dir}/ui_screen_urls.txt` に `{No}|{観点}|{画面URL}` 形式で追記する**（Phase F で `generate_test_report.py` が目視ハンドオフブロック生成に使う）。**追記は Bash の `>>` で行う（Write ツールでの新規保存は使わない）**。差分再実行モードで一部 TC のみ処理する場合、Write で上書きすると前回 OK 分の画面URLが失われるため、`created_records.txt`（Step 3-4）と同様に既存内容を保持したまま追記する。**ただし単純追記のみだと同一 TC を再実行するたび行が重複するため、追記前に今回処理した TC（`{ui_cases}` の No 一覧）の既存行を除去してから追記する**（TC 単位の dedup）:
 
@@ -413,8 +413,8 @@ find "{evidence_dir}/after/screen" -name "*.png" -size -1k 2>/dev/null
 
 （`find ... -size -1k` は 1KB 未満の PNG のみを列挙する。出力が空なら全 PNG が 1KB 以上。`ls` はファイル一覧の存在確認用でサイズ検証はできないため、PNG サイズは `find` の結果で判定する。）
 
-- [ ] SOQL ケース: 全件 txt 出力あり（Step 2 の `[WARN]` で失敗した TC は txt が生成されないため対象外。当該 TC は NG として扱う）
-- [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む。Step 3-3 のコンパイルエラー・実行時例外で失敗した TC は txt が生成されないため対象外。当該 TC は NG として扱う）
+- [ ] SOQL ケース: 全件 txt 出力あり（Step 2 の `[WARN]` で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する）
+- [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む。Step 3-3 のコンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する）
 - [ ] UI ケース: ui-evidence-runner の返却で対象 TC 全件について結果行（OK / NG / 要手動）が返っている（PNG 各 1KB 以上・DOM スナップショット txt ありは `ok: true` 分のみ対象。**正当な NG（画面エラー検知等）・要手動（Login As 降格）は証跡採取の試行自体は完了しているため、この項目の未充足とはしない**。SOQL/AnonApex 項目と同様「証跡取得を試行し結果が出ているか」を基準とし、OK/NG 自体の最終判定は Phase E `judge_results.py` に委ねる）
 - [ ] （Phase F のみ）`{log_dir}/test-report.md` が存在すること（`generate_test_report.py` の実行漏れがないこと）
 - [ ] （Phase F のみ）Step 7 の追記（還流内容 or スキップ記録）が test-report.md に反映されていること

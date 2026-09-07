@@ -207,6 +207,38 @@ def to_text_evidence(data: dict, out_path: str, query: str, label: str = "", no:
     return total
 
 
+def write_failure_evidence(out_path: str, query: str, label: str = "", no: str = "", error: str = "") -> None:
+    """SOQL 実行が SystemExit（Sandbox外接続・API エラー・通信エラー等）で失敗した場合の
+    証跡テキストを保存する。to_text_evidence に到達しない異常系でも証跡 txt 自体は
+    必ず生成し、judge_results.py が「証跡ファイルが見つかりません」
+    （ng_type: 未実行 = 再テストのみで対応可）と誤判定しないようにする。
+    「判定: NG — ...」行は judge_results.py の構造化証跡パースで最優先参照され、
+    ng_type なし（= test.md 側で実装バグ扱い）で確実に NG 判定される。
+    """
+    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    reason = re.sub(r"\s+", " ", error).strip()[:200]
+
+    lines = []
+    lines.append("=" * 60)
+    lines.append("SOQL 証跡（実行失敗）")
+    lines.append(f"No      : {no}" if no else "")
+    lines.append(f"観点    : {label}" if label else "")
+    lines.append(f"実行日時: {ts}")
+    lines.append(f"クエリ  : {query}")
+    lines.append("=" * 60)
+    lines.append("実際の値:")
+    lines.append("--- エラー内容 ---")
+    lines.append(error or "（エラー詳細なし）")
+    lines.append("")
+    lines.append(f"判定: NG — {reason}")
+    lines.append("")
+
+    text = "\n".join(l for l in lines if l is not None)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    Path(out_path).write_text(text, encoding="utf-8")
+    print(f"[NG] SOQL 実行失敗証跡を保存: {out_path}")
+
+
 # ── queries-file パーサ（test-spec.md の SOQL 行を抽出） ─────────────────────
 
 def parse_queries_from_spec(spec_path: str) -> list:
@@ -254,8 +286,10 @@ def run_one_soql_case(access_token: str, instance_url: str, api_version: str,
         return {"no": q["no"], "label": q["label"], "ok": True,
                 "count": total, "out": out_path, "error": ""}
     except SystemExit as e:
+        error_msg = str(e)
+        write_failure_evidence(out_path, q["query"], q["label"], q["no"], error_msg)
         return {"no": q["no"], "label": q["label"], "ok": False,
-                "count": None, "out": out_path, "error": str(e)}
+                "count": None, "out": out_path, "error": error_msg}
 
 
 def run_queries_parallel(access_token: str, instance_url: str, api_version: str,

@@ -225,6 +225,39 @@ def to_text_evidence(apex_result: dict, out_path: str, label: str = "", no: str 
     print(f"[OK] Apex 証跡を保存: {out_path}")
 
 
+def write_failure_evidence(out_path: str, label: str = "", no: str = "", error: str = "") -> None:
+    """匿名 Apex 実行が SystemExit（コンパイルエラー・実行時例外・レスポンス異常等）で
+    失敗した場合の証跡テキストを保存する。to_text_evidence に到達しない異常系でも
+    証跡 txt 自体は必ず生成し、judge_results.py が「証跡ファイルが見つかりません」
+    （ng_type: 未実行 = 再テストのみで対応可）と誤判定しないようにする。
+    「判定: NG — ...」行は judge_results.py の構造化証跡パースで最優先参照され、
+    ng_type なし（= test.md 側で実装バグ扱い）で確実に NG 判定される。
+    """
+    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    reason = re.sub(r"\s+", " ", error).strip()[:200]
+
+    lines = []
+    lines.append("=" * 60)
+    lines.append("匿名 Apex 実行証跡（実行失敗）")
+    if no:
+        lines.append(f"No      : {no}")
+    if label:
+        lines.append(f"観点    : {label}")
+    lines.append(f"実行日時: {ts}")
+    lines.append("成功    : False")
+    lines.append("=" * 60)
+    lines.append("実際の値:")
+    lines.append("--- エラー内容 ---")
+    lines.append(error or "（エラー詳細なし）")
+    lines.append("")
+    lines.append(f"判定: NG — {reason}")
+    lines.append("")
+
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    Path(out_path).write_text("\n".join(lines), encoding="utf-8")
+    print(f"[NG] Apex 実行失敗証跡を保存: {out_path}")
+
+
 # ── テストデータ後始末 ────────────────────────────────────────────────────────
 
 def collect_created_ids(alias: str, sobject: str, external_id_prefix: str) -> list:
@@ -329,8 +362,10 @@ def run_one_anon_case(alias: str, case: dict) -> dict:
                 "out": case["out"], "error": "",
                 "compiled": r.get("compiled"), "success": r.get("success")}
     except SystemExit as e:
+        error_msg = str(e)
+        write_failure_evidence(case["out"], case["label"], case["no"], error_msg)
         return {"no": case["no"], "label": case["label"], "ok": False,
-                "out": case["out"], "error": str(e),
+                "out": case["out"], "error": error_msg,
                 "compiled": None, "success": None}
 
 
