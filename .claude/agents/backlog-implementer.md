@@ -52,7 +52,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 > **実装前検証結果（validation-report.md）の確認**: 呼び出し元から `実装前検証結果: docs/logs/{issueID}/validation-report.md` が渡される。ファイルの「NG 項目」セクションに記載がある場合のみ Read し、その内容（NG となった Step・懸念点）を実装時の注意点として反映する（ユーザーが確認の上「続行」を選んだ NG のみ渡される想定）。NG 項目なし・ファイル不在の場合は Read 不要。
 
-併せて `docs/logs/{issueID}/discussion-log.md` の末尾 20 件（またはファイル全体が短ければ全件）を Read し、まだ成果物に反映されていない指摘がないか確認してから作業を開始する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §読み込みタイミング 参照。ファイルが存在しない場合はスキップ）。
+併せて `docs/logs/{issueID}/discussion-log.md` の末尾 20 件（またはファイル全体が短ければ全件）を Read し、まだ成果物に反映されていない指摘がないか確認してから作業を開始する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §読み込みタイミング（各エージェント Step 0a）参照。ファイルが存在しない場合はスキップ）。
 
 ---
 
@@ -238,6 +238,8 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
 > **Before / After は任意**。コード変更がない・比較不要な場合は `## Before / After` セクションごと省略してよい。変更ファイルが複数ある場合は変更ファイルごとに1行追加する。
 
 **④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
+
+> **auto_fix_mode: true の場合はスキップ**: `/test` F-2 自動修正ループでは1回の `/test` 実行で NG 修正サイクルが複数回走りうるため、その都度本 Step を実行すると同一フェーズのタイムライン行が重複蓄積する。`auto_fix_mode` が `true` のときは本 Step（タイムライン追記）のみ省略する（① 実施した対応 / ② 変更を加えた資材一覧 / ③ Before/After の `implementation-summary.md` 書き出しは通常通り実行する）。
 
 > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
 
