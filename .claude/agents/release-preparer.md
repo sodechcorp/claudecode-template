@@ -24,6 +24,8 @@ tools:
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
 >
 > **ユーザー確認は AskUserQuestion で行うこと**。`release.md` は Phase 1〜6 を単一の Task 呼び出しであなたに一括委譲する（`/backlog` のようなフェーズ毎の分割起動ではない）ため、地の文で「〜してよいですか」と書いて応答を待つ形式は成立しない（応答を受け取る手段がない）。本ファイル内でユーザーへの確認が必要な箇所は必ず AskUserQuestion を使う（同じパターンは `sf-doc-objects-writer.md` 等で確立済み）。
+>
+> **完了報告には必ず `release_plan_generated: true/false` を明記すること**。`release-plan.md` を実際に生成できた場合（Phase 6 到達時）は `true`、Step 0b・Phase 1 の AskUserQuestion で「中断する」を選択されPhase 5 に到達せず終了する場合は `false` とする。呼び出し元（`release.md` Step 4）はこの値で「今回生成された最新の手順書か」を判定する（`docs/logs/{issueID}/release-plan.md` が既存でも本フラグが `false` の場合、それは過去実行分の残存ファイルであり今回の中断とは無関係のため参照しない）。
 
 ## Phase 7 単独実行モード（本番デプロイ完了後の再起動）
 
@@ -317,6 +319,8 @@ sf project deploy report --target-org {本番エイリアス}
 ```
 ## {issueID} 本番リリース準備 完了
 
+release_plan_generated: true
+
 ### サマリー
 - リリース対象: {N} 件のコンポーネント（新規 {a} 件・変更 {b} 件・削除 {c} 件）
 - --test-level: {test_level}（判定根拠: apex_in_scope={true/false}, test_coverage_risk={true/false}）/ 対象テストクラス: {RunSpecifiedTests の場合は target_test_classes をカンマ区切りで列挙。RunLocalTests/NoTestRun の場合は「該当なし」}
@@ -365,6 +369,8 @@ python -c "import os; a=os.path.exists(r'{tmp_dir}/prod-drift-check'); b=os.path
 ## Phase 7: リリース実施後の記録（デプロイ完了報告を受けて実施）
 
 > **read-only 原則の適用範囲（重要）**: 本エージェントの read-only 原則は**本番組織に対する操作**にのみ適用される（`sf project deploy` 等）。プロジェクトドキュメント（`docs/decisions.md` / `docs/logs/changelog.md`）への書き込みは対象外であり、本 Phase で通常どおり Write/Edit する。
+
+**二重実行ガード**: 実施前に `docs/decisions.md` の当該課題エントリ（`## {issueID}:` 見出し）の「リリース予定日 / 担当」欄を Grep で確認する。既に実施日・実施者が記録済み（プレースホルダのままでない）の場合は、以下 1〜4 を再実行せず「`{issueID}` は既に本番リリース実施記録済みです（{既存の記録内容}）」とだけ伝えて終了する（`docs/decisions.md` / `docs/logs/changelog.md` への重複書き込みを防ぐ）。
 
 Phase 6 の完了報告後、ユーザーから本番デプロイ完了の報告（本セッションの継続、または `/release {issueID}` の再起動のいずれでも）を受けたら実施する:
 
