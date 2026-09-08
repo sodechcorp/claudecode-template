@@ -278,7 +278,7 @@ sf project deploy report --target-org {本番エイリアス}
 >
 > **戻り先の判断（原因種別で二分岐する）**:
 > - **本番固有の失敗**（org drift・権限不足・API バージョン不整合等、今回のデプロイ対象コード自体には問題がない）→ 原因を解消した上で `/release {issueID}` を再実行する（release-preparer が資材マニフェスト・ドリフト確認を read-only で再チェックし、release-plan.md を再生成する）
-> - **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等が原因）→ 既存の `docs/logs/{issueID}/prod-release-issue.md` があれば `prod-release-issue.R{N}.md`（N = 既存の `prod-release-issue.R*.md` 本数 + 1）へリネームして退避してから、差し戻し理由・現象・ログ・差し戻し先 Phase（`Phase 4`）を `docs/logs/{issueID}/prod-release-issue.md`（退避後のため新規作成）に記録し（backlog-releaser.md §2a の `release-issue.md` と同じスキーマ・退避ルールだが、**ファイル名は `prod-release-issue.md` とし `release-issue.md`〔Sandbox 段階・backlog-releaser 用〕とは分ける**＝本番段階とSandbox段階の差し戻し回数カウンタ・resume-phase-routing.md の案内文言が混線しないようにする。`resume-phase-routing.md` がこのファイルを読んで再開選択肢を出す）、「`/backlog {issueID}` を再実行して Phase 4（実装修正）から再開 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施してください」と人間に案内する
+> - **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等が原因）→ 既存の `docs/logs/{issueID}/prod-release-issue.md` があれば `prod-release-issue.R{N}.md`（N = 既存の `prod-release-issue.R*.md` の最大回次番号 + 1。欠番があってもファイル数ではなく最大値を基準にする）へリネームして退避してから、差し戻し理由・現象・ログ・差し戻し先 Phase（`Phase 4`）を `docs/logs/{issueID}/prod-release-issue.md`（退避後のため新規作成）に記録し（backlog-releaser.md §2a の `release-issue.md` と同じスキーマ・退避ルールだが、**ファイル名は `prod-release-issue.md` とし `release-issue.md`〔Sandbox 段階・backlog-releaser 用〕とは分ける**＝本番段階とSandbox段階の差し戻し回数カウンタ・resume-phase-routing.md の案内文言が混線しないようにする。`resume-phase-routing.md` がこのファイルを読んで再開選択肢を出す）、「`/backlog {issueID}` を再実行して Phase 4（実装修正）から再開 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施してください」と人間に案内する
 > - 切り分けが困難な場合は上記2択を提示し、人間に判断してもらう
 
 {デプロイ順序が分割要の場合は Phase 1 の順序をここに明記。管理画面手動操作がある場合は操作手順を記載}
