@@ -141,3 +141,30 @@
 - 追記は `## {セクション見出し}` の直後・表ヘッダーの直後に先頭挿入（最新が先頭）。
 - Edit 直前に機密チェック（frontdoor URL・accessToken・パスワードが含まれていないことを確認）。
 - ファイルが不在の場合は上記 create-if-absent 手順でファイルを生成してから追記する。
+
+---
+
+## decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用
+
+> いずれも先頭挿入（最新が先頭）で追記専用のため、案件対応が積み重なると無制限に肥大化する。以下の閾値・通知ルールは `backlog-releaser.md` §3（decisions.md）・§3.6（pitfalls.md）・§4.5（case-index.md）の追記処理の**直後**に適用する。
+
+**閾値**（超過時の挙動は自動アーカイブではなく**ユーザーへの一行通知**に留める。案件蓄積の実績が薄い現時点で自動でのファイル分割・行移動を機械的に行うと、閾値付近の判定誤りや大量差分の誤操作リスクが実利より大きいため）:
+
+| ファイル | 閾値 | 根拠 |
+|---|---|---|
+| `docs/decisions.md` | 50 エントリ（`## {issueID}: ...` 単位） | sf-context-loader.md 等が「先頭200行・直近10件」に限定して読む前提のため他2ファイルより緊急度は低いが、無制限放置は避ける |
+| `docs/knowledge/pitfalls.md` | 100 行 | sf-org-analyst.md は行数制限なしで全文 Read するため、肥大化がそのままコンテキスト消費増に直結する |
+| `docs/knowledge/case-index.md` | 200 行 | pattern-curator.md / regression-guard.md / sf-effort-estimator.md / sf-org-analyst.md が行数制限なしで全文 Grep/Read するため、肥大化が全消費者のコストに波及する |
+
+**通知タイミング**: 上記追記処理で1行（またはエントリ）を追加した直後、ファイルの現在の行数（またはエントリ数）を数え、閾値に達している場合のみ以下を完了報告に一行付記する（閾値未満なら何もしない・通知不要）:
+
+```
+⚠ {ファイル名} が {現在件数}{件|行} に達しました（閾値 {閾値}）。docs/knowledge/archive/ 配下への手動アーカイブを検討してください。
+```
+
+**手動アーカイブ時の格納先**（実施は人間判断・本ルールは通知のみで自動実行しない）:
+- `docs/decisions.md` → `docs/decisions-archive.md`
+- `docs/knowledge/pitfalls.md` → `docs/knowledge/archive/pitfalls-archive.md`
+- `docs/knowledge/case-index.md` → `docs/knowledge/archive/case-index-archive.md`
+
+閾値を超えた古い（＝ファイル末尾側の）エントリ・行を上記アーカイブ先の**先頭**に移し、元ファイルからは削除する（先頭挿入運用と対称に、アーカイブ側も最新超過分が先頭に来る）。`case-index.md` の行を移しても `cases/{issueKey}.md` 本体は削除しない（インデックス行の格納場所が変わるだけ）。

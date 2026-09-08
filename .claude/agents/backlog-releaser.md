@@ -239,6 +239,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）から採用方針・判断ポイント・業務要件回答を把握し、`docs/decisions.md` の**最上部に先頭挿入**（降順管理・最新が先頭。下流の sf-context-loader.md / regression-guard.md / pattern-curator.md / sf-effort-estimator.md / backlog.md が先頭 N 行のみ Read/Grep する前提のため、末尾追加は不可）して判断記録を追記する。前工程ファイルが存在しない場合は「approach-plan.md / implementation-plan.md が見つかりません」とユーザに通知して続行し、decisions.md の対応する空欄（採用方針・実装の主な判断・業務要件への回答）は「不明（前工程ファイルなし）」と記入する。
 
 > 追記フォーマット: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリ
+> サイズ上限・アーカイブ通知: 同ファイル §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用 に従い、追記後のエントリ数が閾値以上なら完了報告に一行付記する。
 
 ### 3.5. xlsx 対応記録の追記
 
@@ -295,6 +296,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 4. ユーザーが承認した件のみ追記を実行する
 
 > 追記フォーマット: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §pitfalls.md 追記フォーマット
+> サイズ上限・アーカイブ通知: 同ファイル §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用 に従い、追記後の行数が閾値以上なら完了報告に一行付記する。
 
 ---
 
@@ -340,6 +342,9 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
    - `docs/logs/{issueID}/approach-plan.md`
    - `docs/logs/{issueID}/implementation-plan.md`
    - `docs/logs/{issueID}/test-report.md`
+
+   > **種別が「問い合わせ」の場合**: 上記4ファイルのうち存在するのは `investigation.md` のみ（approach-plan.md / implementation-plan.md / test-report.md は問い合わせルートでは生成されない）。代わりに `docs/logs/{issueID}/answer-draft.md` を使う（`phase2-inquiry-mode.md` から呼ばれた場合のみ Read 対象に追加）。
+
 2. `docs/knowledge/cases/` フォルダが存在しない場合は作成する
 3. 以下の仕様で `docs/knowledge/cases/{issueKey}.md` を新規作成する:
 
@@ -359,6 +364,10 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
      - `## 関連リンク` — 以下の2行を記載:
        - `- Backlog: （{issueID} で Backlog 検索）`
        - `- docs/logs/{issueID}/: 前工程ファイル一式`
+
+   **種別が「問い合わせ」の場合**（上記の代わりに以下を使う。`## 調査・検討の経緯` `## 却下案・代替案` は実装検討を伴わないため省略）:
+     - `## 採用方針` — `answer-draft.md` の「### 回答本文（Backlog 投稿用ドラフト）」を転記
+     - `## 教訓・再発防止` — 同セクション内の [要確認] 事項・補足があれば要約。なければ省略
 
 前工程ファイルがいずれも存在しない場合は「前工程ファイルが見当たらないため cases ファイルをスキップ」とログに記録してスキップする。
 
@@ -515,6 +524,8 @@ children:
    - **教訓（全角40字以内）**: investigation.md または approach-plan.md から「再発防止」「教訓」「注意点」に関する記述を抽出。見当たらない場合は `-`
    - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
    - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
+
+   > **種別が「問い合わせ」の場合**: approach-plan.md が存在しないため、**採用方針**は `answer-draft.md` の「### 回答本文（Backlog 投稿用ドラフト）」冒頭40字、**関連用語**は同セクションから API 名・オブジェクト名を最大3個抽出、**根本原因**は `-` 固定（実装を伴わないため）とする。
 2. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）から「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
 3. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
    > 追記フォーマット・新規作成ヘッダー: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §case-index.md 追記フォーマット
@@ -522,6 +533,7 @@ children:
 
 **スキップ条件**: 当課題の行がすでに存在する場合はスキップ（重複防止）。  
 **失敗時**: 「`docs/knowledge/case-index.md` の追記に失敗しました。以下の1行を手動で先頭に追加してください」とユーザーに案内する。
+**サイズ上限・アーカイブ通知**: [knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用 に従い、追記後の行数が閾値以上なら完了報告に一行付記する。
 
 ---
 
