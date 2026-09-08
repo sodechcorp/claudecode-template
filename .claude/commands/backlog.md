@@ -39,7 +39,7 @@ argument-hint: "[課題ID]"
 > - `backlog-planner`: `backlog-blind-validator`（`option-validator-blind` 採用時のみ）を本コマンドが Phase 3 完了直後に直接 Task 起動（詳細は Phase 3 セクション参照）
 > - `backlog-investigator`: `sf-context-loader`（knowledge-only + 通常モード。旧設計では同一メッセージ並列発行しており不安定化要因だった）を本コマンドが Phase 1 開始時に逐次 Task 起動（詳細は Phase 1 セクション参照）。詳細は [agent-routing.md](../spec/agent-routing.md) 参照
 
-**中間成果物の保存先**: `docs/logs/{issueID}/`（主要3ファイルを抜粋。全量は Phase 0d の既存ログ読込リストを参照）
+**中間成果物の保存先**: `docs/logs/{issueID}/`（主要3ファイルを抜粋。resume 時に必ず Read する成果物の一覧は Phase 0d の既存ログ読込リストを参照。ただし Phase 6 の `manual-operation-steps.md` / `release-issue.md` 等の終端成果物は resume 継続性に影響しないため Phase 0d リストに含めていない）
 - `investigation.md` — 調査レポート
 - `approach-plan.md` — 対応方針
 - `implementation-plan.md` — 実装方針（全判断ポイント確定版）
@@ -104,6 +104,16 @@ argument-hint: "[課題ID]"
 
 ### Phase 0: 作業フォルダの作成
 
+**issueID の検証（必須・最優先）**
+
+`{issueID}`（上記「引数の解釈」で確定した値）が空、または Backlog 課題キーの形式（`^[A-Z][A-Z0-9]*-\d+$`。例: `GF-123`）に一致しない場合、接続組織確認・フォルダ作成を含む以降の処理を一切行わずエラーで停止する:
+
+```
+[ERROR] issueID を確認できません（取得値: "{issueID}"）。`/backlog <課題ID>` の形式で課題IDを指定してください（例: `/backlog GF-123`）。
+```
+
+形式に一致する場合のみ次へ進む（未検証のまま `docs/logs/{issueID}/` を作成しない）。
+
 **接続組織の確認**
 
 ```bash
@@ -138,6 +148,7 @@ sf org display --json
 
 この組織に対して課題対応を進めてよろしいですか？
 （本番: 参照のみ可能。データ確認の SELECT 文は都度許可を取ります）
+（以降の Phase は Sandbox での実装・動作確認が前提です。本番接続のまま Phase 1〜4 を進めても、Phase 5（スモーク確認）は Sandbox 未接続のため中断します）
 別の組織に切り替えたい場合: sf config set target-org <alias>
 ```
 
@@ -167,14 +178,15 @@ New-Item -ItemType Directory -Force -Path "docs/logs/{issueID}" | Out-Null
 
 1. `discussion-log.md` — 過去の議論・ユーザー指摘・却下案の経緯
 2. `investigation.md` — 調査済み内容
-3. `approach-plan.md` — 確定済み対応方針
-4. `implementation-plan.md` — 確定済み実装方針
-5. `validation-report.md` — 実装前検証結果
-6. `test-report.md` — テスト結果
+3. `hypothesis-verification.md` — Sandbox 仮説検証結果（Phase 1.6 出力・バグ系のみ存在）
+4. `approach-plan.md` — 確定済み対応方針
+5. `implementation-plan.md` — 確定済み実装方針
+6. `validation-report.md` — 実装前検証結果
+7. `test-report.md` — テスト結果
 
 investigation.md を Read した際はフロントマター（`---` で囲まれた部分）から `issue_type` / `xlsx_folder` / `evidence_dir` / `light_mode` / `deploy_route` を変数として読み取り、以降のフェーズで使用する。
 
-**分割読込ルール**: investigation.md・approach-plan.md・implementation-plan.md・validation-report.md・test-report.md は、**冒頭 80 行 + 末尾 30 行**を読めば十分（ファイルが 110 行未満の場合は全文）。フルが必要なフェーズ（実装フェーズなど）はエージェント側で個別に全文 Read すること（[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通)）。
+**分割読込ルール**: investigation.md・hypothesis-verification.md・approach-plan.md・implementation-plan.md・validation-report.md・test-report.md は、**冒頭 80 行 + 末尾 30 行**を読めば十分（ファイルが 110 行未満の場合は全文）。フルが必要なフェーズ（実装フェーズなど）はエージェント側で個別に全文 Read すること（[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通)）。
 
 横断ファイル（フォルダが空・新規対応の場合も必ず Read する）:
 - `docs/decisions.md` 冒頭 20 件（降順記録のため冒頭が直近。存在し、かつ雛形のみ・実エントリ 0 件でなければ）
@@ -230,13 +242,13 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 > **investigator の確認ゲート**: investigator は課題本文/コメント中の全URL・添付・スクショ・名指しレコードを確認（または取得不能をユーザーに委ねて承認を得る）するまで原因分析に進まない。この確認が完了するまで Step B（コード調査）以降には遷移しない。
 
-> **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `light_mode` / `deploy_route` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照):
-> ```bash
-> python - <<'PYEOF'
-> import pathlib, re
-> invest = pathlib.Path('docs/logs/{issueID}/investigation.md')
+> **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `light_mode` / `deploy_route` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照)。`{tmp_dir}` = `docs/logs/{issueID}/.tmp` に固定し、以下の内容で `{tmp_dir}/write_frontmatter.py` を Write する（[inline-script-hygiene.md](../templates/common/inline-script-hygiene.md) に従い if/for を含む多行ロジックはヒアドキュメントで渡さず外部化する。値は起動時の引数で渡し、スクリプト本体には Claude 置換プレースホルダーを一切含めない。Python の f-string 波括弧との混在を避けるため）:
+> ```python
+> import pathlib, re, sys
+> issue_id, issue_type, light_mode, deploy_route = sys.argv[1:5]
+> invest = pathlib.Path(f'docs/logs/{issue_id}/investigation.md')
 > text = invest.read_text(encoding='utf-8') if invest.exists() else ''
-> keys = {'issue_type': '{issue_type}', 'light_mode': '{light_mode}', 'deploy_route': '{deploy_route}'}
+> keys = {'issue_type': issue_type, 'light_mode': light_mode, 'deploy_route': deploy_route}
 > if text.startswith('---'):
 >     end = text.index('---', 3)
 >     front = text[3:end]
@@ -251,7 +263,10 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 >     fm = '\n'.join(f'{k}: {v}' for k, v in keys.items())
 >     invest.write_text(f'---\n{fm}\n---\n\n{text}', encoding='utf-8')
 > print('[OK] investigation.md issue_type/light_mode/deploy_route 記録完了')
-> PYEOF
+> ```
+> Write 後、以下を実行する（置換対象は本コマンド行の4引数のみ）:
+> ```bash
+> python "{tmp_dir}/write_frontmatter.py" "{issueID}" "{issue_type}" "{light_mode}" "{deploy_route}"
 > ```
 
 > **次に進む条件**: ユーザが調査レポートを確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項をテキストで提示してやり取りを経て進む
@@ -413,7 +428,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/create_records.py" \
    - label: `xlsx なしで続行`、description: "xlsx 生成を断念して Phase 3.5 へ進む"
    - label: `修正して再試行`、description: "エラー原因を修正してスクリプトを再実行する"
    - label: `中止`、description: "コマンドを終了する"
-3. 「xlsx なしで続行」が選ばれた場合: `{xlsx_folder}` = null として Phase 3.5 へ進む。create_records.py が途中成功してファイルが残っている可能性があるため、`{xlsx_folder}` 配下に生成済み xlsx（`{issueID}_対応記録.xlsx`）が存在する場合は削除する（破損ファイルが後続 Phase で誤参照されるのを防ぐため。エビデンス.xlsx はこの Phase では生成しないため削除対象外）
+3. 「xlsx なしで続行」が選ばれた場合: `{xlsx_folder}` = null として Phase 3.5 へ進む。create_records.py が途中成功してファイルが残っている可能性があるため、`{xlsx_folder}` 配下に生成済み xlsx（`{issueID}_対応記録.xlsx`）が存在する場合は削除する（破損ファイルが後続 Phase で誤参照されるのを防ぐため。エビデンス.xlsx はこの Phase では生成しないため削除対象外）。あわせて [xlsx-abandon-frontmatter-clear.md](../templates/backlog/_partials/xlsx-abandon-frontmatter-clear.md) の手順で investigation.md フロントマターの `xlsx_folder` / `evidence_dir` も巻き戻す（Phase 1.5 で書き込み済みのまま残すと /compact 後の Phase 0d 再開時に破棄済みの xlsx_folder が復元される）
 4. この対処結果（選ばれた対応・エラー概要）は会話内で保持しておく（Phase 4 以降の xlsx スクリプト失敗ゲートで、同種のエラーが再発した際に文脈提示するために使う。新たな変数管理・永続化は不要）。
 
 生成完了後にファイルパスをユーザに提示する（`{xlsx_folder}` = null の場合はスキップ）:
@@ -473,6 +488,8 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   --content "実装前検証完了: {ドライラン/テスト/影響範囲/クロスレビュー/エビデンスの結果サマリーを1行で}"
 ```
 
+> スクリプト失敗時（終了コード非0）: エラー内容をユーザに一行提示し、処理は継続する（timeline 追記は記録目的のみで validation-report.md 本体には影響しないため、失敗を理由に Phase 進行をブロックしない）。
+
 > **次に進む条件**: 全検証項目 OK をユーザが確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項・「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？」をテキストで提示してやり取りを経て進む
 >
 > **Phase 3.5 典型例（該当時のみ・0件が原則）**: 「新規発見した影響箇所への対処方針」「Step 1〜3 NG への対処方針」（Before エビデンスは自動採取のためブロッカーにならない）
@@ -513,6 +530,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 1. エラー内容をユーザに提示する
 2. **Phase 3 の xlsx スクリプト失敗ゲートが既にこのセッションで発生している場合**、そのときの対処結果を一言添える（例:「Phase3でも同種のエラーが発生し『修正して再試行』を選択済みです」）。判断の自動適用ではなく、ユーザが状況を思い出しやすくする文脈提示のみ。該当がなければこの手順は省略する。
 3. テキストで選択を確認する:「xlsx なしで続行」（xlsx_folder = null に変更して続行）/「修正して再試行」/「中止」
+4. 「xlsx なしで続行」が選ばれた場合: [xlsx-abandon-frontmatter-clear.md](../templates/backlog/_partials/xlsx-abandon-frontmatter-clear.md) の手順で investigation.md フロントマターの `xlsx_folder` / `evidence_dir` も巻き戻す
 
 **xlsx 充足確認（verify）**（`{xlsx_folder}` が設定されている場合のみ）
 
@@ -525,7 +543,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 verify 結果が **NG（exit 2）** の場合: 未充足枠を提示する。**Phase 3 または直前の xlsx 一括記入ゲートが既にこのセッションで発生している場合**は、その経緯を一言添えてから（判断の自動適用ではなく文脈提示のみ）、テキストで対処を確認する:
 - 「自動補完」: `content-from-md` を再実行する（implementation-summary.md が存在する場合のみ）
 - 「手動修正後続行」: ユーザが xlsx を手動で修正してから続行
-- 「xlsx なしで続行」: `{xlsx_folder}` = null として Phase 5 へ進む
+- 「xlsx なしで続行」: `{xlsx_folder}` = null として Phase 5 へ進む。あわせて [xlsx-abandon-frontmatter-clear.md](../templates/backlog/_partials/xlsx-abandon-frontmatter-clear.md) の手順で investigation.md フロントマターの `xlsx_folder` / `evidence_dir` も巻き戻す
 
 > **次に進む条件**: ユーザが実装内容を確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項・「Phase 5 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
 >
@@ -597,6 +615,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 ```
 
 > スキップ判定: [.claude/templates/backlog/_partials/xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) に従う。
+> スクリプト失敗時（終了コード非0）: 完了報告に「⚠ xlsx ステータス欄の更新に失敗しました（手動で「完了」に修正してください）」を付記する（リリース自体は完了済みのためブロックしない・警告のみ。Phase 6 末尾の verify final でも未充足として再検出される）。
 
 **調査段階の再現確認スクショ（repro/before, repro/after）を削除**（`{issue_type}` = バグ で Phase 1.6 の `backlog-repro-runner` が実行された場合のみ `{log_dir}/repro/` が存在する。仮説検証用スクショで、xlsx には統合されない一時証跡。結論は `hypothesis-verification.md` に記録済みのため、Phase 6 完了＝もう参照しないタイミングで画像のみ削除する。**`repro/logs/`（`created_records.txt` 等の監査記録。`backlog-releaser.md` §2a 5 が Phase 6 再実行時に参照するため）は削除対象から除外**する）:
 
@@ -703,6 +722,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 ```
 
 > スキップ判定: [.claude/templates/backlog/_partials/xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) に従う（null = 正規スキップ）。
+> スクリプト失敗時（終了コード非0）: エラー内容を終了報告に一行付記する（中断処理自体は継続する・警告のみ）。
 
 ### 終了報告
 
