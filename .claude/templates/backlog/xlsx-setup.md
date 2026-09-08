@@ -6,15 +6,15 @@
 
 `{xlsx_folder}` = null、`{evidence_dir}` = `docs/logs/{issueID}/evidence` として Phase 2 へ進む。
 
-investigation.md フロントマターに `evidence_dir` を書き戻す（`/test` 起動時の保存先解決 ① に必要。省くと `/test` がフォールバックして `docs/logs/{issueID}/` に証跡が出る）:
+investigation.md フロントマターに `evidence_dir` を書き戻す（`/test` 起動時の保存先解決 ① に必要。省くと `/test` がフォールバックして `docs/logs/{issueID}/` に証跡が出る）。`{tmp_dir}` = `docs/logs/{issueID}/.tmp` に固定し、以下の内容で `{tmp_dir}/write_evidence_dir.py` を Write する([inline-script-hygiene.md](../common/inline-script-hygiene.md) に従い if/else を含む多行ロジックはヒアドキュメントで渡さず外部化する。値は起動時の引数で渡し、スクリプト本体には Claude 置換プレースホルダーを一切含めない):
 
-```bash
-python - <<'PYEOF'
-import pathlib, re
-invest = pathlib.Path('docs/logs/{issueID}/investigation.md')
+```python
+import pathlib, re, sys
+issue_id = sys.argv[1]
+invest = pathlib.Path(f'docs/logs/{issue_id}/investigation.md')
 if invest.exists():
     text = invest.read_text(encoding='utf-8')
-    ev = 'docs/logs/{issueID}/evidence'
+    ev = f'docs/logs/{issue_id}/evidence'
     if text.startswith('---'):
         end = text.index('---', 3)
         front = text[3:end]
@@ -29,7 +29,10 @@ if invest.exists():
     print('[OK] investigation.md evidence_dir 書き戻し完了')
 else:
     print('[SKIP] investigation.md が存在しません（Phase 1 未完了）')
-PYEOF
+```
+Write 後、以下を実行する（置換対象は `{issueID}` のみ）:
+```bash
+python "{tmp_dir}/write_evidence_dir.py" "{issueID}"
 ```
 
 > **エビデンス取得依頼は Phase 3 末尾（実装方針確定後・実装直前）で行う**。Phase 1.5 ではフォルダ確定のみを行い、ユーザに作業負荷をかけない。
@@ -95,14 +98,14 @@ python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d
 
 > **目的**: `/test` 起動時の xlsx_folder 解決 ① 一次ソースを確実に機能させる。省くと `/test` が `docs/logs/{issueID}/evidence` フォールバックに落ちてエビデンス・証跡が調査ログ置き場に出る。
 
-`investigation.md` フロントマターに `xlsx_folder` / `evidence_dir` を書き込む:
+`investigation.md` フロントマターに `xlsx_folder` / `evidence_dir` を書き込む。`{tmp_dir}` = `docs/logs/{issueID}/.tmp` に固定し、以下の内容で `{tmp_dir}/write_xlsx_frontmatter.py` を Write する([inline-script-hygiene.md](../common/inline-script-hygiene.md) に従い if/for を含む多行ロジックはヒアドキュメントで渡さず外部化する。値は起動時の引数で渡し、スクリプト本体には Claude 置換プレースホルダーを一切含めない。Python の f-string 波括弧との混在を避けるため）:
 
-```bash
-python - <<'PYEOF'
-import pathlib, re
-invest = pathlib.Path('docs/logs/{issueID}/investigation.md')
+```python
+import pathlib, re, sys
+issue_id, xlsx_folder, evidence_dir = sys.argv[1:4]
+invest = pathlib.Path(f'docs/logs/{issue_id}/investigation.md')
 text = invest.read_text(encoding='utf-8') if invest.exists() else ''
-keys = {'xlsx_folder': '{xlsx_folder}', 'evidence_dir': '{evidence_dir}'}
+keys = {'xlsx_folder': xlsx_folder, 'evidence_dir': evidence_dir}
 if text.startswith('---'):
     end = text.index('---', 3)
     front = text[3:end]
@@ -117,7 +120,10 @@ else:
     fm = '\n'.join(f'{k}: {v}' for k, v in keys.items())
     invest.write_text(f'---\n{fm}\n---\n\n{text}', encoding='utf-8')
 print('[OK] investigation.md フロントマター更新完了')
-PYEOF
+```
+Write 後、以下を実行する（置換対象は本コマンド行の3引数のみ）:
+```bash
+python "{tmp_dir}/write_xlsx_frontmatter.py" "{issueID}" "{xlsx_folder}" "{evidence_dir}"
 ```
 
 書き戻し完了後チャットに表示:
