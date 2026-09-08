@@ -489,7 +489,7 @@ light_mode: false
 | 課題と対応方針 | 対応経緯タイムライン No4〜 | Phase 3.5/4/5/6 / 各エージェント | `timeline --phase X` |
 | 課題と対応方針 | ステータス更新（完了） | **Phase 6 末 / ハーネス直実行** | `cell --label "ステータス" --value "完了" --force` |
 | 課題と対応方針 | ステータス更新（中断中） | **中断時パス / ハーネス直実行** | `cell --label "ステータス" --value "中断中" --force` |
-| 対応内容 | 実施した対応 / 変更を加えた資材一覧 / Before/After | **Phase 4 末 / ハーネス直実行** | `content-from-md --summary implementation-summary.md` |
+| 対応内容 | 実施した対応 / 変更を加えた資材一覧 / Before/After | **Phase 4 末 / `/test` F-2 Step1 完了後 / ハーネス直実行** | `content-from-md --summary implementation-summary.md` |
 | 対応内容 | NG対応履歴（/test NG 修正ループ記録） | Phase 5 / tester・/test judge_results.py | `ng-history` |
 | エビデンス.xlsx（別ファイル） | 証跡（SOQL/スクショ）正本・期待/実際/判定の詳細 | /test が generate_evidence_xlsx.py で自動生成、judge_results.py が実装後記入 | — |
 

@@ -558,6 +558,18 @@ task_description: 「/test 自動修正起動: {issueID} の実装バグ NG（{a
 
 **backlog-implementer が経路2/3（実装方針の問題・検証漏れ）を報告した場合**: 自動修正ループを中断し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する（実装バグのつもりが方針問題 → 人間判断に委ねる）。
 
+**backlog-implementer 完了後（経路2/3 で中断していない場合）**: xlsx 対応内容シートへの反映は本コマンド（ハーネス）が直接実行する（`/backlog` Phase 4 と同型。backlog-implementer.md §7 の設計どおり、エージェント自身は `implementation-summary.md` を書き出すだけで xlsx には書き込まない）:
+
+```bash
+if [ -n "{xlsx_folder}" ]; then
+  python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
+    --folder "{xlsx_folder}" --issue-id "{issueID}" \
+    content-from-md --summary "{log_dir}/implementation-summary.md" --force
+fi
+```
+
+> スキップ判定: [xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) に従う（`{xlsx_folder}` null/空 = 正規スキップ）。
+
 #### F-2 Step 2: backlog-tester（dry-run 検証）
 
 Task tool で `backlog-tester` を起動する:
