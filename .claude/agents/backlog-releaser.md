@@ -492,7 +492,7 @@ children:
 
 ### 4.4. effort-log.md への自動追記
 
-> **スキップ判定**: `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする。
+> **スキップ判定**: `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
 
 `docs/logs/effort-log.md` に当課題の見込み工数を1行追記する（末尾追加・昇順）。
 
@@ -510,7 +510,7 @@ children:
 
 ### 4.5. case-index.md への自動追記
 
-> **スキップ判定**: `{issueID}` が空 / 未設定 / 変数名リテラルの場合はスキップする。
+> **スキップ判定**: `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
 
 `docs/knowledge/case-index.md` に当課題の1行サマリーを先頭挿入する。
 
