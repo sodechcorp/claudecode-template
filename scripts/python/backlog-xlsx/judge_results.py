@@ -250,11 +250,41 @@ _SF_ERROR_SIGNATURES = [
     "Unexpected Error",
 ]
 
+# ログイン画面（セッション失効でリダイレクトされた場合）特有の複合マーカー（日英）。
+# 単一キーワード（例:「ユーザー名」）だけで判定すると Setup の User 詳細/編集画面の
+# フィールドラベルとも一致してしまうため、ログインフォーム特有の複数マーカーが
+# 揃って出現した場合のみ検知する（グループ内は AND・グループ間は OR）。
+# ui-evidence-runner.md 側は採取時に page.url() で URL ベースのセッション失効検知を
+# 行うが、judge_results.py は保存済み DOM テキストのみを再検査する独立経路であり
+# URL 情報を持たないため、DOM 内の複合マーカーで同じ事象を検知する。
+_LOGIN_SCREEN_MARKER_GROUPS = [
+    ["ユーザー名", "ログイン情報を保存する", "パスワードをお忘れですか"],
+    ["Username", "Remember me", "Forgot Your Password"],
+]
+
+
+def _detect_login_screen(text: str, kiki: str) -> bool:
+    """DOM/証跡テキストがログイン画面（セッション失効によるリダイレクト）である
+    疑いを検知する。いずれかのマーカーグループが全て出現した場合のみ true を返す。
+    期待結果(kiki)自体が該当グループを含む場合は正当なテストとみなし検知しない。"""
+    if not text:
+        return False
+    kiki_l = (kiki or "").lower()
+    text_l = text.lower()
+    for group in _LOGIN_SCREEN_MARKER_GROUPS:
+        if all(m.lower() in kiki_l for m in group):
+            continue
+        if all(m.lower() in text_l for m in group):
+            return True
+    return False
+
 
 def _detect_sf_error(text: str, kiki: str) -> str:
     """DOM/証跡テキストに Salesforce 標準エラー画面のシグネチャが含まれるか検知する。
     期待結果(kiki)自体にそのシグネチャが含まれる場合は、エラーメッセージの表示を
     検証する正当なテスト（バリデーション/権限エラー確認等）とみなし検知しない。
+    セッション失効によるログイン画面へのリダイレクトも _detect_login_screen で
+    併せて検知する（URL 情報を持たないため DOM 内複合マーカーで判定）。
     見つからなければ "" を返す。"""
     if not text:
         return ""
@@ -264,6 +294,8 @@ def _detect_sf_error(text: str, kiki: str) -> str:
             continue
         if sig.lower() in text.lower():
             return sig
+    if _detect_login_screen(text, kiki):
+        return "セッション失効(ログイン画面へ遷移)"
     return ""
 
 
