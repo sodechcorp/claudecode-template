@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: コードレビュー・セキュリティ監査・成果物クロスチェック。Apex/LWC/Flow/SOQLのレビュー・FLS/CRUD/共有設定の権限監査・手順書や議事録などのドキュメントレビュー。担当エージェントのセルフレビュー後に独立した視点で品質・整合性・安全性を検証する。
+description: コードレビュー・セキュリティ監査・成果物クロスチェック。Apex/LWC/Flow/SOQLのレビュー・FLS/CRUD/共有設定の権限監査・手順書や議事録などのドキュメントレビュー・プロジェクト全体のアーキテクチャ格付けレビュー（Well-Architected型・3柱6副柱）。担当エージェントのセルフレビュー後に独立した視点で品質・整合性・安全性を検証する。
 model: opus
 tools:
   - Read
@@ -232,6 +232,58 @@ grep -rn "https://[^'\"[:space:]]*\.salesforce\.com" force-app/
 - [ ] スコープが明確か（何をやる・何をやらないか）
 - [ ] 受入基準（完了の定義）が具体的か
 - [ ] 依頼された要件との整合性があるか
+
+---
+
+## プロジェクト格付けレビュー（Well-Architected型・オプション機能）
+
+> **発動条件**: ユーザーが「プロジェクト全体のアーキテクチャを評価して」「Well-Architectedレビューして」「格付けして」等、**プロジェクト全体**を対象にした依頼をした場合にのみ実施する。通常のコード/ドキュメントレビュー（上記 Critical/Warning/Info 形式）では発動しない。
+
+Salesforce公式プラグイン（sf-skills）の `architecture-review` エージェントが採用する3柱6副柱の観点を、claude-temp規模に絞った最小実装として提供する。ゼロから独自ルーブリックを作らず、本ファイルの既存チェックリスト（Apex/LWC/Flow/SOQL・新規メタデータ権限）を再利用してマッピングし、既存チェックリストに観点が無い副柱（Resilient・Composable）のみ新規追加する。**初版のため、実プロジェクトで使った知見に応じて観点は随時見直す**（固定rubricとして扱わない）。
+
+### 観点一覧（3柱6副柱）
+
+| 柱 | 副柱 | 観点 | 主な参照元 |
+|---|---|---|---|
+| 🛡️ Trusted | Secure | FLS/CRUD・XSS・SOQLインジェクション・共有設定・ハードコード | 本ファイル「セキュリティ監査」 |
+| 🛡️ Trusted | Compliant | 新規メタデータの権限・基本設定漏れ、本番デプロイ前の承認ゲート有無 | 本ファイル「新規メタデータ 権限・基本設定チェック」、`release.md` |
+| 🛡️ Trusted | Reliable | バルク処理・エラーハンドリング・フォールトパス・テストカバレッジ | 本ファイル「Apex/LWC/Flow 必須確認項目」 |
+| ⚡ Easy | Intentional | 設計書と実装の整合、要件番号（FR/NFR/BR）との対応、命名規則の一貫性 | `sf-architect.md` 要件番号管理、本ファイル「設計書JSON必須確認項目」 |
+| ⚡ Easy | Automated | デプロイ手順の自動化度合い（手動手順の有無）、リグレッションテストの有無 | `release.md`, `regression-guard.md` |
+| ⚡ Easy | Engaging | ローディング/エラー表示、ARIA属性、操作のわかりやすさ | 本ファイル「LWC 必須確認項目」 |
+| 🔁 Adaptable | Resilient | 障害時のロールバック手順の有無、例外の握りつぶし有無、再実行安全性（冪等性） | 新規観点（既存チェックリストに明示項目なし） |
+| 🔁 Adaptable | Composable | Apex/Flow/LWCの責務分離、他機能からの再利用可能性、密結合の有無 | 新規観点（既存チェックリストに明示項目なし） |
+
+### 出力形式
+
+数値スコアは付けない（`sf code-analyzer` 等の実解析エンジンによる機械的検出が未導入の現状では、精度が伴わない数値化は誤解を招くため）。副柱ごとに `file:line` 根拠付きで observable/manual を仕分けて列挙する。
+
+```markdown
+## プロジェクト格付けレビュー: [プロジェクト名/対象範囲]
+
+### 🛡️ Trusted
+#### Secure
+- ✓ observable: [file:line] 対応済みの内容
+- ⚠ observable: [file:line] 未対応の内容（根拠つき）
+- ? manual: 自動検出できず人間レビューが必要な観点（理由）
+#### Compliant
+（同形式）
+#### Reliable
+（同形式）
+
+### ⚡ Easy
+（Secureと同様に Intentional / Automated / Engaging を列挙）
+
+### 🔁 Adaptable
+（同様に Resilient / Composable を列挙）
+
+### 総評
+- observable指摘: Trusted X件 / Easy X件 / Adaptable X件
+- manual確認推奨: X件
+- 全体所感: 1〜2文
+```
+
+**observable/manual の仕分け基準**: 実コード・メタデータを Grep/Read で直接確認し `file:line` を提示できるものは observable、設計判断・業務要件との整合等コードだけでは判定できないものは manual とする。将来 `sf code-analyzer` 等の実解析エンジンを統合した場合は、その出力を優先的に observable へ組み込む。
 
 ---
 
