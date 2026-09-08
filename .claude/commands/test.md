@@ -556,9 +556,9 @@ task_description: 「/test 自動修正起動: {issueID} の実装バグ NG（{a
   ng_source: {judgment_path}
 ```
 
-**backlog-implementer が経路2/3（実装方針の問題・検証漏れ）を報告した場合**: 自動修正ループを中断し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する（実装バグのつもりが方針問題 → 人間判断に委ねる）。
+**backlog-implementer が中断を報告した場合（経路2/3〈実装方針の問題・検証漏れ〉、非対話停止点〈API名不一致・設計書欠落〉、または承認ガード例外の条件不成立のいずれか）**: 自動修正ループを中断し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する（実装バグのつもりが方針問題や前提未確認 → 人間判断に委ねる）。
 
-**backlog-implementer 完了後（経路2/3 で中断していない場合）**: xlsx 対応内容シートへの反映は本コマンド（ハーネス）が直接実行する（`/backlog` Phase 4 と同型。backlog-implementer.md §7 の設計どおり、エージェント自身は `implementation-summary.md` を書き出すだけで xlsx には書き込まない）:
+**backlog-implementer 完了後（上記いずれの中断も発生していない場合）**: xlsx 対応内容シートへの反映は本コマンド（ハーネス）が直接実行する（`/backlog` Phase 4 と同型。backlog-implementer.md §7 の設計どおり、エージェント自身は `implementation-summary.md` を書き出すだけで xlsx には書き込まない）:
 
 ```bash
 if [ -n "{xlsx_folder}" ]; then
