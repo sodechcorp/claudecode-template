@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """backlog-xlsx / judge_results.py
 test-spec.md の期待結果と証跡ファイルの実際の結果を突き合わせ、
-OK/NG を判定して対応記録.xlsx の H 列（実際の結果）を更新する。
+OK/NG を判定する（テスト・検証シートは廃止済みのため xlsx への書き戻しは行わない。証跡はエビデンス.xlsx に集約）。
 
 Usage:
     python judge_results.py \
@@ -715,7 +715,7 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="テストケースの OK/NG 判定と xlsx H 列更新")
+    parser = argparse.ArgumentParser(description="テストケースの OK/NG 判定（xlsx H 列更新は廃止済み。証跡はエビデンス.xlsx に集約）")
     parser.add_argument("--folder", required=True, help="xlsx 出力フォルダ")
     parser.add_argument("--issue-id", required=True, dest="issue_id")
     parser.add_argument("--spec", required=True, help="test-spec.md のパス")
