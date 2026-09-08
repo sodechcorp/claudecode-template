@@ -36,9 +36,9 @@ def _archive_previous_round(out_path: str) -> None:
     """判定結果を上書きする前に、まだ退避されていない前回の judgment-result.json を
     R{N}.json として退避する（自己防衛）。
 
-    `/test` コマンド Phase A の回次退避は「/test がコマンドの入口から新規に再実行された場合」
-    にのみ発動するため、会話の流れで判定だけを直接再実行するショートカットを踏むと発動しない。
-    ここで自己防衛することで、どの経路で呼ばれても判定履歴を保護する
+    回次退避（前回データのアーカイブ）は Phase A では行わない設計のため（`.claude/commands/test.md` 参照）、
+    判定側（judgment-result.json）の退避責務は本関数が単独で担う。会話の流れで判定だけを
+    直接再実行するショートカットを踏んでも、ここで自己防衛することで判定履歴を保護する
     （証跡ディレクトリの退避は auto-evidence-runner 側が証跡採取開始前に行う）。
     """
     if not os.path.isfile(out_path):
