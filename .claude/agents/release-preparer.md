@@ -37,7 +37,7 @@ Step 0a（sf-context-loader 経由の SF コンテキスト読込。サブエー
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
-まず `docs/logs/{issueID}/investigation.md` を **方式B**（[CLAUDE.md §中間成果物の分割読込](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 準拠。本ファイルは「## Step 0b オプション判定結果」「## 既存テストクラスへの影響」「## 影響ユーザー調査」（いずれも Phase 1/2 で参照）を含め消費するセクションが3個以上のため方式Bを選択）で読む。ここでは「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Grep で先に検索し、該当箇所のみ Read する（Phase 1/2 で参照する残りのセクションは、各所が実際にそのセクションを必要とする時点で同様に Grep → 該当箇所のみ Read する。Step0a でまとめて先読みはしない＝実行経路によっては参照されないセクションを無駄読みしないため）。件名 + 課題サマリー + 要件理解と対象 F-番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ（**判断ポイントが0件のケース**〔backlog-planner B-3 の設計により「### 実装方針まとめ」の代わりに「### 判断ポイントなし（全カテゴリ一意確定）」が出力されている場合〕は代わりに「## 関連コンポーネント一覧（変更対象ファイル）」を使う）→ 呼び出し元から渡された課題タイトルの順でフォールバックする。
+まず `docs/logs/{issueID}/investigation.md` を **方式B**（[CLAUDE.md §中間成果物の分割読込](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 準拠。本ファイルは「## Step 0b オプション判定結果」「## 既存テストクラスへの影響」「## 影響ユーザー調査」（いずれも Phase 1/2 で参照）を含め消費するセクションが3個以上のため方式Bを選択）で読む。ここでは「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Grep で先に検索し、該当箇所のみ Read する（Phase 1/2 で参照する残りのセクションは、各所が実際にそのセクションを必要とする時点で同様に Grep → 該当箇所のみ Read する。Step0a でまとめて先読みはしない＝実行経路によっては参照されないセクションを無駄読みしないため）。件名 + 課題サマリー + 要件理解と対象 F-番号・オブジェクト名・機能名を抽出する。同時にフロントマターを `^deploy_route:` で Grep し `{deploy_route}` を取得する（Step 0b の test-report.md 判定で使用。investigation.md 自体が無い場合、または該当行が無い場合は `{deploy_route}` は未確定として Step 0b の通常分岐に従う）。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ（**判断ポイントが0件のケース**〔backlog-planner B-3 の設計により「### 実装方針まとめ」の代わりに「### 判断ポイントなし（全カテゴリ一意確定）」が出力されている場合〕は代わりに「## 関連コンポーネント一覧（変更対象ファイル）」を使う）→ 呼び出し元から渡された課題タイトルの順でフォールバックする。
 
 > **ダイジェスト優先（高速化）**: `docs/logs/{issueID}/context-digest.md` が存在する場合は Read してコンテキストを再利用し、Task tool の sf-context-loader 起動を省略する。
 
@@ -60,6 +60,8 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 - `docs/logs/{issueID}/implementation-plan.md`
 - `docs/logs/{issueID}/test-report.md`
 - `docs/decisions.md`（当課題のエントリのみ Grep）
+
+**`{deploy_route}` = `manual-operation` の場合（最優先の分岐）**: Phase 3〜5（コード変更・Sandbox デプロイ）自体が実施されないため、`test-report.md` は仕様上常に不在となる。以下の3分岐判定・AskUserQuestion は行わず、Sandbox テスト完了相当とみなしてそのまま Phase 1 へ進む（警告は表示しない）。`{deploy_route}` = `normal`、または investigation.md 不在等で `{deploy_route}` が未確定の場合は以下の判定に従う。
 
 **`test-report.md` の判定（3分岐。ファイルの有無だけでなく内容の `### 総合判定` を確認する）**:
 
