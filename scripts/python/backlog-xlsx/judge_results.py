@@ -25,7 +25,8 @@ from _common import validate_folder, parse_test_spec
 
 
 def _next_archive_round(out_path: str) -> int:
-    """out_path（judgment-result.json）に対応する既存の .R{N}.json 本数から次の回次番号を返す。"""
+    """out_path（judgment-result.json）に対応する既存の .R{N}.json の最大回次番号から次の回次番号を返す
+    （欠番があってもファイル数ではなく最大値を基準にする）。"""
     base = os.path.splitext(out_path)[0]
     files = glob.glob(base + ".R*.json")
     nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]

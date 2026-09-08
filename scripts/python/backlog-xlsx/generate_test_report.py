@@ -38,7 +38,8 @@ _STATUS_ICON = {"OK": "✅ OK", "NG": "❌ NG", "SKIP": "（要手動）", "対�
 
 
 def _current_round(judgment_path: str) -> int:
-    """judgment-result.R{N}.json の本数から現在の実行回次を返す（judge_results.py の
+    """judgment-result.R{N}.json の最大回次番号から現在の実行回次を返す
+    （欠番があってもファイル数ではなく最大値を基準にする。judge_results.py の
     _archive_previous_round / test.md Phase F-2 の PREV_ROUND 算出と同一基準）。"""
     base = os.path.splitext(judgment_path)[0]
     files = glob.glob(base + ".R*.json")
