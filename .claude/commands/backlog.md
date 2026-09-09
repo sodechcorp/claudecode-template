@@ -240,6 +240,19 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 エージェントが `investigation.md` を保存したら、内容をユーザに提示する。また、末尾の「[デプロイ適否の判定](#デプロイ適否の判定phase-1-終了時に適用)」セクションを参照してデプロイ可否を確定し、結果を `{deploy_route}` = `manual-operation`（該当・管理画面直接操作）/ `normal`（非該当・通常デプロイ）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。判定根拠は investigation.md の「## デプロイ適否判定」セクション（investigator が空欄で出力済み）に Edit ツールで追記する。
 
+> **investigator が Backlog MCP 障害で中断した場合の再起動（1 回のみ）**: investigator の返却結果に「Backlog MCP が応答しません」の中断メッセージのみが含まれ `investigation.md` が未保存の場合、以下の手順で **1 回のみ**再起動する。
+> 1. ユーザーに「Backlog MCP が応答しません。課題本文・コメント全文をここに貼り付けてください」と依頼し、貼り付け内容を受け取る（本コマンドはメインスレッドのため同期的なユーザー入力待ちが可能）。
+> 2. `backlog-investigator` を以下のパラメータで再起動する（`知識層コンテキスト:` `設計層コンテキスト:` は Step A で取得済みならそのまま引き継ぐ）:
+>    ```
+>    課題ID: {issueID}
+>    プロジェクトルート: {カレントディレクトリ}
+>    出力先: docs/logs/{issueID}/investigation.md
+>    知識層コンテキスト: {knowledge_context}
+>    設計層コンテキスト: {design_context}
+>    課題本文手動入力: {ユーザーが貼り付けた内容}
+>    ```
+> 3. 再起動後も同じ中断結果が返る場合、MCP 障害以外の要因（無効な課題 ID・恒久的なアクセス不可等）の可能性が高いため、それ以上リトライせず処理を中断してユーザーに報告する（無限ループ防止。investigator 側の判定は行わない）。
+
 > **investigator の確認記録ゲート（非同期・メインスレッド委譲）**: investigator は単発 Task サブエージェントのためユーザー応答を同期的に待てない。課題本文/コメント中の全URL・添付・スクショ・名指しレコードについて、取得不能なものは investigation.md「周辺情報」に共有依頼候補（共有依頼列 = `要`）として記録し、それに依拠する記述には `[要確認: 未共有の一次資料]` を付けたうえで Step B 以降まで進めて investigation.md を完成させる（Step A.5 の症状前提未確定も同様に `[要確認: 症状前提未確定]` で進行）。**ユーザーへの提示・応答受領は本コマンド（メインスレッド）が Phase 1 完了サマリー提示時に行う**: investigator が記録した共有依頼候補・症状前提未確定を確認事項として提示し、応答を待つ。ユーザーが資料・回答を提供した場合は investigation.md の該当セクションへ Edit で追記し（共有依頼列を `済` に更新）、追加情報が根本原因仮説に影響しうる場合のみ「Phase 1 から再調査」で investigator を再起動する（軽微な補足のみなら再起動せず Phase 1.6 へ進めてよい）。ユーザーが「不要・このまま進めて」と回答した場合は waive とみなし理由を追記する（共有依頼列を `不要（waive）` に更新）。
 
 > **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `light_mode` / `deploy_route` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照)。`{tmp_dir}` = `docs/logs/{issueID}/.tmp` に固定し、以下の内容で `{tmp_dir}/write_frontmatter.py` を Write する（[inline-script-hygiene.md](../templates/common/inline-script-hygiene.md) に従い if/for を含む多行ロジックはヒアドキュメントで渡さず外部化する。値は起動時の引数で渡し、スクリプト本体には Claude 置換プレースホルダーを一切含めない。Python の f-string 波括弧との混在を避けるため）:
