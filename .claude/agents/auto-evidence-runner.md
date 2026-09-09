@@ -101,7 +101,7 @@ if [ -f "$JUDGMENT_PATH" ]; then
 fi
 ```
 
-回次番号（R{N}）は `judgment-result.R*.json` の本数を基準に算出しており、判定結果側の自己防衛退避（`judge_results.py` の `_archive_previous_round`）と同じ基準を使うため番号がずれない。
+回次番号（R{N}）は `judgment-result.R*.json` の最大回次番号を基準に算出しており（欠番があってもファイル数ではなく最大値を基準にする）、判定結果側の自己防衛退避（`judge_results.py` の `_archive_previous_round`）と同じ基準を使うため番号がずれない。
 
 ---
 
