@@ -5,7 +5,7 @@ argument-hint: "[standard|all|select]"
 
 Salesforce組織からメタデータを取得してください。
 
-> **前提**: sf CLI **2.133.0+** が必要です。全モードでスクリプトが自動チェックします（select は冒頭で check-version を実行）。
+> **前提**: sf CLI **2.133.0+** が必要です。全モードでスクリプトが自動チェックします（モード判定前に無条件で1回実行されるため、個別呼び出しは不要）。
 > 旧版の場合: `npm install --global @salesforce/cli@latest` で更新してください。
 
 ## ユーザー入力
@@ -16,7 +16,7 @@ $ARGUMENTS
 
 ## Step 1: 取得対象の選択
 
-引数がある場合はそれを「指定する」として解釈し、Step 2 の「指定する」の処理へ進む。
+引数がある場合、その値（`standard`/`all`/`select`）に応じて Step 2 の対応する見出し（「standard」の場合／「all」の場合／「select」の場合）へ進む。3つ以外の値が渡された場合は AskUserQuestion で対象を確認する。
 
 引数がない場合、AskUserQuestion ツールを以下の内容で呼び出す。
 
