@@ -536,14 +536,45 @@ PYEOF
 }
 
 # --- 取得後の重要型検証 ---
-# Flow は保守業務の中核。取得後に1件も存在しない場合は ERROR で止める。
+# Flow は保守業務の中核。取得後に1件も存在しない場合、まず組織側に本当に
+# Flow が無いかを Tooling API で裏取りしてから判定する。
+# （skipped_manifests チェックで本当の取得失敗は既に呼び出し元で error 停止
+#   済みのため、ここに到達する 0 件は「組織に元々 Flow が無い」ケースが
+#   大半だが、推測だけで済ませず実クエリで確認する。クエリ失敗時・組織側に
+#   Flow が存在する場合は従来通り error で止める＝fail-safe は維持する）
 verify_critical_types() {
+    local target_org="$1"
     local flow_count
     flow_count=$(find force-app/ -name "*.flow-meta.xml" 2>/dev/null | wc -l)
-    if [ "$flow_count" -eq 0 ]; then
-        error "Flow が1件も取得されていません（force-app/main/default/flows/ が空）。\n  スキップログを確認: manifest/.retrieve-skipped.log\n  対処: bash scripts/sf-retrieve.sh retrieve-manifest manifest/package-Flow.xml"
+    if [ "$flow_count" -gt 0 ]; then
+        ok "取得後検証: Flow ${flow_count} 件確認"
+        return
     fi
-    ok "取得後検証: Flow ${flow_count} 件確認"
+
+    local org_flow_json org_flow_count
+    org_flow_json=$(sf data query --use-tooling-api \
+        -q "SELECT DeveloperName FROM FlowDefinition" \
+        --target-org "$target_org" --json 2>/dev/null) || org_flow_json=""
+
+    org_flow_count=""
+    if [ -n "$org_flow_json" ]; then
+        org_flow_count=$(python - << PYEOF
+import json
+try:
+    data = json.loads("""${org_flow_json}""")
+    print(len(data.get("result", {}).get("records", [])))
+except Exception:
+    print("")
+PYEOF
+)
+    fi
+
+    if [ "$org_flow_count" = "0" ]; then
+        warn "Flow は1件も取得されていませんが、組織側にも Flow が存在しないため正常です（取得後検証: Flow 0件）"
+        return
+    fi
+
+    error "Flow が1件も取得されていません（force-app/main/default/flows/ が空）。\n  スキップログを確認: manifest/.retrieve-skipped.log\n  対処: bash scripts/sf-retrieve.sh retrieve-manifest manifest/package-Flow.xml"
 }
 
 # --- Flow バージョン監査（Tooling API）---
@@ -944,7 +975,7 @@ retrieve_standard() {
         skip_msg="（${unavail_batches} バッチはこの組織で未使用の型のためスキップ）"
     fi
 
-    verify_critical_types
+    verify_critical_types "$target_org"
     audit_flow_versions "$target_org"
     ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ${skip_msg}）"
 }
@@ -1031,7 +1062,7 @@ retrieve_all() {
         skip_msg="（${unavail_batches} バッチはこの組織で未使用の型のためスキップ）"
     fi
 
-    verify_critical_types
+    verify_critical_types "$target_org"
     audit_flow_versions "$target_org"
     ok "メタデータ取得完了 → force-app/ （計 ${total} バッチ${skip_msg}）"
 }
