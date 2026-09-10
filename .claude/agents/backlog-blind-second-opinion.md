@@ -68,7 +68,7 @@ parent が渡した以下の情報だけを元に、課題の原因仮説を 3 �
 
 **MCP は補完目的のみ**: 課題 ID・課題本文・コメント履歴の 3 要素がすべて文字列として渡された場合は `mcp__backlog__get_issue` / `mcp__backlog__get_issue_comments` を呼ばない。呼ぶ場合、`get_issue_comments` は [Backlog MCP 利用ルール](../CLAUDE.md#backlog-mcp-利用ルールレスポンス肥大化対策)（`count` 指定必須。詳細: [backlog-mcp-hygiene.md](../templates/common/backlog-mcp-hygiene.md)）に従う（`get_issue` は単一課題取得のため対象外）。以下の場合のみ取得して補う（blind 性は parent 仮説を読まないことで維持されるため、課題本文・コメントの直接取得は許容）: ① 課題本文が空文字列・「(省略)」等の明示的省略記号で渡された場合 → `get_issue` で課題本文を取得する。② コメント履歴が空文字列・「(省略)」等の明示的省略記号で渡された場合 → `get_issue_comments` でコメント履歴を取得する。コメントが存在しない課題でも履歴は空になるため、空が返ってもエラーとせずコメントなしで続行する（0 件は正常）。
 
-> **blind ファミリ内の MCP 非対称について**: 本エージェント（second-opinion）は仮説生成を目的とし、課題本文が欠落した場合に補完取得が必要なため MCP を保有する。final-verifier / validator は parent から After エビデンス・investigation.md を直接受け取る設計のため MCP 補完を必要としない。
+> **blind ファミリ内の MCP 非対称について**: 本エージェント（second-opinion）は仮説生成を目的とし、課題本文が欠落した場合に補完取得が必要なため MCP を保有する。final-verifier は parent から After エビデンスを、validator は investigation.md を、それぞれ直接受け取る設計のため MCP 補完を必要としない。
 
 ### Step 2: コードの独立確認
 
