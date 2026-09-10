@@ -8,29 +8,31 @@
 #
 # 使い方:
 #   bash scripts/sf-retrieve.sh all                   # 全量（推奨・既定）で生成＋取得
-#                                                      # ALL_LIGHT_TYPES/ALL_HEAVY_TYPES の静的
-#                                                      # キュレーションリストのみを対象にする
-#                                                      # （どの組織にも確実にある/課題対応で使う型）。
-#                                                      # 旧 standard を統合・拡張したもの
+#                                                      # 組織の describeMetadata が返す型を網羅的に
+#                                                      # 対象にする（動的）。組織にない/ライセンス
+#                                                      # 未対応の型・sf CLI のローカルレジストリに
+#                                                      # 未登録の型は自動検出して除外し、判明結果は
+#                                                      # 永続キャッシュして次回以降は最初から除外する
 #   bash scripts/sf-retrieve.sh select "ApexClass:MyClass,MyClass2" "Flow:MyFlow" "CustomObject:Account"
 #                                                      # 型:メンバー指定で生成＋取得（型ごとに1引数、複数指定可）
-#   bash scripts/sf-retrieve.sh all-exhaustive         # describeMetadata 動的スイープで文字通り全て
-#                                                      # 取得（上級者向け・機能ライセンス依存の exotic な
-#                                                      # 型まで含むため低速・失敗しやすい）
-#   bash scripts/sf-retrieve.sh standard               # 後方互換用に残置（all に統合済み・非推奨）
+#   bash scripts/sf-retrieve.sh standard               # 後方互換用に残置（通常は all を使用）
 #   bash scripts/sf-retrieve.sh generate-only all      # 生成のみ（取得しない）
 #   bash scripts/sf-retrieve.sh retrieve              # 既存 package.xml で取得のみ
 #   bash scripts/sf-retrieve.sh check-version         # sf CLI バージョン確認のみ
 #
 # 環境変数:
 #   SF_RETRIEVE_WAIT=N              CLI 待機時間（分。デフォルト 60）
-#   SF_RETRIEVE_EXTRA_SKIP=A,B,C   all/all-exhaustive で追加スキップする型（カンマ区切り）
+#   SF_RETRIEVE_EXTRA_SKIP=A,B,C   all モードで追加スキップする型（カンマ区切り）
 #
-# all（既定）の対象型: ALL_LIGHT_TYPES / ALL_HEAVY_TYPES を参照（本ファイル内）。
-# all-exhaustive のデフォルト自動スキップ型（EXCLUDED_FROM_ALL）:
+# all モードのデフォルト自動スキップ型（EXCLUDED_FROM_ALL）:
 #   ExperienceContainer / ExperiencePropertyTypeBundle / ContentTypeBundle /
 #   SiteDotCom / ManagedTopic / ManagedTopics / AnalyticSnapshot /
 #   AiAgentScorerDefinition / ApexEmailNotifications / IframeWhiteListUrlSettings
+#
+# 永続キャッシュ（manifest/ 配下・.gitignore 対象・run 開始時にクリアしない）:
+#   manifest/.registry-unknown-types.txt  sf CLI のローカルレジストリに未登録と判明した型
+#   manifest/.org-unavailable-types.txt   この組織で未使用/未ライセンスと判明した型
+#   （sf CLI 更新・組織の機能有効化で状況が変わった場合はファイルを削除すれば再判定される）
 # =============================================================================
 set -euo pipefail
 
@@ -144,7 +146,7 @@ EXCLUDED_FROM_WILDCARD=(
     "NetworkBranding"   # 内部 "cb" コンポを返し取得不能
 )
 
-# --- all-exhaustive モード専用: 保守用途でほぼ価値が無く retrieve コスト/失敗リスクのみ残る型 ---
+# --- all モード専用: 保守用途でほぼ価値が無く retrieve コスト/失敗リスクのみ残る型 ---
 EXCLUDED_FROM_ALL=(
     "ExperienceContainer"           # Experience Cloud 内部バイナリコンテナ（不透明・編集不能）
     "ExperiencePropertyTypeBundle"  # Experience Cloud 内部 autogen
@@ -183,27 +185,6 @@ is_folder_based() {
     done
     return 1
 }
-
-# --- all モード（既定・推奨）の静的キュレーションリスト ---
-# describeMetadata の動的スイープ（generate_all_exhaustive）は、組織の
-# 機能ライセンス依存/exotic な型まで無差別に含むため、「組織にはあるが
-# sf CLI のローカルレジストリには無い型」に頻繁に当たりバッチ失敗→大量の
-# 個別リトライで時間がかかっていた（2026-09-10 実機事故）。
-# ここでは「どの組織にも確実に存在し、保守・課題対応で実際に使う」型のみを
-# 固定リストとして持つ。標準セット相当の型に加えて、ワークフロー・承認
-# プロセス・組織設定・主要な自動化/アクセス管理系を追加している。
-# Bot・Community・OmniStudio 系等の機能ライセンス依存型は意図的に含めない
-# （必要な場合は /sf-retrieve select で個別取得、または all-exhaustive）。
-ALL_LIGHT_TYPES=(
-    # 旧 standard セット由来
-    ApexTrigger ApexPage CustomTab CustomLabel CustomMetadata
-    LightningComponentBundle PermissionSet PermissionSetGroup StaticResource
-    ReportType NamedCredential RemoteSiteSetting ValidationRule
-    # 追加: 組織設定・自動化・アクセス管理系（どの組織にもあり課題対応で使う）
-    Workflow ApprovalProcess Settings SharingRules AssignmentRules
-    AutoResponseRules EscalationRules Queue Role Group CustomPermission
-)
-ALL_HEAVY_TYPES=(ApexClass Layout Profile Flow ConnectedApp CustomApplication)
 
 get_folder_type() {
     local t="$1"
@@ -438,181 +419,7 @@ PYEOF
     done
 }
 
-# --- 全量セット package.xml 生成（既定・推奨の "all"）---
-# ALL_LIGHT_TYPES / ALL_HEAVY_TYPES（静的キュレーションリスト）を対象にする。
-# CustomObject / FlexiPage の分割ロジック、フォルダ型（全4ペア）生成は
-# generate_all_exhaustive と同じロジックを再利用している。
 generate_all() {
-    local api_version="$1"
-    local target_org="$2"
-    mkdir -p manifest
-
-    # 除外対象を集約: EXCLUDED_FROM_WILDCARD + SF_RETRIEVE_EXTRA_SKIP
-    # + 前回実行で判明した CLI レジストリ未登録型（永続キャッシュ）
-    local excluded_list="" skipped_for_log=()
-    for ex in "${EXCLUDED_FROM_WILDCARD[@]}"; do
-        excluded_list="${excluded_list}${ex},"
-    done
-    if [ -n "${SF_RETRIEVE_EXTRA_SKIP:-}" ]; then
-        IFS=',' read -r -a extra_skip <<< "$SF_RETRIEVE_EXTRA_SKIP"
-        for ex in "${extra_skip[@]}"; do
-            ex="${ex// /}"  # 空白除去
-            [ -z "$ex" ] && continue
-            excluded_list="${excluded_list}${ex},"
-            skipped_for_log+=("${ex} (SF_RETRIEVE_EXTRA_SKIP)")
-        done
-    fi
-    local registry_unknown_file="manifest/.registry-unknown-types.txt"
-    if [ -f "$registry_unknown_file" ]; then
-        while IFS= read -r rt; do
-            [ -z "$rt" ] && continue
-            excluded_list="${excluded_list}${rt},"
-            skipped_for_log+=("${rt} (前回実行でCLIレジストリ未登録と判明済み。sf CLI更新で再取得可能)")
-        done < <(sort -u "$registry_unknown_file")
-    fi
-
-    mkdir -p manifest
-    printf '%s\n' "${skipped_for_log[@]}" > manifest/.retrieve-skipped-all.log
-    [ ${#skipped_for_log[@]} -gt 0 ] && info "全量セット自動スキップ: ${#skipped_for_log[@]} 型 (manifest/.retrieve-skipped-all.log に記録)"
-
-    # 除外を適用した軽い型リストを組み立て、15 型/バッチで分割
-    local light_types=()
-    for t in "${ALL_LIGHT_TYPES[@]}"; do
-        case ",${excluded_list}" in
-            *",${t},"*) continue ;;
-        esac
-        light_types+=("$t")
-    done
-
-    local batch_num=0 i=0 n=${#light_types[@]}
-    while [ "$i" -lt "$n" ]; do
-        batch_num=$((batch_num + 1))
-        {
-            echo '<?xml version="1.0" encoding="UTF-8"?>'
-            echo '<Package xmlns="http://soap.sforce.com/2006/04/metadata">'
-            local j=0
-            while [ "$j" -lt 15 ] && [ "$i" -lt "$n" ]; do
-                echo "    <types><members>*</members><name>${light_types[$i]}</name></types>"
-                i=$((i + 1)); j=$((j + 1))
-            done
-            echo "    <version>${api_version}</version>"
-            echo '</Package>'
-        } > "manifest/package-all-${batch_num}.xml"
-    done
-
-    ok "全量 package.xml 生成: manifest/package-all-1.xml 〜 ${batch_num}.xml (${batch_num} バッチ, 自動スキップ: ${#skipped_for_log[@]} 型)"
-
-    # 重い型は個別 manifest
-    for t in "${ALL_HEAVY_TYPES[@]}"; do
-        case ",${excluded_list}" in
-            *",${t},"*) continue ;;
-        esac
-        cat > "manifest/package-${t}.xml" << XMLEOF
-<?xml version="1.0" encoding="UTF-8"?>
-<Package xmlns="http://soap.sforce.com/2006/04/metadata">
-    <types><members>*</members><name>${t}</name></types>
-    <version>${api_version}</version>
-</Package>
-XMLEOF
-    done
-
-    # CustomObject は件数ベースで 100 件ずつ分割（標準セットと同ロジック）
-    info "CustomObject 一覧を取得中（${target_org}）..."
-    local objects_json
-    objects_json=$(sf org list metadata --metadata-type CustomObject --target-org "$target_org" --json 2>/dev/null) || {
-        warn "CustomObject 一覧の取得に失敗。manifest/package-CustomObject-1.xml に wildcard を使用"
-        cat > "manifest/package-CustomObject-1.xml" << XMLEOF
-<?xml version="1.0" encoding="UTF-8"?>
-<Package xmlns="http://soap.sforce.com/2006/04/metadata">
-    <types><members>*</members><name>CustomObject</name></types>
-    <version>${api_version}</version>
-</Package>
-XMLEOF
-    }
-    if [ -n "${objects_json:-}" ]; then
-        python - "${api_version}" << PYEOF
-import json, math, sys
-api_version = sys.argv[1]
-data = json.loads("""${objects_json}""")
-objects = sorted([r['fullName'] for r in data.get('result', [])])
-BATCH_SIZE = 100
-for i in range(math.ceil(len(objects) / BATCH_SIZE)):
-    batch = objects[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
-    members = '\n'.join(f'        <members>{o}</members>' for o in batch)
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Package xmlns="http://soap.sforce.com/2006/04/metadata">
-    <types>
-{members}
-        <name>CustomObject</name>
-    </types>
-    <version>{api_version}</version>
-</Package>"""
-    with open(f'manifest/package-CustomObject-{i+1}.xml', 'w', encoding='utf-8') as f:
-        f.write(xml)
-PYEOF
-    fi
-
-    # FlexiPage は件数が多い場合にタイムアウトするため 50 件ずつ分割
-    info "FlexiPage 一覧を取得中（${target_org}）..."
-    local flexipages_json_all n_flexipage_batches_all
-    flexipages_json_all=$(sf org list metadata --metadata-type FlexiPage --target-org "$target_org" --json 2>/dev/null) || {
-        warn "FlexiPage 一覧の取得に失敗。manifest/package-FlexiPage-1.xml に wildcard を使用"
-        cat > "manifest/package-FlexiPage-1.xml" << XMLEOF
-<?xml version="1.0" encoding="UTF-8"?>
-<Package xmlns="http://soap.sforce.com/2006/04/metadata">
-    <types><members>*</members><name>FlexiPage</name></types>
-    <version>${api_version}</version>
-</Package>
-XMLEOF
-        flexipages_json_all=""
-    }
-
-    if [ -n "${flexipages_json_all:-}" ]; then
-        n_flexipage_batches_all=$(python - "${api_version}" << PYEOF
-import json, math, sys
-api_version = sys.argv[1]
-data = json.loads("""${flexipages_json_all}""")
-pages = sorted([r['fullName'] for r in data.get('result', [])])
-BATCH_SIZE = 50
-n = math.ceil(len(pages) / BATCH_SIZE) if pages else 0
-for i in range(n):
-    batch = pages[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
-    members = '\n'.join(f'        <members>{p}</members>' for p in batch)
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Package xmlns="http://soap.sforce.com/2006/04/metadata">
-    <types>
-{members}
-        <name>FlexiPage</name>
-    </types>
-    <version>{api_version}</version>
-</Package>"""
-    with open(f'manifest/package-FlexiPage-{i+1}.xml', 'w', encoding='utf-8') as f:
-        f.write(xml)
-print(n)
-PYEOF
-)
-    else
-        n_flexipage_batches_all=1
-    fi
-
-    # フォルダ型を個別生成（全4ペア: Dashboard/Report/Document/EmailTemplate）
-    for pair in "${FOLDER_BASED_PAIRS[@]}"; do
-        local ct="${pair%%:*}"
-        local ft="${pair##*:}"
-        local out="manifest/package-${ct}.xml"
-        if generate_folder_based_manifest "$ct" "$ft" "$api_version" "$target_org" "$out"; then
-            ok "  フォルダ型: ${out}"
-        fi
-    done
-}
-
-# --- 全量の package.xml 生成（describeMetadata 動的スイープ・上級者向け）---
-# 既定は generate_all()（静的キュレーションリスト）。組織のライセンス/機能に
-# 依存する exotic な型まで含めて文字通り「取得可能な全て」が必要な場合のみ
-# 使う（bash scripts/sf-retrieve.sh all-exhaustive）。CLI レジストリ未登録型
-# に頻繁に当たりバッチ失敗→個別リトライが多発しやすく、generate_all() より
-# 大幅に時間がかかる点に注意。
-generate_all_exhaustive() {
     local api_version="$1"
     local target_org="$2"
     info "組織のメタデータタイプを取得中..."
@@ -660,9 +467,22 @@ generate_all_exhaustive() {
         done < <(sort -u "$registry_unknown_file")
     fi
 
+    # 過去の実行で「この組織で未使用/未ライセンス」と判明した型も同様に
+    # 最初から除外する（retrieve_manifest() が _is_org_unavailable_error で
+    # 検出するたびに追記する永続キャッシュ）。組織の機能有効化状況が変わった
+    # 場合はファイルを削除すれば再判定される。
+    local org_unavailable_file="manifest/.org-unavailable-types.txt"
+    if [ -f "$org_unavailable_file" ]; then
+        while IFS= read -r ut; do
+            [ -z "$ut" ] && continue
+            excluded_list="${excluded_list}${ut},"
+            skipped_for_log+=("${ut} (前回実行でこの組織では未使用/未ライセンスと判明済み)")
+        done < <(sort -u "$org_unavailable_file")
+    fi
+
     mkdir -p manifest
     printf '%s\n' "${skipped_for_log[@]}" > manifest/.retrieve-skipped-all.log
-    info "all-exhaustive モード自動スキップ: ${#skipped_for_log[@]} 型 (manifest/.retrieve-skipped-all.log に記録)"
+    info "all モード自動スキップ: ${#skipped_for_log[@]} 型 (manifest/.retrieve-skipped-all.log に記録)"
 
     local n_batches
     n_batches=$(python - "${api_version}" "${excluded_list}" << PYEOF
@@ -718,7 +538,7 @@ print(len(batches))
 PYEOF
 )
 
-    ok "全量(exhaustive) package.xml 生成: manifest/package-all-1.xml 〜 ${n_batches}.xml (${n_batches} バッチ, 自動スキップ: ${#skipped_for_log[@]} 型)"
+    ok "全量 package.xml 生成: manifest/package-all-1.xml 〜 ${n_batches}.xml (${n_batches} バッチ, 自動スキップ: ${#skipped_for_log[@]} 型)"
 
     # CustomObject は件数ベースで 100 件ずつ分割（標準セットと同ロジック）
     info "CustomObject 一覧を取得中（${target_org}）..."
@@ -1136,6 +956,8 @@ XMLEOF
                 if _is_org_unavailable_error "$retry_log"; then
                     unavail_types+=("$type_name")
                     echo "${type_name} [組織未使用]" >> "$skipped_file"
+                    # 次回以降の実行で最初から除外できるよう永続キャッシュに記録
+                    echo "$type_name" >> "manifest/.org-unavailable-types.txt"
                 else
                     warn "  スキップ: ${type_name}（取得失敗。ログ: ${retry_log}）"
                     skipped_types+=("$type_name")
@@ -1226,6 +1048,9 @@ XMLEOF
         # （ApexClass, Flow, Layout, Profile 等の wildcard バッチが失敗した場合）
         if _is_org_unavailable_error "$log_file"; then
             info "[${label}] スキップ（この組織で未使用/未ライセンスの型）"
+            # 次回以降の実行で最初から除外できるよう永続キャッシュに記録
+            # （単一型 wildcard バッチの label はそのまま型名と一致する）
+            echo "$label" >> "manifest/.org-unavailable-types.txt"
             echo "SKIP" > "$status_file"
             return 0
         fi
@@ -1509,11 +1334,6 @@ case "$MODE" in
         generate_all "$API_VERSION" "$TARGET_ORG"
         retrieve_all "$TARGET_ORG"
         ;;
-    all-exhaustive)
-        TARGET_ORG=$(get_target_org)
-        generate_all_exhaustive "$API_VERSION" "$TARGET_ORG"
-        retrieve_all "$TARGET_ORG"
-        ;;
     generate-only)
         SUBMODE="${2:-standard}"
         case "$SUBMODE" in
@@ -1525,12 +1345,8 @@ case "$MODE" in
                 TARGET_ORG=$(get_target_org)
                 generate_all "$API_VERSION" "$TARGET_ORG"
                 ;;
-            all-exhaustive)
-                TARGET_ORG=$(get_target_org)
-                generate_all_exhaustive "$API_VERSION" "$TARGET_ORG"
-                ;;
             *)
-                error "不明なモード: $SUBMODE (standard / all / all-exhaustive)"
+                error "不明なモード: $SUBMODE (standard / all)"
                 ;;
         esac
         ;;
@@ -1571,20 +1387,19 @@ case "$MODE" in
     *)
         echo "使い方: bash scripts/sf-retrieve.sh <mode>"
         echo ""
-        echo "  all                 全量（推奨・既定）静的キュレーションリストで package.xml 生成 + 取得"
+        echo "  all                 全量（推奨・既定）で package.xml 生成 + 取得（組織にない/CLI未対応の型は自動除外）"
         echo "  select 'Type:m1,m2' ... 型:メンバー指定で package.xml 生成 + 取得（複数型指定可）"
-        echo "  standard            旧標準セット（all に統合済み。後方互換用に残置）"
-        echo "  all-exhaustive      describeMetadata 動的スイープで文字通り全て取得（上級者向け・低速）"
-        echo "  generate-only       package.xml 生成のみ（standard / all / all-exhaustive）"
+        echo "  standard            旧標準セット（後方互換用に残置。通常は all を使用）"
+        echo "  generate-only       package.xml 生成のみ（standard / all）"
         echo "  retrieve            既存 manifest/package.xml で取得のみ（後方互換）"
         echo "  retrieve-standard   生成済み standard 用全 manifest で取得のみ"
-        echo "  retrieve-all        生成済み all(-exhaustive) 用全 manifest で取得のみ"
+        echo "  retrieve-all        生成済み all 用全 manifest で取得のみ"
         echo "  retrieve-manifest   指定 manifest ファイル 1 つで取得（失敗バッチの個別リトライ用）"
         echo "  check-version       sf CLI バージョン確認のみ"
         echo ""
         echo "環境変数:"
         echo "  SF_RETRIEVE_WAIT=N             CLI 待機時間（分、デフォルト 60）"
-        echo "  SF_RETRIEVE_EXTRA_SKIP=A,B,C   all/all-exhaustive で追加スキップする型（カンマ区切り）"
+        echo "  SF_RETRIEVE_EXTRA_SKIP=A,B,C   all モードで追加スキップする型（カンマ区切り）"
         exit 1
         ;;
 esac
