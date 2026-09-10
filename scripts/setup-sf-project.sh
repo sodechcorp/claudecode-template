@@ -105,12 +105,12 @@ info "docs/logs/ フォルダを作成しました"
 # --- sf CLI バージョン確認（Entity expansion バグを事前警告）---
 bash scripts/sf-retrieve.sh check-version
 
-# --- 標準セットの package.xml を生成（sf-retrieve.sh に委譲してリスト一元管理） ---
-bash scripts/sf-retrieve.sh generate-only standard
+# --- 全量セットの package.xml を生成（sf-retrieve.sh に委譲してリスト一元管理） ---
+bash scripts/sf-retrieve.sh generate-only all
 
-# --- メタデータ取得（Dashboard/Report 等のフォルダ型バッチを含む全 manifest）---
+# --- メタデータ取得（Dashboard/Report/Document/EmailTemplate 等のフォルダ型バッチを含む全 manifest）---
 info "メタデータを取得中..."
-bash scripts/sf-retrieve.sh retrieve-standard
+bash scripts/sf-retrieve.sh retrieve-all
 ok "メタデータ取得完了"
 
 echo ""

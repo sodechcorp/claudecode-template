@@ -1,6 +1,6 @@
 ---
 description: "Salesforce組織からメタデータを取得する。package.xml の生成と取得対象をクリック選択で指定できる。"
-argument-hint: "[standard|all|select]"
+argument-hint: "[all|select]"
 ---
 
 Salesforce組織からメタデータを取得してください。
@@ -16,31 +16,34 @@ $ARGUMENTS
 
 ## Step 1: 取得対象の選択
 
-引数がある場合、その値（`standard`/`all`/`select`）に応じて Step 2 の対応する見出し（「standard」の場合／「all」の場合／「select」の場合）へ進む。3つ以外の値が渡された場合は AskUserQuestion で対象を確認する。
+引数がある場合、その値（`all`/`select`）に応じて Step 2 の対応する見出し（「all」の場合／「select」の場合）へ進む。`standard`/`all-exhaustive` が渡された場合はそのまま対応するモードとしてスクリプトに渡す（後方互換・上級者向け。Step 1 の選択肢には出さない）。それ以外の値が渡された場合は AskUserQuestion で対象を確認する。
 
 引数がない場合、AskUserQuestion ツールを以下の内容で呼び出す。
 
 **質問**: 「メタデータの取得対象を選択してください。」
 
 **選択肢**:
-- `standard` — 標準セット（Apex・フロー・オブジェクト・LWC等、開発でよく使うもの）
-- `all` — 全メタデータ（時間がかかる）
+- `all` — 全量（推奨）。Apex・フロー・オブジェクト・LWC等に加え、カスタムメタデータ・表示ラベル・ワークフロー・承認プロセス・組織設定など、どの組織にも確実にあり課題対応で使う型を網羅取得する。組織にない/取得不可能な型は自動除外するため高速
 - `select` — 取得するメタデータ名を個別に指定する
+
+> **補足**: 組織の機能ライセンス依存の exotic な型まで文字通り全て取得したい場合や、旧 `standard`（`all` に統合済み）相当が必要な場合は `bash scripts/sf-retrieve.sh all-exhaustive` / `standard` を直接実行できる（通常は不要）。
 
 ---
 
 ## Step 2: 実行
 
-### 「standard」の場合
-
-```bash
-bash scripts/sf-retrieve.sh standard
-```
-
 ### 「all」の場合
 
 ```bash
 bash scripts/sf-retrieve.sh all
+```
+
+### 「all-exhaustive」/「standard」の場合（Step 1 の補足経由・上級者向け）
+
+```bash
+bash scripts/sf-retrieve.sh all-exhaustive
+# または
+bash scripts/sf-retrieve.sh standard
 ```
 
 ### 「select」の場合
