@@ -1,5 +1,5 @@
 ---
-description: "テンプレート管理対象の .claude/ / scripts/ を最新版に更新して push する（カスタムファイルはテンプレートから削除済みの場合に自動削除される点に注意）。"
+description: "テンプレート管理対象の .claude/ / scripts/ を最新版に更新して push する（カスタムファイルはテンプレートから削除済みの場合に自動削除されるが、未追跡/未コミットの変更があるファイルは保護され警告表示に留まる）。"
 argument-hint: "[タグ/ブランチ] [URL]"
 ---
 
@@ -28,6 +28,7 @@ bash scripts/upgrade.sh -y $ARGUMENTS
 
 `-y` フラグで「適用しますか？」の確認を自動承認する。
 テンプレートから削除されたファイルは **自動削除される**（対象: `.claude/agents/` / `.claude/commands/` / `.claude/templates/` / `.claude/spec/` / `scripts/` 配下のファイル。`.claude/CLAUDE.md` / `.claude/settings.json` / `.gitignore` は上書きコピーのみで削除検出対象外）。
+ただし削除・上書きの対象が **Git 上で未追跡、または未コミットの変更を持つ場合は保護され、削除・上書きされず警告表示に留まる**（`.upgrade-keep` への未登録分の保険。プロジェクト固有カスタマイズの誤消失を防ぐ設計）。
 
 > **プロジェクト固有ファイルの保護**: プロジェクト直下に `.upgrade-keep` を置くと、行ごとのパターンに一致するファイルが削除・上書きから保護される。
 > ```
