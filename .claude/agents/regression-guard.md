@@ -1,6 +1,6 @@
 ---
 name: regression-guard
-description: Phase 3.5 の regression 確認専用。backlog.md（本体）から Task で委譲される（サブエージェント間の二段ネスト起動を避けるため、backlog-validator 経由ではなくメインスレッドが直接起動する）。変更ファイルの依存先・既存テストカバレッジ・影響再走査・過去修正履歴を一括確認して結果を返す。Write ツールを持たない（validation-report.md への記録は backlog-validator が行う）。`/backlog --light` モードでは Phase 3.5 自体がスキップされるため起動されない。直接呼び出し禁止。
+description: Phase 3.5 の regression 確認専用。backlog.md（本体）から Task で委譲される（サブエージェント間の二段ネスト起動を避けるため、backlog-validator 経由ではなくメインスレッドが直接起動する）。変更ファイルの依存先・既存テストカバレッジ・影響再走査・過去修正履歴を一括確認して結果を返す。Write ツールを持たない（validation-report.md への記録は backlog-validator が行う）。`/backlog --light` モードでは Phase 3.5 の Step A（regression-guard）がスキップされるため起動されない（Step B は UI 影響判定に該当する場合のみ実行される）。直接呼び出し禁止。
 tools:
   - Read
   - Glob
@@ -75,11 +75,12 @@ tools:
 | Aura（`.cmp`/`.js`） | コンポーネント名・`aura:attribute`/`aura:method` の公開名 |
 | VisualForce（`.page`） | ページ名・controller/extensions クラス名 |
 | Flow（`.flow-meta.xml`） | Flow の API 名 |
+| カスタム項目（`.field-meta.xml`） | 項目 API 名 |
 | 入力規則/承認プロセス/割り当てルール | 項目名・ルール名・対象オブジェクト名 |
 
-列挙した各シンボル名についてプロジェクト全体で参照元を検索する（検索対象拡張子は [option-reverse-grep.md](../templates/backlog/options/option-reverse-grep.md) の8種と同期）:
+列挙した各シンボル名についてプロジェクト全体で参照元を検索する（検索対象拡張子は [option-reverse-grep.md](../templates/backlog/options/option-reverse-grep.md) の8種＋カスタム項目 `.field-meta.xml`）:
 ```bash
-grep -rn "{シンボル名}" "{プロジェクトルート}/force-app/" --include="*.cls" --include="*.trigger" --include="*.page" --include="*.js" --include="*.html" --include="*.cmp" --include="*.flow-meta.xml" --include="*.validationRule-meta.xml" --include="*.approvalProcess-meta.xml" --include="*.assignmentRules-meta.xml"
+grep -rn "{シンボル名}" "{プロジェクトルート}/force-app/" --include="*.cls" --include="*.trigger" --include="*.page" --include="*.js" --include="*.html" --include="*.cmp" --include="*.flow-meta.xml" --include="*.field-meta.xml" --include="*.validationRule-meta.xml" --include="*.approvalProcess-meta.xml" --include="*.assignmentRules-meta.xml"
 ```
 
 変更対象ファイル自身がヒットした行（シンボルの定義元）は依存先ではないため結果から除外する。
@@ -107,10 +108,16 @@ grep -rn "{変更対象の主要API名}" "{プロジェクトルート}/force-ap
 
 ### Step 4: 過去修正履歴（git log）
 
-変更予定ファイルごとに git 履歴を確認する。`{変更対象ファイル一覧}` はファイル名のみでフォルダパスを含まないため、`git log` のパスを素のファイル名にすると pathspec が不一致になり常に 0 件を返す。ワイルドカード pathspec で全ディレクトリを対象にする:
-```bash
-git -C "{プロジェクトルート}" log --oneline -20 --follow -- '**/{ファイル名}'
-```
+変更予定ファイルごとに git 履歴を確認する。`{変更対象ファイル一覧}` はファイル名のみでフォルダパスを含まないため、`git log` のパスを素のファイル名にすると pathspec が不一致になり常に 0 件を返す。まず Glob（`**/{ファイル名}`）で実パスを解決する:
+
+- **ヒットが1件のみ**: 実パス衝突がないため、そのフルパスで `--follow` を実行する:
+  ```bash
+  git -C "{プロジェクトルート}" log --oneline -20 --follow -- '{Globで解決した実パス}'
+  ```
+- **ヒットが2件以上**（同名ベースファイルが複数ディレクトリに存在）: フルパスに一意に絞り込めないため、ワイルドカード pathspec で全ディレクトリを対象にフォールバックする。この場合、`--follow` が無関係な別ファイルの履歴を混在させうるため、返却フォーマットの当該ファイル行に「同名ファイルが複数存在するため履歴が混在する可能性あり」と注記する:
+  ```bash
+  git -C "{プロジェクトルート}" log --oneline -20 --follow -- '**/{ファイル名}'
+  ```
 
 > **exit code 注記**: `{プロジェクトルート}` が git リポジトリでない場合（exit 128 等）は過去修正履歴を「git 未管理・確認不可」と返却フォーマットに記録して処理を続行する。
 
@@ -140,7 +147,7 @@ git -C "{プロジェクトルート}" log --oneline -20 --follow -- '**/{ファ
 - {追加発見した影響先がある場合のみ記載・なければ「implementation-plan.md の範囲内・追加発見なし」}（{ファイルパス}:{行番号}）
 
 **過去修正履歴**:
-- {ファイル名}: 直近 20 件以内に {件数} 件の修正あり（{直近の修正概要}。0 件の場合は「直近の修正履歴なし」と記載）
+- {ファイル名}: 直近 20 件以内に {件数} 件の修正あり（{直近の修正概要}。0 件の場合は「直近の修正履歴なし」と記載。Step 4 で同名ファイルが複数存在しワイルドカード pathspec にフォールバックした場合は「同名ファイルが複数存在するため履歴が混在する可能性あり」も併記）
 
 ### おまけ: 直接関係しないが参考情報（任意）
 
