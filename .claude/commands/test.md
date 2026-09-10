@@ -449,8 +449,8 @@ fi
 echo "JUDGMENT_HASH=${JUDGMENT_HASH} / CACHED_HASH=${CACHED_HASH}"
 ```
 
-- **`JUDGMENT_HASH` が `CACHED_HASH` と一致する場合**（証跡・判定結果が前回 blind 判定時から変化なし）: `option-final-verifier` を再実行せず、`.blind-verdict.json` の `verdict_block` をそのまま `{log_dir}/test-report.md` の「## blind 最終解決判定」として再掲する（以下手順1〜6はスキップ）。
-- **不一致または `.blind-verdict.json` 不在の場合**: `option-final-verifier` を実行する（以下手順1〜6）。手順6完了後、`{log_dir}/.blind-verdict.json` に `{"judgment_hash": "{JUDGMENT_HASH}", "verdict_block": "{手順6で返却された ## blind 最終解決判定 ブロック全文}"}` を Write する。
+- **`JUDGMENT_HASH` が `CACHED_HASH` と一致する場合**（証跡・判定結果が前回 blind 判定時から変化なし）: `option-final-verifier` を再実行せず、`.blind-verdict.json` の `verdict_block` をそのまま `{log_dir}/test-report.md` の「## blind 最終解決判定」として再掲する。`diagnostic_block` が保存されている場合（前回が判定不能だった場合）は同じ追記に含める（以下手順1〜6はスキップ）。
+- **不一致または `.blind-verdict.json` 不在の場合**: `option-final-verifier` を実行する（以下手順1〜6）。手順6完了後、`{log_dir}/.blind-verdict.json` に `{"judgment_hash": "{JUDGMENT_HASH}", "verdict_block": "{手順6で返却された ## blind 最終解決判定 ブロック全文}", "diagnostic_block": {判定不能時は手順6で追加返却された ## 判定不能（診断詳細） ブロック全文を文字列として格納、それ以外は JSON の null（クォートしない）}}` を Write する。
 
 1. **After 状態のテキスト要約を自動生成する**（`{judgment_path}` の `results[]` から機械的に組み立てる。LLM 生成ではなく決定的な変換）:
    ```bash
