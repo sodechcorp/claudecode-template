@@ -58,6 +58,8 @@ playwright を設定する場合は「その他」を選択して `playwright` �
 
 ### 「github」の場合
 
+> ⚠️ `@modelcontextprotocol/server-github` は `modelcontextprotocol/servers-archived` へ移動済み（非推奨・セキュリティ修正なし）。現状は動作するが、後継は `github/github-mcp-server`（Docker/バイナリ配布、npx一発導入不可）。
+
 チャットで直接トークンを質問する（自由入力のため AskUserQuestion は使わない）:
 
 ```
@@ -85,12 +87,14 @@ GitHub Personal Access Token を入力してください。
 
 ### 「slack」の場合
 
+> ⚠️ `@modelcontextprotocol/server-slack` は `modelcontextprotocol/servers-archived` へ移動済み（非推奨・セキュリティ修正なし・1年以上更新なし）。
+
 チャットで直接 Slack Bot Token（`xoxb-` で始まる）を質問する（自由入力のため AskUserQuestion は使わない）。入力値を `.mcp.json` に書き込む:
 
 ```json
 "slack": {
   "command": "npx",
-  "args": ["-y", "@modelcontextprotocol/server-slack"],
+  "args": ["-y", "@modelcontextprotocol/server-slack@latest"],
   "env": {
     "SLACK_BOT_TOKEN": "<入力値>"
   }
@@ -116,7 +120,7 @@ GitHub Personal Access Token を入力してください。
   "command": "npx",
   "args": ["-y", "@notionhq/notion-mcp-server@latest"],
   "env": {
-    "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer <入力値>\", \"Notion-Version\": \"2022-06-28\"}"
+    "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer <入力値>\", \"Notion-Version\": \"2025-09-03\"}"
   }
 }
 ```
@@ -163,7 +167,7 @@ GitHub Personal Access Token を入力してください。
 
 ## 完了後
 
-「Claude Code を再起動すると設定が反映されます」と案内する。
+「Claude Code を再起動すると設定が反映されます。次は `/sf-memory` で組織情報を収集してください」と案内する。
 
 ## 注意
 
