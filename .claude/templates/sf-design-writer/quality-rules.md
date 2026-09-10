@@ -65,7 +65,7 @@ Phase 1 で `docs/design/` / `docs/requirements/` / `docs/catalog/` 等を参照
 
 **記述するフィールド**: `name`（日本語）/ `overview.*` / 各 `steps[].title` と `steps[].detail`（日本語のみ）/ `params` / `_parser_meta`（**削除する**）
 
-スケルトンモード適用手順（sf-design-writer.md の Phase 0.5 参照）:
+スケルトンモード適用手順（sf-design-writer.md の Phase 0.8 参照）:
 - Phase 1 では、このスケルトンを**ベース**として使い、`title` / `detail` / `overview` を補完する
 - **⚠️ 補完必須・スケルトンのまま終了禁止**: スケルトン JSON（`_parser_meta` を含む状態）は中間成果物であり最終成果物ではない。`name`（日本語）/ `overview.*` / `steps[].title` / `steps[].detail` を全て補完し、完了後は必ず `_parser_meta` フィールドを削除してから Phase 1.5 チェックへ進む。補完せずにスケルトンのまま Phase 1.5 / Phase 2 へ進むことを**明示的に禁止する**。
 - **`calls` / `object_ref` / `branch` / `node_type` は上書き禁止**（機械的に確定済み）

@@ -149,7 +149,7 @@ Read: {project_dir}/.claude/templates/common/phase07-hash-check-by-feature.md
 
 ---
 
-## Phase 0.5: Apex スケルトン事前生成（Apex / Batch / Integration が対象に含まれる場合のみ）
+## Phase 0.8: Apex スケルトン事前生成（Apex / Batch / Integration が対象に含まれる場合のみ）
 
 > Phase 0.7 でスキップ判定されたコンポーネントはこのフェーズの対象外とする。スキップリストを確定してから対象コンポーネントに対して実行すること。
 
@@ -158,7 +158,7 @@ feature_list に Apex 系（Apex / Apex_Batch / Apex_AuraEnabled / Integration �
 
 ```bash
 # Apex コンポーネントごとに実行する（api_name は feature_list の api_name フィールドを使用）
-# ※ Trigger タイプは absorb_into でハンドラーに吸収済みのため Phase 0.5 をスキップする
+# ※ Trigger タイプは absorb_into でハンドラーに吸収済みのため Phase 0.8 をスキップする
 python "{project_dir}/scripts/python/sf-doc-mcp/extract_apex_skeleton.py" \
   --input "{project_dir}/force-app/main/default/classes/{api_name}.cls" \
   --output "{tmp_dir}/{api_name}_skeleton.json"
