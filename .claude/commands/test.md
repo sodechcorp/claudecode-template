@@ -471,7 +471,7 @@ echo "JUDGMENT_HASH=${JUDGMENT_HASH} / CACHED_HASH=${CACHED_HASH}"
      blind_declaration: "実装の経緯・実装計画は一切伝えません。課題本文と After エビデンスだけで解決しているかを判定してください"
      executed_at: {手順2で取得した日時}
    ```
-6. 返却された `## blind 最終解決判定` ブロックを `{log_dir}/test-report.md` に追記する
+6. 返却された `## blind 最終解決判定` ブロックを `{log_dir}/test-report.md` に追記する。総合判定が「判定不能」の場合は、あわせて返却される `## 判定不能（診断詳細）` ブロック（種別・詳細・対応）も同じ追記に含める（missing-input / missing-evidence の原因を記録に残し、再実行前の対応判断を可能にするため）
 
 #### 総合判定への反映
 
