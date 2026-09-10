@@ -241,25 +241,13 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 
 #### 3-4: 作成レコードの目視URL集約 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
-**Phase 1.6（`backlog-repro-runner`）分の合流**: `backlog-repro-runner` が作成した REPRO_ 系レコードは `{log_dir}/repro/logs/created_records.txt`（本ステップが追記する `{log_dir}/created_records.txt` とは**別ファイル**。パスが異なるため単純な「追記」では合流しない）に記録されている。存在する場合、未合流の行のみ先に合流する（既に合流済みの行は再追加しない＝再実行しても安全）:
+**Phase 1.6（`backlog-repro-runner`）分の合流**: `backlog-repro-runner` が作成した REPRO_ 系レコードは `{log_dir}/repro/logs/created_records.txt`（本ステップが追記する `{log_dir}/created_records.txt` とは**別ファイル**。パスが異なるため単純な「追記」では合流しない）に記録されている。存在する場合、未合流の行のみ先に合流する（既に合流済みの行は再追加しない＝再実行しても安全。フルライン完全一致で dedup する）:
 
 ```bash
 if [ -f "{log_dir}/repro/logs/created_records.txt" ]; then
-  python -c "
-import os
-repro_path = r'{log_dir}/repro/logs/created_records.txt'
-main_path = r'{log_dir}/created_records.txt'
-with open(repro_path, encoding='utf-8') as f:
-    repro_lines = [l.rstrip('\n') for l in f if l.strip()]
-existing = set()
-if os.path.exists(main_path):
-    with open(main_path, encoding='utf-8') as f:
-        existing = {l.rstrip('\n') for l in f if l.strip()}
-new_lines = [l for l in repro_lines if l not in existing]
-if new_lines:
-    with open(main_path, 'a', encoding='utf-8') as f:
-        f.write('\n'.join(new_lines) + '\n')
-"
+  python "{project_dir}/scripts/python/backlog-xlsx/dedup_append_lines.py" \
+    --main-file "{log_dir}/created_records.txt" \
+    --new-file "{log_dir}/repro/logs/created_records.txt"
 fi
 ```
 
@@ -269,23 +257,14 @@ fi
 grep -h "^CREATED_RECORD|" "{evidence_dir}"/after/apex/*.txt 2>/dev/null \
   | sed 's/^CREATED_RECORD|//' > "{log_dir}/tmp/created_records_new.txt"
 if [ -s "{log_dir}/tmp/created_records_new.txt" ]; then
-  python -c "
-path_new = r'{log_dir}/tmp/created_records_new.txt'
-path_main = r'{log_dir}/created_records.txt'
-with open(path_new, encoding='utf-8') as f:
-    new_lines = [l.rstrip('\n') for l in f if l.strip()]
-new_nos = {l.split('|')[3] for l in new_lines if len(l.split('|')) > 3}
-try:
-    with open(path_main, encoding='utf-8') as f:
-        old_lines = [l.rstrip('\n') for l in f if l.strip()]
-except FileNotFoundError:
-    old_lines = []
-kept = [l for l in old_lines if len(l.split('|')) <= 3 or l.split('|')[3] not in new_nos]
-with open(path_main, 'w', encoding='utf-8') as f:
-    f.write('\n'.join(kept + new_lines) + '\n')
-"
+  python "{project_dir}/scripts/python/backlog-xlsx/dedup_append_lines.py" \
+    --main-file "{log_dir}/created_records.txt" \
+    --new-file "{log_dir}/tmp/created_records_new.txt" \
+    --key-index 3
 fi
 ```
+
+（`--key-index 3` は `|` 区切り4番目のフィールド＝ `{No}`。同一 No を持つ既存行を除去してから新規行を追記する。）
 
 マーカーが1件も無い場合（全 TC が rollback のみ）、かつ Phase 1.6 の合流もない場合はファイルを作成しない。
 
@@ -308,20 +287,13 @@ fi
 
 `ui-evidence-runner` の返却（各 TC の証跡ファイル名・**画面URL**・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。**画面URL 列（`ok: true` の行のみ）は `{log_dir}/ui_screen_urls.txt` に `{No}|{観点}|{画面URL}` 形式で追記する**（Phase F で `generate_test_report.py` が目視ハンドオフブロック生成に使う）。**追記は Bash の `>>` で行う（Write ツールでの新規保存は使わない）**。差分再実行モードで一部 TC のみ処理する場合、Write で上書きすると前回 OK 分の画面URLが失われるため、`created_records.txt`（Step 3-4）と同様に既存内容を保持したまま追記する。**ただし単純追記のみだと同一 TC を再実行するたび行が重複するため、追記前に今回処理した TC（`{ui_cases}` の No 一覧）の既存行を除去してから追記する**（TC 単位の dedup）:
 
-`{今回処理No集合}` は今回の `{ui_cases}` に含まれる No を Python の set リテラルとして埋め込む（例: `{'TC-003', 'TC-011'}`）:
+`{今回処理No一覧}` は今回の `{ui_cases}` に含まれる No をカンマ区切りで埋め込む（例: `TC-003,TC-011`）:
 
 ```bash
-python -c "
-import os
-nos = {今回処理No集合}
-path = r'{log_dir}/ui_screen_urls.txt'
-if os.path.exists(path):
-    with open(path, encoding='utf-8') as f:
-        lines = [l.rstrip('\n') for l in f if l.strip()]
-    kept = [l for l in lines if l.split('|')[0] not in nos]
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(kept) + ('\n' if kept else ''))
-"
+python "{project_dir}/scripts/python/backlog-xlsx/dedup_append_lines.py" \
+  --main-file "{log_dir}/ui_screen_urls.txt" \
+  --key-index 0 \
+  --keys "{今回処理No一覧}"
 cat >> "{log_dir}/ui_screen_urls.txt" << 'EOF'
 {No}|{観点}|{画面URL}
 EOF
