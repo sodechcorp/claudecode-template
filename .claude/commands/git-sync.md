@@ -25,7 +25,7 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 |---|---|
 | `docs/decisions.md` | `## YYYY-MM-DD` で始まる各エントリ（同キーは local 優先） |
 | `docs/knowledge/case-index.md` | テーブル行の第2列（課題ID）（同キーは local 優先） |
-| `docs/knowledge/pitfalls.md` | `##` / `###` 見出し（同キーは local 優先） |
+| `docs/knowledge/pitfalls.md` | テーブル行の由来issueID＋カテゴリ複合キー（第2列・第3列）（同キーは local 優先） |
 | `docs/knowledge/cases/` | ファイル名（issueKey）単位で新規のみ追加（既存は上書きしない） |
 | `docs/knowledge/effort-calibration.md` | アンカー行（`^- [ID]「` 形式）の課題ID単位で和集合。「全体傾向」統計セクションは local 優先で保持 |
 | `docs/knowledge/global-calibration.md` | `^### ` 見出し（コンポーネント種別帯）単位でマージ。「全体傾向」セクションは local 優先で保持 |
@@ -87,8 +87,18 @@ git status --short docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ do
 
 ```bash
 git fetch origin {Step 0 で取得したブランチ名}
-git checkout origin/{Step 0 で取得したブランチ名} -- docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/sf-standard.md docs/_README.md CLAUDE.md 2>/dev/null || true
 ```
+
+各パスを個別に `git checkout` する（`git checkout` は複数パスを一括指定すると、1パスでも origin 上に存在しない場合コマンド全体が失敗する仕様のため、1つずつ実行して成否を記録する。`2>/dev/null || true` によるエラー抑制はしない）:
+
+```bash
+FAILED_PATHS=""
+for path in docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/sf-standard.md docs/_README.md CLAUDE.md; do
+  git checkout "origin/{Step 0 で取得したブランチ名}" -- "$path" || FAILED_PATHS="$FAILED_PATHS $path"
+done
+```
+
+`$FAILED_PATHS` が空でない場合は Step 3 の完了報告に反映する（下記参照）。
 
 ### Step 2: 積み上げ同期型ファイルのマージ取得
 
@@ -106,7 +116,12 @@ python scripts/python/git-sync/git-sync-merge.py --branch {Step 0 で取得し�
 （docs/logs/ は取得対象外。effort-calibration.md は docs/knowledge/ で積み上げマージ）
 ```
 
-変更がなかった場合:
+Step 1 で `$FAILED_PATHS` が発生していた場合は、上記に加えて以下を報告する（変更がゼロ件でも「既に最新」と報告しない）:
+```
+⚠️ 一部ファイルの取得に失敗しました（origin 上に存在しない可能性）: {FAILED_PATHS}
+```
+
+変更がなく `$FAILED_PATHS` も空の場合:
 ```
 ✅ 既に最新です。
 ```
@@ -157,7 +172,7 @@ git status --short docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ do
 - 例: `docs: update catalog.md,requirements.md` / `chore: update CLAUDE.md,usecases.md`
 - 60 文字を超える場合は `...` で末尾を短縮
 
-Step 1 の選択に応じて `git add` の対象パスを以下から**そのまま**使う（`git add -A` / `git add .` は意図しないファイル混入の原因になるため使用禁止）:
+Step 1 の選択に応じて `git add` の対象パスを以下から使う（`git add -A` / `git add .` は意図しないファイル混入の原因になるため使用禁止）:
 
 | Step 1 の選択 | `git add` 対象パス |
 |---|---|
@@ -165,8 +180,19 @@ Step 1 の選択に応じて `git add` の対象パスを以下から**そのま
 | 引継ぎ対象 docs/ のみ | `docs/overview/ docs/requirements/ docs/flow/ docs/catalog/ docs/architecture/ docs/design/ docs/data/ docs/knowledge/ docs/decisions.md docs/_README.md` |
 | CLAUDE.md のみ | `CLAUDE.md` |
 
+`git add` は複数パスのうち1つでもローカルに存在しないとコマンド全体が失敗する仕様のため、実行前に存在確認でフィルタする（存在しないパスはスキップし完了報告に明記する）:
+
 ```bash
-git add {上表の対象パス}
+ADD_PATHS=""
+SKIPPED_PATHS=""
+for path in {上表の対象パス}; do
+  if [ -e "$path" ]; then
+    ADD_PATHS="$ADD_PATHS $path"
+  else
+    SKIPPED_PATHS="$SKIPPED_PATHS $path"
+  fi
+done
+git add $ADD_PATHS
 git commit -m "{自動生成したコミットメッセージ}"
 git push origin HEAD
 ```
@@ -174,6 +200,11 @@ git push origin HEAD
 完了報告:
 ```
 ✅ 保存完了 — {コミットメッセージ}
+```
+
+`$SKIPPED_PATHS` が空でない場合は上記に加えて以下を報告する:
+```
+（{SKIPPED_PATHS}: 未生成のためスキップ）
 ```
 
 エラーが発生した場合（リモート未設定等・push reject 等）はエラー内容を報告して終了。  
