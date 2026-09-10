@@ -29,7 +29,7 @@ Salesforce 開発プロジェクト向けの Claude Code テンプレート。
 | `/sf-setup` | SF 組織への認証（prod / dev / skip の対話形式） | 初回のみ |
 | `/setup-mcp` | GitHub・Slack・Notion 等の MCP 連携を設定 | 初回のみ |
 | `/upgrade [タグ]` | 大本テンプレートから `.claude/` 配下を更新 | タグ省略で main ブランチ |
-| `/git-sync` | テンプレート更新・プロジェクトの pull/push を対話形式で実行 | |
+| `/git-sync` | プロジェクトの pull/push を対話形式で実行（`docs/` / `CLAUDE.md`） | |
 
 ### 組織記憶系
 
