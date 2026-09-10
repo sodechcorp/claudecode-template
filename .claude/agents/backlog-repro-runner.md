@@ -212,11 +212,17 @@ Step 5-1 で `{証跡保存先}/logs/restore_H{N}.json` に原値を記録した
 ```
 
 ```bash
-# restore_H{N}.json の fields をスペース区切りの key=value に変換し sf data update record に渡す
+# restore_H{N}.json の fields を sf CLI --values 形式に変換する
+# （値をダブルクォートで囲みスペース混入に対応、null は空文字列に変換して誤って文字列"None"をセットしないようにする）
 RESTORE_VALUES=$(python -c "
 import json
 d = json.load(open(r'{証跡保存先}/logs/restore_H{N}.json', encoding='utf-8'))
-print(' '.join(f'{k}={v}' for k, v in d['fields'].items()))
+def esc(v):
+    v = '' if v is None else str(v)
+    v = v.replace(chr(92), chr(92) * 2)
+    v = v.replace(chr(34), chr(92) + chr(34))
+    return v
+print(' '.join(f'{k}=\"{esc(v)}\"' for k, v in d['fields'].items()))
 ")
 sf data update record --sobject {SObjectAPI名} --record-id {RecordId} \
   --values "$RESTORE_VALUES" --target-org "$SF_ALIAS" --json
@@ -310,11 +316,12 @@ ls "{証跡保存先}/before/" "{証跡保存先}/after/" "{証跡保存先}/log
 |---|---|---|---|
 | H1 | ... | 再現 | ✅ 対応方針策定対象 |
 | H2 | ... | 再現せず | ❌ 除外（記録のみ） |
+| H3 | ... | 検証不可 | ⚠️ 未検証（対象外・記録のみ） |
 
 ## 結論
 - 採用候補仮説: H1（1 件）
 - 除外仮説: H2（再現せず）
-- 検証不可: なし
+- 検証不可: H3（未検証のまま。対応方針策定の対象外。理由: {検証不可の理由}）
 - 次フェーズ: Phase 2 で H1 の対応方針を策定する
 
 ## テストデータ
