@@ -144,6 +144,39 @@ _is_kept() {
     return 1
 }
 
+# --- 未コミットのプロジェクト固有カスタマイズ保護（.upgrade-keep 未登録の場合の保険） ---
+# .upgrade-keep は事前登録が必要な opt-in 保護。登録し忘れたカスタマイズ済みファイルが
+# 上書き・削除で無警告に失われるのを防ぐため、Git 管理下では「未追跡」または「未コミットの
+# 変更あり」を検知した既存ファイルを at-risk として記録し、apply_dir・削除処理で保護する。
+# 判定は detect_dir/detect_deletions 実行時（cp/rm で変更する前）に必ず行うこと
+# （apply後に判定すると、新規追加ファイルまで「未追跡」で誤検知するため）。
+_is_at_risk() {
+    local path="$1"
+    [ -f "$path" ] || return 1
+    git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 1
+    if ! git ls-files --error-unmatch "$path" >/dev/null 2>&1; then
+        return 0  # 未追跡
+    fi
+    if ! git diff --quiet -- "$path" 2>/dev/null || ! git diff --cached --quiet -- "$path" 2>/dev/null; then
+        return 0  # 追跡済みだが未コミットの変更あり
+    fi
+    return 1
+}
+_mark_if_at_risk() {
+    # set -e 環境下で「at-risk でない（＝多数派）」場合に非0を返して script を落とさないよう、
+    # if 文で明示的に分岐する（`_is_at_risk "$1" && ...` は該当なし時に非0を返し即終了してしまう）
+    if _is_at_risk "$1"; then
+        AT_RISK_PATHS+=("$1")
+    fi
+}
+_in_at_risk() {
+    local path="$1" p
+    for p in "${AT_RISK_PATHS[@]+"${AT_RISK_PATHS[@]}"}"; do
+        [ "$p" = "$path" ] && return 0
+    done
+    return 1
+}
+
 detect_dir() {
     local dir="$1" label="$2" f rel
     [ -d "$TMP_DIR/$dir" ] || return 0
@@ -156,6 +189,7 @@ detect_dir() {
             ADDITIONS+=("$rel（新規$label）")
         elif ! diff -q "$rel" "$f" >/dev/null 2>&1; then
             CHANGES+=("$rel")
+            _mark_if_at_risk "$rel"
         fi
     done < <(find "$TMP_DIR/$dir" -type f)
 }
@@ -168,6 +202,7 @@ detect_deletions() {
         if _is_kept "$f"; then continue; fi
         if [ ! -f "$TMP_DIR/$f" ]; then
             DELETIONS+=("$f（テンプレートから削除済み）")
+            _mark_if_at_risk "$f"
         fi
     done < <(find "$dir" -type f)
 }
@@ -180,6 +215,10 @@ apply_dir() {
         if [ -n "$skip" ] && [ "$(basename "$f")" = "$skip" ]; then continue; fi
         rel="${f#$TMP_DIR/}"
         if _is_kept "$rel"; then continue; fi
+        if _in_at_risk "$rel"; then
+            warn "未コミットの変更があるため上書きをスキップ: $rel"
+            continue
+        fi
         mkdir -p "$(dirname "$rel")"
         cp "$f" "$rel"
     done < <(find "$TMP_DIR/$dir" -type f)
@@ -192,6 +231,7 @@ _load_keep_patterns
 CHANGES=()
 ADDITIONS=()
 DELETIONS=()
+AT_RISK_PATHS=()  # 未コミット/未追跡で上書き・削除から保護する既存ファイル（_mark_if_at_risk で追加）
 
 # .gitignore
 if [ -f "$TMP_DIR/.gitignore" ]; then
@@ -268,10 +308,19 @@ for item in "${ADDITIONS[@]+"${ADDITIONS[@]}"}"; do
     echo -e "  \033[1;32m追加:\033[0m $item"
 done
 for item in "${CHANGES[@]+"${CHANGES[@]}"}"; do
-    echo -e "  \033[1;33m更新:\033[0m $item"
+    if _in_at_risk "$item"; then
+        echo -e "  \033[1;33m更新:\033[0m $item \033[1;31m[未コミット変更のためスキップ予定]\033[0m"
+    else
+        echo -e "  \033[1;33m更新:\033[0m $item"
+    fi
 done
 for item in "${DELETIONS[@]+"${DELETIONS[@]}"}"; do
-    echo -e "  \033[1;31m削除対象:\033[0m $item"
+    path="${item%（テンプレートから削除済み）}"
+    if _in_at_risk "$path"; then
+        echo -e "  \033[1;31m削除対象:\033[0m $item \033[1;31m[未コミット変更のためスキップ予定]\033[0m"
+    else
+        echo -e "  \033[1;31m削除対象:\033[0m $item"
+    fi
 done
 for item in "${SCAFFOLD_ADDITIONS[@]+"${SCAFFOLD_ADDITIONS[@]}"}"; do
     echo -e "  \033[1;32m追加:\033[0m $item"
@@ -280,6 +329,15 @@ done
 echo ""
 echo "  合計: ${TOTAL}件の変更"
 echo ""
+
+if [ ${#AT_RISK_PATHS[@]} -gt 0 ]; then
+    warn "上記のうち ${#AT_RISK_PATHS[@]} 件は Git 上で未コミットの変更（または未追跡）があるため、上書き・削除をスキップします:"
+    for _ar in "${AT_RISK_PATHS[@]}"; do
+        warn "  - $_ar"
+    done
+    warn "保護したい場合は commit するか .upgrade-keep に登録してください（このままでも他の変更の適用は続行します）"
+    echo ""
+fi
 echo "  ※ 以下は変更されません:"
 echo "    - CLAUDE.md（プロジェクト固有ルール）"
 echo "    - docs/（プロジェクト資材・既存ファイルは上書きしない）"
@@ -355,6 +413,10 @@ if [ ${#DELETIONS[@]} -gt 0 ]; then
     for item in "${DELETIONS[@]}"; do
         path="${item%（テンプレートから削除済み）}"
         if [ -f "$path" ]; then
+            if _in_at_risk "$path"; then
+                warn "未コミットの変更があるため削除をスキップ: $path"
+                continue
+            fi
             if [ "$INSIDE_GIT" = true ]; then
                 git rm -f "$path" >/dev/null 2>&1 || rm -f "$path"
             else
@@ -371,7 +433,9 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     # 無関係な未追跡ファイルの混入・無確認pushを防ぐ。末尾の（説明）サフィックスを除去）
     for item in "${CHANGES[@]+"${CHANGES[@]}"}" "${ADDITIONS[@]+"${ADDITIONS[@]}"}"; do
         rel="${item%（*）}"
-        [ -n "$rel" ] && git add "$rel" 2>/dev/null || true
+        [ -n "$rel" ] || continue
+        _in_at_risk "$rel" && continue  # apply_dirでスキップ済み（未コミットの元内容のまま）のため add しない
+        git add "$rel" 2>/dev/null || true
     done
     for item in "${SCAFFOLD_ADDITIONS[@]+"${SCAFFOLD_ADDITIONS[@]}"}"; do
         rel="${item%（テンプレ雛形・新規作成）}"
