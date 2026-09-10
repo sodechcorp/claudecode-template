@@ -66,10 +66,18 @@ check_sf_version
 # --- retrieve の待機時間・並行度 ---
 # 環境変数で上書き可:
 #   SF_RETRIEVE_WAIT=N           CLI 待機時間（分、デフォルト 60）
-#   SF_RETRIEVE_PARALLEL=N       バッチ並行度（デフォルト 4）
+#   SF_RETRIEVE_PARALLEL=N       バッチ並行度（デフォルト 8）
 #   SF_RETRIEVE_RETRY_PARALLEL=N 個別リトライ並行度（デフォルト 2）
+#
+# SF_RETRIEVE_PARALLEL のデフォルトは 4→8 に引き上げ済み（2026-09-10）。
+# GF実機での計測（standard・11バッチ）: 並行度4=3分24秒 → 8=2分15秒（34%短縮）、
+# 11（全バッチ同時）=2分3秒（8からの追加短縮はわずか）。ボトルネックは
+# retrieve自体（サーバー応答は実測1秒未満）ではなく「並行度上限で次バッチの
+# 起動を待つ」時間だったため、上限を上げるだけで頭打ちなく改善する。8はその
+# 収穫逓減点。極端に同時接続数を制限する組織では SF_RETRIEVE_PARALLEL=4 等に
+# 下げて上書きすること。
 SF_WAIT="${SF_RETRIEVE_WAIT:-60}"
-SF_RETRIEVE_PARALLEL="${SF_RETRIEVE_PARALLEL:-4}"
+SF_RETRIEVE_PARALLEL="${SF_RETRIEVE_PARALLEL:-8}"
 SF_RETRIEVE_RETRY_PARALLEL="${SF_RETRIEVE_RETRY_PARALLEL:-2}"
 
 # --- `<members>*</members>` で内部コンポを返してエラーになる型（all/standard 共通）---
