@@ -163,7 +163,7 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 
 ### 4.5 実装計画・変更ファイル一覧の記述規約（xlsx に直接投影）
 
-implementation-plan.md の「対応内容」セクションおよび変更ファイル一覧の「変更概要」列は **自然な日本語** で書く。
+implementation-plan.md の「関連コンポーネント一覧（変更対象ファイル）」の「変更概要」列、および implementation-summary.md の「実施した対応」節は **自然な日本語** で書く。
 
 **資材名の書き方（対応記録 xlsx ②「変更を加えた資材一覧」に直接転記される）**:
 - **表示名（ラベル）優先・API名は括弧補助のみ**
@@ -173,7 +173,7 @@ implementation-plan.md の「対応内容」セクションおよび変更ファ
   - OK 例: 「犯罪歴確認ラジオボタンを渡航者種別 SA-001〜SA-012 のみ表示する設問として追加」
   - NG 例: 「isCriminalHistoryVisible @track / getter 追加 / handleCriminalHistoryChange handler 実装」
 
-> **重要**: implementation-plan.md の「変更ファイル一覧」「対応内容」は `/test` の網羅性チェック（変更点回帰）の input になる。**変更したコンポーネントと挙動の変化を漏れなく日本語で記載すること**（省略・略記は test 側の TC 生成ミスにつながる）。
+> **重要**: implementation-plan.md の「関連コンポーネント一覧（変更対象ファイル）」は `/test` の網羅性チェック（変更点回帰）の input になる。**変更したコンポーネントと挙動の変化を漏れなく日本語で記載すること**（省略・略記は test 側の TC 生成ミスにつながる）。
 
 ### 5. Before / After の提示
 
