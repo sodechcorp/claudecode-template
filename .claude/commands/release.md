@@ -103,7 +103,7 @@ issueID: {issueID}
 
 ## 注意事項
 
-- **本番デプロイは本コマンドの範囲外**。`release-plan.md` に記載された CLI コマンドは人間が手動で実行する
+- **本番デプロイは本コマンドの範囲外**。`release-plan.md` に記載された CLI コマンド（`deploy_route: manual-operation` の場合は管理画面操作ステップ）は人間が手動で実行する
 - 課題間の並行対応でチケット競合が検出された場合、または本番環境ドリフトで「競合・要人間判断」が検出された場合は、release-preparer の完了報告で明示的に警告される。警告を無視してデプロイしないこと
 - 本番組織への接続確認は `release-preparer` 内部（Phase 4）で行う。本コマンド自体は組織に接続しない
 - `docs/logs/` は `.gitignore` 対象のため、`release-plan.md` / `release-note.md` は生成した本人のローカル環境にのみ存在する。他メンバーと共有する場合は手動でファイルを渡す必要がある

@@ -91,6 +91,17 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 ## Phase 1: リリース資材の確定
 
+**`{deploy_route}` = `manual-operation` の場合（最優先の分岐）**: コード変更・force-app diff が存在しないため、以下 1〜6（通常の git diff ベースの資材マニフェスト構築）は実施せず、代わりに以下の手順に従う（Sandbox 段階で backlog-releaser.md Step 2b が生成した `docs/logs/{issueID}/manual-operation-steps.md` を資材マニフェストの代替ソースとして使う）:
+
+- **M-1**: `docs/logs/{issueID}/manual-operation-steps.md` を Read する。**存在しない場合**、AskUserQuestion で確認する（question: 「deploy_route が manual-operation ですが `docs/logs/{issueID}/manual-operation-steps.md` が見つかりません（本来 `/backlog` Phase 6 の管理画面操作経路で生成されるファイルです）。どうしますか？」/ header: 「操作手順書不在」/ options: 「中断する」〔release-plan.md を生成せず終了〕・「このまま進める」〔操作対象・操作ステップを空欄のまま release-plan.md を生成し、完了報告で人間に手動記入を促す〕）
+- **M-2**: 「### 操作対象」表（オブジェクト/メタデータ・API名・変更種別）を資材マニフェストとして採用する（列名は Phase 5 のマニフェスト表「種別・API名/ファイルパス・変更種別」に読み替えて転記。内容自体は書き換えない）
+- **M-3**: `apex_in_scope: false` / `has_destructive: false` / `test_coverage_risk: false` に固定する（Phase 5 の `--test-level` 判定・Step 3b 削除デプロイはコードデプロイ前提のため manual-operation では実施しない）
+- **M-4**: 「### 操作ステップ」「### 確認事項」「### ロールバック手順」の内容をそのまま保持する（書き換え・抽象化はしない。Phase 5「② リリース実行」・「ロールバック手順」で転記する）
+- **M-5**: `manual_operation_mode: true` として記録する（Phase 4・Phase 5・Phase 6 で参照する）
+- **M-6**: 1a・2a（未リリース積み残しの突合）・3（デプロイ依存関係チェック）・4（deploy-skip-judgment）は実施しない（いずれも force-app のコード差分を前提にしており manual-operation issue には該当しない）。そのまま Phase 2 へ進む
+
+`{deploy_route}` = `normal`、または investigation.md 不在等で `{deploy_route}` が未確定の場合、以下 1〜6 の通常手順に従う:
+
 1. **デプロイ対象を一覧化する**。base コミットの決定手順は [deploy-manifest-base.md](../templates/backlog/_partials/deploy-manifest-base.md) を参照（`backlog-releaser.md` と同一の実行可能スクリプトを使う）:
    - **いずれも差分が空の場合、まず `force-app/` が `.gitignore` 対象かを確認する**（`git check-ignore -q force-app/` の終了コード、または `.gitignore` を Grep。Phase 2 の同種チェックと表記を統一）:
      - **`.gitignore` 対象の場合（テンプレート既定の `.gitignore` 構成であり、実運用ではこちらが標準経路）**: 各メンバーが組織から都度 retrieve する運用のため `git diff` は構造的に機能しない。人間に丸投げせず、**1a** の手順でマニフェストを再構築する
@@ -152,6 +163,8 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 > 詳細スペック: [option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md)
 > 事前ガード: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)（本番）・[sandbox-alias-check.md](../templates/common/sandbox-alias-check.md)（Tier 0 のみ・UAT/Sandbox）
 
+**`manual_operation_mode: true` の場合**: 1.（本番エイリアス確認）のみ実施し、2〜6（Tier 0/1/2 のドリフト検知本体）は実施しない。Tier 0/1/2 はいずれも force-app のローカル実体との比較を前提とするが、manual-operation issue はコードとして実装されたことが一度もなく比較対象が存在しないため。release-plan.md「## 本番環境ドリフト確認」には「対象外（manual-operation。Setup 画面操作前に対象コンポーネントの現状を目視確認してください）」と明記する。
+
 1. `prod-readonly-check.md` で本番組織への接続を確認する（read-only 前提の明示）。**Phase 1 の 1a-2（Tier 0 前倒し実行時）で既に確認済みの場合は再実行せず、その時点の判定結果（OK/WARN/NOTE）と `{本番エイリアス}` の値をそのまま使う**。本番エイリアスが不明・未認証の場合、同ファイルの確認手順は AskUserQuestion で行う（question: 「本番組織のエイリアスを確認します。`sf org list` の出力から本番組織のエイリアスを教えてください」/ header: 「本番エイリアス」/ options: 「WARN のまま進める」〔本番環境ドリフト確認を未実施のまま Phase 5 へ進む〕・「エイリアスを回答する」〔選択時は Other 欄にエイリアス名を直接記入してもらう〕）。判定は prod-readonly-check.md の3分岐（OK/WARN/NOTE）に従う:
    - **OK（本番組織を確認できた）**: 確認できた値を `{本番エイリアス}` として Phase 5 の release-plan.md 生成まで保持し、実値埋め込みに使う
    - **WARN（接続確認に失敗・認証情報なし）**: この Phase をスキップし、release-plan.md に「本番環境ドリフト確認: 未実施（接続情報なし）」と明記して Phase 5 へ進む（`{本番エイリアス}` も未確定のまま Phase 5 に渡る）
@@ -195,7 +208,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 {検出があれば一覧・なければ「該当なし」}
 
 ## デプロイ依存関係
-{Phase 1 の option-deployment-dependency-check 結果}
+{Phase 1 の option-deployment-dependency-check 結果。manual_operation_mode の場合は「該当なし（manual-operation。操作順序は manual-operation-steps.md の操作ステップ記載順に従う）」}
 
 ## 影響範囲サマリー
 {Phase 2 の各 option 結果の要約}
@@ -204,24 +217,27 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、Bac
 {Phase 3 の結果}
 
 ## 本番環境ドリフト確認
-{Phase 4 の結果}
+{Phase 4 の結果。manual_operation_mode の場合は「対象外（manual-operation。Setup 画面操作前に対象コンポーネントの現状を目視確認してください）」}
 
 ---
 
 # ① リリース前チェック（pre-release）
 
-{matrix §A の共通チェック。release-preparer が read-only で確認できたものは状態を埋める}
+{matrix §A の共通チェック。release-preparer が read-only で確認できたものは状態を埋める。`manual_operation_mode: true` の場合、「Sandbox でのテスト完了」「`--test-level` の決定」「デプロイ元が force-app 本体であることの確認」の3項目は「対象外（manual-operation）」と記載する}
 
 ## 資材種別別・リリース前確認
 {Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「リリース前」を転記}
 
 ## 事前記録: ロールバック用バックアップ
-`force-app/` は `.gitignore` 対象（各メンバーが組織から都度 retrieve する運用）のため、コミットハッシュに基づくロールバックは機能しない（`git reset --hard` は Git 管理対象外のファイルには無効）。**デプロイ直前**に、リリース対象コンポーネントの本番環境上の変更前状態を退避しておく。
+{manual_operation_mode: false の場合}`force-app/` は `.gitignore` 対象（各メンバーが組織から都度 retrieve する運用）のため、コミットハッシュに基づくロールバックは機能しない（`git reset --hard` は Git 管理対象外のファイルには無効）。**デプロイ直前**に、リリース対象コンポーネントの本番環境上の変更前状態を退避しておく。
 ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （未取得—デプロイ直前に取得する）
+{manual_operation_mode: true の場合}管理画面操作のため metadata retrieve によるロールバック用バックアップは取得しない。**操作直前**に、対象項目の変更前の値・設定状態を下記「ロールバック手順」の記載に従って人間が記録する（画面キャプチャ・設定値メモ等）。
 
 ---
 
 # ② リリース実行（execution・人間が実行する。エージェントは実行しない）
+
+{manual_operation_mode: true の場合、本セクションは下記「### manual-operation 版」の内容に置き換える（`--test-level` 判定・Step 1〜4・Step 3b は一切記載しない）。false の場合は以下の内容（`--test-level` 判定〜Step 4）をそのまま使う（「### manual-operation 版」は記載しない）}
 
 **具体的な実行コマンド・Step構成は本セクション（Step 1〜4）が正本**。matrix §B は同じ実行手順を人間向け参照用に保持しているが、`{issueID}`/`{test_level}`/`{本番エイリアス}` 等の実値埋め込みが必要な release-plan.md 生成は本セクションのテンプレートをそのまま使う（matrix §B からの転記は行わない）。**`{本番エイリアス}` は Phase 4 で確認済みの値をそのまま埋め込む。Phase 4 をスキップした場合（未接続等）は値が確定していないため `{本番エイリアス}` の文字列のまま残す。この場合、「⚠️ 本番エイリアス未確定: 実行前に対象組織のエイリアスへ置き換えてください」を Step 1・2・3・3b・4 の各コードブロック直下に個別に挿入する**（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の逐次提示ではステップが1つずつ単独で提示され、他ステップの内容は見せないため、セクション冒頭に1回だけ書いても該当ステップ提示時にユーザーの目に入らない）。
 
@@ -283,6 +299,23 @@ sf project deploy report --target-org {本番エイリアス}
 
 {デプロイ順序が分割要の場合は Phase 1 の順序をここに明記。管理画面手動操作がある場合は操作手順を記載}
 
+### manual-operation 版（`manual_operation_mode: true` の場合はこちらを使う。上記 Step 1〜4・`--test-level` 判定は記載しない）
+
+**具体的な操作内容は本節が正本**。`docs/logs/{issueID}/manual-operation-steps.md`「### 操作ステップ」の各項目を `### Step {N}: {ステップの要約}` 見出しに変換し、それぞれ独立したセクションとして転記する（内容自体は書き換えない。[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) が `### Step N: ...` 単位で TodoWrite 化する既存ロジックに揃えるため、通常経路の Step 1〜4 と同じ見出し形式にする。Sandbox 固有の値〔レコードID等〕が含まれる場合は該当ステップ直下に「⚠️ Sandbox 固有の値を含む可能性があります。本番の実値に読み替えてください」を挿入する）。「### 確認事項」はここに含めない（③ リリース後チェックに転記する。チェックリスト形式のため manual-steps-todo-handoff.md の Todo 化対象外）。
+
+対象環境: {本番エイリアス}
+
+### 操作対象
+{Phase 1 M-2 で採用したマニフェスト（manual-operation-steps.md「### 操作対象」表をそのまま転記）}
+
+### Step 1: {操作ステップ1の要約}
+{操作ステップ1の内容をそのまま転記}
+
+### Step 2: {操作ステップ2の要約}
+{操作ステップ2の内容をそのまま転記}
+
+（以降、manual-operation-steps.md の操作ステップ件数分だけ `### Step N: ...` を追加する）
+
 ---
 
 # ③ リリース後チェック（post-release・本番で人間が実施する）
@@ -290,21 +323,23 @@ sf project deploy report --target-org {本番エイリアス}
 {matrix §C の共通チェック}
 
 ## 資材種別別・リリース後検証
-{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「リリース後検証方法」「注意点」を転記。`{本番エイリアス}` は Step 1〜4 と同じ値を埋め込む（未確定の場合の扱いも同様）}
+{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「リリース後検証方法」「注意点」を転記。`manual_operation_mode: true` の場合は加えて manual-operation-steps.md「### 確認事項」の内容をそのまま追記する（チェックリスト形式のため manual-steps-todo-handoff.md の Todo 化対象外＝② リリース実行には含めず、ここに一度に提示する形で転記する）。`{本番エイリアス}` は Step 1〜4 と同じ値を埋め込む（未確定の場合の扱いも同様）}
 
 ---
 
 ## ロールバック手順
-{option-rollback-strategy.md（approach-plan.md 記載があれば転記）+ option-rollback-readiness.md による最終確認}
+{manual_operation_mode: false の場合}{option-rollback-strategy.md（approach-plan.md 記載があれば転記）+ option-rollback-readiness.md による最終確認}
 1. `sf project deploy start --source-dir {ROLLBACK_BACKUP_DIR} --target-org {本番エイリアス}` — 事前retrieve済みの変更前メタデータを本番へ再デプロイする（新規追加コンポーネントは対象外のため、該当分は Setup 画面から手動削除する）
 2. Sandbox で動作確認
 3. 本番の状態を確認
+{manual_operation_mode: true の場合}manual-operation-steps.md「### ロールバック手順」をそのまま転記する（事前記録の変更前の値・設定状態を使って Setup 画面から手動で元に戻す）
 
 ## リリースノート
 {option-release-note-generation.md に従い docs/logs/{issueID}/release-note.md を別途生成し、ここにリンクする}
 ```
 
 手順書生成時に以下を実施:
+- **`manual_operation_mode: true` の場合**、`has_destructive` は false 固定のため destructiveChanges.xml は生成しない。「② リリース実行」は上記「### manual-operation 版」を使う（Step 1〜4・`--test-level` 判定は記載しない）
 - **`has_destructive: true` の場合**、`docs/logs/{issueID}/destructive-changes/destructiveChanges.xml`（削除対象を種別ごとに `<types><members>{API名}</members>...<name>{メタデータ種別}</name></types>` で列挙）と `docs/logs/{issueID}/destructive-changes/package.xml`（`<version>` タグのみの空マニフェスト。バージョンは `sfdx-project.json` の `sourceApiVersion` を使う）を生成する（Step 3b で使用）
 - [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) を参照し、①/③ の資材種別別セクションを Phase 1 資材マニフェストの含有種別に合わせて組み立てる
 - [option-rollback-strategy.md](../templates/backlog/options/option-rollback-strategy.md) / [option-rollback-readiness.md](../templates/backlog/options/option-rollback-readiness.md) の内容を統合してロールバック手順セクションを埋める
@@ -312,7 +347,7 @@ sf project deploy report --target-org {本番エイリアス}
 
 ## Phase 6: 完了・引き渡し
 
-> **全文提示はしない**: `release-plan.md` の全文をこの場でチャットに貼り付けない。Todo 化・ステップごとの逐次提示は呼び出し元（`release.md` Step 4）の責務。仕様: [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md)。本エージェントは完了報告でファイルパスと構成概要（Step 数・管理画面手動操作の有無）のみ伝える。
+> **全文提示はしない**: `release-plan.md` の全文をこの場でチャットに貼り付けない。Todo 化・ステップごとの逐次提示は呼び出し元（`release.md` Step 4）の責務。仕様: [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md)。本エージェントは完了報告でファイルパスと構成概要（Step 数または操作ステップ数・管理画面手動操作の有無）のみ伝える。
 
 完了報告の前に、下記「Phase 最終: クリーンアップ」を実施する（Phase 1/4 で `{tmp_dir}/prod-drift-check` ・ `{tmp_dir}/org-drift-tier0` を作成した場合のみ）。
 
@@ -325,19 +360,19 @@ release_plan_generated: true
 
 ### サマリー
 - リリース対象: {N} 件のコンポーネント（新規 {a} 件・変更 {b} 件・削除 {c} 件）
-- --test-level: {test_level}（判定根拠: apex_in_scope={true/false}, test_coverage_risk={true/false}）/ 対象テストクラス: {RunSpecifiedTests の場合は target_test_classes をカンマ区切りで列挙。RunLocalTests/NoTestRun の場合は「該当なし」}
-- 削除デプロイ（Step 3b）: 不要 / 要（has_destructive: true。{c} 件を destructiveChanges.xml で別デプロイ）
+- --test-level: {manual_operation_mode: true の場合「対象外（manual-operation）」。false の場合 test_level（判定根拠: apex_in_scope={true/false}, test_coverage_risk={true/false}）/ 対象テストクラス: RunSpecifiedTests の場合は target_test_classes をカンマ区切りで列挙。RunLocalTests/NoTestRun の場合は「該当なし」}
+- 削除デプロイ（Step 3b）: {manual_operation_mode: true の場合「対象外（manual-operation）」。false の場合 不要 / 要（has_destructive: true。{c} 件を destructiveChanges.xml で別デプロイ）}
 - 影響範囲: {概要}
 - チケット競合: なし / あり（{issueID} を確認してください）
 - 本番環境ドリフト: なし / あり（{詳細}） / 未リリース積み残しあり（{詳細}） / 未実施（接続情報なし） / 一部未実施（Tier 0 のみ Sandbox未接続のため未実施。Tier 1/2 は実施済み）
 - 資材マニフェスト外で言及されているコンポーネント: なし / 要確認あり（{詳細}） / 未検証あり（{件数}件、ローカル非実在のため保留）
 
 ### 引き渡し
-本番リリース手順書: docs/logs/{issueID}/release-plan.md（① リリース前 → ② 実行（Step {N}件） → ③ リリース後 の順・資材種別別チェック込み。管理画面手動操作: あり/なし）
+本番リリース手順書: docs/logs/{issueID}/release-plan.md（① リリース前 → ② 実行（manual_operation_mode: false の場合 Step {N}件 / true の場合 操作ステップ {N}件） → ③ リリース後 の順・資材種別別チェック込み。管理画面手動操作: あり/なし）
 リリースノート: docs/logs/{issueID}/release-note.md
 
 ### 重要
-- 本番デプロイは人間が手順書の CLI コマンドを実行してください。このエージェントは本番へ read-only 操作のみ行い、デプロイ・書き込みは一切行っていません
+- {manual_operation_mode: false の場合}本番デプロイは人間が手順書の CLI コマンドを実行してください。{true の場合}本番への管理画面操作は人間が手順書の操作ステップに従って実行してください。このエージェントは本番へ read-only 操作のみ行い、デプロイ・書き込みは一切行っていません
 - リリース後チェック（③）は本番で人間が実施する検証です。資材種別ごとに検証方法が異なるため手順書の該当セクションに従ってください
 - {競合・ドリフトの警告があればここに再掲}
 - 本番デプロイが完了したら、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください。リリース実施記録を decisions.md・changelog.md に記録します（Phase 7）
@@ -376,7 +411,7 @@ python -c "import os; a=os.path.exists(r'{tmp_dir}/prod-drift-check'); b=os.path
 
 Phase 6 の完了報告後、ユーザーから本番デプロイ完了の報告（本セッションの継続、または `/release {issueID}` の再起動のいずれでも）を受けたら実施する:
 
-1. デプロイ日時・対象環境（本番エイリアス）・結果（成功 / 一部失敗等）を確認する。**対象環境（本番エイリアス）は `docs/logs/{issueID}/release-plan.md`「② リリース実行」Step 1 の `--target-org` を Grep して取得する**（Phase 4/5 で既に確認済みの値がそのまま埋め込まれているため、Phase 7 で改めてユーザーに聞き直さない。埋め込まれず `{本番エイリアス}` のプレースホルダのままの場合のみ次点で確認する）。**デプロイ日時・結果は `release.md` が起動時に渡す「デプロイ完了報告: {ユーザーからの報告内容}」パラメータを一次情報源とする**（release.md 側でユーザーの自由記述を受け取り済みのため、本 Phase 内で改めてユーザーに問い返さない）。渡された報告文からこれらの項目を過不足なく抽出できない場合のみ AskUserQuestion で個別に確認する。AskUserQuestion でも未回答の項目があれば、分かる範囲で記録し `[要確認]` を付す（断定しない。Phase 7 単独実行モードは Step 0c〔`uncertainty-marker-spec.md` 読込〕をスキップするため、本 Phase では `[要確認]` のみを使う簡易運用とする）
+1. デプロイ日時・対象環境（本番エイリアス）・結果（成功 / 一部失敗等）を確認する。**対象環境（本番エイリアス）は `docs/logs/{issueID}/release-plan.md`「② リリース実行」から取得する（通常経路: Step 1 の `--target-org` を Grep。manual-operation 経路〔manual-operation 版〕: 「対象環境: 」行を Grep）**（Phase 4/5 で既に確認済みの値がそのまま埋め込まれているため、Phase 7 で改めてユーザーに聞き直さない。埋め込まれず `{本番エイリアス}` のプレースホルダのままの場合のみ次点で確認する）。**デプロイ日時・結果は `release.md` が起動時に渡す「デプロイ完了報告: {ユーザーからの報告内容}」パラメータを一次情報源とする**（release.md 側でユーザーの自由記述を受け取り済みのため、本 Phase 内で改めてユーザーに問い返さない）。渡された報告文からこれらの項目を過不足なく抽出できない場合のみ AskUserQuestion で個別に確認する。AskUserQuestion でも未回答の項目があれば、分かる範囲で記録し `[要確認]` を付す（断定しない。Phase 7 単独実行モードは Step 0c〔`uncertainty-marker-spec.md` 読込〕をスキップするため、本 Phase では `[要確認]` のみを使う簡易運用とする）
 2. **結果が「成功」の場合のみ**、`docs/decisions.md` の当該課題エントリ（`## {issueID}:` 見出し。存在しなければ [knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリの書式で新規追記）の「リリース予定日 / 担当」欄を実施日・実施者に更新する
 3. **結果が「成功」の場合のみ**、`docs/logs/changelog.md` に本番リリース済みである旨がまだ反映されていなければ「日付 / 変更内容 / 関連課題ID」の1行を追記する（changelog.md が存在しない場合は `# Changelog` ヘッダー＋空行を作成してから追記。書式は [backlog-releaser.md](backlog-releaser.md) §3 changelog.md フォールバックと同じ）
 3b. **結果が「一部失敗」「失敗」等、成功以外の場合**、decisions.md・changelog.md へは「リリース済み」の体裁で記録しない（実態と乖離した完了記録を残さない）。代わりに以下を行う:
