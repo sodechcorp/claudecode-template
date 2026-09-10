@@ -105,6 +105,19 @@ else
     [ -f "$TMP_DIR/README.md" ] && cp "$TMP_DIR/README.md" "$PROJECT_PATH/README.md"
 fi
 [ -d "$TMP_DIR/docs" ] && cp -r "$TMP_DIR/docs" "$PROJECT_PATH/docs"
+# docs-scaffold: docs/ にまだ存在しない雛形ファイルを配布する（upgrade.sh の配布ロジックと同じ。
+# docs/logs/ 等は .gitignore 対象のため上記の docs/ コピーだけでは配布されず、ここで補う）
+if [ -d "$TMP_DIR/.claude/templates/docs-scaffold" ]; then
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        rel="${f#$TMP_DIR/.claude/templates/docs-scaffold/}"
+        dst="$PROJECT_PATH/docs/$rel"
+        if [ ! -f "$dst" ]; then
+            mkdir -p "$(dirname "$dst")"
+            cp "$f" "$dst"
+        fi
+    done < <(find "$TMP_DIR/.claude/templates/docs-scaffold" -type f)
+fi
 if [ -d "$TMP_DIR/scripts" ]; then
     mkdir -p "$PROJECT_PATH/scripts"
     cp -r "$TMP_DIR/scripts/." "$PROJECT_PATH/scripts/"
