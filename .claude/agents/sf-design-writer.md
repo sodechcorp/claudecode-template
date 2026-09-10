@@ -41,6 +41,7 @@ tools:
 | `feat_id` | 各 feature の ID（`feature_list` 各要素の `id` フィールド値。例: `F-001`）。Phase 0.7 のハッシュチェックや既存 Excel 検索で使用する |
 | `feature_list_dir` | 機能一覧の出力先フォルダ（`{output_dir}/../01_基本設計` 相当のパス。sf-design コマンドが明示的に渡す） |
 | `version_increment` | `"minor"` または `"major"`（初回生成時は `"minor"`・スクリプト側が v1.0 から開始） |
+| `detail_design_tmp` | 詳細設計の tmp フォルダパス（sf-design-step1 連鎖時のみ渡される。省略された場合は上位設計参照なし） |
 | `generate_feature_list` | `true`（デフォルト）/ `false`。`false` の場合は Phase 3（機能一覧 Excel 生成）をスキップする。バッチ処理の中間バッチで sf-design-step2 が指定する |
 | `skip_cleanup` | `false`（デフォルト）/ `true`。`true` の場合は Phase 4 の tmp_dir 削除をスキップして完了報告のみ行う。後続バッチが同じ tmp_dir を使用するため中間バッチで指定される。**最終バッチでも `true` になる場合がある**（sf-design-step2 の任意 reviewer ゲート `run_reviewer=true` 時。この場合は reviewer 起動後に step2 自身が削除する） |
 
@@ -115,20 +116,20 @@ Read: {project_dir}/.claude/templates/common/naming-convention-api-vs-label.md
 
 **上位設計 JSON の確認（存在する場合は参照する）**:
 
-基本設計・詳細設計が先に実行されている場合、その JSON を読み込んで設計の文脈として活用する。
+詳細設計が先に実行されている場合（sf-design-step1 連鎖時）、その JSON を読み込んで設計の文脈として活用する。
 
 ```bash
-python -c "import pathlib; root = pathlib.Path(r'{output_dir}').parent; basic_dir = root / '01_基本設計' / '.tmp'; detail_dir = root / '02_詳細設計' / '.tmp'; [print(f'basic_json:{p}') for p in sorted(basic_dir.glob('*_basic.json'))] if basic_dir.exists() else None; [print(f'detail_json:{p}') for p in sorted(detail_dir.glob('*_detail.json'))] if detail_dir.exists() else None"
+python -c "import pathlib; ddt = r'{detail_design_tmp}'; detail_dir = pathlib.Path(ddt) if (ddt and ddt.strip()) else None; [print(f'detail_json:{p}') for p in (sorted(detail_dir.glob('*_detail.json')) if detail_dir and detail_dir.exists() else [])]"
 ```
 
 対象コンポーネントが属するグループの JSON が見つかった場合は Read ツールで読む（グループ→コンポーネントの対応は feature_ids.yml で確認）。
 
 読んだ内容は以下の目的で活用する:
-- `purpose` / `overview` の記述: 業務目的との整合性（基本設計の purpose / target_users を参照）
-- `prerequisites`: 前提条件の補完（基本設計の prerequisites / 詳細設計の prerequisites を参照）
+- `purpose` / `overview` の記述: 業務目的との整合性（詳細設計の `processing_purpose` を参照）
+- `prerequisites`: 前提条件の補完（詳細設計の `prerequisites` を参照）
 - 呼び出し関係の確認: 詳細設計の `data_flow_overview` でこのコンポーネントの位置づけを確認する
 
-> **注意**: 上位設計 JSON がない場合はこの手順をスキップし、ソースコードのみから生成する。
+> **注意**: `detail_design_tmp` が渡されていない場合、または上位設計 JSON が見つからない場合はこの手順をスキップし、ソースコードのみから生成する。
 
 > 一時ファイルルール: [.claude/templates/common/tmp-file-rules.md]({project_dir}/.claude/templates/common/tmp-file-rules.md)
 

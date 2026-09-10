@@ -109,9 +109,9 @@ Read: {project_dir}/.claude/templates/sf-detail-design-writer/quality-rules.md
 
 ---
 
-## Phase 0.5: 他層設計 JSON + docs/flow/usecases.md の参照（存在する場合）
+## Phase 0.5: docs/flow/usecases.md の参照（存在する場合）
 
-基本設計・プログラム設計が生成済みの場合（順次実行時も単体実行時も）、その JSON を読み込んで設計の文脈として活用する。
+> **注**: 本エージェントは `/sf-design` チェーン内で基本設計・プログラム設計より**先に**実行される（sf-design-step1 Phase 2）ため、他層の設計 JSON はこの時点では存在しない。かつ基本設計書は2026-04-27の設計体系変更で廃止済み。上位層 JSON の参照は行わない。
 
 ### docs/flow/usecases.md の参照（処理フロー記述の正解情報）
 
@@ -123,37 +123,7 @@ python -c "import pathlib; docs_uc = pathlib.Path(r'{project_dir}') / 'docs' / '
 - usecases.md の処理フロー記述が最も信頼できる業務日本語なので、コンポーネント単位の responsibility はここから導く
 - コード上の API 名は usecases.md 記述に現れる形でのみ使い、クラス名はそのまま書かない
 
-以下の内容で `{tmp_dir}/list-upper-layer-json.py` を Write する:
-```python
-import pathlib, json
-root = pathlib.Path(r'{output_dir}').parent
-
-# 基本設計 JSON（グループ単位）
-# {target_group_ids} は JSON 配列文字列で渡すこと（例: '["FG-001", "FG-002"]'）
-basic_dir = root / '01_基本設計' / '.tmp'
-for group_id in json.loads(r'{target_group_ids}'):
-    p = basic_dir / f'{group_id}_basic.json'
-    if p.exists():
-        print(f'basic_json:{group_id}:{p}')
-
-# プログラム設計 JSON（コンポーネント単位）
-prog_dir = root / '03_プログラム設計' / '.tmp'
-if prog_dir.exists():
-    for p in sorted(prog_dir.glob('*_design.json')):
-        print(f'prog_json:{p.stem.replace("_design", "")}:{p}')
-```
-```bash
-python {tmp_dir}/list-upper-layer-json.py
-```
-
-見つかった JSON は Read ツールで読み、以下の目的で活用する:
-
-| 参照元 | 参照するフィールド | 活用目的 |
-|---|---|---|
-| 基本設計 JSON | `purpose` / `target_users` / `business_flow` / `related_objects` | 業務目的との整合確認。`processing_purpose` / `data_flow_overview` の記述精度を高める |
-| プログラム設計 JSON | `overview` / `steps` / `input_params` / `output_params` | インターフェース定義（`interfaces[]`）の実装詳細との整合確認。`screens[].items` のバリデーション補完 |
-
-> **注意**: JSON がない場合はスキップする。参照できる情報はあくまで補完材料。ソースコードと既存資料を一次情報として扱う。
+> **注意**: usecases.md がない場合はこの手順をスキップする。参照できる情報はあくまで補完材料。ソースコードと既存資料を一次情報として扱う。
 
 ---
 
