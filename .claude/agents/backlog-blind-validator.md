@@ -52,7 +52,7 @@ parent から渡された investigation.md・approach-plan.md のテキストを
 | ① 渡しデータ項目（1・2・4・5）が空・欠落（approach-plan.md に「採用方針:」行が無いケースも含む）。**課題コメント全文（3）が空の場合は「コメントなし」として扱い、missing-input としない（0 件は正常）** | `## 異常時の挙動` 共通エラー出力（種別: **missing-input**）で**中断** |
 | ② 採用方針テキストが2行以上（改行を含む）、または `implementation-plan` 等の混入マーカーが含まれる | `## 異常時の挙動` 共通エラー出力（種別: **blind-leaked**）で**中断** |
 | ③ Glob / Grep の収集結果が 0 件 | **中断せず続行**。出力時に「外部コンテキスト収集が限定的」と注記し、渡し情報のみで実装案を組み立てる |
-| ④ force-app ファイルの Read 失敗 | **中断せず続行**。出力の根拠欄に「コード未確認（Read失敗）」と明記する |
+| ④ force-app ファイルの Read 失敗 | **中断せず続行**。出力の該当セクション（処理構造・データ設計等、Read対象コードに関連する記述箇所）本文中に「コード未確認（Read失敗）」と明記する |
 
 さらに必要なコンテキストを Glob / Grep で収集する（**収集対象は force-app/ の実装コード・類似パターンに限定する。Glob / Grep の `path` 引数には必ず `force-app` を明示し、path 省略や `.`（カレント）指定は禁止する。Read も force-app/ 配下のファイルのみを対象とする。docs/logs/{issueID}/ 配下（特に implementation-plan.md）は blind 保全のため読まない**）:
 - 変更対象ファイルの現在の実装
@@ -145,7 +145,6 @@ parent から渡された investigation.md・approach-plan.md のテキストを
 以下の異常が発生した場合、共通エラー出力フォーマットで出力して終了する:
 
 ```
-# blind 実装案: {issueID または "(unknown)"}
 ## エラー
 - 種別: {missing-input / blind-leaked}
 - 詳細: {何が原因か}
@@ -163,4 +162,4 @@ parent から渡された investigation.md・approach-plan.md のテキストを
 
 | 種別 | 発生条件 | 挙動 |
 |---|---|---|
-| **read-failed** | Step 2 での force-app ファイルの Read が失敗（パス誤り・ファイル不在） | エラー報告せず続行。出力の根拠欄に「コード未確認（Read失敗）」と明記し、渡し情報のみで実装案を組み立てる |
+| **read-failed** | Step 2 での force-app ファイルの Read が失敗（パス誤り・ファイル不在） | エラー報告せず続行。出力の該当セクション（処理構造・データ設計等、Read対象コードに関連する記述箇所）本文中に「コード未確認（Read失敗）」と明記し、渡し情報のみで実装案を組み立てる |
