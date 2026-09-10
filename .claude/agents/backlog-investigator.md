@@ -431,7 +431,9 @@ Step C で収集した情報をもとに、報告された症状の原因仮説�
 
 `.claude/templates/backlog/options/option-second-opinion.md` の実行手順に従い、`backlog-blind-second-opinion` subagent を Task ツールで起動する（parent 内で直接実行しない・blind 性の保全のため）。引き渡す情報は同ファイル §実行手順（subagent への引き渡し情報 1〜5）に従う。
 
-subagent が返した仮説群は、後述「根本原因 / 要件の本質」節の原因仮説（多角分析）テーブルの参考材料として保持し、investigation.md に option-second-opinion.md §出力 の形式で「## blind second-opinion 結果」セクションを追記する。「parent 仮説との差異」列は、本 Step 完了後に investigator 自身が原因仮説（多角分析）と突き合わせて埋める。
+返却されたテキストの先頭が `## エラー` 形式（backlog-blind-second-opinion.md §異常時の挙動: missing-input / code-leaked-into-input）かどうかを判定する。
+- **エラー形式でない場合**: subagent が返した仮説群を、後述「根本原因 / 要件の本質」節の原因仮説（多角分析）テーブルの参考材料として保持し、investigation.md に option-second-opinion.md §出力 の形式で「## blind second-opinion 結果」セクションを追記する。「parent 仮説との差異」列は、本 Step 完了後に investigator 自身が原因仮説（多角分析）と突き合わせて埋める。
+- **エラー形式の場合**: investigation.md への追記を保留し、エラー内容（種別・詳細）をユーザに提示したうえで、対処（引き渡し情報を修正して再試行する／second-opinion なしで Step D に進む）をテキスト会話で確認する（`_README.md` §AskUserQuestion の使用ルールに準拠し AskUserQuestion は使わない）。「second-opinion なしで進める」と回答された場合は「## blind second-opinion 結果」を追記せず Step D へ進む。
 
 **Step 0b で option-second-opinion が「実行しない」と判定された場合は本 Step をスキップし、Step D に進む。**
 
@@ -692,7 +694,7 @@ fi
 
 ## blind second-opinion 結果（option-second-opinion 実行時のみ・Step C-3）
 
-（[option-second-opinion.md](../templates/backlog/options/option-second-opinion.md) §出力 の形式（見出し・表列とも）でそのまま追記する。Step 0b で option-second-opinion が「実行しない」と判定された場合は「N/A（option-second-opinion 未実施）」と明記する）
+（[option-second-opinion.md](../templates/backlog/options/option-second-opinion.md) §出力 の形式（見出し・表列とも）でそのまま追記する。Step 0b で option-second-opinion が「実行しない」と判定された場合、または Step C-3 でエラー形式が返り second-opinion なしで進めると判定された場合は「N/A（option-second-opinion 未実施）」と明記する）
 
 ## 根本原因 / 要件の本質
 
