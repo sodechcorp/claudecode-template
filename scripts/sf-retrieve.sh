@@ -76,9 +76,60 @@ check_sf_version
 # 起動を待つ」時間だったため、上限を上げるだけで頭打ちなく改善する。8はその
 # 収穫逓減点。極端に同時接続数を制限する組織では SF_RETRIEVE_PARALLEL=4 等に
 # 下げて上書きすること。
+#
+# 注意（2026-09-10 追記）: 上記計測はソーストラッキング無効の環境のみで行った。
+# sandbox/scratch org はソーストラッキングが既定で有効で、retrieve のたびに
+# ローカル index（.sf/orgs/<orgId>/localSourceTracking/）を更新するが、この
+# index に排他ロックはなく、並行 retrieve が同時書き込みすると isomorphic-git
+# の checksum 不整合で破損する（実機事故で確認）。破損後は組織通信は正常に
+# 終わるのにローカル書き込みだけ失敗するため、時間を消費して成果ゼロになる。
+# そのため下の _cap_parallel_for_tracked_org() で sandbox/scratch org を検出
+# した場合は SF_RETRIEVE_PARALLEL を 1 に強制する（ユーザー明示指定時は尊重）。
 SF_WAIT="${SF_RETRIEVE_WAIT:-60}"
+SF_RETRIEVE_PARALLEL_USER_SET=0
+[ -n "${SF_RETRIEVE_PARALLEL:-}" ] && SF_RETRIEVE_PARALLEL_USER_SET=1
 SF_RETRIEVE_PARALLEL="${SF_RETRIEVE_PARALLEL:-8}"
 SF_RETRIEVE_RETRY_PARALLEL="${SF_RETRIEVE_RETRY_PARALLEL:-2}"
+
+# ソーストラッキング有効組織（sandbox/scratch）を検出し、検出できた場合のみ
+# SF_RETRIEVE_PARALLEL を 1 に強制する。ユーザーが環境変数で明示指定した場合は
+# その判断を尊重して上書きしない。判定不能（sf org list 失敗・組織が一覧に
+# 見つからない等）の場合は安全側に倒さず既定値のまま進める（誤検知で本番等の
+# 非トラッキング組織まで不必要に遅くしないため）。
+_cap_parallel_for_tracked_org() {
+    local target_org="$1"
+    [ "$SF_RETRIEVE_PARALLEL_USER_SET" = "1" ] && return 0
+
+    local org_list_file="manifest/.retrieve-status/.org-list-check.json"
+    mkdir -p "manifest/.retrieve-status"
+    sf org list --json > "$org_list_file" 2>/dev/null || return 0
+
+    local tracked
+    tracked=$(python - "$org_list_file" "$target_org" << 'PYEOF' 2>/dev/null
+import json, sys
+path, target = sys.argv[1], sys.argv[2]
+try:
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    print("unknown"); sys.exit(0)
+result = data.get("result", {})
+for org in result.get("scratchOrgs", []) or []:
+    if target in (org.get("username"), org.get("alias")):
+        print("tracked"); sys.exit(0)  # scratch org は既定でトラッキング有効
+for org in result.get("nonScratchOrgs", []) or []:
+    if target in (org.get("username"), org.get("alias")):
+        print("tracked" if org.get("isSandbox") else "untracked"); sys.exit(0)
+print("unknown")
+PYEOF
+)
+    if [ "$tracked" = "tracked" ]; then
+        warn "組織 '${target_org}' はソーストラッキング有効（sandbox/scratch）です。"
+        warn "retrieve のローカル index 破損を避けるため SF_RETRIEVE_PARALLEL を 1 に強制します"
+        warn "（意図して並行実行したい場合は SF_RETRIEVE_PARALLEL を明示指定してください）"
+        SF_RETRIEVE_PARALLEL=1
+    fi
+}
 
 # --- `<members>*</members>` で内部コンポを返してエラーになる型（all/standard 共通）---
 EXCLUDED_FROM_WILDCARD=(
@@ -671,6 +722,8 @@ run_parallel() {
     local batch=0
     local running=0
 
+    _cap_parallel_for_tracked_org "$target_org"
+
     for manifest in "${manifests[@]}"; do
         batch=$((batch + 1))
         local label
@@ -756,10 +809,68 @@ retrieve_manifest() {
     label_safe=$(echo "$label" | sed 's/[^a-zA-Z0-9_-]/_/g')
 
     if [ "$name_count" -gt 1 ]; then
-        # ── 複数型バッチ: 型を 1 つずつ並行リトライ ─────────────────────────
-        warn "[${label}] バッチ取得失敗。型を 1 つずつ取得します（${SF_RETRIEVE_RETRY_PARALLEL} 並行）..."
+        # ── 複数型バッチ失敗: まずレジストリ未登録型を検出して除外→縮小バッチで再試行 ──
+        # 組織の describeMetadata が返す型は、sf CLI のローカルメタデータレジストリに
+        # 未登録のことがある（新しい/ベータの型など）。package.xml に1つでも混ざると
+        # sf CLI は API 通信前にクライアント側検証で
+        # 「Missing metadata type definition in registry for id '<type>'.」を出して
+        # バッチ全体を即エラーにする。この型は個別リトライしても同じエラーで
+        # 必ず再度落ちるだけなので、先に検出できた分だけ除いた縮小バッチで
+        # 再試行し、無関係な型まで巻き込んで1つずつに分解するのを防ぐ。
+        local registry_removed=()
+        local reg_attempt=0
+        local cur_log="$log_file"
+        while [ "$reg_attempt" -lt 15 ]; do
+            local bad_type
+            bad_type=$(grep -oP "(?<=Missing metadata type definition in registry for id ')[^']+" "$cur_log" 2>/dev/null | head -1)
+            [ -z "$bad_type" ] && break
+
+            registry_removed+=("$bad_type")
+            warn "[${label}] レジストリ未登録型を検出: ${bad_type}（CLI更新で解消する可能性あり）→ 除外して再試行"
+            echo "${bad_type} [CLIレジストリ未登録]" >> "$skipped_file"
+
+            reg_attempt=$((reg_attempt + 1))
+            local reduced_xml="${status_dir}/reduced-${label_safe}-${reg_attempt}.xml"
+            local reduced_log="${status_dir}/reduced-${label_safe}-${reg_attempt}.log"
+            python - "$manifest" "$reduced_xml" "${registry_removed[@]}" << 'PYEOF'
+import sys
+import xml.etree.ElementTree as ET
+
+src, dst, *removed = sys.argv[1:]
+removed = set(removed)
+ns = "http://soap.sforce.com/2006/04/metadata"
+ET.register_namespace('', ns)
+tree = ET.parse(src)
+root = tree.getroot()
+for el in list(root.findall(f"{{{ns}}}types")):
+    name_el = el.find(f"{{{ns}}}name")
+    if name_el is not None and name_el.text in removed:
+        root.remove(el)
+tree.write(dst, encoding="UTF-8", xml_declaration=True)
+PYEOF
+
+            if sf project retrieve start --manifest "$reduced_xml" --target-org "$target_org" \
+                --wait "$SF_WAIT" --ignore-conflicts > "$reduced_log" 2>&1; then
+                ok "[${label}] レジストリ未登録型 ${#registry_removed[@]} 件を除外して取得成功: ${registry_removed[*]}"
+                echo "OK" > "$status_file"
+                return 0
+            fi
+            cur_log="$reduced_log"
+        done
+
+        # ── 残りは型を 1 つずつ並行リトライ（レジストリ未登録として除外済みの型は対象外）──
+        if [ ${#registry_removed[@]} -gt 0 ]; then
+            warn "[${label}] レジストリ未登録型 ${#registry_removed[@]} 件を除外後もバッチ取得失敗。残りの型を 1 つずつ取得します（${SF_RETRIEVE_RETRY_PARALLEL} 並行）..."
+        else
+            warn "[${label}] バッチ取得失敗。型を 1 つずつ取得します（${SF_RETRIEVE_RETRY_PARALLEL} 並行）..."
+        fi
         local types=()
         while IFS= read -r type_name; do
+            local already_removed=0
+            for rt in "${registry_removed[@]}"; do
+                [ "$type_name" = "$rt" ] && already_removed=1 && break
+            done
+            [ "$already_removed" -eq 1 ] && continue
             types+=("$type_name")
         done < <(grep -oP '(?<=<name>)[^<]+' "$manifest")
 
