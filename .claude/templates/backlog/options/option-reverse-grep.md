@@ -17,6 +17,7 @@
    - Aura (`*.cmp`, `*.js`)
    - VisualForce (`*.page`)
    - Flow (`*.flow-meta.xml`)
+   - カスタム項目 (`*.field-meta.xml`)
    - 入力規則 (`*.validationRule-meta.xml`)
    - 承認プロセス (`*.approvalProcess-meta.xml`)
    - 割り当てルール (`*.assignmentRules-meta.xml`)

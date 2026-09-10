@@ -78,7 +78,7 @@ tools:
 | カスタム項目（`.field-meta.xml`） | 項目 API 名 |
 | 入力規則/承認プロセス/割り当てルール | 項目名・ルール名・対象オブジェクト名 |
 
-列挙した各シンボル名についてプロジェクト全体で参照元を検索する（検索対象拡張子は [option-reverse-grep.md](../templates/backlog/options/option-reverse-grep.md) の8種＋カスタム項目 `.field-meta.xml`）:
+列挙した各シンボル名についてプロジェクト全体で参照元を検索する（検索対象拡張子は [option-reverse-grep.md](../templates/backlog/options/option-reverse-grep.md) の9種〔カスタム項目 `.field-meta.xml` 含む〕）:
 ```bash
 grep -rn "{シンボル名}" "{プロジェクトルート}/force-app/" --include="*.cls" --include="*.trigger" --include="*.page" --include="*.js" --include="*.html" --include="*.cmp" --include="*.flow-meta.xml" --include="*.field-meta.xml" --include="*.validationRule-meta.xml" --include="*.approvalProcess-meta.xml" --include="*.assignmentRules-meta.xml"
 ```
