@@ -76,6 +76,8 @@ tools:
 git -C "{プロジェクトルート}" log --oneline -20 --follow -- '**/{ファイル名}'
 ```
 
+> **exit code 注記**: `{プロジェクトルート}` が git リポジトリでない場合（exit 128 等）は「git 未管理・確認不可」として扱い、Step 3 をスキップして調査を続行する（Step 3 は任意実行のため中断しない。regression-guard.md Step 4 と同一パターン）。
+
 ---
 
 ## 返却フォーマット
