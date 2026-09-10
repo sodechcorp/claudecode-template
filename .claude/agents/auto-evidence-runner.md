@@ -137,6 +137,8 @@ fi
 
 **差分再実行モード**: `{target_tc_list}` が指定されている場合、リストに含まれない TC は Step 2〜5 をスキップし、既存の証跡ファイルをそのまま再利用する。空の場合は全件実行する。
 
+**差分再実行時の依存関係の考慮（空撮り防止）**: `{target_tc_list}` に UI 種別の TC が含まれる場合、当該 TC の「前提・データ準備」列を読み、他 TC（主に AnonApex）が作成したデータへの依存が記載されていないか確認する（例:「TC-002 で作成した商談データを使用」等の記述）。依存先 TC が `{target_tc_list}` に含まれていなければ `{target_tc_list}` に追加してから Step 2 以降に進む（依存元データが Sandbox に残っていない状態で UI TC だけを再実行すると、前提未成立のまま画面が撮影される「空撮り」になるため）。この判定は本エージェントが「前提・データ準備」列の自然文を読んで行うものであり、依存関係の記載が無い・曖昧な場合は検出できない（記載の明確化は test-spec-builder.md 側の責務。判断に迷う記載を見つけた場合は検出を諦めず、ユーザーに確認してから進めてよい）。
+
 > 課題種別ごとの推奨テストパターン: [`.claude/templates/backlog/test-pattern-map.md`](../templates/backlog/test-pattern-map.md) を Read して参照する。  
 > **テストの主眼**: 「データ準備→処理起動→結果確認（SOQL＋UI）」で実処理の挙動を確認すること。人が見て分かる画面・データの動きのみを証跡化する（Apex テストクラスの回帰確認は `/backlog` Phase 5/6 で完結済み）。種別ごとの役割は `test-pattern-map.md` の「種別の選び方」を参照（見た目・フロー・表示有無は UI、データ値のみは SOQL/AnonApex）。
 
@@ -274,7 +276,7 @@ fi
 
 種別 = UI のケースが1件以上ある場合のみ、`ui-evidence-runner` に委譲する（0件なら起動しない）。
 
-**実行順序（空撮り防止）**: UI TC が AnonApex TC の作成データに依存する場合（前提・データ準備が同一 No 系統の AnonApex 生成データを参照している等）、必ず Step 3（AnonApex）完了後に Step 4 を実行する（本エージェントは元々 Step 3 → Step 4 の順で進行するためこの順序は自然に満たされる）。**`{target_tc_list}` を使った差分再実行で UI TC のみを指定した場合の対処（実効手順）**: Step 1 で `{spec_path}` を解析する際、`{target_tc_list}` の UI TC が依存する AnonApex TC（前提・データ準備列が参照する No）が `{target_tc_list}` に含まれていない場合、**本エージェントが Step 3 実行対象に当該 AnonApex TC を自動追加する**（`{target_tc_list}` をそのまま ui-evidence-runner に委譲メモとして渡すだけでは、Playwright 専任で Sandbox へのデータ作成手段を持たない ui-evidence-runner 側では対処しようがないため。依存元 TC を実際に再実行してデータを作り直すのは本エージェント自身の責務とする）。
+**実行順序（空撮り防止）**: UI TC が AnonApex TC の作成データに依存する場合（前提・データ準備が同一 No 系統の AnonApex 生成データを参照している等）、必ず Step 3（AnonApex）完了後に Step 4 を実行する（本エージェントは元々 Step 3 → Step 4 の順で進行するためこの順序は自然に満たされる）。**`{target_tc_list}` を使った差分再実行で UI TC のみを指定した場合の対処**: 依存する AnonApex TC を `{target_tc_list}` に含めて Step 3 の実行対象にする判断は Step 1「差分再実行時の依存関係の考慮」で行う（`{target_tc_list}` をそのまま ui-evidence-runner に委譲メモとして渡すだけでは、Playwright 専任で Sandbox へのデータ作成手段を持たない ui-evidence-runner 側では対処しようがないため。依存元 TC を実際に再実行してデータを作り直すのは本エージェント自身の責務とする）。
 
 `ui-evidence-runner` への委譲パラメータ:
 - `issueID`: `{issueID}`
