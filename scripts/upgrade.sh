@@ -60,10 +60,14 @@ if [ -f "$TMP_DIR/scripts/upgrade.sh" ] && ! diff -q "$_SELF" "$TMP_DIR/scripts/
     if [ "${UPGRADE_SELF_UPDATED:-}" = "1" ]; then
         warn "自己更新後も差分が残存。現行スクリプトで続行します（再実行は1回まで）"
     else
+        # 確認プロンプトでキャンセルされた場合に元へ戻せるようバックアップを残す
+        # ($TMP_DIR 内に置くことで、既存の EXIT trap によるクリーンアップ対象に含める)
+        _SELF_BACKUP="$TMP_DIR/.upgrade-self-backup"
+        cp "$_SELF" "$_SELF_BACKUP"
         cp "$TMP_DIR/scripts/upgrade.sh" "$_SELF"
         ok "upgrade.sh を更新。新バージョンで続行します..."
         trap - EXIT                          # exec 失敗時の保険。成功時は子が掃除を再登録
-        export UPGRADE_TMP_DIR="$TMP_DIR" UPGRADE_SELF_UPDATED="1"
+        export UPGRADE_TMP_DIR="$TMP_DIR" UPGRADE_SELF_UPDATED="1" UPGRADE_SELF_BACKUP="$_SELF_BACKUP"
         exec bash "$_SELF" "$@"              # -y / ブランチ / URL を継承
     fi
 fi
@@ -71,10 +75,22 @@ fi
 # --- 取得したテンプレートの BOM 混入チェック ---
 # BOM (UTF-8 with BOM) が付いた agents/commands の .md は YAML frontmatter が
 # 解析できず、エラーも警告も出ないままサイレントに未登録になる。適用前に検出する。
-if command -v python3 >/dev/null 2>&1 && [ -f "$TMP_DIR/scripts/check_bom.py" ]; then
-    if ! python3 "$TMP_DIR/scripts/check_bom.py" "$TMP_DIR/.claude" "$TMP_DIR/scripts"; then
-        warn "取得したテンプレートに BOM 付きファイルが含まれています（上記参照）"
-        warn "該当ファイルはエージェント/コマンドとして登録されない可能性があります"
+if [ -f "$TMP_DIR/scripts/check_bom.py" ]; then
+    PYTHON_CMD=""
+    if command -v python3 >/dev/null 2>&1; then
+        PYTHON_CMD="python3"
+    elif command -v python >/dev/null 2>&1; then
+        # 他スクリプト（sf-retrieve.sh 等）は python コマンドを前提にしており、
+        # python3 が無い環境（python のみ）でも静かにスキップさせないためのフォールバック
+        PYTHON_CMD="python"
+    fi
+    if [ -n "$PYTHON_CMD" ]; then
+        if ! "$PYTHON_CMD" "$TMP_DIR/scripts/check_bom.py" "$TMP_DIR/.claude" "$TMP_DIR/scripts"; then
+            warn "取得したテンプレートに BOM 付きファイルが含まれています（上記参照）"
+            warn "該当ファイルはエージェント/コマンドとして登録されない可能性があります"
+        fi
+    else
+        warn "python/python3 が見つからないため BOM 混入チェックをスキップしました"
     fi
 fi
 
@@ -283,6 +299,10 @@ if [ "$AUTO_YES" = true ]; then
 else
     read -p "適用しますか？ (y/N): " confirm
     if [[ ! "$confirm" =~ ^[yY] ]]; then
+        if [ "${UPGRADE_SELF_UPDATED:-}" = "1" ] && [ -n "${UPGRADE_SELF_BACKUP:-}" ] && [ -f "$UPGRADE_SELF_BACKUP" ]; then
+            cp "$UPGRADE_SELF_BACKUP" "$_SELF"
+            info "upgrade.sh の自己更新を元に戻しました"
+        fi
         info "キャンセルしました"
         exit 0
     fi
@@ -347,7 +367,12 @@ fi
 
 # --- Git コミット（リポジトリがある場合のみ・pushは手動） ---
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    git add .claude/ scripts/ .gitignore 2>/dev/null || true
+    # CHANGES/ADDITIONS に記録された実パスのみを add する（ディレクトリ丸ごと add による
+    # 無関係な未追跡ファイルの混入・無確認pushを防ぐ。末尾の（説明）サフィックスを除去）
+    for item in "${CHANGES[@]+"${CHANGES[@]}"}" "${ADDITIONS[@]+"${ADDITIONS[@]}"}"; do
+        rel="${item%（*）}"
+        [ -n "$rel" ] && git add "$rel" 2>/dev/null || true
+    done
     for item in "${SCAFFOLD_ADDITIONS[@]+"${SCAFFOLD_ADDITIONS[@]}"}"; do
         rel="${item%（テンプレ雛形・新規作成）}"
         [ -n "$rel" ] && git add "$rel" 2>/dev/null || true
