@@ -62,6 +62,8 @@ $RECYCLE.BIN/
 .mcp.json
 # upgrade.sh が作る一時フォルダ（エラー時に残ることがある）
 .claude-upgrade-tmp/
+# sf-code-analyze.sh が作る一時フォルダ（エラー時に残ることがある）
+docs/.tmp/
 # sf-design / sf-doc が確認直後に書き出す一時ファイル（コマンド中断時に残ることがある）
 docs/.sf/.author_tmp
 docs/.sf/.output_dir_tmp

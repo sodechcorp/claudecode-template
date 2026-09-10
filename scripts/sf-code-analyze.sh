@@ -27,8 +27,19 @@ command -v sf >/dev/null 2>&1 || error "Salesforce CLI がインストールさ�
 [ -f "sfdx-project.json" ] || error "sfdx-project.json が見つかりません。SFDXプロジェクトのルートで実行してください"
 command -v python >/dev/null 2>&1 || error "python がインストールされていません"
 
-TARGET="${1:-force-app}"
-[ -e "$TARGET" ] || error "解析対象が見つかりません: $TARGET"
+# 引数なし: force-app 全体がデフォルト。1つ以上あれば全て --target として渡す
+# （呼び出し元でglobパターンをクォートせず渡すと、シェル展開で複数ファイルの位置引数になる。
+#   sf code-analyzer run の --target は複数回指定可能で「指定した対象の合計」を解析する仕様のため、
+#   TARGET単一変数ではなくここでループしてすべて --target に渡す）
+if [ "$#" -eq 0 ]; then
+    set -- "force-app"
+fi
+TARGETS=("$@")
+TARGET_FLAGS=()
+for t in "${TARGETS[@]}"; do
+    [ -e "$t" ] || error "解析対象が見つかりません: $t"
+    TARGET_FLAGS+=(--target "$t")
+done
 
 # プロジェクトルート（カレントディレクトリ）からの相対パスで参照する
 # （BASH_SOURCE から動的解決すると Git Bash の POSIX/Windows パス変換で壊れるため使わない。
@@ -40,18 +51,16 @@ TMPDIR="docs/.tmp/code-analyzer"
 mkdir -p "$TMPDIR"
 RESULTS_JSON="$TMPDIR/results.json"
 
-info "sf code-analyzer 実行中（対象: $TARGET）"
+# エラー・中断時も一時ファイルを必ず破棄する（upgrade.sh の trap ベース後始末と同じ方式）
+trap 'rm -rf "$TMPDIR"; rmdir "docs/.tmp" 2>/dev/null || true' EXIT
+
+info "sf code-analyzer 実行中（対象: ${TARGETS[*]}）"
 info "初回実行時は code-analyzer プラグインの自動インストールが走るため数十秒かかる場合があります"
 
-sf code-analyzer run --workspace . --target "$TARGET" --rule-selector Recommended -f "$RESULTS_JSON" -v table
+sf code-analyzer run --workspace . "${TARGET_FLAGS[@]}" --rule-selector Recommended -f "$RESULTS_JSON" -v table
 
 [ -f "$RESULTS_JSON" ] || error "結果ファイルが生成されませんでした: $RESULTS_JSON"
 
 ok "解析完了。reviewer.md 形式に整形します"
 echo ""
 PYTHONIOENCODING=utf-8 python "$FORMATTER" "$RESULTS_JSON"
-
-# 一時ファイルは整形後に破棄する（docs/.tmp/ 配下に永続ゴミを残さない）
-rm -f "$RESULTS_JSON"
-rmdir "$TMPDIR" 2>/dev/null || true
-rmdir "docs/.tmp" 2>/dev/null || true

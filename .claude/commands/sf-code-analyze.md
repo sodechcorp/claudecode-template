@@ -15,11 +15,14 @@ $ARGUMENTS
 
 ## Step 1: 実行
 
-sfdx-project.json のあるプロジェクトルートで実行する。`$ARGUMENTS` に対象パス（ファイル・ディレクトリ・globパターン）が指定されていればそれをスクリプトの第1引数として渡す。省略時は引数なしで実行する（スクリプト側で `force-app` 全体がデフォルト適用される）。
+sfdx-project.json のあるプロジェクトルートで実行する。`$ARGUMENTS` に対象パス（ファイル・ディレクトリ・globパターン）が指定されていればそれをスクリプトの引数として**クォートせずに**渡す（globパターンはシェルが複数ファイルに展開し、スクリプト側でそれぞれ `--target` として渡してまとめて解析する設計）。省略時は引数なしで実行する（スクリプト側で `force-app` 全体がデフォルト適用される）。
 
 ```bash
 # 引数あり（例: 対象パスが force-app/main/default/classes/MyClass.cls の場合）
 bash scripts/sf-code-analyze.sh force-app/main/default/classes/MyClass.cls
+
+# globパターン（例: 対象パスが force-app/main/default/classes/*.cls の場合。クォートしない）
+bash scripts/sf-code-analyze.sh force-app/main/default/classes/*.cls
 
 # 引数省略（force-app 全体が対象）
 bash scripts/sf-code-analyze.sh
@@ -49,3 +52,4 @@ Warning/Info のみの場合は確認不要。結果を提示して終了する�
 
 - 実エンジンによる自動検出のため誤検知があり得る。指摘を鵜呑みにせず、該当コードを確認してから対応する
 - FLS/CRUD の権限設定の妥当性・設計意図との整合性など、機械的に検出できない観点は reviewer.md 側のチェックリストで別途確認する
+- 「⚠️ エンジンエラー」セクションが出力された場合は PMD/CPD 等の解析エンジン自体の内部エラー（日本語パス等が原因）であり、コード違反ではない。Step3 の対応確認の対象外（コード修正では解消しない）

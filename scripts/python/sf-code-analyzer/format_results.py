@@ -42,6 +42,20 @@ def severity_to_tier(severity: int) -> str:
     return "Info"
 
 
+def is_engine_error(v: Dict[str, Any]) -> bool:
+    """PMD/CPD 等の解析エンジン自体が内部エラーで異常終了した際に挿入される疑似 violation を判定する。
+    実機再現（日本語マルチバイトパス環境）では rule=="UnexpectedEngineError" かつ
+    locations に file キーが無い（{"comment": "Undefined Code Location"}）形で出力される。
+    severity 値のみでは実コード違反と区別できないため、rule 名と location 欠落の両方で判定する。
+    """
+    if v.get("rule") == "UnexpectedEngineError":
+        return True
+    locations: List[Dict[str, Any]] = v.get("locations") or []
+    if not locations or "file" not in locations[0]:
+        return True
+    return False
+
+
 def load_results(path: str) -> Dict[str, Any]:
     if not os.path.exists(path):
         print(f"[ERROR] 入力ファイルが見つかりません: {path}", file=sys.stderr)
@@ -72,13 +86,29 @@ def format_violation(v: Dict[str, Any]) -> str:
     return f"- `{file_path}:{line}` [{engine}:{rule}] {message}{ref}"
 
 
+def build_engine_error_section(engine_errors: List[Dict[str, Any]]) -> List[str]:
+    lines = ["### ⚠️ エンジンエラー（解析基盤の失敗・コード違反ではない）", ""]
+    for v in engine_errors:
+        engine = v.get("engine", "?")
+        rule = v.get("rule", "?")
+        message = v.get("message", "")
+        lines.append(f"- [{engine}:{rule}] {message}")
+    lines.append("")
+    lines.append(
+        "> PMD/CPD 等の解析エンジン自体が内部エラーで異常終了しました。日本語（マルチバイト）ワークスペースパスが原因になるケースが確認されています。"
+        "コード修正では解消しません。ASCIIパスでの再実行や `--rule-selector` の絞り込みを検討してください。"
+    )
+    return lines
+
+
 def build_report(data: Dict[str, Any]) -> str:
     violations: List[Dict[str, Any]] = data.get("violations", [])
-    counts = data.get("violationCounts", {})
     versions = data.get("versions", {})
     run_dir = data.get("runDir", ".")
 
     version_str = " / ".join(f"{k} {v}" for k, v in versions.items() if k != "code-analyzer")
+    engine_errors = [v for v in violations if is_engine_error(v)]
+    code_violations = [v for v in violations if not is_engine_error(v)]
 
     lines: List[str] = []
     lines.append("## コード品質スキャン結果（sf code-analyzer）")
@@ -86,21 +116,25 @@ def build_report(data: Dict[str, Any]) -> str:
     lines.append(f"対象: `{run_dir}`")
     if version_str:
         lines.append(f"エンジン: {version_str}")
-    lines.append(f"検出件数: 合計{counts.get('total', len(violations))}件")
-    lines.append("")
 
-    if not violations:
+    if not code_violations:
+        lines.append("検出件数: 合計0件")
+        lines.append("")
         lines.append("### 問題なし")
         lines.append("")
         lines.append("実エンジン解析（PMD/CPD/regex 等）で違反は検出されませんでした。")
+        if engine_errors:
+            lines.append("")
+            lines.extend(build_engine_error_section(engine_errors))
         return "\n".join(lines)
 
     tiers: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    for v in violations:
+    for v in code_violations:
         tiers[severity_to_tier(v.get("severity", 5))].append(v)
 
     tier_counts = ", ".join(f"{t}: {len(tiers.get(t, []))}" for t in TIER_ORDER if tiers.get(t))
-    lines[4] = f"検出件数: 合計{counts.get('total', len(violations))}件（{tier_counts}）"
+    lines.append(f"検出件数: 合計{len(code_violations)}件（{tier_counts}）")
+    lines.append("")
 
     for tier in TIER_ORDER:
         items = tiers.get(tier)
@@ -118,6 +152,9 @@ def build_report(data: Dict[str, Any]) -> str:
         for v in items_sorted:
             lines.append(format_violation(v))
         lines.append("")
+
+    if engine_errors:
+        lines.extend(build_engine_error_section(engine_errors))
 
     lines.append("> 実エンジン（PMD/CPD/regex）による自動検出です。reviewer.md のチェックリストによる目視レビューと併用してください。誤検知の可能性があります。")
     return "\n".join(lines)
