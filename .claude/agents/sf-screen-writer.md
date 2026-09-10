@@ -112,12 +112,12 @@ python -c "import pathlib, sys; p = pathlib.Path(r'{project_dir}') / 'scripts' /
 **上位設計 JSON の確認（存在する場合は参照する）**:
 
 ```bash
-python -c "import pathlib; ddt = r'{detail_design_tmp}'; detail_dir = pathlib.Path(ddt) if (ddt and ddt.strip()) else pathlib.Path(r'{output_dir}').parent / '02_詳細設計' / '.tmp'; [print(f'detail_json:{p}') for p in (sorted(detail_dir.glob('*_detail.json')) if detail_dir.exists() else [])]"
+python -c "import pathlib; ddt = r'{detail_design_tmp}'; detail_dir = pathlib.Path(ddt) if (ddt and ddt.strip()) else None; [print(f'detail_json:{p}') for p in (sorted(detail_dir.glob('*_detail.json')) if detail_dir and detail_dir.exists() else [])]"
 ```
 
 対象コンポーネントが属するグループの JSON が見つかった場合は Read ツールで読む。
 `processing_purpose` / `screens[].items` （詳細設計）を参照して画面項目の業務意味・バリデーション仕様を補完する。
-見つからない場合（フォールバックパスが存在しない場合を含む）は上位設計参照なしで続行する。
+見つからない場合は上位設計参照なしで続行する。
 
 **参照リファレンスを読み込む（Phase 0 で1回のみ Read）:**
 ```
@@ -142,8 +142,9 @@ feature_list に `"absorb_into"` フィールドがある LWC は**単独の設�
 **手順**:
 1. `absorb_into` が設定されている feature は「吸収対象」と記録。ただし親コンポーネント（`absorb_into` の値）が `target_ids` に含まれない場合は独立扱いとして通常処理する（吸収しない）
 2. 親コンポーネントを処理するとき、吸収対象のソースも**必ず**読む
-3. 吸収対象の feature は Phase 2 でスクリプトを呼ばない（xlsx を作らない）
-4. **Phase 0.7 のハッシュチェックでは、親コンポーネントの `--source-paths` に吸収対象（モーダル）の `source_file` もカンマ区切りで追加する**（例: `"{親のsource_file},{モーダルのsource_file}"`。`source_hash_checker.py` は複数パス指定に対応済み）。これを怠ると、モーダルの JS/HTML だけを変更し親LWC自体のソースは無変更のケースで、親の画面設計書が「変更なし」として再生成されずスキップされる。
+3. **吸収対象の feature は Phase 0.8 のスケルトン抽出対象・Phase 1 の独立処理対象からも除外する**（ソースを読むのは親コンポーネント処理時のみ。吸収対象単独でのスケルトン抽出・JSON生成は行わない）
+4. 吸収対象の feature は Phase 2 でスクリプトを呼ばない（xlsx を作らない）
+5. **Phase 0.7 のハッシュチェックでは、親コンポーネントの `--source-paths` に吸収対象（モーダル）の `source_file` もカンマ区切りで追加する**（例: `"{親のsource_file},{モーダルのsource_file}"`。`source_hash_checker.py` は複数パス指定に対応済み）。これを怠ると、モーダルの JS/HTML だけを変更し親LWC自体のソースは無変更のケースで、親の画面設計書が「変更なし」として再生成されずスキップされる。
 
 ---
 
@@ -156,7 +157,7 @@ Read: {project_dir}/.claude/templates/common/phase07-hash-check-by-feature.md
 
 ---
 
-## Phase 0.5: LWC スケルトン事前生成（LWC が対象に含まれる場合のみ）
+## Phase 0.8: LWC スケルトン事前生成（LWC が対象に含まれる場合のみ）
 
 > Phase 0.7 でスキップ判定されたコンポーネントはこのフェーズの対象外とする。スキップリストを確定してから対象コンポーネントに対して実行すること。
 
@@ -204,7 +205,7 @@ JSON を `tmp_dir` に書き出してからメモリを解放して次のバッ�
 読み込み対象ファイルが存在しない場合は警告として記録してスキップする（コンポーネント情報が欠落するため完了報告の要確認事項に含める）。
 
 追加で参照するもの（存在する場合は全て読む）:
-- `docs/design/{種別}/{name}.md` — 既存設計書（差分更新時は内容を保持する）
+- 既存設計書（差分更新時は内容を保持する）: feature_list の該当エントリの `design_doc` フィールドの値をそのまま参照パスとして使う（実ファイルは `docs/design/{種別}/【F-xxx】{name}.md` のように機能ID prefix付きで生成されるため、パスを自前で組み立てない。`design_doc` が null の場合は既存設計書なしとみなしスキップする）
 - `docs/requirements/requirements.md` — 要件定義書
 - `docs/catalog/` — 関連オブジェクト定義書
 
