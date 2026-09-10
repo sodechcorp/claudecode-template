@@ -444,6 +444,20 @@ generate_all() {
         done
     fi
 
+    # 過去の実行で「sf CLI のローカルレジストリに未登録」と判明した型は、
+    # sf CLI を更新するまで何度実行しても同じ RegistryError で必ず失敗する。
+    # 今回は最初から除外し、無駄な取得試行そのものを発生させない。
+    # （retrieve_manifest() がレジストリエラーを検出するたびに追記する永続
+    #  キャッシュ。manifest/.retrieve-status/ と違い run 開始時に消さない）
+    local registry_unknown_file="manifest/.registry-unknown-types.txt"
+    if [ -f "$registry_unknown_file" ]; then
+        while IFS= read -r rt; do
+            [ -z "$rt" ] && continue
+            excluded_list="${excluded_list}${rt},"
+            skipped_for_log+=("${rt} (前回実行でCLIレジストリ未登録と判明済み。sf CLI更新で再取得可能)")
+        done < <(sort -u "$registry_unknown_file")
+    fi
+
     mkdir -p manifest
     printf '%s\n' "${skipped_for_log[@]}" > manifest/.retrieve-skipped-all.log
     info "all モード自動スキップ: ${#skipped_for_log[@]} 型 (manifest/.retrieve-skipped-all.log に記録)"
@@ -828,6 +842,10 @@ retrieve_manifest() {
             registry_removed+=("$bad_type")
             warn "[${label}] レジストリ未登録型を検出: ${bad_type}（CLI更新で解消する可能性あり）→ 除外して再試行"
             echo "${bad_type} [CLIレジストリ未登録]" >> "$skipped_file"
+            # 次回以降の実行で最初から除外できるよう永続キャッシュに記録する
+            # （generate_all() が読む。複数バッチ並行時に同時追記される可能性が
+            #  あるが、読込側は sort -u で重複除去するため実害はない）
+            echo "$bad_type" >> "manifest/.registry-unknown-types.txt"
 
             reg_attempt=$((reg_attempt + 1))
             local reduced_xml="${status_dir}/reduced-${label_safe}-${reg_attempt}.xml"
