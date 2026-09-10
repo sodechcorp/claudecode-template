@@ -137,7 +137,6 @@ parent が渡した以下の情報だけを元に、課題の原因仮説を 3 �
 以下の異常時は共通エラー出力フォーマットで出力して終了する:
 
 ```
-# blind second-opinion: {issueID または "(unknown)"}
 ## エラー
 - 種別: {missing-input / code-leaked-into-input}
 - 詳細: {何が原因か}
