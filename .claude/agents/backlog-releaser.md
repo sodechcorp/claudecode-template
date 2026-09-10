@@ -136,6 +136,8 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 3. ユーザにデプロイ確認を取る:
    - **dry-run を省略した場合**（2-3: force-app 無変更・Phase 5 PASS 済み）: Sandbox（可逆・短時間）かつ、ユーザーは Phase 5 末尾で既に「Sandbox リリースへ進む」ことを承認済みのため、ここでの再確認は行わない。「Phase 5 の承認をもってデプロイ承認とみなし、force-app 無変更のためそのままデプロイを実行します」と1行通知して 4 へ進む
    - **dry-run を実行した場合**（2-4: force-app に変更あり、または PASS 記録なし。Phase 5 承認時点から状況が変わっているため再確認が必要）: 「（dry-run 結果を確認しました）。デプロイを実行してよいですか？（デプロイ実行 / 内容を確認してから実行 / 中止）」とテキストで質問する（必須）
+   - 「デプロイ実行」が返答された場合は 4 へ進む
+   - 「内容を確認してから実行」が返答された場合は、直前の dry-run 結果（変更コンポーネント一覧・エラー有無）をテキストで再掲し、確認後に改めて同じ3択（デプロイ実行 / 内容を確認してから実行 / 中止）を提示する
    - 「中止」が返答された場合は中止理由を `docs/decisions.md` または `docs/logs/{issueID}/` 配下のメモにテキストで記録し、ユーザに通知する（Backlog コメント反映が必要ならユーザーが手動で投稿）。デプロイは行わない
 
    **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、直前の F-2 Step 2（backlog-tester）で現 force-app に対する dry-run PASS が保証されている（FAIL なら Step 3 は起動されない）。この保証を根拠に上記スキップ判定を**必ず適用**し、`find` の出力が無変更なら再 dry-run を省略して確認省略で 4 へ直接進む。`find` が変更を検知した場合のみ dry-run を実行し 0 errors を確認してから 4 へ進む（**通常の「dry-run を実行した場合」と異なり、この例外では diff があってもテキスト確認は取らない**）。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。
@@ -228,6 +230,8 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 ### 3. ドキュメント更新
 
+> **スキップ判定（軽量再デプロイ）**: `auto_fix_mode: true` の場合、本 Step 全体をスキップする（冒頭「リリースモード判定」表参照）。
+
 > **changelog.md フォールバック**: `docs/logs/changelog.md` に当該 issueID のエントリが既に存在するか Grep で確認する。存在しなければ「日付 / 変更内容 / 関連課題ID」の1行を追記する（管理画面操作のみで対応した場合・implementer を通らなかった場合の取りこぼし防止）。changelog.md 自体が存在しない場合は `# Changelog` ヘッダー＋空行を作成してから追記する。
 
 > **decisions.md 重複ガード（Phase 5 との二重書き込み防止・必須）**: Phase 5 の `option-knowledge-extraction`（バグ・追加要望では原則常時実行）が既に当課題のエントリを `docs/decisions.md` に追記済みの場合がある。見出し形式は `## {issueID}: ...`（[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリ）に統一済みだが、統一前に option-knowledge-extraction が書いた旧形式（`## {YYYY-MM-DD}: ... ({issueID})`）のエントリも後方互換で検出するため、以下のように両方の形をカバーして追記前に確認する:
@@ -261,6 +265,8 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 ---
 
 ### 3.6. 知見の自動還流（pitfalls.md + verify-spec 追加ルール欄）
+
+> **スキップ判定（軽量再デプロイ）**: `auto_fix_mode: true` の場合、本 Step 全体をスキップする（冒頭「リリースモード判定」表参照）。
 
 > **設計意図（他の知見還流 Step との非対称）**: pitfalls.md（本 Step）のみユーザー確認を必須とし、decisions.md（Step 3）・cases/{issueKey}.md（Step 3.8）・case-index.md（Step 4.5）は確認なしで自動追記する。理由は抽出元の確度の違い: 後者3つは approach-plan.md の採用方針・implementation-plan.md 等、**既にユーザーが承認済みの構造化セクション**からの転記・集約に留まる。一方 pitfalls.md は discussion-log.md の自然文からの発見的パターン抽出（フォールバック時は approach-plan.md/test-report.md の全文 Grep。§[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) も Phase 3.6 経由は常に `[fallback]` と明記）であり、**ユーザー未検証の新規の主張**を全案件が参照する共有知識ベースに書き込むことになる。誤検出が混入すると気づかれにくく将来の判断を誤らせるリスクがあるため、この Step のみ意図的にユーザー確認を挟んでいる（意図的設計であり非対称はバグではない）。
 
@@ -302,6 +308,8 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 ### 3.7. お客様確認サイン取得
 
+> **スキップ判定（軽量再デプロイ）**: `auto_fix_mode: true` の場合、本 Step 全体をスキップする（冒頭「リリースモード判定」表参照）。
+
 > ルール定義: [.claude/templates/backlog/customer-signoff.md](../templates/backlog/customer-signoff.md) を参照
 
 **Claude はお客様向け Backlog コメントを投稿しない**。Claude の責務は以下のみ:
@@ -314,7 +322,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 3. **サイン取得の報告を待たずに Step 3.8 以降へ進む**（ブロッキングしない。「サイン取得＝業務上の完了条件」と「本セッションの完了条件」は別物として扱う）:
    - **この時点で既にユーザーから「サイン取得済み」「サイン不要」の報告がある場合**: 4. へ進み xlsx タイムラインに記録する
    - **まだ報告がない場合**（通常はこちら。顧客往復は非同期でセッション内に収まらないことが多い）: `docs/logs/{issueID}/pending-signoff.md` に「対象: {issue_type} / リマインド日時 / 確認対象（目視確認のご案内へのリンク）」を記録し、Step 4 完了報告の「残作業」に「[ ] お客様確認サイン取得（バグ、または権限・FLS・レイアウト・RecordType・共有ルール変更を含む場合は必須）。取得後、報告いただければ xlsx タイムライン「お客様確認」欄へ追記します（別セッションでも可）」を追加する
-4. ユーザーから報告を受けた場合（本 Step 内・別セッションのいずれでも）、`{issue_type}` が `バグ` かつ `{xlsx_folder}` が設定されている場合のみ xlsx タイムラインに記録:
+4. ユーザーから報告を受けた場合（本 Step 内・別セッションのいずれでも）、`{issue_type}` が `バグ`、または権限・FLS・レイアウト・RecordType・共有ルール変更を含む場合（上記 2. の必須度判定と同一条件）**かつ** `{xlsx_folder}` が設定されている場合のみ xlsx タイムラインに記録:
    > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定の場合はスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
 
 ```bash
@@ -331,7 +339,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
 
 ### 3.8. cases/{issueKey}.md 詳細ファイル生成
 
-> **スキップ判定**: `docs/knowledge/cases/{issueKey}.md` が既に存在する場合はスキップ（cat6 が生成済みの可能性）。`{issueKey}` が空 / 未設定 / 変数名リテラルの場合もスキップする。
+> **スキップ判定**: `auto_fix_mode: true`（軽量再デプロイ。冒頭「リリースモード判定」表参照）の場合は本 Step 全体をスキップする。それ以外で `docs/knowledge/cases/{issueKey}.md` が既に存在する場合はスキップ（cat6 が生成済みの可能性）。`{issueKey}` が空 / 未設定 / 変数名リテラルの場合もスキップする。
 
 `docs/logs/{issueID}/` 配下の前工程ファイルを集約し、`docs/knowledge/cases/{issueKey}.md` として知識ベース形式で書き出す。
 
@@ -358,9 +366,9 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
      - `## TL;DR` — investigation.md の「課題サマリー」「TL;DR」セクションから200字以内で要約
      - `## 症状・要件` — investigation.md の「要件理解」または「問題の概要」セクションを整形。ない場合は approach-plan.md から補完
      - `## 調査・検討の経緯` — approach-plan.md の「案A〜X 比較」「不確実点」等から「検討の流れ・排除案・採用理由」を抽出
-     - `## 採用方針` — approach-plan.md の「採用方針」セクションから転記
+     - `## 採用方針` — approach-plan.md の「### 推奨案と根拠」内の「採用方針: 案X — 理由本文」記載（単独案確定時のみ記載される1行サマリー）から転記。無い場合（判断ポイントが1件以上あり複数案から選択されたケース）は implementation-plan.md 冒頭の「採用方針: [案X]」を使う
      - `## 却下案・代替案` — approach-plan.md の比較表・却下案の理由を整形
-     - `## 教訓・再発防止` — investigation.md または approach-plan.md の「再発防止」「注意点」セクションから抽出。ない場合は省略
+     - `## 教訓・再発防止` — discussion-log.md（Step 0d で Grep 済みの `ハマ`/`落とし穴`/`想定外`/`再発防止`/`気をつけ`/`注意`/`壊れ`/`不具合`/`罠`キーワードにマッチした段落。Step 3.6 pitfalls.md 抽出と同一キーワード群）から抽出。discussion-log.md が存在しない、またはマッチなしの場合は省略
      - `## 関連リンク` — 以下の2行を記載:
        - `- Backlog: （{issueID} で Backlog 検索）`
        - `- docs/logs/{issueID}/: 前工程ファイル一式`
@@ -510,7 +518,7 @@ children:
 
 ### 4.5. case-index.md への自動追記
 
-> **スキップ判定**: `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
+> **スキップ判定**: `auto_fix_mode: true`（軽量再デプロイ。冒頭「リリースモード判定」表参照）の場合は本 Step 全体をスキップする。それ以外で `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
 
 `docs/knowledge/case-index.md` に当課題の1行サマリーを先頭挿入する。
 
@@ -520,8 +528,8 @@ children:
      2. `docs/logs/{issueID}/approach-plan.md` の「バグの概要」または課題の種別説明冒頭
      3. Backlog 課題タイトル
    - **根本原因（全角60字以内）**: バグ種別のみ。investigation.md の「根本原因」「原因」セクションから抽出。見当たらない場合は `-`
-   - **採用方針（全角40字以内）**: approach-plan.md の「採用方針」セクションから抽出
-   - **教訓（全角40字以内）**: investigation.md または approach-plan.md から「再発防止」「教訓」「注意点」に関する記述を抽出。見当たらない場合は `-`
+   - **採用方針（全角40字以内）**: approach-plan.md の「### 推奨案と根拠」内の「採用方針: 案X — 理由本文」記載（単独案確定時のみ記載される1行サマリー）から抽出。無い場合（判断ポイントが1件以上あり複数案から選択されたケース）は implementation-plan.md 冒頭の「採用方針: [案X]」から抽出
+   - **教訓（全角40字以内）**: discussion-log.md（Step 0d で Grep 済みの `ハマ`/`落とし穴`/`想定外`/`再発防止`/`気をつけ`/`注意`/`壊れ`/`不具合`/`罠`キーワードにマッチした段落。Step 3.6 pitfalls.md 抽出と同一キーワード群）から抽出。discussion-log.md が存在しない、またはマッチなしの場合は `-`
    - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
    - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
 
