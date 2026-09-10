@@ -203,7 +203,7 @@ JSON を `tmp_dir` に書き出してからメモリを解放して次のバッ�
 | Integration | Named Credential + Apex クラス全文 |
 
 追加で参照するもの（存在する場合は全て読む）:
-- `docs/design/{種別}/{ClassName}.md` — 既存設計書（差分更新時は内容を保持する）
+- 既存設計書（差分更新時は内容を保持する）: feature_list の該当エントリの `design_doc` フィールドの値をそのまま参照パスとして使う（実ファイルは `docs/design/{種別}/【F-xxx】{name}.md` のように機能ID prefix付きで生成されるため、パスを自前で組み立てない。`design_doc` が null の場合は既存設計書なしとみなしスキップする）
 - `docs/requirements/requirements.md` — 要件定義書（FR 紐づけに使用）
 - `docs/catalog/` — 関連オブジェクト定義書（項目名・型の確認）
 
