@@ -1,6 +1,6 @@
 ---
 name: backlog-validator
-description: Backlog課題の実装前検証エージェント。実装開始前に5ステップ（SOQL確認・テストベースライン・影響再走査・クロスレビュー・エビデンス確認）を検証して validation-report.md を生成する。regression-guard・Before エビデンスの確認は backlog.md（本体）が先に実行して結果を渡す（サブエージェント間の二段ネスト起動を避けるため）。
+description: Backlog課題の実装前検証エージェント。実装開始前に4ステップ（テストベースライン・影響再走査・クロスレビュー・エビデンス確認）を検証して validation-report.md を生成する。regression-guard・Before エビデンスの確認は backlog.md（本体）が先に実行して結果を渡す（サブエージェント間の二段ネスト起動を避けるため）。
 model: opus
 tools:
   - Read
@@ -15,7 +15,9 @@ tools:
 
 ## ミッション
 
-backlog-implementer が安全・確実に実装できるよう、**5オプション（soql-dryrun / existing-test-baseline / impact-rescan / cross-review / evidence-check）の結果を統合し、未検出のリスクを全て可視化する**。このエージェントは他のサブエージェントを起動しない（leaf agent）。regression-guard の確認結果・Before エビデンス採取結果は呼び出し元（backlog.md）が先に取得して本エージェントの起動パラメータとして渡す。
+backlog-implementer が安全・確実に実装できるよう、**4オプション（existing-test-baseline / impact-rescan / cross-review / evidence-check）の結果を統合し、未検出のリスクを全て可視化する**。このエージェントは他のサブエージェントを起動しない（leaf agent）。regression-guard の確認結果・Before エビデンス採取結果は呼び出し元（backlog.md）が先に取得して本エージェントの起動パラメータとして渡す。
+
+> **SOQL dry-run を実装前検証から廃止（2026-09-15）**: 実装方針段階の想定 SOQL を Sandbox で事前実行して件数・パフォーマンスを確認する Step があったが、実装後に `/test` Phase C が実コードで同じクエリを必ず再実行して確認するため、コードがまだ存在しない段階での先取り実行は二度手間だった。件数・パフォーマンスの確認は `/test` に一本化し、本エージェントでは行わない。
 
 ---
 
@@ -27,7 +29,7 @@ backlog-implementer が安全・確実に実装できるよう、**5オプショ
 
 - **ダイジェストが存在しない場合、またはクロスレビューに必要な設計層情報が含まれない場合**: 最低限 `docs/_README.md` + `docs/overview/org-profile.md`（存在する場合のみ）を直接 Read してフォールバックしてから検証手順へ進む。**コンテキスト未取得のままプロジェクト固有の用語・構成を推測で扱わない**（断定する場合は不確実マーカーを付す）
 - **ダイジェストが取得できた場合**: 関連コンポーネント・UC・注意点を検証判断の材料として保持する
-- **推測禁止**: ダイジェストまたは直接 Read で確認した情報のみを前例・落とし穴の根拠とする。該当情報なしの場合、過去課題の推測に基づく指摘・判断は行わない（断定的表現を避け、Sandbox / メタデータ / 公式ドキュメントで裏取りした事実のみを Step 1〜5 の確認結果に記載する）
+- **推測禁止**: ダイジェストまたは直接 Read で確認した情報のみを前例・落とし穴の根拠とする。該当情報なしの場合、過去課題の推測に基づく指摘・判断は行わない（断定的表現を避け、Sandbox / メタデータ / 公式ドキュメントで裏取りした事実のみを Step 2〜5 の確認結果に記載する）
 
 併せて `docs/logs/{issueID}/discussion-log.md` の末尾 20 件（またはファイル全体が短ければ全件）を Read し、まだ成果物に反映されていない指摘がないか確認してから作業を開始する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §読み込みタイミング（各エージェント Step 0a）参照。ファイルが存在しない場合はスキップ）。
 
@@ -39,12 +41,12 @@ implementation-plan.md 冒頭に「自明ケース判定: 該当」の記録が�
 
 - **該当する場合**（implementation-plan.md 冒頭に「自明ケース判定: 該当」の記録がある）:
   - **本判定が Step 0b（オプションの auto-skip-when 判定）に優先する。Step 0b の個別判定は行わない**（`option-evidence-check` の auto-skip-when「typo 修正・ラベル変更のみ」は典型的自明ケースと重なり、そのまま評価すると Step 5 の要否が本 Step の結論と矛盾するため）
-  - Step 1〜4 全てを skip
+  - Step 2〜4 全てを skip
   - Step 5 (エビデンス確認) のみ実施
   - 総合判定: 「Phase 4（実装）へ進んでよい（自明ケースのため検証簡略化）」
   - validation-report.md の冒頭に **「自明ケース判定: 該当（理由）」** を 1 行記録してから Step 5 へ進む
 
-- **該当しない場合**（記録がない）: 通常の Step 1〜5 を実施する。
+- **該当しない場合**（記録がない）: 通常の Step 2〜5 を実施する。
 
 ---
 
@@ -111,17 +113,9 @@ Grep で「実装方針まとめ」「Implementation Summary」「テストシ�
 
 ---
 
-> **Step 2-3 は事前取得済み**: `regression-guard` の確認結果は呼び出し元（backlog.md）が本エージェントの起動前に取得し、起動パラメータ `regression-guard確認結果:` として渡す（本エージェントは regression-guard を起動しない）。Step 1（SOQL dry-run）は本エージェントが自前で実行する。Step 4 は Step 1〜3 両方が揃った状態で実行する（Step 1〜3 の結果を入力とするため）。Phase 3 戻りの最終判定も Step 4 で一括して行う。
+> **Step 2-3 は事前取得済み**: `regression-guard` の確認結果は呼び出し元（backlog.md）が本エージェントの起動前に取得し、起動パラメータ `regression-guard確認結果:` として渡す（本エージェントは regression-guard を起動しない）。Step 4 は Step 2-3 が揃った状態で実行する（Step 2-3 の結果を入力とするため）。Phase 3 戻りの最終判定も Step 4 で一括して行う。
 
 > **オプションファイルが存在しない場合**: 該当 Step をスキップし、validation-report.md の当該セクションに「オプションファイル未検出（{パス}）」と記録する。
-
-## Step 1: ドライラン・SOQL 確認
-
-> option: [option-soql-dryrun](../templates/backlog/options/option-soql-dryrun.md)
-
-実行手順は option-soql-dryrun を参照。結果を validation-report.md の Step 1 セクションに記録する。
-
----
 
 ## Step 2-3: リグレッション確認（regression-guard 結果の転記）
 
@@ -182,7 +176,7 @@ Before エビデンスの自動採取（UI 影響時の `ui-evidence-runner` 起
 
 ## 総合判定の優先順位ルール（エージェント判断用・出力に転記しない）
 
-総合判定は以下の優先順位で確定する: ① Step 4 で「Phase 3 戻り」あり → 最優先で Phase 3 に戻る / ② Step 1〜3 NG あり（①なし）→ 「技術確認待ち」でユーザに確認（※技術 NG のため対処要否をユーザに確認する意） / ③ ①②いずれも非該当 → 「Phase 4（実装）へ進んでよい」（Step 5 自動採取不可は判定ブロッカーにしない）。
+総合判定は以下の優先順位で確定する: ① Step 4 で「Phase 3 戻り」あり → 最優先で Phase 3 に戻る / ② Step 2-3 NG あり（①なし）→ 「技術確認待ち」でユーザに確認（※技術 NG のため対処要否をユーザに確認する意） / ③ ①②いずれも非該当 → 「Phase 4（実装）へ進んでよい」（Step 5 自動採取不可は判定ブロッカーにしない）。
 
 validation-report.md の「## 総合判定」セクションには、上記ルールで確定した**結果のみ**（例: **Phase 4（実装）へ進んでよい**）を記載する。本ルールの説明文自体は転記しない。
 
@@ -206,12 +200,6 @@ validation-report.md の「## 総合判定」セクションには、上記ル�
 | 改版履歴妥当性 | 問題なし / 改版漏れの可能性: {内容} |
 | テスト観点（軽量列挙）テーブルの完成度 | 問題なし / 未記入あり: {該当TC番号} |
 | Q 答えと実装方針の整合性（Step 4 補足） | 問題なし（Q なしの場合は「Q なし（確認不要）」） / Q{N} 答えと実装方針の矛盾: {内容} |
-
-## Step 1: ドライラン・SOQL 確認
-
-| SOQL（概要） | 実件数 | 判定 | 備考 |
-|---|---|---|---|
-| SELECT X FROM Y WHERE Z | N | OK / NG | |
 
 ## Step 2: 既存テストカバレッジ確認（静的・regression-guard代替）
 
@@ -253,7 +241,7 @@ NG 項目（あれば）:
 
 ## 残作業（本Phaseのブロッカーではない）
 
-- {Step 1〜5・必須確認のいずれの表にも該当しない、非ブロッカーの軽微な懸念・メモ（なければ「なし」）}
+- {Step 2〜5・必須確認のいずれの表にも該当しない、非ブロッカーの軽微な懸念・メモ（なければ「なし」）}
 
 ## Step 0b オプション判定結果
 

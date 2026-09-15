@@ -16,7 +16,7 @@
 
    **件数上限確認**:
    - WHERE 条件なしまたは条件が弱い SOQL が全件取得になっていないか
-   - 本番 Sandbox で COUNT を確認する（option-soql-dryrun と連携）
+   - Sandbox で COUNT を確認する
    - LIMIT の設定が適切か
 
    **インデックス**:

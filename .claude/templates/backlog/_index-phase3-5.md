@@ -1,6 +1,6 @@
 # Phase 3.5 オプションインデックス（実装前検証）
 
-backlog-validator が Phase 3.5 の Step 0b で参照する判定情報。5 オプション。
+backlog-validator が Phase 3.5 の Step 0b で参照する判定情報。4 オプション。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
 
@@ -8,19 +8,6 @@ backlog-validator が Phase 3.5 の Step 0b で参照する判定情報。5 オ�
 
 ```yaml
 options:
-
-  - name: option-soql-dryrun
-    description: 想定 SOQL を Sandbox で実行して件数・パフォーマンスを事前確認
-    category: C
-    auto-execute-when:
-      - 実装計画に SOQL を含む（新規・変更・追加条件）
-      - バルク処理・定期バッチを含む実装
-      - データ件数が多い可能性のある処理（大量データ・全件取得系）
-    auto-skip-when:
-      - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
-      - SOQL を含まない実装（UI 制御・ラベル変更・設定変更のみ）
-      - 既存 SOQL の一切変更なし
-    estimated-cost: 中
 
   - name: option-existing-test-baseline
     description: 変更前の既存テスト状態を記録（カバレッジ・PASS/FAIL ベースライン）
