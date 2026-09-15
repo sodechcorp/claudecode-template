@@ -719,6 +719,13 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 本番リリースを準備する場合は、別セッション（クリーンな会話）で以下を起動してください（/release が独立して本番リリース準備を担当します。/test 自身は本番へのデプロイ・準備を行いません）:
   /release {issueID}
 
+{総合判定が PASS または 条件付きPASS（要確認）の場合 かつ docs/logs/{issueID}/pending-signoff.md が存在する場合（2026-09-15追加）}
+お客様確認: pending-signoff.md を Read し、記録済みの「要否」に応じて以下のいずれかをリマインドする（テストが確定した今が適切なタイミング。Sandbox デプロイ直後〔/backlog Phase 6〕ではリマインドしていない。詳細: [customer-signoff.md §リマインドを出すタイミング](../templates/backlog/customer-signoff.md)）:
+  - 要否=必須: 「お客様確認サインを取得してください（Backlog コメント返信 / メール等、手段はユーザー判断）。確認対象は pending-signoff.md 記載の目視確認のご案内を参照してください。取得後に『サイン取得済み』と教えてください」
+  - 要否=UAT実施予定がある場合のみ: 「UAT 実施予定があれば、お客様確認サインを取得してください（確認対象は pending-signoff.md 参照）。任意の手段で OK です」
+  - 要否=任意: リマインド省略可
+  取得報告を待たずに完了報告は確定させる（ブロッキングしない）。ユーザーが本セッション内で「サイン取得済み」等を報告した場合は [customer-signoff.md §xlsx 更新（お客様確認）](../templates/backlog/customer-signoff.md) の手順でそのまま記録し `pending-signoff.md` を削除する（次に `/backlog` を開いたときに二重リマインドされないようにするため）。
+
 {総合判定が PASS（完全・要確認なし）かつ {xlsx_folder} が設定されている場合のみ}
 証跡クリーンアップ: 証跡スクショ（PNG）のうちxlsxに実際に格納済みのものはエビデンス.xlsxに残っています（before/等xlsx対象外のファイル・DOM テキスト・investigation.md 等は削除されません。埋め込み実数を検証してから削除する安全設計です）。本番リリース準備が完了し、この課題でもう /test を再実行しない見込みなら、以下でディスク容量を削減できます:
   python "{project_dir}/scripts/python/backlog-xlsx/cleanup_evidence.py" --folder "{xlsx_folder}" --issue-id "{issueID}" --evidence-dir "{evidence_dir}" --judgment "{judgment_path}"
