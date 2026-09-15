@@ -245,11 +245,11 @@ NG: {原因を1行で}
 特に確認事項はありません
 
 【次へ】
-{PASSの場合} Phase 6（Sandbox リリース）に進んでよろしいですか？
+{PASSの場合} このまま Phase 6（Sandbox リリース）に進みます
 {条件付きPASS（NoTestRun フォールバック）の場合} 上記確認事項のご判断に従い、Phase 6 に進むか Phase 4 に戻ります
-{FAILの場合} Phase 4（backlog-implementer）に戻って修正しますか？
+{FAILの場合} Phase 4（backlog-implementer）に戻って修正します
 ```
 
 出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` へ当 Phase のエージェント内部イベント（発見・落とし穴・ハマり等。FAIL・NoTestRun フォールバックの原因を含む）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。
 
-> Phase 6 は自動実行しない。ユーザーの明示承認後、backlog.md 側が Phase 6（backlog-releaser）または Phase 4（backlog-implementer）を起動する。
+> **PASS の場合（2026-09-15変更）**: backlog.md 側は承認を待たず同一ターン内で Phase 6（backlog-releaser）を起動する（Sandbox は可逆・低リスクのため）。**条件付きPASS の場合**: ユーザーの回答を待ってから Phase 6 または Phase 4 を起動する。**FAIL の場合**: 承認を待たず Phase 4（backlog-implementer）を起動する。
