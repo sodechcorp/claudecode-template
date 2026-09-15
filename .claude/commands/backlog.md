@@ -5,7 +5,7 @@ argument-hint: "[課題ID]"
 
 # /backlog [課題ID]
 
-**モード判定**: `--light` フラグが付いている場合（例: `/backlog GF-123 --light`）は軽微修正ショートカットで実行する（Phase 2 / Phase 3.5 をスキップ。詳細な例外規定は Phase 2・Phase 3.5 の各セクションを参照）。それ以外は通常フローを実行する。この判定結果を `{light_mode}` = `true`（--light 時）/ `false`（通常）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。`--light` 未指定で開始した場合も、Phase 1 完了時に investigation.md の内容次第で `{light_mode}` を `true` に格上げすることがある（[_README.md §Phase 1 完了時のスコープ確定による light 格上げ](../templates/backlog/_README.md) 参照）。以降「`--light` の場合」と書かれた分岐は全て `{light_mode}` = `true`（格上げ含む）で判定する。
+**モード判定**: `--light` フラグが付いている場合（例: `/backlog GF-123 --light`）は軽微修正ショートカットで実行する（Phase 2 / Phase 3.5 をスキップ。詳細な例外規定は Phase 2・Phase 3.5 の各セクションを参照）。それ以外は通常フローを実行する。この判定結果を `{light_mode}` = `true`（--light 時）/ `false`（通常）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。`--light` 未指定で開始した場合も、Phase 1 完了時に investigation.md の内容次第で `{light_mode}` を `true` に格上げすることがある（[_README.md §Phase 1 完了時の light 格上げ（スコープ確定＋依頼明確性）](../templates/backlog/_README.md) 参照）。以降「`--light` の場合」と書かれた分岐は全て `{light_mode}` = `true`（格上げ含む）で判定する。
 
 **`--reconfigure` フラグ**: `.backlog_config.yml` に `xlsx_default` / `report_dir` が既に設定されていても、Phase 1.5 の xlsx 作成有無・フォルダパス確定を再確認し、回答で設定を上書きする（例: `/backlog GF-123 --reconfigure`）。手動での YAML 編集を不要にするための再設定用フラグ。
 
@@ -254,7 +254,7 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 > **investigator の確認記録ゲート（非同期・メインスレッド委譲）**: investigator は単発 Task サブエージェントのためユーザー応答を同期的に待てない。課題本文/コメント中の全URL・添付・スクショ・名指しレコードについて、取得不能なものは investigation.md「周辺情報」に共有依頼候補（共有依頼列 = `要`）として記録し、それに依拠する記述には `[要確認: 未共有の一次資料]` を付けたうえで Step B 以降まで進めて investigation.md を完成させる（Step A.5 の症状前提未確定も同様に `[要確認: 症状前提未確定]` で進行）。**ユーザーへの提示・応答受領は本コマンド（メインスレッド）が Phase 1 完了サマリー提示時に行う**: investigator が記録した共有依頼候補・症状前提未確定を確認事項として提示し、応答を待つ。ユーザーが資料・回答を提供した場合は investigation.md の該当セクションへ Edit で追記し（共有依頼列を `済` に更新）、追加情報が根本原因仮説に影響しうる場合のみ「Phase 1 から再調査」で investigator を再起動する（軽微な補足のみなら再起動せず Phase 1.6 へ進めてよい）。ユーザーが「不要・このまま進めて」と回答した場合は waive とみなし理由を追記する（共有依頼列を `不要（waive）` に更新）。
 
-> **`{light_mode}` の格上げ判定（`--light` 未指定時のみ）**: `{light_mode}` が現在 `false` の場合、investigation.md の内容が [_README.md §Phase 1 完了時のスコープ確定による light 格上げ](../templates/backlog/_README.md) の条件を全て満たすか確認する。満たす場合は `{light_mode}` = `true` に上書きし、Phase 1 完了サマリー末尾に同節の定型文を一行追記する。満たさない場合は `false` のまま次に進む（迷ったら格上げしない）。
+> **`{light_mode}` の格上げ判定（`--light` 未指定時のみ）**: `{light_mode}` が現在 `false` の場合、investigation.md の内容が [_README.md §Phase 1 完了時の light 格上げ（スコープ確定＋依頼明確性）](../templates/backlog/_README.md) の①スコープ条件・②依頼明確性条件を両方満たすか確認する。両方満たす場合は `{light_mode}` = `true` に上書きし、Phase 1 完了サマリー末尾に同節の定型文を一行追記する。どちらか一方でも満たさない場合は `false` のまま次に進む（迷ったら格上げしない）。
 >
 > **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `light_mode` / `deploy_route` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照)。`{tmp_dir}` = `docs/logs/{issueID}/.tmp` に固定し、以下の内容で `{tmp_dir}/write_frontmatter.py` を Write する（[inline-script-hygiene.md](../templates/common/inline-script-hygiene.md) に従い if/for を含む多行ロジックはヒアドキュメントで渡さず外部化する。値は起動時の引数で渡し、スクリプト本体には Claude 置換プレースホルダーを一切含めない。Python の f-string 波括弧との混在を避けるため）:
 > ```python
