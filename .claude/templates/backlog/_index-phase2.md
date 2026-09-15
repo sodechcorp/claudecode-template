@@ -48,6 +48,8 @@ options:
       - 種別がバグの最小修正
       - 単一機能内に閉じる修正
     estimated-cost: 軽
+    default-when-uncertain: skip
+    # 1ファイル・1要素規模の課題でグレー判定 → 実行に倒れ、不要な将来拡張性評価を毎回書かせる誤爆が発生したため明示（2026-09-15）
 
   - name: option-rollback-strategy
     description: 対応方針の段階でロールバック戦略を事前設計
@@ -93,6 +95,8 @@ options:
       - 種別が追加要望
       - 単純なバグ修正で抜本対応の選択肢が無い
     estimated-cost: 中
+    default-when-uncertain: skip
+    # 1ファイル・1要素規模の課題でグレー判定 → 実行に倒れ、不要な保守的案/抜本案比較を毎回書かせる誤爆が発生したため明示（2026-09-15）
 
   - name: option-customer-questions
     description: Phase A の業務要件の確認事項を業務語彙に変換した対外向「顧客確認事項ドラフト」を生成（常時・未送信・要人間レビュー）
