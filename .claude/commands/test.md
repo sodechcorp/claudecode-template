@@ -222,7 +222,7 @@ Sandbox   : {alias}
 Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
 
 {LIGHT_MODE=true の場合のみ}
-※ --light（軽微修正）実行分ですが、/test は実装後検証の網羅性を落とさないため通常と同一のフル機能（Phase B〜F-2）で実行します。
+※ --light（軽微修正）実行分のため、TC生成（Phase B）はグレーゾーンを非該当側に倒して絞り込み、Phase F-1b（blind最終解決判定）は省略します（権限・FLS・共有ルール変更を含む場合は通常どおりフル実行）。
 
 実行内容:
   Phase A: 前提検証・接続確認（Sandbox 判定）
@@ -439,7 +439,15 @@ echo "NG件数（blind判定の実行判定用）: ${NG_COUNT}"
 
 **`NG_COUNT` が 0 以外の場合**: 本ステップをスキップする（既に NG が判明しており、blind 判定を追加しても新しい情報は得られないため。Phase F-2 の NG 修正ループを優先する）。
 
-**`NG_COUNT` が 0 の場合**: `.blind-verdict.json` のキャッシュを確認する:
+**`LIGHT_MODE=true` かつ `NG_COUNT` が 0 の場合（2026-09-16追加）**: 以下のコマンドで `{spec_path}` の「観点」列に権限・FLS・共有ルール系のキーワードを含む TC が無いか確認する:
+```bash
+SENSITIVE_TC=$(grep -E -c "権限|FLS|共有ルール|RecordType|シェアリング|プロファイル|権限セット" "{spec_path}" 2>/dev/null || echo "0")
+echo "権限・FLS・共有ルール系TC件数: ${SENSITIVE_TC}"
+```
+- **`SENSITIVE_TC` = 0**: F-1b 本体（以下手順1〜6・キャッシュ判定含む）をスキップし、`{log_dir}/test-report.md` に「## blind 最終解決判定」として「--light（軽微修正）のため省略」を1行追記する。総合判定は「## 総合判定への反映」表の「= 0 / リリース可 / 解決済み」行と同様に「PASS」を維持する（F-1b 未実施を理由に「条件付きPASS」へは書き換えない）。
+- **`SENSITIVE_TC` ≥ 1**: 省略せず通常どおり以下を実施する。
+
+**`LIGHT_MODE=false`（通常）かつ `NG_COUNT` が 0 の場合**: `.blind-verdict.json` のキャッシュを確認する:
 ```bash
 JUDGMENT_HASH=$(python -c "import hashlib; d=open(r'{judgment_path}', encoding='utf-8').read(); print(hashlib.sha256(d.encode('utf-8')).hexdigest())" 2>/dev/null || echo "")
 CACHED_HASH=""
@@ -483,6 +491,7 @@ echo "JUDGMENT_HASH=${JUDGMENT_HASH} / CACHED_HASH=${CACHED_HASH}"
 | = 0 | 追加実装要 | （不問） | 「条件付きPASS」に書き換え |
 | = 0 | リリース可 | 解決済み以外 | 「条件付きPASS」に書き換え |
 | = 0 | リリース可 | 解決済み | 変更しない（Phase F が書き込んだ「PASS」を維持） |
+| = 0 | リリース可 | （light_mode省略） | 変更しない（Phase F が書き込んだ「PASS」を維持。「解決済み」と同様に扱う） |
 
 「条件付きPASS」への書き換え内容:
 ```
