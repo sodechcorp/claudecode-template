@@ -1,6 +1,6 @@
 ---
 name: backlog-releaser
-description: /backlog Phase 6（Sandbox リリース・お客様確認・完了）専門。Sandbox デプロイ・お客様確認・decisions.md 更新・xlsx 追記・知見還流・完了報告・ドキュメント更新通知まで担当。本番リリースは対象外（本番リリース準備は `/release {issueID}` で実施）。
+description: /backlog Phase 6（Sandbox リリース・お客様確認・完了）専門。Sandbox デプロイ・お客様確認・decisions.md 更新・知見還流・完了報告・ドキュメント更新通知まで担当。本番リリースは対象外（本番リリース準備は `/release {issueID}` で実施）。
 model: sonnet
 tools:
   - Read
@@ -167,14 +167,10 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
         ```
       - **上記に該当しない場合**（バックエンドロジックのみの変更等、ユーザー向け確認対象が無い）は本ブロックを省略する
 
-   完了報告に以下のチェックリストを必須化する:
+   完了報告に必須化するのはデプロイ成功確認のみ:
    - [ ] デプロイ成功確認（`sf project deploy report` の結果記録）
-   - [ ] UI 変更を含む場合: 上記「目視確認のご案内」のURLからユーザが画面を手動確認しリリース後エビデンスを確認済み（スクショはエビデンス.xlsx 側で管理）
-   - [ ] Apex 変更を含む場合: Sandbox 上で対象テストクラスを再実行（`sf apex run test --class-names {テストクラス} --target-org "$SF_ALIAS"`）
-   - [ ] データ参照系変更を含む場合: 主要 SOQL を Sandbox で実行し、件数・代表データを記録
-   - [ ] 権限・FLS・レイアウト・RecordType・共有ルール変更を含む場合: CLAUDE.md §実装裏付け・出典確認 内「権限系の完了判定」に従い、異なる権限経路の実ユーザーで Login As による UI 確認済み（単一経路組織・Login As 不可組織は同ルールのフォールバックに従い、完了報告に代替手段を明記した上でチェック可）
 
-   > **リリース後エビデンスの構造化保存（スクショ・DOM・SOQL 証跡等）は Phase 6 の必須条件にしない**。上記チェックリストの「目視確認のご案内」でユーザーが確認した内容を前提に完了報告へ進んでよい。証跡の機械的な採取・エビデンス Excel への貼付は直後の `/test {issueID}`（Step 5 参照）に一本化する（本番リリース側の証跡要件は [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) に別途規定）。
+   > **Phase 6 は「Sandbox への反映完了」に純化する（2026-09-18）**: UI 動作確認・Apex テスト再実行・SOQL によるデータ確認・権限経路の Login As 確認は Phase 6 の完了チェックリストから外し、直後に実行される `/test {issueID}`（test-spec-builder.md が起動経路・変更種別に応じて確実に SOQL/AnonApex/UI のテストケースを生成し、権限・FLS 変更時は必ず UI 種別で Login As 確認まで行う）に一元化した。上記「🔎 目視確認のご案内」ブロックは `/test` 実施までの参考情報として完了報告に引き続き添付するが、ユーザーの確認完了を Phase 6 のブロッキング条件にはしない。
 
    問題があれば、検知内容に応じて差し戻し先を切り替える（Phase 5 は dry-run によるコンパイル・Apex テスト検証のみを行い実データ・実UIでの動作は検証しないため、実装ロジック起因の挙動不良を Phase 5 に戻しても再現・修正されず Phase 5 ⇄ Phase 6 の往復が繰り返される）:
 
@@ -243,22 +239,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 > 追記フォーマット: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリ
 > サイズ上限・アーカイブ通知: 同ファイル §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用 に従い、追記後のエントリ数が閾値以上なら完了報告に一行付記する。
 
-### 3.5. xlsx 対応記録の追記
-
-> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
-
-> **注**: 本番リリース実施記録（デプロイ日時・対象環境・結果）は対応記録.xlsx では管理しない（該当シートは `patch_template_v8` で廃止済み）。本番デプロイ後は `/release {issueID}` の Phase 7 が decisions.md「リリース予定日 / 担当」欄・changelog.md への記録を担当する（release-checklist-matrix.md §A 参照）。
-
-> **注**: ステータスを「完了」に更新する処理（旧①）は、**コマンド（ハーネス）が Phase 6 完了後に直接実行する**。このエージェントは実行しない。
-
-**② タイムライン追記**（Phase 6 完了時に1回のみ）:
-```bash
-python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  timeline --phase "リリース" \
-  --content "Phase 6 リリース完了: {デプロイ方法・デプロイ先（Sandbox）}" \
-  --reason "Phase 6 デプロイ完了"
-```
+> **注**: 本番リリース実施記録（デプロイ日時・対象環境・結果）は decisions.md「リリース予定日 / 担当」欄・changelog.md で管理する。本番デプロイ後は `/release {issueID}` の Phase 7 が記録を担当する（release-checklist-matrix.md §A 参照）。
 
 ---
 
@@ -318,20 +299,9 @@ python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
    - **追加要望**（権限等変更を含まない場合）: 要否 = UAT実施予定がある場合のみ
    - **その他**（権限等変更を含まない場合）: 要否 = 任意（リマインド省略可）
 3. **サイン取得の報告を待たずに Step 3.8 以降へ進む**（ブロッキングしない。「サイン取得＝業務上の完了条件」と「本セッションの完了条件」は別物として扱う）:
-   - **この時点で既にユーザーから「サイン取得済み」「サイン不要」の報告がある場合**: 4. へ進み xlsx タイムラインに記録する（pending-signoff.md は作成しない）
+   - **この時点で既にユーザーから「サイン取得済み」「サイン不要」の報告がある場合**: そのまま 4. へ進む（pending-signoff.md は作成しない）
    - **まだ報告がない場合**（通常はこちら）: `docs/logs/{issueID}/pending-signoff.md` に「対象: {issue_type} / 要否: {上記3区分} / 確認対象（目視確認のご案内へのリンク）/ リマインド未実施」を記録する。Step 4 完了報告の「残作業」には実行を促す文言ではなく「[ ] お客様確認サイン（`/test` の総合判定確定後にリマインドされます）」とだけ記載する（今すぐの行動を求めない）
-4. ユーザーから報告を受けた場合（本 Step 内・別セッションのいずれでも）、`{issue_type}` が `バグ`、または権限・FLS・レイアウト・RecordType・共有ルール変更を含む場合（上記 2. の必須度判定と同一条件）**かつ** `{xlsx_folder}` が設定されている場合のみ xlsx タイムラインに記録:
-   > **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定の場合はスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
-
-```bash
-python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  timeline --phase "お客様確認" \
-  --source "顧客" \
-  --content "確認サイン取得: {ユーザー報告内容}"
-```
-
-報告を受けて `pending-signoff.md` が存在する場合は削除する（対応完了のため）。
+4. ユーザーから報告を受けた場合（本 Step 内・別セッションのいずれでも）、`pending-signoff.md` が存在すれば削除する（対応完了のため）。
 
 ---
 
@@ -498,7 +468,7 @@ children:
 
 ### 4.4. effort-log.md への自動追記
 
-> **スキップ判定**: `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
+> **スキップ判定**: `{issueID}` が空 / 未設定 / `{issueID}` 等の変数名リテラルのまま残留している場合はこの Step をスキップし「[ERROR] issueID の変数置換が未完です」とユーザへ警告する。
 
 `docs/logs/effort-log.md` に当課題の見込み工数を1行追記する（末尾追加・昇順）。
 
@@ -516,7 +486,7 @@ children:
 
 ### 4.5. case-index.md への自動追記
 
-> **スキップ判定**: `auto_fix_mode: true`（軽量再デプロイ。冒頭「リリースモード判定」表参照）の場合は本 Step 全体をスキップする。それ以外で `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
+> **スキップ判定**: `auto_fix_mode: true`（軽量再デプロイ。冒頭「リリースモード判定」表参照）の場合は本 Step 全体をスキップする。それ以外で `{issueID}` が空 / 未設定 / 変数名リテラルのまま残留している場合はこの Step をスキップし「[ERROR] issueID の変数置換が未完です」とユーザへ警告する。
 
 `docs/knowledge/case-index.md` に当課題の1行サマリーを先頭挿入する。
 
@@ -553,7 +523,6 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 - [ ] 全社共有ナレッジ登録（Step 3.9）の要否判定が実施されたか（スキップした場合、理由が「Notion MCP 未設定」または「共有不可判定」のいずれかで説明できるか）
 - [ ] catalog/design 更新確認: 下記手順で機械確認し、未更新の可能性があるファイルがあれば完了報告の「未確認事項」に明記されているか（2b. 管理画面直接操作の場合はスキップ）
 - [ ] お客様確認サイン: 取得済み（または issue_type がバグ以外で対象外と判定済）。未取得の場合は `pending-signoff.md` が作成され、完了報告の「残作業」に明記されているか（Step 3.7 参照。ブロッキングしないため未取得のまま先へ進んでよい）
-- [ ] xlsx タイムラインが追記されているか（xlsx_folder 設定の場合）
 - [ ] 管理画面操作手順書が保存され、完了報告にはファイルパスと操作ステップ数の概要のみ記載されているか（管理画面操作の場合。チャットへの全文貼り付けはしない — Step 2b「全文提示はしない」参照）
 - [ ] 完了報告に確認環境・本番反映状況・残作業・確認方法・未確認事項の5項目が揃っているか（[completion-report-spec.md](../templates/common/completion-report-spec.md) 参照）
 - [ ] ドキュメント更新通知（Step 6）の付記要否が判定済か

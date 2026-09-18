@@ -161,11 +161,11 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 - **No**（全件 or 一部指定）の場合: 該当する各ドキュメントの更新をスキップし、changelog.md に「{日付} {ファイル名}: 設計書作成スキップ（ユーザー確認済み）」をそれぞれ追記する
 - テキスト会話形式のため、一部Yes・一部Noの混在回答（例:「Fooだけ作成して、他はスキップ」）も許容する
 
-### 4.5 実装計画・変更ファイル一覧の記述規約（xlsx に直接投影）
+### 4.5 実装計画・変更ファイル一覧の記述規約
 
 implementation-plan.md の「関連コンポーネント一覧（変更対象ファイル）」の「変更概要」列、および implementation-summary.md の「実施した対応」節は **自然な日本語** で書く。
 
-**資材名の書き方（対応記録 xlsx ②「変更を加えた資材一覧」に直接転記される）**:
+**資材名の書き方（implementation-summary.md「変更を加えた資材一覧」に記載される）**:
 - **表示名（ラベル）優先・API名は括弧補助のみ**
   - OK 例: 「preCheck 画面（preCheck）」「犯罪歴確認フラグ（CriminalHistory__c）」「渡航者マスタ（BusinessTraveler__c）」
   - NG 例: 「preCheck」「BusinessTraveler__c.CriminalHistory__c」「handleCriminalHistoryChange handler」
@@ -216,7 +216,7 @@ implementation-plan.md の「関連コンポーネント一覧（変更対象フ
 
 ### 7. implementation-summary.md の書き出し（Phase 4 完了後に必ず実行）
 
-> **xlsx 対応内容シートへの記入はハーネス（コマンド）が行う**。このエージェントは `implementation-summary.md` を以下の**固定見出し**で書き出すだけでよい。ハーネスが `update_records.py content-from-md` を直接実行して xlsx に反映する。
+このエージェントは `implementation-summary.md` を以下の**固定見出し**で書き出す。
 
 `docs/logs/{issueID}/implementation-summary.md` を以下の形式で Write する（見出し名を変えない・テーブル列名を変えない）:
 
@@ -236,19 +236,6 @@ implementation-plan.md の「関連コンポーネント一覧（変更対象フ
 ```
 
 > **Before / After は任意**。コード変更がない・比較不要な場合は `## Before / After` セクションごと省略してよい。変更ファイルが複数ある場合は変更ファイルごとに1行追加する。
-
-**④ タイムライン追記**（Phase 4 完了時に1回のみ。複数回呼び出し禁止）:
-
-> **auto_fix_mode: true の場合はスキップ**: `/test` F-2 自動修正ループでは1回の `/test` 実行で NG 修正サイクルが複数回走りうるため、その都度本 Step を実行すると同一フェーズのタイムライン行が重複蓄積する。`auto_fix_mode` が `true` のときは本 Step（タイムライン追記）のみ省略する（① 実施した対応 / ② 変更を加えた資材一覧 / ③ Before/After の `implementation-summary.md` 書き出しは通常通り実行する）。
-
-> **スキップ判定**: `{xlsx_folder}` または `{issueID}` が空 / 未設定の場合はこの Step をスキップする（[xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) 参照。未置換リテラル時はスキップせず異常警告する）。
-
-```bash
-python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  timeline --phase "実装" \
-  --content "Phase 4 実装完了: {変更ファイル数}ファイル変更（{主な変更概要1行・業務語彙}）"
-```
 
 ---
 
@@ -289,8 +276,8 @@ Before/After をユーザに提示した後、以下を必ず行う:
    - 実装中に計画書に記載のなかった構造 X を発見したため採用アプローチを変えた
    - implementation-plan.md の改版が必要な箇所の確認
    - 経路 2/3 で Phase 3/3.5 に戻った際の再確認ポイント
-2. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
-3. やり取りが落ち着いたら「Phase 5 に進んでよろしいですか？」とテキストで確認する
+2. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可。Phase 4→5 は自動進行のため明示承認は不要 — [_README.md §承認判定](../templates/backlog/_README.md) 参照）
+3. やり取りが落ち着いたら「異議がなければこのまま Phase 5 に進みます」と一言添える
 
 **discussion-log.md への追記**（上記 1〜3 とは独立の必須処理。auto_fix_mode でも省略しない）: 1 の出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
 

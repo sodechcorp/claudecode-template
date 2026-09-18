@@ -28,8 +28,7 @@ tools:
 | パラメータ | 必須 | 呼び出し元 | 説明 |
 |---|---|---|---|
 | `issueID` | ◎ | /backlog（パス埋め込み）/ /test | 課題 ID。`docs/logs/{issueID}/` のパスで渡される（/backlog）か、明示パラメータで渡される（/test） |
-| `xlsx_folder` | △ | /backlog / /test | 更新対象 xlsx のフォルダパス。省略時は Step 5 をスキップ |
-| `auto_fix_mode` | — | /test のみ | `true` の場合は `/test` F-2 自動修正ループから起動。既定 `false`。Step 5・完了の提示の動作が変わる（後述） |
+| `auto_fix_mode` | — | /test のみ | `true` の場合は `/test` F-2 自動修正ループから起動。既定 `false`。完了の提示の動作が変わる（後述） |
 | `project_dir` | — | /backlog Phase 5 / /test | プロジェクトルート。Step 0 の参照パスの補完に使用 |
 | `log_dir` | — | /test のみ | ログディレクトリ。Step 0 の参照パスの補完に使用 |
 | `種別`（issue_type） | — | /backlog のみ | 課題の種別（バグ/機能等）。/backlog が全フェーズへ統一的に引き渡すコンテキスト変数（planner は default_stance・releaser は種別別リマインド/サインオフで消費）。本エージェントは判定に使わないが規約整合のため受領する（削除しない） |
@@ -150,7 +149,7 @@ dry-run のためコードは Sandbox に届いていない。変更の反映を
 
 `docs/logs/{issueID}/test-report.md` の **「## スモーク確認結果」セクションに限定して**出力する（同セクションが既にあれば上書き、他セクションは保持）。`/test` が生成する本テスト証跡や releaser が参照する Phase 5 エビデンスを消さないこと。ファイルが存在しない場合のみ新規生成する。
 
-> 権限・FLS・レイアウト・RecordType・共有ルール変更を含む課題は、本 Step（dry-run ベースの静的レビュー）だけでは完了と判定しない。CLAUDE.md §実装裏付け・出典確認 内「権限系の完了判定」に従い、Phase 6（backlog-releaser）の完了チェックリストで実ユーザーによる UI 確認を経てから完了とする。
+> 権限・FLS・レイアウト・RecordType・共有ルール変更を含む課題は、本 Step（dry-run ベースの静的レビュー）だけでは完了と判定しない。実ユーザーによる Login As 確認は Phase 6（backlog-releaser）では行わず、`/test`（test-spec-builder.md の権限変更検出ロジックが権限変更時に確実に UI 種別のテストケースを生成する設計）で確認する。
 
 > **Phase 3.5 のクロスレビューとの違い**: Phase 3.5（backlog-validator Step 4）の権限/FLS 確認は実装前の既存コード・実装計画を対象とする。以下の「実装レビュー」表の FLS/CRUD 項目は、Phase 4 で実際に書かれた新規コードそのものを対象とする（Phase 3.5 時点では存在しなかったコードの検証のため重複ではない）。
 
@@ -197,21 +196,6 @@ FAIL の場合:
 #### スキップしたオプション
 - `option-{name}`: {auto-skip-when マッチ理由 1 行}
 ```
-
----
-
-## Step 5: xlsx タイムライン追記（`{xlsx_folder}` が設定されている場合のみ）
-
-> **`auto_fix_mode: true` の場合はスキップ**: `/test` F-2 自動修正ループから起動された場合、`/test` 自身がタイムラインを記録するため（F-2 完了時に `--phase "テスト"` で記録）、本 Step を実行すると重複・誤ラベルが発生する。`auto_fix_mode` が `true` のときは本 Step を省略し、Step 4 の PASS/FAIL 判定後に完了の提示へ進む。
-
-```bash
-python "{project_dir}/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  timeline --phase "テスト" --source "Claude" \
-  --content "Phase 5 スモーク確認完了: {PASS/FAIL（FAIL時はNG原因を1行）}"
-```
-
-> Step 5 が失敗（xlsx オープン中・ファイル不在等）してもスモーク判定（Step 4）は有効。タイムライン追記は手動 or 後続フェーズで補完する。
 
 ---
 

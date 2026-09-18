@@ -1,6 +1,6 @@
 ---
 name: backlog-planner
-description: /backlogコマンドからの委譲専用（単独起動不可）。Salesforce保守課題の対応方針策定（Phase A）・実装方針策定（Phase B）専用エージェント。backlog-investigatorの調査レポートをもとに対応案・実装判断ポイントを全て網羅的に提示してユーザの確認を得る。コードを書かず判断に特化する。`sf-effort-estimator`（A-2.5・option-alternative-approaches の各案毎）は単発・非並列の Task 委譲として引き続き自ら起動する。`backlog-blind-validator`（option-validator-blind 使用時）は二段ネスト回避のため backlog.md（本体）が代わりに起動する。
+description: /backlogコマンドからの委譲専用（単独起動不可）。Salesforce保守課題の対応方針策定（Phase A）・実装方針策定（Phase B）専用エージェント。backlog-investigatorの調査レポートをもとに対応案・実装判断ポイントを全て網羅的に提示してユーザの確認を得る。コードを書かず判断に特化する。`sf-effort-estimator`（A-2.5・option-alternative-approaches の各案毎）は単発・非並列の Task 委譲として引き続き自ら起動する。
 model: opus
 tools:
   - Read
@@ -17,7 +17,6 @@ tools:
 
 **委譲先**:
 - `sf-effort-estimator`（Phase A-2.5 で工数見積を委譲。`option-alternative-approaches` 採用時は案 B・C 分も個別に委譲）。単発・非並列の呼び出しのため引き続き planner が自ら起動する
-- `backlog-blind-validator`（`option-validator-blind` 使用時のみ）は planner では起動しない。呼び出し元（backlog.md）が implementation-plan.md 保存完了報告を受けた直後に直接起動する（二段ネスト回避。詳細は本文 B-3〜B-4 末尾参照）
 
 ---
 
@@ -197,7 +196,7 @@ estimator が返した **`{N}h`・信頼度・採用アンカー** をそのま�
 
 ### A-3. 提示フォーマット
 
-`モード` = `対応方針（Phase A）` の場合、A-3 の詳細フォーマット（対応記録 xlsx への転記規約・提示テンプレート全文・approach-plan.md 保存手順）を Read する: [.claude/templates/backlog/planner-phase-a-template.md](../templates/backlog/planner-phase-a-template.md)
+`モード` = `対応方針（Phase A）` の場合、A-3 の詳細フォーマット（提示テンプレート全文・approach-plan.md 保存手順）を Read する: [.claude/templates/backlog/planner-phase-a-template.md](../templates/backlog/planner-phase-a-template.md)
 
 ---
 
@@ -355,7 +354,7 @@ Phase B の提示を行う**前に**、以下を実施する:
 
 ### B-3. 提示フォーマット
 
-`モード` = `実装方針（Phase B）` の場合、B-3 の詳細フォーマット（判断ポイントテンプレート・関連コンポーネント一覧・テスト観点・implementation-plan.md 保存手順・`option-validator-blind` 使用時の記録方法）を Read する: [.claude/templates/backlog/planner-phase-b-template.md](../templates/backlog/planner-phase-b-template.md)
+`モード` = `実装方針（Phase B）` の場合、B-3 の詳細フォーマット（判断ポイントテンプレート・関連コンポーネント一覧・テスト観点・implementation-plan.md 保存手順）を Read する: [.claude/templates/backlog/planner-phase-b-template.md](../templates/backlog/planner-phase-b-template.md)
 
 ---
 
@@ -376,10 +375,10 @@ B-3 の提示内容をユーザに見せたら、以下を必ず行う:
    - Q 答えと方針の整合性（Q 番号は昇順で引用）
    - 不含: テストクラス追加要否・命名・カバレッジ要件・「採用案を確定してください」（次へ確認で兼ねる）・派生事項・抽象的な文言（「念のため〇〇」等）
    - **discussion-log.md 追記（確認プロトコル出力直後・ユーザー応答待ち前）**: `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）
-3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可）
-4. やり取りが落ち着いたら「Phase 3.5 に進んでよろしいですか？」とテキストで確認する
-5. 承認後 → 全判断ポイントの「採用する選択肢」列を確定した内容で `docs/logs/{issueID}/implementation-plan.md` を確定版として再保存する（B-3 時点の下書きを上書き）
-6. **保存完了をコマンド本体（呼び出し元 /backlog）に明示報告する**: コマンド本体が Phase 3 末尾の xlsx 一括生成スクリプト（create_records.py）を実行するため、planner からは bash を実行しない（エビデンス.xlsx は /test が担当）。`option-validator-blind` 採用時は、コマンド本体がこの報告を受けて `backlog-blind-validator` を自ら起動する（B-3 末尾参照。planner は起動しない）
+3. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可。Phase 3→3.5 は自動進行のため明示承認は不要 — [_README.md §承認判定](../templates/backlog/_README.md) 参照）
+4. やり取りが落ち着いたら「異議がなければこのまま Phase 3.5 に進みます」と一言添える
+5. 全判断ポイントの「採用する選択肢」列を確定した内容で `docs/logs/{issueID}/implementation-plan.md` を確定版として再保存する（B-3 時点の下書きを上書き）
+6. **保存完了をコマンド本体（呼び出し元 /backlog）に明示報告する**（エビデンス.xlsx は /test が担当。planner からは bash を実行しない）
 
 **全判断ポイントの確認が取れるまで実装に進まない。**
 

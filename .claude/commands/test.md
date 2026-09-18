@@ -24,7 +24,7 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 ## compact 跨ぎの復元
 
-Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順9・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `light_mode` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定・xlsx_folder 確定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。
+Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順9・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `light_mode` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。
 
 ---
 
@@ -94,43 +94,14 @@ INSTANCE_URL=$(echo "$SF_ORG_JSON" | python -c "import sys,json; print(json.load
 mkdir -p "${PROJECT_DIR}/.sf" && python -c "import json,time; json.dump({'alias':'$SF_ALIAS','is_sandbox':True,'instance_url':'$INSTANCE_URL','checked_at':time.time()}, open(r'${PROJECT_DIR}/.sf/sandbox_check_cache.json','w',encoding='utf-8'))" 2>/dev/null || true
 echo "INSTANCE_URL=$INSTANCE_URL"
 
-# 5. xlsx_folder の確定（優先: investigation.md フロントマター → .backlog_config.yml → LOG_DIR）
-XLSX_FOLDER=""
-EVIDENCE_DIR=""
+# 5. xlsx_folder / evidence_dir の確定（対応記録.xlsx 廃止に伴い LOG_DIR 配下に固定。2026-09-18）
+XLSX_FOLDER="${LOG_DIR}"
+EVIDENCE_DIR="${LOG_DIR}/evidence"
 
-# ① investigation.md フロントマターから読む（/backlog と同じ一次ソース）
 INVEST_FILE="${LOG_DIR}/investigation.md"
+LIGHT_MODE="false"
 if [ -f "$INVEST_FILE" ]; then
-  XLSX_FOLDER=$(python -c "import re; text = open(r'${INVEST_FILE}', encoding='utf-8').read(); m = re.search(r'^xlsx_folder:\s*(.+)$', text, re.MULTILINE); print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')" 2>/dev/null || echo "")
-  EVIDENCE_DIR=$(python -c "import re; text = open(r'${INVEST_FILE}', encoding='utf-8').read(); m = re.search(r'^evidence_dir:\s*(.+)$', text, re.MULTILINE); print(m.group(1).strip().strip('\"').strip(\"'\")) if m else print('')" 2>/dev/null || echo "")
   LIGHT_MODE=$(python -c "import re; text = open(r'${INVEST_FILE}', encoding='utf-8').read(); m = re.search(r'^light_mode:\s*(.+)$', text, re.MULTILINE); print(m.group(1).strip().strip('\"').strip(\"'\").lower()) if m else print('false')" 2>/dev/null || echo "false")
-fi
-
-# ② .backlog_config.yml から読む（後方互換）
-if [ -z "$XLSX_FOLDER" ]; then
-  CONFIG_FILE="${PROJECT_DIR}/docs/.backlog_config.yml"
-  if [ -f "$CONFIG_FILE" ]; then
-    XLSX_FOLDER=$(python -c "import yaml; d = yaml.safe_load(open(r'${CONFIG_FILE}', encoding='utf-8')) or {}; issues = d.get('issues', {}); print(issues.get('${ISSUE_ID}', {}).get('xlsx_folder', ''))" 2>/dev/null || echo "")
-  fi
-fi
-
-# ③ xlsx_folder 未設定 — 自動フォールバック禁止。ユーザー確認待ちマーカーを出力する
-#    ただし --light（xlsx 非対応で意図的に null）または xlsx-setup.md「作成しない」選択
-#    （investigation.md フロントマターへ evidence_dir 書き戻し済み）は正規の未作成選択のため、
-#    Phase 1.5 未実行の誤診断（[XLSX_FOLDER_UNRESOLVED]）を出さず INFO 表示に留める。
-if [ -z "$XLSX_FOLDER" ] && [ "$LIGHT_MODE" != "true" ] && [ -z "$EVIDENCE_DIR" ]; then
-  echo "[XLSX_FOLDER_UNRESOLVED] investigation.md の xlsx_folder 欄が空で、.backlog_config.yml にも記録がありません。"
-  echo "  【診断】原因の可能性: /backlog の Phase 1.5（xlsx_folder 確定ステップ）が未実行、または compact 再開時に investigation.md のフロントマターへ xlsx_folder が書き戻されていない可能性があります。"
-  echo "  → investigation.md の frontmatter に 'xlsx_folder:' 行があり値が入っているか確認してください。空なら /backlog を再開してフォルダを確定させると解消します。"
-  echo "  対応記録フォルダを特定できません。このまま続行するか、正しいパスを指定してください。"
-elif [ -z "$XLSX_FOLDER" ]; then
-  echo "[INFO] xlsx_folder は未設定です（--light または『xlsx 作成しない』選択のため想定内）。証跡は xlsx を使わず evidence_dir 配下に保存します。"
-  if [ -z "$EVIDENCE_DIR" ]; then
-    EVIDENCE_DIR="${LOG_DIR}/evidence"
-  fi
-fi
-if [ -n "$XLSX_FOLDER" ] && [ -z "$EVIDENCE_DIR" ]; then
-  EVIDENCE_DIR="${XLSX_FOLDER}/evidence"
 fi
 SPEC_PATH="${LOG_DIR}/test-spec.md"
 JUDGMENT_PATH="${LOG_DIR}/judgment-result.json"
@@ -204,13 +175,6 @@ fi
 python -c "import json; json.dump({'issue_id':'$ISSUE_ID','project_dir':r'$PROJECT_DIR','log_dir':r'$LOG_DIR','xlsx_folder':r'$XLSX_FOLDER','evidence_dir':r'$EVIDENCE_DIR','spec_path':r'$SPEC_PATH','judgment_path':r'$JUDGMENT_PATH','light_mode':'$LIGHT_MODE','alias':'$SF_ALIAS','instance_url':'$INSTANCE_URL'}, open(r'${LOG_DIR}/.test-context.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=2)" 2>/dev/null || true
 ```
 
-> **⚠️ `[XLSX_FOLDER_UNRESOLVED]` が出力された場合（xlsx_folder 未設定）**:  
-> 自動でフォールバックせず、以下をユーザーに確認してから続行する:  
-> 「対応記録フォルダが特定できませんでした（investigation.md の `xlsx_folder:` 欄が空）。  
-> `docs/logs/{issueID}/` に出力しますか？ または正しいパスを指定しますか？」  
-> - **「docs/logs/ に出力する」**: `XLSX_FOLDER = docs/logs/{issueID}/`、`EVIDENCE_DIR = docs/logs/{issueID}/evidence` として続行する  
-> - **パス入力**: そのパスを `XLSX_FOLDER`・`EVIDENCE_DIR = {パス}/evidence` として設定してから続行する
-
 **実行内容の提示**（提示のみ・停止しない。ユーザーは `/test {issueID}` を明示入力済みで課題ID・Sandbox は確定済みのため。実データへの書き込みを伴う操作の承認は auto-evidence-runner.md Step 1.5（メール到達安全確認）に集約する）:
 
 ```
@@ -228,7 +192,7 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
   Phase A: 前提検証・接続確認（Sandbox 判定）
   Phase B: テスト仕様の展開（test-spec.md 生成・網羅性チェック）
   Phase C: SOQL / 匿名 Apex / Playwright UI の自動実行（分岐網羅・before/after）
-  Phase D: OK/NG 判定・対応記録.xlsx 更新
+  Phase D: OK/NG 判定
   Phase E: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
   Phase F: test-report.md 生成・一時ファイル後始末（テストデータは削除せず Sandbox に保持）
 ```
@@ -344,7 +308,6 @@ if [ -f "{judgment_path}.prev" ]; then
 fi
 
 python "$(pwd -W)/scripts/python/backlog-xlsx/judge_results.py" \
-  --folder "{xlsx_folder}" \
   --issue-id "{issueID}" \
   --spec "{spec_path}" \
   --evidence-dir "{evidence_dir}/after" \
@@ -559,7 +522,6 @@ task_description: 「/test 自動修正起動: {issueID} の実装バグ NG（{a
   issueID: {issueID}
   project_dir: {project_dir}
   log_dir: {log_dir}
-  xlsx_folder: {xlsx_folder}
   auto_fix_mode: true
   auto_fix_tcs: {auto_fix_tcs}
   ng_source: {judgment_path}
@@ -567,17 +529,7 @@ task_description: 「/test 自動修正起動: {issueID} の実装バグ NG（{a
 
 **backlog-implementer が中断を報告した場合（経路2/3〈実装方針の問題・検証漏れ〉、非対話停止点〈API名不一致・設計書欠落〉、または承認ガード例外の条件不成立のいずれか）**: 自動修正ループを中断し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する（実装バグのつもりが方針問題や前提未確認 → 人間判断に委ねる）。
 
-**backlog-implementer 完了後（上記いずれの中断も発生していない場合）**: xlsx 対応内容シートへの反映は本コマンド（ハーネス）が直接実行する（`/backlog` Phase 4 と同型。backlog-implementer.md §7 の設計どおり、エージェント自身は `implementation-summary.md` を書き出すだけで xlsx には書き込まない）:
-
-```bash
-if [ -n "{xlsx_folder}" ]; then
-  python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
-    --folder "{xlsx_folder}" --issue-id "{issueID}" \
-    content-from-md --summary "{log_dir}/implementation-summary.md" --force
-fi
-```
-
-> スキップ判定: [xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) に従う（`{xlsx_folder}` null/空 = 正規スキップ）。
+**backlog-implementer 完了後（上記いずれの中断も発生していない場合）**: F-2 Step 2 へ進む。
 
 #### F-2 Step 2: backlog-tester（dry-run 検証）
 
@@ -589,7 +541,6 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 dry-run �
   issueID: {issueID}
   project_dir: {project_dir}
   log_dir: {log_dir}
-  xlsx_folder: {xlsx_folder}
   auto_fix_mode: true
 ```
 
@@ -609,7 +560,6 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
   issueID: {issueID}
   project_dir: {project_dir}
   log_dir: {log_dir}
-  xlsx_folder: {xlsx_folder}
   auto_fix_mode: true
   redeploy_no_confirm: true
 ```
@@ -666,18 +616,9 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    | {YYYY-MM-DD} | /test NG差し戻し | {NGのTC番号・観点} | {NGの原因（実際の結果）} | {修正方針（何をどう変えるか）} | investigation.md §{対応する要求} |
    ```
    これにより「何をなぜ変えたか」が記録に残り、NG 修正ループで実装の方向が課題の真因から静かにずれるのを防ぐ。
-6. **対応記録.xlsx の NG対応履歴に記録する**（xlsx が存在する場合のみ。`--round` は手順2で確認した `PREV_ROUND`（これまでの NG 修正回数）に +1 した今回の回次番号 `CURRENT_ROUND = PREV_ROUND + 1` を使う）:
-   ```bash
-   CURRENT_ROUND=$((PREV_ROUND + 1))
-   python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
-     --folder "{xlsx_folder}" --issue-id "{issueID}" ng-history \
-     --round "R${CURRENT_ROUND}" --tc "{TC番号}" --reason "{NG原因}" --fix "{修正方針}"
-   ```
-   複数 NG TC がある場合は TC ごとに1回ずつ呼ぶ（`CURRENT_ROUND` は同一）。
+6. ユーザーに戻り先 Phase・NG 原因・修正方針（手順5で implementation-plan.md に記録した内容）・（該当時）ループ回次警告・影響範囲 TC 候補を提示する
 
-7. ユーザーに戻り先 Phase・NG 原因・修正方針（上記で記録した内容）・（該当時）ループ回次警告・影響範囲 TC 候補を提示する
-
-8. 修正後の手順をユーザーに案内する:
+7. 修正後の手順をユーザーに案内する:
    ```
    修正手順（この順番で実施してください）:
      1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run 確認）
@@ -685,15 +626,6 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
      3. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用・取り直しなし）
         次回 /test 起動時に judgment-result.json と証跡が自動的に次の回次として退避されます
    ```
-
-#### xlsx 対応記録の更新（タイムライン）
-
-```bash
-python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  timeline --phase "テスト" --source "Claude" \
-  --content "Phase C〜F-2 完了: 全{total}件 {NG=0なら'全件PASS' / NG>0なら 'NG={ng}件'}"
-```
 
 ---
 
@@ -733,9 +665,9 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
   - 要否=必須: 「お客様確認サインを取得してください（Backlog コメント返信 / メール等、手段はユーザー判断）。確認対象は pending-signoff.md 記載の目視確認のご案内を参照してください。取得後に『サイン取得済み』と教えてください」
   - 要否=UAT実施予定がある場合のみ: 「UAT 実施予定があれば、お客様確認サインを取得してください（確認対象は pending-signoff.md 参照）。任意の手段で OK です」
   - 要否=任意: リマインド省略可
-  取得報告を待たずに完了報告は確定させる（ブロッキングしない）。ユーザーが本セッション内で「サイン取得済み」等を報告した場合は [customer-signoff.md §xlsx 更新（お客様確認）](../templates/backlog/customer-signoff.md) の手順でそのまま記録し `pending-signoff.md` を削除する（次に `/backlog` を開いたときに二重リマインドされないようにするため）。
+  取得報告を待たずに完了報告は確定させる（ブロッキングしない）。ユーザーが本セッション内で「サイン取得済み」等を報告した場合は `pending-signoff.md` を削除する（次に `/backlog` を開いたときに二重リマインドされないようにするため）。
 
-{総合判定が PASS（完全・要確認なし）かつ {xlsx_folder} が設定されている場合のみ}
+{総合判定が PASS（完全・要確認なし）の場合のみ}
 証跡クリーンアップ: 証跡スクショ（PNG）のうちxlsxに実際に格納済みのものはエビデンス.xlsxに残っています（before/等xlsx対象外のファイル・DOM テキスト・investigation.md 等は削除されません。埋め込み実数を検証してから削除する安全設計です）。本番リリース準備が完了し、この課題でもう /test を再実行しない見込みなら、以下でディスク容量を削減できます:
   python "{project_dir}/scripts/python/backlog-xlsx/cleanup_evidence.py" --folder "{xlsx_folder}" --issue-id "{issueID}" --evidence-dir "{evidence_dir}" --judgment "{judgment_path}"
 ※ 削除後に /test を再実行する場合は自動的に全量再実行になります（差分再実行モードは使われません）。

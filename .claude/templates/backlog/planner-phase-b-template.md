@@ -1,6 +1,6 @@
 # Phase B: 実装方針の詳細確認 提示フォーマット詳細（B-3）
 
-> `backlog-planner.md` から `モード` = `実装方針（Phase B）` の場合のみ Read される。B-3 の提示フォーマット全文（判断ポイントテンプレート・関連コンポーネント一覧・テスト観点・implementation-plan.md 保存手順・`option-validator-blind` 使用時の記録方法）を含む。
+> `backlog-planner.md` から `モード` = `実装方針（Phase B）` の場合のみ Read される。B-3 の提示フォーマット全文（判断ポイントテンプレート・関連コンポーネント一覧・テスト観点・implementation-plan.md 保存手順）を含む。
 
 **判断ポイントが0件の場合**（B-2 の全カテゴリが「判断ポイントを立てない基準」に該当し、1行記録のみで完結した場合）: 下記テンプレートの「### 判断ポイント一覧」〜「### 実装方針まとめ」（① ② の記載欄とテーブル）は省略し、代わりに以下の1ブロックのみ差し込む:
 
@@ -104,5 +104,3 @@ investigation.md の Step G に記載されたテストシナリオを元に、�
 ```
 
 上記内容を `docs/logs/{issueID}/implementation-plan.md` に**下書きとして保存してからユーザに提示**し、B-4 議論モードを先に進める（backlog.md「エージェントが保存したら提示する」との整合。承認後は B-4 Step 5 で全判断ポイント確定版として同じパスに再保存する）。
-
-> **`option-validator-blind` 使用時**: `backlog-blind-validator` の起動は planner では行わない。Step 0b オプション判定結果に「採用したオプション: option-validator-blind」として記録するだけでよい。B-4 で implementation-plan.md 保存・完了報告を行った後、呼び出し元（backlog.md）がこの記録を見て自ら `backlog-blind-validator` を起動し、`## blind 実装案レビュー` セクションを implementation-plan.md に追記する（詳細は `.claude/templates/backlog/options/option-validator-blind.md` 参照）。

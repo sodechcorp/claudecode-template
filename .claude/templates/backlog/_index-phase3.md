@@ -1,23 +1,15 @@
 # Phase 3 オプションインデックス（実装計画レビュー）
 
-backlog-planner が Phase B（実装計画）の Step 0b で参照する判定情報。8 オプション。
+backlog-planner が Phase B（実装計画）の Step 0b で参照する判定情報。7 オプション。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
+
+> **`option-validator-blind` は廃止済み（2026-09-18）**: 人間が対応方針を決める設計では独立実装案との二重チェックの意義がなく、Phase 3.5（backlog-validator）の技術的見落とし検出と重複するため廃止した。詳細: `_README.md` §blind 系オプション。
 
 ---
 
 ```yaml
 options:
-
-  - name: option-validator-blind
-    description: implementation-plan を見ずに別案を書いて比較（blind reviewer）— subagent 化必須
-    category: A
-    auto-execute-when:
-      - 常時実行（auto-skip-when に該当しない場合は必ず実行）
-    auto-skip-when:
-      - 典型的自明ケース（_README.md §典型的自明ケース定義 を参照）
-      - 推奨案 A が唯一解で別案が構造的に立てられない（実装選択肢がゼロ）
-    estimated-cost: 重
 
   - name: option-staged-deployment-plan
     description: 段階的デプロイ計画（Phase 別・ユーザ別・機能別の段階展開）

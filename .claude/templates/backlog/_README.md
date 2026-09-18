@@ -20,7 +20,6 @@
 ├── _index-phase6.md              # Phase 6 用判定情報
 ├── _archive-production-release.md # 本番リリース手順書アーカイブ（資産保全のみ・実行時は非参照）
 ├── _partials/                    # 差分ベース定型チェックの部品（deploy-manifest-base.md 等）
-├── xlsx-setup.md                 # Phase 1.5 xlsx フォルダ確定手順
 ├── phase1-6-sandbox-verification.md # Phase 1.6 詳細手順（backlog.md からバグ系のみ条件付き Read）
 ├── phase2-inquiry-mode.md        # Phase 2 問い合わせ専用モード詳細手順（backlog.md から条件付き Read）
 ├── planner-phase-q.md            # backlog-planner Phase Q 詳細手順（backlog-planner.md から条件付き Read）
@@ -31,7 +30,6 @@
 ├── release-checklist-matrix.md   # 本番リリース チェックリスト・マトリクス（前→実行→後）
 ├── customer-signoff.md           # お客様確認サインの種別別ルール
 ├── discussion-log-spec.md        # discussion-log.md の記録仕様（各エージェントから参照）
-├── blind-prompts/                # blind 系サブエージェントの独立プロンプト（validator.md）
 └── options/                      # 各オプションの実行手順
     ├── option-{name}.md
     └── ...
@@ -163,9 +161,10 @@
 |---|---|---|
 | option-second-opinion | `backlog-blind-second-opinion` | parent の調査結果を見ずに原因仮説を独立に立てる |
 | option-final-verifier | `backlog-blind-final-verifier` | 実装の経緯を知らず課題本文と実挙動だけで blind 解決判定 |
-| option-validator-blind | `backlog-blind-validator` | implementation-plan を見ずに別案を独立に書いて比較 |
 
 それ以外のオプションは parent 内実行で OK（blind 性が要件でないため）。
+
+> **`option-validator-blind` は廃止済み（2026-09-18）**: 実装方針案の独立比較（`backlog-blind-validator`）は、人間が対応方針を決める新設計（§承認判定 参照）では二重チェックの意義がなく、Phase 3.5（backlog-validator）による技術的見落とし検出（GF-350・GF-374 で本番差分退行の見落としを実際に検出した実績あり）と重複するため廃止した。
 
 ---
 
@@ -226,8 +225,6 @@
 - 合同 UI 確認（ユーザクロステスト）
 - After エビデンス取得
 - 接続先確認・Sandbox デプロイ（Phase 6 は Sandbox リリース専用）
-- xlsx フォルダ確定（作成有無の選択は AskUserQuestion で現状維持）
-- エビデンスファイル作成（作成有無の選択は AskUserQuestion で現状維持）
 
 詳細は各エージェント定義（`backlog-investigator.md` 等）を参照。
 
@@ -417,10 +414,10 @@ Phase {N+1} に進んでよろしいですか？（または Phase X に戻る�
 **Phase 3.5→4 は特に厳格に（`{light_mode}` = `false` の場合）**:
 Phase 3.5→4 の境界はファイル編集（実装）に入る唯一のゲート。確信できない返答はすべて非承認として扱い、必ず「Phase 4 に進んでよろしいですか？」を改めて提示してから次フェーズへ進む。
 
-**例外（`{light_mode}` = `true`。2026-09-15追加）**: Phase 3.5 の Step A/C 自体がスキップされ validation-report.md が存在しないため、確認対象がない。この場合のみ承認を待たず自動で Phase 4 へ進む（詳細は `backlog.md` Phase 3.5「次に進む条件」）。light_mode は「依頼が明確・スコープ確定」の両方を満たす場合のみ成立するため、通常の課題ではこの例外は発火しない。
+**例外（`{light_mode}` = `true`）**: Phase 3.5 の Step A/C 自体がスキップされ validation-report.md が存在しないため、確認対象がない。この場合のみ承認を待たず自動で Phase 4 へ進む（詳細は `backlog.md` Phase 3.5「次に進む条件」）。light_mode は「依頼が明確・スコープ確定」の両方を満たす場合のみ成立するため、通常の課題ではこの例外は発火しない。
 
-**既定: 軽量承認モード**:
-「異議がなければ進む」（明示承認テキスト不要）をフェーズ末の既定とする。**Phase 2→3（対応方針の確定）・Phase 3→3.5（実装方針の確定）・本番デプロイ・お客様サイン・Backlog 投稿は常に明示承認**（対応方針・実装方針は業務判断そのものであり黙って承認扱いにしない）。**Phase 3.5→4（実装着手）は `{light_mode}` = `false` の場合は常に明示承認、`{light_mode}` = `true` の場合のみ承認不要（2026-09-15変更。Step A/C スキップにより確認対象が存在しないため。詳細は上記「Phase 3.5→4は特に厳格に」）**。**Phase 4（実装）着手後の遷移**（現状 Phase 4→5 のみ該当）は上記に加え、自明ケース判定 ON かつ軽微修正 4 条件（`quality-gate.md §軽微修正の4条件`）も満たす場合のみ軽量承認とし、満たさなければ明示承認に戻す。**Phase 5→6（Sandbox デプロイ）は明示承認を要求しない（2026-09-15変更）**: Sandbox は可逆・低リスクのため、スモーク確認PASSなら承認を待たず自動で Phase 6 へ進む（条件付きPASS＝NoTestRunフォールバック時のみユーザー判断を仰ぐ。詳細は `backlog.md` Phase 5 §次に進む条件）。それ以外の遷移（Phase 0→1／1→1.6／1.6→1.5／1.5→2）は軽量承認が既定。連続自動進行の回数上限は設けない（ユーザーが異議を挟んだ時だけ止める）。詳細は `backlog.md`【フェーズ進行】内の「軽量承認モード」を参照。
+**既定: 2ゲートのみ明示承認（2026-09-18確定・AI自動化目的化からの脱却）**:
+明示承認が必要なのは **Phase 2→3（対応方針の確定）** と **Phase 3.5→4（実装着手。`{light_mode}` = `true` の場合を除く）** の2点のみ（本番デプロイ・お客様サイン・Backlog 投稿はそもそも `/backlog` の範囲外で、hook によるハードブロック・人間の手動実施が別途担保している）。この2点は「担当者が業務判断そのものを決める瞬間」であり、黙って承認扱いにする設計は避ける。**上記2点以外の全ての遷移は自動進行がデフォルト**（Phase 0→1／1→1.6／1.6→2／Phase 2 完了後の Phase 3（実装方針の技術文書化）／Phase 3→3.5／3.5→4（`{light_mode}` = `true` の場合）／4→5／5→6）。フェーズ末サマリー＋確認事項を提示した上で「異議がなければこのまま Phase N に進みます」と明示し、明示承認テキストを待たず次フェーズへ進む。連続自動進行の回数上限は設けない（ユーザーが異議を挟んだ時だけ止める）。**判断基準**: 「AI にやらせる方が人間がやるより速いか、または人間の目では原理的に検知できないリスクを拾うか」。YES なら自動進行（調査・実装前検証・スモークテスト・Sandbox デプロイ等）、NO（人間の業務判断そのもの）なら明示承認に残す。旧来の多段 carve-out（フェーズごとの適用除外・軽量承認判定）は本原則により丸ごと不要になったため廃止した。詳細は `backlog.md`【フェーズ進行】を参照。
 
 ### discussion-log.md への追記（確認プロトコル直後・必須）
 
@@ -464,18 +461,16 @@ Phase 末尾確認プロトコルの出力ブロックを出力した**直後**�
 | 変数 | 永続化先 | 復元方法 |
 |---|---|---|
 | `{issue_type}` | investigation.md フロントマター `issue_type:` | Phase 0d で Read |
-| `{xlsx_folder}` | investigation.md フロントマター `xlsx_folder:` | Phase 0d で Read |
-| `{evidence_dir}` | investigation.md フロントマター `evidence_dir:` | Phase 0d で Read |
 | `{light_mode}` | investigation.md フロントマター `light_mode:` | Phase 0d で Read |
+| `{deploy_route}` | investigation.md フロントマター `deploy_route:` | Phase 0d で Read |
 
-**運用ルール**: Phase 1.5 で xlsx_folder / evidence_dir が確定した時点で、`xlsx-setup.md` §1.5.3（「作成する」の場合）または「作成しない」手順（`backlog.md` に記載）に従い investigation.md フロントマターを必ず更新する。`--light` 時は `backlog.md` 記載の手順で更新する。`issue_type` / `light_mode` は Phase 1 完了時点（`{issue_type}` 確定直後）に `backlog.md` Phase 1 末尾の記録 step で書き込む（全種別で必ず実行・「問い合わせ」で Phase 1.5 がスキップされても影響を受けない）。自動フォールバック（docs/logs/ への書き出し）は `/test` でのフォールバック誤発動の原因になるため、この手順のスキップは禁止。フロントマター例:
+**運用ルール**: `issue_type` / `light_mode` / `deploy_route` は Phase 1 完了時点（`{issue_type}` 確定直後）に `backlog.md` Phase 1 末尾の記録 step で書き込む（全種別で必ず実行）。自動フォールバック（docs/logs/ への書き出し）は `/test` でのフォールバック誤発動の原因になるため、この手順のスキップは禁止。フロントマター例:
 ```yaml
 ---
 issue_id: XXX-123
 issue_type: バグ
-xlsx_folder: C:/work/output
-evidence_dir: docs/logs/XXX-123/evidence
 light_mode: false
+deploy_route: normal
 ---
 ```
 
@@ -489,49 +484,12 @@ light_mode: false
 
 **例外として AskUserQuestion を使ってよいケース**（以下のみ）:
 1. **Phase 0 再開 Phase 選択**: コマンド起動時に既存の investigation.md を検出した場合の「どこから再開するか」の選択（クリック式の方が誤操作防止になる）
-2. **Phase 1.5 xlsx 作成要否・フォルダパス確定**: `docs/.backlog_config.yml`（`xlsx_default` / `report_dir`）が未設定の初回のみ。設定済みなら AskUserQuestion をスキップし承認なしで自動継続する（1行通知のみ）。再選択は `--reconfigure` フラグで行う
-3. **Phase 3 xlsx スクリプト失敗時**: 3択（続行/再試行/中止）の誤操作防止
 
 上記以外でユーザーに選択を求める場合は、必ずテキスト会話で行う。validator の issueID 解決も、候補が3件以下なら「`XXX-1`、`XXX-2`、`XXX-3` のどれを対象にしますか？」とテキストで確認する。
 
 ---
 
-## §シート構成と意味性
-
-対応記録 xlsx は以下の **2 シート**で構成される。各シートは「何の問いに答えるか」が明確に分かれている。
-
-| # | シート名 | 答える問い | 主なセクション |
-|---|---|---|---|
-| 1 | 課題と対応方針 | この課題は何で・なぜこの方針を選んだか・いつ誰が動いたか | 課題の整理 / 経緯・対応方針 / 対応経緯タイムライン |
-| 2 | 対応内容 | 実際にどのコンポーネントのどこをどう修正したか・テスト NG の経緯 | 実施した対応 / 変更を加えた資材一覧 / Before/After / NG対応履歴 |
-
-> **エビデンス.xlsx（別ファイル）**: ClaudeCode が自動実行したテストの結果証跡（SOQL / Apex Test / CLI / メタデータ確認）。UI 手動確認も含む期待/実際/判定の詳細を保持する。Phase 4 完了後に `/test {issueID}` が生成する。
-
----
-
-## §対応記録 xlsx 責務分担表
-
-各 Phase ・エージェントが対応記録 xlsx に書き込む内容の全体マップ。`update_records.py` コマンドは `{xlsx_folder}` が設定されている場合のみ実行する。
-
-| シート | セクション | 担当 Phase / 実行主体 | コマンド |
-|---|---|---|---|
-| 課題と対応方針 | 課題の整理（ID/件名/優先度・期限/種別/ステータス/課題の内容・詳細/原因・現状） | Phase 3 / ハーネス直実行 | `create_records.py` 一括生成 |
-| 課題と対応方針 | 経緯・対応方針（対応方針（結論）/方針決定の経緯・根拠） | Phase 3 / ハーネス直実行 | `create_records.py` 一括生成 |
-| 課題と対応方針 | 対応経緯タイムライン No1-3 | Phase 3 / ハーネス直実行 | `create_records.py` 一括生成 |
-| 課題と対応方針 | 対応経緯タイムライン No4〜 | Phase 3.5/4/5/6 / 各エージェント | `timeline --phase X` |
-| 課題と対応方針 | ステータス更新（完了） | **Phase 6 末 / ハーネス直実行** | `cell --label "ステータス" --value "完了" --force` |
-| 課題と対応方針 | ステータス更新（中断中） | **中断時パス / ハーネス直実行** | `cell --label "ステータス" --value "中断中" --force` |
-| 対応内容 | 実施した対応 / 変更を加えた資材一覧 / Before/After | **Phase 4 末 / `/test` F-2 Step1 完了後 / ハーネス直実行** | `content-from-md --summary implementation-summary.md` |
-| 対応内容 | NG対応履歴（/test NG 修正ループ記録） | Phase 5 / tester・/test judge_results.py | `ng-history` |
-| エビデンス.xlsx（別ファイル） | 証跡（SOQL/スクショ）正本・期待/実際/判定の詳細 | /test が generate_evidence_xlsx.py で自動生成、judge_results.py が実装後記入 | — |
-
-> **verify ゲート**: Phase 4 末（`content-from-md` 直後）に `verify --stage pre-release` でブロック確認、Phase 6 末（`cell 完了` 直後）に `verify --stage final --status-expected 完了` で最終確認を実施する。NG は未充足枠を列挙して exit 2。
-
-> **注**: 対応記録.xlsx のシート構成は **課題と対応方針 / 対応内容 の2シートのみ**。以下のシートは廃止済み: リリース・ロールバック（patch_template_v8 で削除。人間がデプロイ実施するため Claude 非関与）/ 残対応・懸念・保留（廃止。残対応はエビデンス.xlsx または MD での管理に集約）/ テスト・検証（廃止。証跡はエビデンス.xlsx に集約、実装後記入は judge_results.py が担当）/ 調査・影響範囲・サマリー・経緯・対応方針（廃止。課題と対応方針シートのセクションに統合）。影響確認チェックリストは patch_template_v9 で廃止済み（影響範囲テーブルの「問題ない根拠・対応内容」列に統一）。
->
-> **注**: xlsx・MD 成果物の全ての値書き込み欄は §人が読む欄の日本語・表示ラベル規約に従うこと（ファイル名列等の例外を除く）。
-
----
+> **対応記録.xlsx は廃止済み（2026-09-18）**: investigation.md / approach-plan.md 等の内容を xlsx 形式に転記しているだけの二重表現だったため廃止した（`§シート構成と意味性` `§対応記録 xlsx 責務分担表` は削除済み）。証跡は `/test {issueID}` が生成するエビデンス.xlsx（別ファイル）に一元化されている。
 
 ## § 人が読む欄の日本語・表示ラベル規約
 
@@ -567,13 +525,9 @@ xlsx・MD 成果物の **人が読む欄**（概要・メリット・デメリ�
 
 | プレースホルダー | 種別 | 確定タイミング |
 |---|---|---|
-| `{report_dir}` | パス | `.backlog_config.yml` 読み込み時（`report_dir` キー） |
-| `{xlsx_create}` | 選択値（作成する/作成しない） | `/backlog` Phase 1.5 Step 1.5.0（`.backlog_config.yml` の `xlsx_default` キーが設定済みなら自動採用、未設定時のみ AskUserQuestion） |
-| `{xlsx_folder}` | パス | `/backlog` Phase 1.5 |
-| `{evidence_dir}` | パス | Phase 1.5 連動 |
 | `{issueID}` | 文字列 | `/backlog` Phase 0 |
-| `{件名}` / `{件名_sanitized}` | 文字列 | Phase 1.5 |
+| `{件名}` / `{件名_sanitized}` | 文字列 | `/backlog` Phase 0（investigation.md 生成時） |
 
 > `{issueID}` は Backlog の課題キー（`[A-Z]{2,}-\d+`、例 `GF-341`）。`docs/knowledge/cases/{issueKey}.md` のファイル名で使う `{issueKey}` と**同一値**で、作業フォルダ・中間成果物系では `{issueID}`、cases ナレッジファイル名では `{issueKey}` と表記を使い分ける。
 
-> `.backlog_config.yml` のキー: `report_dir`（フォルダパス）・`xlsx_default`（xlsx 作成有無の真偽値。Phase 1.5 で AskUserQuestion 回答時に永続化）・`issues.{issueID}.xlsx_folder` / `issues.{issueID}.evidence_dir`（課題固有、`/test` 後方互換用）。いずれも `--reconfigure` フラグで再確認・上書きできる。
+> `{report_dir}` / `{xlsx_create}` / `{xlsx_folder}` / `{evidence_dir}`（固定パス `docs/logs/{issueID}/evidence` に統一）・`.backlog_config.yml` の `xlsx_default` キーは対応記録.xlsx 廃止（2026-09-18）に伴い削除済み。

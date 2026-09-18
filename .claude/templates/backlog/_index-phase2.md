@@ -17,13 +17,13 @@ options:
       - 推奨案 A に既存実装パターンとの**構造的**不整合がある（命名・責務境界・設計原則違反）
       - 推奨案 A が複数オブジェクトに横断的影響を持ち、影響範囲が異なる代替案が技術的に成立する
     auto-skip-when:
-      - 種別がバグ（原則として唯一解。blind 別案は option-validator-blind に委譲）
+      - 種別がバグ（原則として唯一解）
       - typo・ラベル・コメント・単一値修正
       - 推奨案 A が業務的・技術的に唯一解
     estimated-cost: 重
     default-when-uncertain: skip
     # 注意: 「課題優先度が高/緊急」は auto-execute-when に含めない。保守課題はデフォルト「高」のため
-    #       ほぼ全件 hit してノイズになる。blind 別案は option-validator-blind（category=A）が担う
+    #       ほぼ全件 hit してノイズになる
 
   - name: option-tradeoff-analysis
     description: 各対応案のメリット・デメリットを深掘り（コスト・工期・将来影響を含む）

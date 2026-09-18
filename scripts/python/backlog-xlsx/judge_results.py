@@ -5,7 +5,6 @@ OK/NG を判定する（テスト・検証シートは廃止済みのため xlsx
 
 Usage:
     python judge_results.py \
-      --folder /path/to/xlsx_folder \
       --issue-id GF-350 \
       --spec /path/to/test-spec.md \
       --evidence-dir /path/to/evidence/after \
@@ -21,12 +20,11 @@ import shutil
 import sys
 from pathlib import Path
 
-from _common import validate_folder, parse_test_spec
+from _common import parse_test_spec
 
 
 def _next_archive_round(out_path: str) -> int:
-    """out_path（judgment-result.json）に対応する既存の .R{N}.json の最大回次番号から次の回次番号を返す
-    （欠番があってもファイル数ではなく最大値を基準にする）。"""
+    """out_path（judgment-result.json）に対応する既存の .R{N}.json 本数から次の回次番号を返す。"""
     base = os.path.splitext(out_path)[0]
     files = glob.glob(base + ".R*.json")
     nums = [int(m.group(1)) for f in files for m in [re.search(r'\.R(\d+)\.json$', f)] if m]
@@ -715,8 +713,7 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="テストケースの OK/NG 判定（xlsx H 列更新は廃止済み。証跡はエビデンス.xlsx に集約）")
-    parser.add_argument("--folder", required=True, help="xlsx 出力フォルダ")
+    parser = argparse.ArgumentParser(description="テストケースの OK/NG 判定（対応記録.xlsx は廃止済み。証跡はエビデンス.xlsx に集約）")
     parser.add_argument("--issue-id", required=True, dest="issue_id")
     parser.add_argument("--spec", required=True, help="test-spec.md のパス")
     parser.add_argument("--evidence-dir", required=True, dest="evidence_dir",
@@ -726,7 +723,6 @@ def main():
                         help="前回判定 JSON（差分再実行時に前回 OK を流用する）")
     args = parser.parse_args()
 
-    args.folder = validate_folder(args.folder)
     test_cases = parse_test_spec(args.spec)
     if not test_cases:
         print("[WARN] test-spec.md にテストケースが見つかりませんでした。")

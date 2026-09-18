@@ -163,7 +163,7 @@ def validate_folder(value: str) -> str:
     if "{" in value or "}" in value:
         raise SystemExit(
             f"[FATAL] placeholder not resolved: {value!r}\n"
-            "        /backlog Phase 1.5 に戻って {xlsx_folder} を実値で置換してください。"
+            "        {xlsx_folder} を実値（docs/logs/{issueID}）で置換してください。"
         )
     p = Path(value)
     if not p.is_absolute():

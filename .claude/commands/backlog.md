@@ -7,36 +7,32 @@ argument-hint: "[課題ID]"
 
 **モード判定**: `--light` フラグが付いている場合（例: `/backlog GF-123 --light`）は軽微修正ショートカットで実行する（Phase 2 / Phase 3.5 をスキップ。詳細な例外規定は Phase 2・Phase 3.5 の各セクションを参照）。それ以外は通常フローを実行する。この判定結果を `{light_mode}` = `true`（--light 時）/ `false`（通常）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。`--light` 未指定で開始した場合も、Phase 1 完了時に investigation.md の内容次第で `{light_mode}` を `true` に格上げすることがある（[_README.md §Phase 1 完了時の light 格上げ（スコープ確定＋依頼明確性）](../templates/backlog/_README.md) 参照）。以降「`--light` の場合」と書かれた分岐は全て `{light_mode}` = `true`（格上げ含む）で判定する。
 
-**`--reconfigure` フラグ**: `.backlog_config.yml` に `xlsx_default` / `report_dir` が既に設定されていても、Phase 1.5 の xlsx 作成有無・フォルダパス確定を再確認し、回答で設定を上書きする（例: `/backlog GF-123 --reconfigure`）。手動での YAML 編集を不要にするための再設定用フラグ。
-
-**引数の解釈**: `$ARGUMENTS` の先頭トークン（`--` で始まらない最初の語）を `{issueID}` とし、`--light` / `--reconfigure` 等のフラグは除外する（`GF-123 --light` も `--light GF-123` も issueID=`GF-123`）。
+**引数の解釈**: `$ARGUMENTS` の先頭トークン（`--` で始まらない最初の語）を `{issueID}` とし、`--light` 等のフラグは除外する（`GF-123 --light` も `--light GF-123` も issueID=`GF-123`）。
 
 ## 概要
 
-保守課題の対応を7つの専門エージェントが分担する。各フェーズはエージェントに完全委譲し、フェーズ間でユーザ確認・xlsx更新を行う。
+保守課題の対応を6つの専門エージェントが分担する。各フェーズはエージェントに完全委譲する。明示承認が必要なのは「対応方針確定」「実装着手」の2点のみで、それ以外は自動進行する（詳細は「絶対ルール」参照）。
 
 | フェーズ | エージェント | 主な成果物 |
 |---|---|---|
 | Phase 0: 作業フォルダ作成 | （本コマンド直接実行） | `docs/logs/{issueID}/` |
 | Phase 1: 調査・理解 | `backlog-investigator` | `investigation.md` |
 | Phase 1.6: Sandbox 仮説検証 | `backlog-repro-runner` | `hypothesis-verification.md`（バグ系のみ） |
-| Phase 1.5: xlsx フォルダ確定 | （本コマンド直接実行） | `{xlsx_folder}` 変数確定のみ |
-| Phase 2: 対応方針の確定 | `backlog-planner` Phase A | `approach-plan.md` |
-| Phase 3: 実装方針の確定 | `backlog-planner` Phase B | `implementation-plan.md` + xlsx 一括生成 |
+| Phase 2: 対応方針の確定【明示承認】 | `backlog-planner` Phase A | `approach-plan.md` |
+| Phase 3: 実装方針の確定 | `backlog-planner` Phase B | `implementation-plan.md` |
 | Phase 3.5: 実装前検証 | `backlog-validator` | `validation-report.md` |
-| Phase 4: 実装 | `backlog-implementer`（内部: `sf-context-loader`） | 変更ファイル一覧 |
+| Phase 4: 実装【直前に実装着手の明示承認】 | `backlog-implementer`（内部: `sf-context-loader`） | 変更ファイル一覧 |
 | Phase 5: スモーク確認 | `backlog-tester`（内部: `sf-context-loader`） | スモーク結果（PASS で Phase 6 へ進む） |
 | Phase 6: Sandbox リリース・完了 | `backlog-releaser`（内部: `sf-context-loader`） | 完了報告 |
 
-> **実行順の注記**: 表・見出し番号は歴史的経緯により Phase 1.6 が Phase 1.5 より先に実行される（実行順: Phase 1 → 1.6 → 1.5 → 2。表の行順・見出しの並び順は実行順と一致している）。フェーズ番号の大小と実行順が一致しない点に注意すること。
+> **種別が「問い合わせ」の場合**: 実装を伴わないため、Phase 1 完了後に Phase 1.6・3〜6 をスキップし、Phase 2 で `backlog-planner` が回答ドラフト（`answer-draft.md`）を生成して完了する（詳細は Phase 2 セクション参照）。
 
-> **種別が「問い合わせ」の場合**: 実装を伴わないため、Phase 1 完了後に Phase 1.6・1.5・3〜6 をスキップし、Phase 2 で `backlog-planner` が回答ドラフト（`answer-draft.md`）を生成して完了する（詳細は Phase 2 セクション参照）。
+> **同一 issueID で会話を続ける場合（コマンド再起動なし）**: 一度 `/backlog {issueID}` を起動したセッションでは、その後 Backlog コメントの貼り付け・URL 共有・「追加でこれも」等の新しい情報が出てきた時点で、コマンドを再起動しなくても新ラウンドとして同じルールが自動適用される。詳細: [§同一セッション内の追加対応](#同一セッション内の追加対応ルールの常駐化)。
 
-**各エージェントの内部構造**: 全エージェント（`backlog-repro-runner` を除く）は Step 0b でフェーズ用 `_index-phase{N}.md` を読んでオプション判定を行う（[à la carte 仕組み](../templates/backlog/_README.md)）。`backlog-repro-runner` は Phase 1.6（バグ系のみ）専用で Step 0b を持たず、à la carte 判定の対象外。`backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-planner` はさらに Step 0a で `sf-context-loader` を呼び出す（`backlog-planner` は digest 優先で実運用上ほぼ発火しない）。Phase 1.5 は本コマンドが直接実行するためエージェントを起動せず、`_index-phase1-5.md` は存在しない（不要）。
+**各エージェントの内部構造**: 全エージェント（`backlog-repro-runner` を除く）は Step 0b でフェーズ用 `_index-phase{N}.md` を読んでオプション判定を行う（[à la carte 仕組み](../templates/backlog/_README.md)）。`backlog-repro-runner` は Phase 1.6（バグ系のみ）専用で Step 0b を持たず、à la carte 判定の対象外。`backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-planner` はさらに Step 0a で `sf-context-loader` を呼び出す（`backlog-planner` は digest 優先で実運用上ほぼ発火しない）。
 
 > **サブエージェントの二段ネストを避ける（`backlog-validator` は完全 leaf agent・`backlog-investigator` は部分的）**: サブエージェントがさらに別のサブエージェントを起動する二段ネストのうち、「同一メッセージでの複数 Agent/Task 同時発行」を伴う箇所は不安定化要因と特定し、本コマンド（メインスレッド）に引き上げた。単発・非並列の呼び出し（`backlog-planner → sf-effort-estimator` / `backlog-investigator → pattern-curator・backlog-blind-second-opinion` 等）は `auto-evidence-runner → ui-evidence-runner`（`/test`）と同型の安定パターンのため据え置いている。
 > - `backlog-validator`: `regression-guard`・`ui-evidence-runner`（Before-only）を本コマンドが Phase 3.5 開始時に直接 Task 起動（詳細は Phase 3.5 セクション参照）
-> - `backlog-planner`: `backlog-blind-validator`（`option-validator-blind` 採用時のみ）を本コマンドが Phase 3 完了直後に直接 Task 起動（詳細は Phase 3 セクション参照）
 > - `backlog-investigator`: `sf-context-loader`（knowledge-only + 通常モード。旧設計では同一メッセージ並列発行しており不安定化要因だった）を本コマンドが Phase 1 開始時に逐次 Task 起動（詳細は Phase 1 セクション参照）。詳細は [agent-routing.md](../spec/agent-routing.md) 参照
 
 **中間成果物の保存先**: `docs/logs/{issueID}/`（主要3ファイルを抜粋。resume 時に必ず Read する成果物の一覧は Phase 0d の既存ログ読込リストを参照。ただし Phase 6 の `manual-operation-steps.md` / `release-issue.md` 等の終端成果物は resume 継続性に影響しないため Phase 0d リストに含めていない）
@@ -44,9 +40,7 @@ argument-hint: "[課題ID]"
 - `approach-plan.md` — 対応方針
 - `implementation-plan.md` — 実装方針（全判断ポイント確定版）
 
-**エビデンス保存先**: `{evidence_dir}` 配下（Phase 1.5 で確定）
-- xlsx 作成あり: `{xlsx_folder}/evidence/{before,after}/`
-- xlsx 作成なし: `docs/logs/{issueID}/evidence/{before,after}/`
+**エビデンス保存先**: `docs/logs/{issueID}/evidence/{before,after}/`（固定。対応記録 xlsx は廃止済み・証跡は `/test` が生成するエビデンス.xlsx に一元化）
 
 ---
 
@@ -55,38 +49,34 @@ argument-hint: "[課題ID]"
 > **絶対ルール**
 >
 > **【フェーズ進行】**
-> - 各フェーズ完了後、次へ進む前にユーザの明示的な許可を必ず取る（黙って次フェーズへ進まない）
-> - **フェーズ末の進め方**:
->   1. **フェーズ別の型は [_README.md §サマリーの書き方](../templates/backlog/_README.md) に従ってチャットに提示する**（Phase 1〜3 は課題の概要・前提再掲・最終挙動を含む人間向けの日本語。技術詳細は成果物に記録しチャットに並べない。その他のフェーズは3〜5行で本質・発見・引き渡し要点を要約）
->   2. 「特に確認したい点」を **0〜3 個**テキストで挙げる。確認事項がなければ「特に確認事項はありません」と明記し、無理やり挙げない。実装詳細・テスト段取り・スコープ自明事項は確認質問に含めず本文に記載する（責務境界の詳細は各エージェント定義を参照）。**このルールは Phase 1〜6 すべてのフェーズ末に適用する**（investigator / planner / validator / implementer / tester / releaser の全エージェント共通）。何を確認事項に書いてよい／書かないかの基準は [_README.md §確認事項の選定基準](../templates/backlog/_README.md) を正本とする。
+> - **明示承認が必要なのは以下の2点のみ**（それ以外の遷移は自動進行する。詳細は次項）:
+>   1. **対応方針確定**（Phase 2→3。担当者が「どう対応するか」を決める瞬間）
+>   2. **実装着手**（Phase 3.5→4。実際にコードを変更し始める直前。`--light` 時を除く）
+> - **明示承認の進め方（上記2点のみ）**:
+>   1. **フェーズ別の型は [_README.md §サマリーの書き方](../templates/backlog/_README.md) に従ってチャットに提示する**（課題の概要・前提再掲・最終挙動を含む人間向けの日本語。技術詳細は成果物に記録しチャットに並べない）
+>   2. 「特に確認したい点」を **0〜3 個**テキストで挙げる。確認事項がなければ「特に確認事項はありません」と明記し、無理やり挙げない。実装詳細・テスト段取り・スコープ自明事項は確認質問に含めず本文に記載する（責務境界の詳細は各エージェント定義を参照）。何を確認事項に書いてよい／書かないかの基準は [_README.md §確認事項の選定基準](../templates/backlog/_README.md) を正本とする。
 >   3. ユーザの自由テキスト応答を待つ（質問・修正依頼・承認 何でも可）
 >   4. 議論が落ち着いたら「Phase N に進んでよろしいですか？」とテキストで明示確認
 >   5. ユーザの承認テキスト（「OK」「進んで」等）を確認してから次フェーズへ進む。**質問・相槌（「ha」「うん」等）・別タスク依頼（「工数計算して」「見積もって」等）は承認ではない**。工数・見積依頼は `sf-effort-estimator` 委譲対象で承認を兼ねない（タスク完了後に承認プロトコルを再提示する）。確信できなければ進まず確認を出し直す（詳細は [_README.md §承認判定](../templates/backlog/_README.md) 参照）。
-> - 実装は Phase 4 以降。それ以前に実装コードを書くことは禁止。**Phase 3.5→4 の境界はファイル編集に入る唯一のゲートであり、特に厳格に明示承認を確認すること。**（**例外**: `{light_mode}` = `true` の場合、Step A/C がスキップされ validation-report.md 自体が生成されないため確認対象がない。この場合のみ明示承認を求めず自動で Phase 4 へ進む。詳細は Phase 3.5 セクション「次に進む条件」参照）
-> - **軽量承認モード（デフォルト。時間短縮のため積極的に使う）**: フェーズ末の明示承認待ちは「異議がなければ次へ」を既定とする。下記「適用除外ゲート」に該当するフェーズ遷移のみ、常に通常の明示承認プロトコル（上記 1〜5）に戻す。
->   - **挙動**: フェーズ末サマリー＋「特に確認したい点」を提示した上で、末尾に「**異議がなければこのまま Phase N に進みます**」と明示し、明示承認テキストを待たず次フェーズへ進む（ユーザーはいつでも会話で異議・修正を差し込める。連続自動進行の回数上限は設けない — 上限で機械的に立ち止まるより、ユーザーが実際に異議を挟んだ時だけ止まる方が待ち時間を無駄にしない）
->   - **適用除外ゲート（軽量承認を絶対に適用しない・常に明示承認。業務判断の確定・実装着手等の重要な区切りに限定）**: Phase 2→3（対応方針の確定）／Phase 3→3.5（実装方針の確定）／Phase 3.5→4（実装着手）／本番デプロイ（後述。`/backlog` 自体は Phase 6 で本番接続を検出すると中断するため実際には到達しない）／お客様サイン（`customer-signoff.md`）／Backlog 投稿（`pre-operation.js` がハードブロック）。**理由**: 対応方針・実装方針は「どう対応するか」の業務判断そのものであり、黙っていたら自動的に承認したことになる設計は避ける。**Phase 4（実装）着手後の遷移**（現状 Phase 4→5 のみ該当）は上記に加え、① 課題が [_README.md §典型的自明ケース定義](../templates/backlog/_README.md) に該当（自明ケース判定 ON） ② [quality-gate.md §軽微修正の4条件](../spec/quality-gate.md) を全て満たす場合のみ軽量承認を許容し、満たさない場合は通常の明示承認プロトコルに戻す（実装で確定した差分を人間が確認しないまま次フェーズへ進めないため）。
->   - **Phase 5→6・Phase 6（Sandbox デプロイ）は適用除外ゲートに含めない（2026-09-15変更）**: Sandbox は可逆・低リスク（壊れても再デプロイで戻せる・本番や顧客に影響しない）なため、対応方針確定・実装着手と同格の重い承認は不要と判断した。PASS 時は承認を待たず自動で Phase 6 へ進む。詳細は Phase 5 セクションの「次に進む条件」を参照。
->   - **Phase 3.5→4 は `{light_mode}` = `true` の場合のみ適用除外ゲートから外れる（2026-09-15変更）**: light_mode は「依頼が明確（Q番号0件・対応方針唯一解）」かつ「スコープが1ファイル・1要素」の両方を満たす場合のみ成立する（[_README.md §Phase 1 完了時の light 格上げ](../templates/backlog/_README.md) 参照）。この条件下では Phase 3.5 の Step A/C 自体がスキップされ validation-report.md が生成されないため、確認すべき内容が存在しない。よって承認を待たず自動で Phase 4 へ進む。`{light_mode}` = `false`（依頼が不明瞭・スコープが広い等）の場合は Step C が実際に計画を精査するため、引き続き常に明示承認とする。
->   - **Phase 3→3.5 の「初回」遷移のみ適用除外ゲート対象。backlog-validator 起因の Phase 3 戻り後の再遷移（2回目以降）は軽量承認に切り替える（2026-09-16変更・実測に基づく）**: 実際の対応ログ実測で、Phase 3.5（backlog-validator）が技術的な見落とし（デプロイ影響範囲の過小評価等）を発見して Phase 3 に差し戻すケースが過半数（実測 60.7%）を占め、体感の遅さの主因になっていた。Phase 3 戻りは `採用方針`（Phase 2 で確定済みの対応方針そのもの）を再確認するものではなく、既に承認済みの方針を保った上での実装方針の技術的手直しに限定される（`backlog-planner` Phase B は Phase 2 で確定した `採用方針` を固定入力として受け取るため）。よって、backlog-validator が Phase 3 戻りを提案した後の再修正版 implementation-plan.md を再提示する際は、サマリー・確認事項を必ず提示した上で軽量承認（異議がなければ次へ）を適用してよい。方針そのものを見直す規模の差し戻し（Phase 2 まで遡る必要があるとエージェントまたはユーザーが判断した場合）は対象外とし、通常どおり明示承認に戻す。初回の Phase 3→3.5 遷移（最初に implementation-plan.md が確定した直後）は従来どおり常に明示承認のまま変更しない。
->   - **上記以外の遷移（Phase 0→1／1→1.6／1.6→1.5／1.5→2）は軽量承認がデフォルト**（調査・仮説検証・xlsx確定はまだ業務方針を確定させる段階ではなく、Phase 1.6 の `backlog-repro-runner` による Sandbox REPRO_ レコード作成も後から修正・再生成が容易なため、明示承認を必須にする理由が薄いと判断）
+> - 実装は Phase 4 以降。それ以前に実装コードを書くことは禁止。**Phase 3.5→4（実装着手）は特に厳格に明示承認を確認すること。**（**例外**: `{light_mode}` = `true` の場合、Step A/C がスキップされ validation-report.md 自体が生成されないため確認対象がない。この場合のみ明示承認を求めず自動で Phase 4 へ進む。詳細は Phase 3.5 セクション「次に進む条件」参照）
+> - **自動進行（上記2点以外の全ての遷移。デフォルト）**: Phase 0→1／1→1.6／1.6→2／Phase 3 完了時（実装方針の技術文書化を終えて Phase 3.5 へ）／Phase 3.5 完了時（実装前検証を終えて Phase 4 直前の実装着手ゲートへ。3.5→4 自体は `{light_mode}` = `true` の場合のみ自動）／4→5／5→6 は、フェーズ末サマリー＋「特に確認したい点」を提示した上で、末尾に「**異議がなければこのまま Phase N に進みます**」と明示し、明示承認テキストを待たず次フェーズへ進む（ユーザーはいつでも会話で異議・修正を差し込める。連続自動進行の回数上限は設けない — ユーザーが実際に異議を挟んだ時だけ止まる方が待ち時間を無駄にしない）。**理由**: 調査・技術文書化・実装前検証・スモークテスト・Sandbox デプロイは「人間がやるより AI がやる方が速い、または人間の目では原理的に検知できないリスクを拾う」工程であり、標準化・全自動化そのものを目的化しない（対応方針確定・実装着手のように「人間の業務判断そのもの」の工程だけを明示承認に残す）。
+> - **`/test` 要否の一言添え（新規ゲートは作らない）**: 対応方針確定（上記1）の提示で、light_mode 格上げ条件（文言・ラベルのみの変更等の明らかに軽微なケース。[_README.md §Phase 1 完了時の light 格上げ](../templates/backlog/_README.md) 参照）に該当する場合のみ、「軽微な変更のため `/test` は省略してもよいと思います。実行しますか？」と一言添える。担当者は方針確定と同じタイミングで一緒に判断する（`/test` 要否だけの新しい確認ポイントは追加しない）。
 >
 > **【AskUserQuestion】**
-> - **AskUserQuestion は使わない**。フェーズ承認・選択肢提示はすべてテキスト会話で行う（例外: Phase 1.5 の xlsx 作成有無・フォルダパス確定 / Phase 0 の再開方法選択（investigation.md 存在時）/ Phase 3 xlsx スクリプト失敗時の対処選択 は AskUserQuestion を使う）
+> - **AskUserQuestion は使わない**。フェーズ承認・選択肢提示はすべてテキスト会話で行う（例外: Phase 0 の再開方法選択（investigation.md 存在時）のみ AskUserQuestion を使う）
 >
 > **【ユーザー応答時】**
-> - **ユーザー応答受信時の必須3点セット**:
+> - **ユーザー応答受信時の必須3点セット**（`/backlog` 起動中に限らず、同一 issueID についてセッション内で会話が続く限り常に適用する。詳細: [§同一セッション内の追加対応](#同一セッション内の追加対応ルールの常駐化)）:
 >   1. ユーザーの返答が「差し込み・指摘・方針変更」を含む場合、次のアクション前に discussion-log.md に追記する
 >   2. discussion-log.md 追記後に成果物に影響があれば修正する
 >   3. Phase 末尾の確認プロトコルを実行する
 >
 > **【再開・変数】**
-> - **compact 後の再開について**: 長尺セッションで /compact が発生した後に /backlog を継続する場合は、必ず /backlog コマンドを再起動して Phase 0d 経由でコンテキストを復元すること。エージェント実行途中で /compact が発生した場合も同様。investigation.md のフロントマターに記録した `issue_type` / `xlsx_folder` / `evidence_dir` / `light_mode` / `deploy_route` を Phase 0d で読み込んで変数を再設定する（フロントマター更新の義務・スキップ禁止・復元手順の詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照）
+> - **compact 後の再開について**: 長尺セッションで /compact が発生した後に /backlog を継続する場合は、必ず /backlog コマンドを再起動して Phase 0d 経由でコンテキストを復元すること。エージェント実行途中で /compact が発生した場合も同様。investigation.md のフロントマターに記録した `issue_type` / `light_mode` / `deploy_route` を Phase 0d で読み込んで変数を再設定する（フロントマター更新の義務・スキップ禁止・復元手順の詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照）
 > - **種別変数 `{issue_type}` の管理**: Phase 1 完了時点で `investigation.md` の「種別」欄から `{issue_type}` = `バグ` / `追加要望` / `その他` / `問い合わせ` を確定し、会話の最後まで保持する。Phase 2（デフォルトスタンス／問い合わせ時は回答ドラフトモード分岐）・Phase 5（テスト観点）・Phase 6（お客様確認必須度）の分岐に使用する。種別欄が空欄・不明・記載なしの場合は「種別が判断できません。バグ / 追加要望 / その他 / 問い合わせ のどれに該当しますか？」とテキストで確認してから確定する
 >
 > **【環境・記録】**
 > - **本番環境（isSandbox=false）への直接デプロイは絶対に行わない**
-> - **xlsx 更新の共通ルール**: Phase 1.5 で定義される共通ルール①（timeline 呼び出しに `--reason "{根拠}"` を追加）と共通ルール②（xlsx シート書き込みは `update_records.py cell` を使用）は Phase 2 以降の全 timeline 更新で適用すること（詳細は「Phase 1.5: xlsx フォルダの確定」セクションの共通ルール定義を参照）
 > - **中断・手動切替・リリース省略でフローが Phase 6 に到達しない場合**: `## §中断時の知見還流（部分還流）` に従い知見を `docs/knowledge/` へ部分還流してから終了する（知見取りこぼし防止）
 
 ---
@@ -186,7 +176,7 @@ New-Item -ItemType Directory -Force -Path "docs/logs/{issueID}" | Out-Null
 6. `validation-report.md` — 実装前検証結果
 7. `test-report.md` — テスト結果
 
-investigation.md を Read した際はフロントマター（`---` で囲まれた部分）から `issue_type` / `xlsx_folder` / `evidence_dir` / `light_mode` / `deploy_route` を変数として読み取り、以降のフェーズで使用する。
+investigation.md を Read した際はフロントマター（`---` で囲まれた部分）から `issue_type` / `light_mode` / `deploy_route` を変数として読み取り、以降のフェーズで使用する。
 
 **分割読込ルール**: investigation.md・hypothesis-verification.md・approach-plan.md・implementation-plan.md・validation-report.md・test-report.md は、**冒頭 80 行 + 末尾 30 行**を読めば十分（ファイルが 110 行未満の場合は全文）。フルが必要なフェーズ（実装フェーズなど）はエージェント側で個別に全文 Read すること（[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通)）。
 
@@ -286,10 +276,10 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 > python "{tmp_dir}/write_frontmatter.py" "{issueID}" "{issue_type}" "{light_mode}" "{deploy_route}"
 > ```
 
-> **次に進む条件**: ユーザが調査レポートを確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項をテキストで提示してやり取りを経て進む
-> - `{issue_type}` = `バグ` の場合: 「Phase 1.6 に進んでよろしいですか？」と確認してから Phase 1.6 へ
-> - `{issue_type}` = `問い合わせ` の場合: 「Phase 2（回答ドラフト生成）に進んでよろしいですか？」と確認してから Phase 1.6・1.5 をスキップして Phase 2 へ直接進む
-> - `{issue_type}` = `追加要望` / `その他` の場合: 「Phase 1.5 に進んでよろしいですか？」と確認してから Phase 1.5 へ
+> **次に進む条件（自動進行）**: ユーザが調査レポートを確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従いサマリー・確認事項を提示し、「異議がなければこのまま次へ進みます」と一言添えて、承認を待たず同一ターンで次へ進む（【フェーズ進行】参照。ユーザーはいつでも異議・修正を差し込める）
+> - `{issue_type}` = `バグ` の場合: Phase 1.6 へ
+> - `{issue_type}` = `問い合わせ` の場合: Phase 1.6 をスキップして Phase 2（回答ドラフト生成）へ直接進む
+> - `{issue_type}` = `追加要望` / `その他` の場合: Phase 2 へ
 > - **バグの場合（自明バグ除く）**: Phase 1 サマリーは「最有力仮説は X（要 Sandbox 検証）」表現に留める。「根本原因は X と確定」「間違いない」等の断定は Phase 1.6 完了後まで禁止
 >
 > **Phase 1 典型例（該当時のみ・0件が原則）**: 「業務要件 Q1 への仮説が正しいか」「データ X の例外時挙動を業務側に確認したい」
@@ -302,51 +292,9 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 ### Phase 1.6: Sandbox 仮説検証（バグ系のみ）
 
-> **実行条件**: `{issue_type}` = `バグ` の場合のみ実行する。追加要望・その他はこのセクションをスキップして Phase 1.5 へ進む。スキップ時は「追加要望・その他のため Sandbox 仮説検証は不要」と 1 行通知する。問い合わせは Phase 1 完了時点で Phase 2 へ直接進むため通常ここに到達しない（誤って到達した場合も本セクションをスキップし Phase 2 へ進む）。
+> **実行条件**: `{issue_type}` = `バグ` の場合のみ実行する。追加要望・その他はこのセクションをスキップして Phase 2 へ進む。スキップ時は「追加要望・その他のため Sandbox 仮説検証は不要」と 1 行通知する。問い合わせは Phase 1 完了時点で Phase 2 へ直接進むため通常ここに到達しない（誤って到達した場合も本セクションをスキップし Phase 2 へ進む）。
 
 `{issue_type}` = `バグ` の場合、詳細手順（エージェント起動パラメータ・完了後の分岐・Phase 1 再入方法）を Read する: [.claude/templates/backlog/phase1-6-sandbox-verification.md](../templates/backlog/phase1-6-sandbox-verification.md)
-
----
-
-### Phase 1.5: xlsx フォルダの確定（選択式・設定済みなら自動継続）
-
-> **種別が「問い合わせ」の場合**: Phase 1 完了時点で Phase 2 へ直接進むため本フェーズは実行しない（回答ドラフトは xlsx 化しない・`{xlsx_folder}` は使用しない）。誤って到達した場合も本セクションをスキップし Phase 2 へ進む。
->
-> **`--light` フラグが設定されている場合**: xlsx は非対応。Phase 1.5 をスキップし `{xlsx_folder}` = null・`{evidence_dir}` = `docs/logs/{issueID}/evidence` を設定する（`.backlog_config.yml` の `xlsx_default` は変更しない）。（理由: light は `approach-plan.md` を生成しないため Phase 3 の `create_records.py --approach-plan` が必ず失敗する）  
-> その後、`xlsx-setup.md`「作成しない」の場合の手順に従い `evidence_dir` を investigation.md フロントマターに書き戻す（`/test` 起動時の保存先解決に必要）。
-
-**Step 1.5.0: config デフォルト読込**（`--light` 時は実行しない）
-
-`docs/.backlog_config.yml` の `xlsx_default` を確認する:
-
-```bash
-python -c "import yaml,pathlib; p=pathlib.Path('docs/.backlog_config.yml'); d=yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; v=d.get('xlsx_default',''); print(v)"
-```
-
-- **出力が `True` または `False` かつ `--reconfigure` 未指定**: 下記 AskUserQuestion をスキップし、出力値を `{xlsx_create}`（作成する/作成しない）に採用する。チャットに1行通知する:
-  > xlsx: {作成する|作成しない}（プロジェクト設定 `xlsx_default` により自動継続。再選択は `--reconfigure`）
-  そのまま「`{xlsx_create}` に応じた分岐」へ進む（config への再書き込みは不要）。
-- **出力が空・`--reconfigure` 指定時・または `True`/`False` 以外の値**: 下記 AskUserQuestion を実行する。値が `True`/`False`/空 のいずれでもない場合は実行前に「`xlsx_default` の値が不正のため再選択します」と1行通知する。
-
-AskUserQuestion で作成有無を選択する:
-- label: `作成する`、description: "対応記録.xlsx を生成する（推奨）"
-- label: `作成しない`、description: "xlsx 生成をスキップして作業を続行する"
-
-選択結果を `{xlsx_create}` に格納し、`docs/.backlog_config.yml` の `xlsx_default` に永続化する（既存エントリを保持してマージ。次回以降のデフォルト値になる）:
-
-```bash
-python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d = yaml.safe_load(p.read_text(encoding='utf-8')) if p.exists() else {}; d['xlsx_default'] = {選択結果が「作成する」なら True、「作成しない」なら False}; p.write_text(yaml.dump(d, allow_unicode=True), encoding='utf-8')"
-```
-
-> **[共通ルール①]** 各フェーズの `timeline` 呼び出しで判断・選択の根拠がある場合は `--reason "{根拠}"` を追加する（記録の追跡性を高めるため積極的に使用すること）。
->
-> **[共通ルール②]** xlsx への書き込みは Phase 3 末尾の一括生成（create_records.py）以降に `update_records.py cell` を使用する。Phase 4-6 の各エージェントが timeline と cell 両方の xlsx 追記を担う。
-
-**`{xlsx_create}` = 作成する の場合**: 保存先フォルダパスを確定して `{xlsx_folder}` を設定する（xlsx ファイルの生成は Phase 3 末尾で実施。この時点では生成しない）。
-
-> フォルダパス確定手順: [.claude/templates/backlog/xlsx-setup.md](../templates/backlog/xlsx-setup.md)
-
-**`{xlsx_create}` = 作成しない の場合**: `{xlsx_folder}` = null、`{evidence_dir}` = `docs/logs/{issueID}/evidence` に設定する。Phase 2 以降の全 xlsx 更新ブロックはスキップする。`xlsx-setup.md`「作成しない」の場合の手順に従い `evidence_dir` を investigation.md フロントマターに書き戻す。
 
 ---
 
@@ -359,11 +307,9 @@ python -c "import yaml, pathlib; p = pathlib.Path('docs/.backlog_config.yml'); d
 > ## 対応方針（結論）
 > 実装不要・管理画面直接操作（判定根拠: investigation.md「デプロイ適否判定」セクション参照）
 > ```
-> 作成後、ユーザに提示し「Phase 3〜5（実装関連フェーズ）をスキップして Phase 6（管理画面操作手順の作成）に進んでよろしいですか？」とテキストで確認する。承認後、Phase 1.6/1.5 は通常どおり実施済みの前提で、Phase 3・3.5・4・5 を全てスキップして Phase 6 へ直接進む。**この時点で `{xlsx_folder}` を null に上書きする**（理由: 対応記録.xlsx の実体生成は Phase 3 末尾の `create_records.py` のみが行うが、本分岐は Phase 3 ごとスキップするため、Phase 1.5 で「作成する」を選択済みでも物理ファイルは生成されない。null 化しないと Phase 6 の `update_records.py cell` 実行がファイル未存在で exit 1 になる。`--light` 時に `{xlsx_folder}` を null 化する扱いと同じ理由）。
+> 作成後、ユーザに提示し「Phase 3〜5（実装関連フェーズ）をスキップして Phase 6（管理画面操作手順の作成）に進んでよろしいですか？」とテキストで確認する。承認後、Phase 1.6 は通常どおり実施済みの前提で、Phase 3・3.5・4・5 を全てスキップして Phase 6 へ直接進む。
 >
 > **`--light` フラグが設定されている場合**: 種別が「問い合わせ」の場合は本分岐を適用しない（下記「種別が「問い合わせ」の場合」節を優先し、回答ドラフトを生成して Phase 2 で完了する）。それ以外の種別では Phase 2 をスキップして Phase 3（実装方針）へ直接進む。対応方針は「最小修正・既存パターン踏襲」固定とし、`approach-plan.md` を作成しない。Phase 3 開始時にその旨を 1 行通知する。
->
-> **xlsx 共通規則**: Phase 2 以降の全 xlsx 更新ブロックは `{xlsx_folder}` が null（Phase 1.5 で「作成しない」を選択）の場合スキップする。
 
 #### 種別が「問い合わせ」の場合（回答ドラフト・Phase A/B とは別モード）
 
@@ -386,8 +332,6 @@ default_stance: {バグ="最小修正＋既存への影響ゼロを最優先" / 
 
 エージェントが `approach-plan.md` を保存したら提示する。  
 ユーザが採用方針を確定するまで Phase 3 に進まない。
-
-> **対応方針のタイムライン行は Phase 3 末尾の `create_records.py` が自動生成する**（この時点では xlsx 未生成のため追記しない）。
 
 > **次に進む条件**: ユーザが対応方針を確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項・「Phase 3 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
 >
@@ -416,44 +360,7 @@ default_stance: {Phase 2 と同じ値を引き継ぐ}
 エージェントが `implementation-plan.md` を保存したら提示する。  
 全判断ポイントが確定するまで Phase 4 に進まない。
 
-**`option-validator-blind` 採用時のみ（本コマンドが直接実行）**: implementation-plan.md の「Step 0b オプション判定結果」で `option-validator-blind` が採用されている場合、以下を実行する（二段ネストを避けるため backlog-planner ではなく本コマンドが直接行う）:
-1. investigation.md の「課題原文」セクションから課題本文の全文・全コメントのテキストを取得する（既に disk 上にあるため Read で取得。MCP 再取得は不要）。
-2. approach-plan.md の「採用方針:」行の1行のみを取得する（それ以外の内容は一切含めない。blind 性維持のため）。**`--light` の場合は approach-plan.md が存在しないため（L378 と同じ理由）、ファイルは読まず採用方針テキストを「最小修正・既存パターン踏襲」固定値とする。**
-3. `.claude/templates/backlog/blind-prompts/validator.md` の Task prompt テンプレートを Read し、プレースホルダー（`{issueID}` `{課題本文の全文}` `{全コメントのテキスト}` `{investigation.md のテキスト}` `{採用方針テキスト}`）を実行時の値で置換して `backlog-blind-validator` を起動する。
-4. 返却されたテキストの先頭が `## エラー` 形式（backlog-blind-validator.md §異常時の挙動: missing-input / blind-leaked）かどうかを判定する。
-   - **エラー形式でない場合**: 返却されたテキスト（backlog-blind-validator.md の出力）と implementation-plan.md 本文（parent 案）を突き合わせ、`option-validator-blind.md` §出力 の形式（`## blind 実装案レビュー` → `### subagent 独立案の概要` + `### parent 案との相違点（blind 差異）`）で implementation-plan.md の末尾に追記する。比較表の「判断ポイント」行は blind 案側の小見出し（処理構造／データ設計／SOQL／エラーハンドリング／副作用対応。該当なしの項目は行ごと省略）を用い、「parent 案」列は implementation-plan.md 本文の対応箇所を要約する。「採用判断」列は空欄のまま残し、次の確認プロトコル（Phase 3 完了時のユーザー確認）でユーザーに判断を委ねる。
-   - **エラー形式の場合**: implementation-plan.md への追記を保留し、エラー内容（種別・詳細）をユーザに提示したうえで、対処（引き渡し情報を修正して再試行する／blind レビューなしで Phase 3.5 に進む）をテキスト会話で確認する（`_README.md` §AskUserQuestion の使用ルールに準拠し AskUserQuestion は使わない）。「レビューなしで進める」と回答された場合は `## blind 実装案レビュー` を追記せず Phase 3.5 へ進む。
-
-**xlsx 一括生成（対応記録 + エビデンス）**（`{xlsx_folder}` が設定されている場合のみ）
-
-> **実行主体**: planner エージェントは bash を持たないため、planner 復帰後に **本コマンド（ハーネス）が直接** 以下の python スクリプトを実行する。planner には委譲しない。
-
-全 MD ファイルが揃ったこのタイミングで xlsx を一括生成する:
-
-```bash
-python "$(pwd -W)/scripts/python/backlog-xlsx/create_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  --investigation docs/logs/{issueID}/investigation.md \
-  --approach-plan docs/logs/{issueID}/approach-plan.md
-```
-
-> **エビデンス.xlsx の扱い**: 上記 create_records.py は対応記録.xlsx のみ生成する。エビデンス.xlsx は Phase 4 完了後に `/test {issueID}` が generate_evidence_xlsx.py で生成するため、このタイミングでは実行しない。
-
-**スクリプト失敗時の対処**（エラー出力あり / 終了コード 非0）:
-1. エラー内容をユーザに提示する
-2. AskUserQuestion で対処方法を選択する:
-   - label: `xlsx なしで続行`、description: "xlsx 生成を断念して Phase 3.5 へ進む"
-   - label: `修正して再試行`、description: "エラー原因を修正してスクリプトを再実行する"
-   - label: `中止`、description: "コマンドを終了する"
-3. 「xlsx なしで続行」が選ばれた場合: `{xlsx_folder}` = null として Phase 3.5 へ進む。create_records.py が途中成功してファイルが残っている可能性があるため、`{xlsx_folder}` 配下に生成済み xlsx（`{issueID}_対応記録.xlsx`）が存在する場合は削除する（破損ファイルが後続 Phase で誤参照されるのを防ぐため。エビデンス.xlsx はこの Phase では生成しないため削除対象外）。あわせて [xlsx-abandon-frontmatter-clear.md](../templates/backlog/_partials/xlsx-abandon-frontmatter-clear.md) の手順で investigation.md フロントマターの `xlsx_folder` / `evidence_dir` も巻き戻す（Phase 1.5 で書き込み済みのまま残すと /compact 後の Phase 0d 再開時に破棄済みの xlsx_folder が復元される）
-4. この対処結果（選ばれた対応・エラー概要）は会話内で保持しておく（Phase 4 以降の xlsx スクリプト失敗ゲートで、同種のエラーが再発した際に文脈提示するために使う。新たな変数管理・永続化は不要）。
-
-生成完了後にファイルパスをユーザに提示する（`{xlsx_folder}` = null の場合はスキップ）:
-- `{xlsx_folder}/{issueID}_対応記録.xlsx`
-
-（エビデンス.xlsx は Phase 4 完了後に `/test {issueID}` が生成する）
-
-> **次に進む条件**: 全判断ポイントをユーザが確認・確定した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項・「Phase 3.5 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
+> **次に進む条件（自動進行）**: [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従いサマリー・確認事項を提示し、「異議がなければこのまま Phase 3.5 に進みます」と一言添えて、承認を待たず同一ターンで Phase 3.5 へ進む（【フェーズ進行】参照。実装方針の技術文書化であり業務判断そのものではないため）
 >
 > **Phase 3 典型例（該当時のみ・0件が原則）**: 「類似実装と異なるパターンを採用した判断ポイントの整合性」「過去に蓄積された不整合データへの遡及対応を今回のスコープに含めるか」
 
@@ -480,7 +387,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/create_records.py" \
 
 `docs/logs/{issueID}/implementation-plan.md` の「変更対象ファイル」を確認し、LWC（`.html`/`.js`）・Aura（`.cmp`）・VF（`.page`）が含まれる、または実装方針に「画面・ラベル・文言・表示・UI」の語が含まれる場合のみ、[option-evidence-check.md](../templates/backlog/options/option-evidence-check.md) の B・C 手順を実行する（Sandbox alias 解決 → `ui-evidence-runner` を `mode: before-capture` で Task 起動 → Before データ値採取）。該当しない場合は本 Step 全体をスキップし `{evidence_result}` = 「該当なし（非UI変更）」とする。
 
-> **権限・FLS・レイアウト・RecordType・共有ルール変更の場合**: 本 Step（Before エビデンス自動採取）の対象外（`{evidence_result}` = 「該当なし（非UI変更）」）でも証跡取得が免除されるわけではない。`backlog-tester`（Phase 5）は dry-run のみでは完了と判定せず、Phase 6（`backlog-releaser`）の完了チェックリストで異なる権限経路の実ユーザーによる Login As 確認を必須とする（CLAUDE.md 「権限系の『できない／直った』の完了判定」参照）。
+> **権限・FLS・レイアウト・RecordType・共有ルール変更の場合**: 本 Step（Before エビデンス自動採取）の対象外（`{evidence_result}` = 「該当なし（非UI変更）」）でも動作確認が不要になるわけではない。異なる権限経路の実ユーザーによる Login As 確認は Phase 6 では行わず、`/test`（test-spec-builder.md の権限変更検出ロジック）が確実に UI 種別のテストケースを生成し確認する設計に一元化されている（詳細は Phase 6 セクション参照）。
 
 **Step C: backlog-validator 起動**
 
@@ -494,20 +401,7 @@ Beforeエビデンス採取結果: {evidence_result}
 project_dir: {プロジェクトルートパス}
 ```
 
-エージェントが `validation-report.md` を保存したら内容をユーザに提示する。Phase 3 への戻りが提案された場合は Phase 3 に戻って実装方針を修正してから Phase 3.5 を再実施する（Step A・B も再実行する）。**Phase 3 戻りは最大 2 回まで・セッション跨ぎを含めて通算カウント**（カウントは discussion-log.md の改版履歴から復元する。詳細は `test-fail-routing.md` §ループ上限 を参照）。3 回目以降の戻り提案が出た場合は自動進行を停止し、「実装方針の見直しが繰り返されています。一度オフラインで方針再検討の打ち合わせが必要かもしれません。このまま Phase 3 に戻りますか？（続行 / 中止）」とテキストで確認する。「続行」ならば Phase 3 に戻る。「中止」ならばコマンドを終了する。
-
-> **Phase 3 戻り後の再遷移は軽量承認（2026-09-16追加）**: Phase 3 で implementation-plan.md を修正した後、再び Phase 3.5 を実施する遷移（この「戻り→再実施」の再遷移そのもの、および再実施後の「Phase 4 に進んでよろしいですか」相当の確認）は、上記「軽量承認モード」の適用除外ゲート carve-out に従い軽量承認（サマリー・確認事項を提示した上で異議がなければ自動継続）とする。採用方針（Phase 2 確定分）まで見直す必要が生じた場合はこの限りでなく通常の明示承認に戻す。
-
-**xlsx 更新（実装前検証）**（`{xlsx_folder}` が設定されている場合のみ）
-
-```bash
-python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  timeline --phase "実装前検証" \
-  --content "実装前検証完了: {ドライラン/テスト/影響範囲/クロスレビュー/エビデンスの結果サマリーを1行で}"
-```
-
-> スクリプト失敗時（終了コード非0）: エラー内容をユーザに一行提示し、処理は継続する（timeline 追記は記録目的のみで validation-report.md 本体には影響しないため、失敗を理由に Phase 進行をブロックしない）。
+エージェントが `validation-report.md` を保存したら内容をユーザに提示する。Phase 3 への戻りが提案された場合は Phase 3 に戻って実装方針を修正してから Phase 3.5 を再実施する（Step A・B も再実行する。「戻り→再実施」の遷移自体は自動進行の対象）。**Phase 3 戻りは最大 2 回まで・セッション跨ぎを含めて通算カウント**（カウントは discussion-log.md の改版履歴から復元する。詳細は `test-fail-routing.md` §ループ上限 を参照）。3 回目以降の戻り提案が出た場合は自動進行を停止し、「実装方針の見直しが繰り返されています。一度オフラインで方針再検討の打ち合わせが必要かもしれません。このまま Phase 3 に戻りますか？（続行 / 中止）」とテキストで確認する。「続行」ならば Phase 3 に戻る。「中止」ならばコマンドを終了する。
 
 > **次に進む条件（`{light_mode}` = `false`。通常）**: 全検証項目 OK をユーザが確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項・「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？」をテキストで提示してやり取りを経て進む
 >
@@ -526,47 +420,13 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 調査レポート: docs/logs/{issueID}/investigation.md
 実装前検証結果: docs/logs/{issueID}/validation-report.md
 project_dir: {プロジェクトルートパス}
-xlsx_folder: {xlsx_folder}
 ```
-
-> `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 
 エージェントが Before/After を提示したらユーザに確認する。変更ファイルが 5 件を超える場合は以下の基準で提示を分ける:
 - **詳細提示**: ロジック変更・public インターフェース変更・Apex/LWC/Flow のコード変更
 - **一覧省略可**: 設定ファイル・メタデータ（field-meta.xml / layout-meta.xml 等）・テストクラス以外の補助ファイル
 
-**xlsx 一括記入（対応内容）**（`{xlsx_folder}` が設定されている場合のみ）
-
-> **実行主体**: implementer エージェントが `implementation-summary.md` を書き出した後、**本コマンド（ハーネス）が直接** 以下のスクリプトを実行する。create_records.py（Phase 3）と同型。
-
-```bash
-python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  content-from-md --summary docs/logs/{issueID}/implementation-summary.md --force
-```
-
-> スキップ判定: [.claude/templates/backlog/_partials/xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) に従う（`{xlsx_folder}` null = 正規スキップ）。
-
-スクリプト失敗時の対処（エラー出力あり / 終了コード 非0）:
-1. エラー内容をユーザに提示する
-2. **Phase 3 の xlsx スクリプト失敗ゲートが既にこのセッションで発生している場合**、そのときの対処結果を一言添える（例:「Phase3でも同種のエラーが発生し『修正して再試行』を選択済みです」）。判断の自動適用ではなく、ユーザが状況を思い出しやすくする文脈提示のみ。該当がなければこの手順は省略する。
-3. テキストで選択を確認する:「xlsx なしで続行」（xlsx_folder = null に変更して続行）/「修正して再試行」/「中止」
-4. 「xlsx なしで続行」が選ばれた場合: [xlsx-abandon-frontmatter-clear.md](../templates/backlog/_partials/xlsx-abandon-frontmatter-clear.md) の手順で investigation.md フロントマターの `xlsx_folder` / `evidence_dir` も巻き戻す
-
-**xlsx 充足確認（verify）**（`{xlsx_folder}` が設定されている場合のみ）
-
-```bash
-python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  verify --stage pre-release
-```
-
-verify 結果が **NG（exit 2）** の場合: 未充足枠を提示する。**Phase 3 または直前の xlsx 一括記入ゲートが既にこのセッションで発生している場合**は、その経緯を一言添えてから（判断の自動適用ではなく文脈提示のみ）、テキストで対処を確認する:
-- 「自動補完」: `content-from-md` を再実行する（implementation-summary.md が存在する場合のみ）
-- 「手動修正後続行」: ユーザが xlsx を手動で修正してから続行
-- 「xlsx なしで続行」: `{xlsx_folder}` = null として Phase 5 へ進む。あわせて [xlsx-abandon-frontmatter-clear.md](../templates/backlog/_partials/xlsx-abandon-frontmatter-clear.md) の手順で investigation.md フロントマターの `xlsx_folder` / `evidence_dir` も巻き戻す
-
-> **次に進む条件**: ユーザが実装内容を確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項・「Phase 5 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
+> **次に進む条件（自動進行）**: [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従いサマリー・確認事項を提示し、「異議がなければこのまま Phase 5 に進みます」と一言添えて、承認を待たず同一ターンで Phase 5 へ進む（【フェーズ進行】参照）
 >
 > **Phase 4 典型例（該当時のみ・0件が原則）**: 「実装中に発見した計画との不整合の影響評価」「implementation-plan.md への改版履歴追記が必要なら内容の確認」
 
@@ -583,10 +443,7 @@ verify 結果が **NG（exit 2）** の場合: 未充足枠を提示する。**P
 実装計画: docs/logs/{issueID}/implementation-plan.md
 種別: {issue_type}
 project_dir: {プロジェクトルートパス}
-xlsx_folder: {xlsx_folder}
 ```
-
-> `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 
 スモーク確認の結果を報告する:
 - **PASS** → 承認を待たず自動で Phase 6 へ進む（下記「次に進む条件」参照。Sandbox は可逆・低リスクのため）
@@ -611,34 +468,19 @@ xlsx_folder: {xlsx_folder}
 実装計画: docs/logs/{issueID}/implementation-plan.md
 種別: {issue_type}
 project_dir: {プロジェクトルートパス}
-xlsx_folder: {xlsx_folder}
 deploy_route: {deploy_route}
 ```
 
-> `{xlsx_folder}` が null（Phase 1.5 で「作成しない」）の場合は xlsx_folder 行を省略してエージェントに渡す。
 > `{deploy_route}` = `manual-operation` の場合、実装計画（`implementation-plan.md`）は Phase 3〜5 スキップにより存在しない。この場合は実装計画行を省略してエージェントに渡す。
 
 **お客様確認サインの取得**
 
-> 種別別ルール・xlsx 更新: [.claude/templates/backlog/customer-signoff.md](../templates/backlog/customer-signoff.md)
+> 種別別ルール: [.claude/templates/backlog/customer-signoff.md](../templates/backlog/customer-signoff.md)
 > ファイルが存在しない場合は「種別 {issue_type} のお客様確認内容は何ですか？」とテキストで確認し、ユーザの指示に従ってサインを取得する。
 
-> **「完了」の意味範囲**: ここで書き込む「完了」は `backlog-releaser` 内部の完了チェックリスト（デプロイ成功確認・種別別エビデンス取得。権限・FLS等は Login As 確認を含む。`backlog-releaser.md` §2a. Sandbox の場合 参照）を通過した上での、Sandbox実装・動作確認までの完了を意味する（Phase 0 で確認したスコープ通り）。お客様確認サインはブロッキングゲートではなく完了報告の「残作業」チェックボックスで管理する（未取得でも本ステータス更新をブロックしない。取得報告後に xlsx タイムライン「お客様確認」欄へ別途追記する）。`/test`（次アクション案内）による網羅的テスト・証跡採取・エビデンス Excel 生成は追加の構造化証跡であり、本ステータスの前提条件ではない。
+> **「完了」の意味範囲**: ここでの「完了」は `backlog-releaser` 内部の完了チェックリスト（デプロイ成功確認。`backlog-releaser.md` §2a. Sandbox の場合 参照）を通過した上での、Sandbox 実装・動作確認までの完了を意味する（Phase 0 で確認したスコープ通り）。動作検証（権限・FLS 変更時の Login As 確認を含む）は Phase 6 では行わず `/test` に一元化されている。お客様確認サインはブロッキングゲートではなく完了報告の「残作業」チェックボックスで管理する（未取得でも完了をブロックしない）。`/test`（次アクション案内）による網羅的テスト・証跡採取・エビデンス Excel 生成は追加の構造化証跡であり、本ステータスの前提条件ではない。
 
-**ステータスを「完了」に更新**（`{xlsx_folder}` が設定されている場合のみ）
-
-> **実行主体**: releaser の xlsx 更新はハーネスが直接実行する（Phase 3 と同型）。
-
-```bash
-python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "課題と対応方針" --label "ステータス" --col 2 --value "完了" --force
-```
-
-> スキップ判定: [.claude/templates/backlog/_partials/xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) に従う。
-> スクリプト失敗時（終了コード非0）: 完了報告に「⚠ xlsx ステータス欄の更新に失敗しました（手動で「完了」に修正してください）」を付記する（リリース自体は完了済みのためブロックしない・警告のみ。Phase 6 末尾の verify final でも未充足として再検出される）。
-
-**調査段階の再現確認スクショ（repro/before, repro/after）を削除**（`{issue_type}` = バグ で Phase 1.6 の `backlog-repro-runner` が実行された場合のみ `{log_dir}/repro/` が存在する。仮説検証用スクショで、xlsx には統合されない一時証跡。結論は `hypothesis-verification.md` に記録済みのため、Phase 6 完了＝もう参照しないタイミングで画像のみ削除する。**`repro/logs/`（`created_records.txt` 等の監査記録。`backlog-releaser.md` §2a 5 が Phase 6 再実行時に参照するため）は削除対象から除外**する）:
+**調査段階の再現確認スクショ（repro/before, repro/after）を削除**（`{issue_type}` = バグ で Phase 1.6 の `backlog-repro-runner` が実行された場合のみ `{log_dir}/repro/` が存在する。仮説検証用スクショで、一時証跡。結論は `hypothesis-verification.md` に記録済みのため、Phase 6 完了＝もう参照しないタイミングで画像のみ削除する。**`repro/logs/`（`created_records.txt` 等の監査記録。`backlog-releaser.md` §2a 5 が Phase 6 再実行時に参照するため）は削除対象から除外**する）:
 
 > **⚠️ 日本語パス注意**: `project_dir` が日本語ディレクトリ名を含む場合、`python -c "...{log_dir}..."` のようにソースコード文字列へ直接パスを埋め込むと Git Bash 経由の引数展開が文字化けし、存在しないパスに対して `rmtree` が呼ばれて何も削除されないことがある（2026-09-03 実測確認済み）。パスは環境変数経由で渡し、**`ignore_errors=True` を使わず**削除後に `os.path.exists` で成功を確認してから完了を報告する（詳細: `cleanup-rules.md` §`{tmp_dir}` 以外を削除する場合の注意）。
 
@@ -671,21 +513,11 @@ for sub in ('before', 'after'):
 esac
 ```
 
-**xlsx 最終充足確認（verify final）**（`{xlsx_folder}` が設定されている場合のみ）
-
-```bash
-python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  verify --stage final --status-expected 完了
-```
-
-verify 結果が **NG（exit 2）** の場合: 完了報告に「⚠ xlsx 未充足あり（詳細は上記 verify 出力を参照）」を付記する（リリース済みのためブロックしない・警告のみ）。
-
 完了報告を行う。
 
 > **管理画面操作手順書（2b）がある場合**: `docs/logs/{issueID}/manual-operation-steps.md` が存在する場合、完了報告に続けて [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従い引き渡しを行う（**手順書全文を一度に貼らない**）。同ファイルを Read し、「操作ステップ」内の番号付き各項目を TodoWrite でタスク化し、先頭の未完了ステップのみ内容を提示して「実行結果を教えてください」と添える。ユーザーの実行報告を受けたら該当 Todo を completed にし次のステップへ進む。エラー・質問ならその場で回答し Todo は進めない。全 Todo 完了後、「確認事項」セクションを一度に提示する。
 
-> **📋 本番リリース後 TODO**: 本フローは Sandbox リリースまで。**本番リリースは人間が手動で実施する**ため、本番デプロイ後は `/release {issueID}` を起動（または継続）し、デプロイ完了を報告すること。`/release` Phase 7 が decisions.md「リリース予定日 / 担当」欄・changelog.md への記録を代行する（対応記録.xlsx にはリリース実施記録用のシートは存在しない）。
+> **📋 本番リリース後 TODO**: 本フローは Sandbox リリースまで。**本番リリースは人間が手動で実施する**ため、本番デプロイ後は `/release {issueID}` を起動（または継続）し、デプロイ完了を報告すること。`/release` Phase 7 が decisions.md「リリース予定日 / 担当」欄・changelog.md への記録を代行する。
 
 > **Phase 6 完了後の次アクション（テスト・証跡採取）**: `{deploy_route}` = `manual-operation` の場合、Phase 3〜5 スキップによりコード変更・Sandbox デプロイが発生していないため本アクション自体をスキップする（`/test` はデプロイ済み Sandbox 前提のため対象がない）。`{deploy_route}` = `normal` の場合のみ、完了報告の末尾に、次の1行を **`{issueID}` を実際の課題IDに展開した状態** でコードブロックとして提示し、そのままコピペで別セッションに貼れるようにする。併せて1行案内する:「上記を **別セッション（クリーンな会話）で起動** してください。網羅的テスト・証跡採取・エビデンス Excel 生成を実施します（`/test` はデプロイ済み Sandbox 前提。clean session 分離の設計意図により自動起動はしません）。」
 >
@@ -730,20 +562,7 @@ main スレッドが「この課題は Phase 6 に到達しない」と判断し
    - 工数列は `-` 固定で追記する
    - 既存行ありならスキップ（dup 防止）
 
-**実行しないもの**: deploy 系（Step 1・2a/2b）・お客様確認サイン取得（Step 3.7）・xlsx リリース記録の全量（Step 3.5②タイムライン等）・**全社共有ナレッジ登録（Step 3.9。Phase 6 正常完了時限定のフックのため中断パスでは実行しない）**・完了報告（Step 4）。
-
-**ステータスを「中断中」に更新**（`{xlsx_folder}` が設定されている場合のみ）
-
-> Phase 6 未完了のまま終了するため、ステータスが「対応中」のまま放置されないよう更新する。
-
-```bash
-python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
-  --folder "{xlsx_folder}" --issue-id "{issueID}" \
-  cell --sheet "課題と対応方針" --label "ステータス" --col 2 --value "中断中" --force
-```
-
-> スキップ判定: [.claude/templates/backlog/_partials/xlsx-skip-guard.md](../templates/backlog/_partials/xlsx-skip-guard.md) に従う（null = 正規スキップ）。
-> スクリプト失敗時（終了コード非0）: エラー内容を終了報告に一行付記する（中断処理自体は継続する・警告のみ）。
+**実行しないもの**: deploy 系（Step 1・2a/2b）・お客様確認サイン取得（Step 3.7）・**全社共有ナレッジ登録（Step 3.9。Phase 6 正常完了時限定のフックのため中断パスでは実行しない）**・完了報告（Step 4）。
 
 ### 終了報告
 
@@ -752,6 +571,18 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/update_records.py" \
 中断時部分還流を実施しました（decisions / pitfalls / cases / case-index）。
 リリース再開時は Phase 6 で既存エントリを確認し重複追記しないこと。
 ```
+
+---
+
+## 同一セッション内の追加対応ルールの常駐化
+
+`/backlog {issueID}` が一度起動されたセッションでは、以降そのセッション内でそのissueIDに関する新しい情報（Backlog コメントの貼り付け・URL 共有・「追加でこれも」等の依頼）が出てきた時点で、コマンドを再起動しなくても以下を自動適用する。実運用ではユーザーはコマンドを打ち直さずそのままチャットで続けるため、「コマンド起動＝作業開始のきっかけ」「その後の振る舞い＝セッション内で継続適用される標準動作」として分離する設計である。
+
+1. **新ラウンドとして扱う**: issue_type 別フロー（バグ／追加要望／問い合わせ／その他 + light_mode）で、軽い調査・提案 → 対応方針確認 → チェック → 実装、という軽量サイクルをそのまま回す。承認が必要なのは通常フローと同じく「対応方針確定」「実装着手」の2点のみ。
+2. **discussion-log.md への記録ルールを常時発動に拡張する**: 【ユーザー応答時】の必須3点セット（差し込み・指摘・方針変更を含む返答は discussion-log.md に追記）を、`/backlog` コマンド起動中限定ではなく「セッション内でその issueID に関する会話が続く限り常時」適用する。
+3. **investigation.md に新ラウンドとして追記する**（既存内容は保持し、追加セクションとして積み上げる。上書きしない）。
+4. **implementation-plan.md の改版履歴に追記する**（NG 差し戻し時に使っている改版履歴フォーマットを流用する）。
+5. **`/test` 再実行の要否**: 新ラウンドの「対応方針確定」タイミングで、既存の仕組み（light_mode 格上げ条件の延長で機械的に一言添え、対応方針確定ゲートで人間が一緒に判断する）をそのまま適用する。新規の確認ポイントは追加しない。
 
 ---
 

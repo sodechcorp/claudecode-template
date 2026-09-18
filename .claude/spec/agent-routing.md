@@ -38,7 +38,6 @@
 | Phase 1 / option-second-opinion → investigator から Task 委譲 | `backlog-blind-second-opinion` | parent の調査結果に引きずられない独立仮説（blind）。単発・非並列のため main thread への引き上げ対象外 |
 | Phase 1 → backlog.md（本体）から直接 Task 委譲（二段ネスト回避のため investigator 経由にしない。同一メッセージ並列発行はせず逐次実行） | `sf-context-loader`（knowledge-only モード → 通常モードの順） | 知識層・設計層コンテキストを取得し investigator へ渡す |
 | Phase 2（A-2.5・`option-alternative-approaches` 採用時は案毎）→ planner から Task 委譲 | `sf-effort-estimator` | 工数見積を算出。単発・非並列かつ案毎に異なる入力が必要なため main thread への引き上げ対象外 |
-| Phase 3（`option-validator-blind` 採用時のみ）→ backlog.md（本体）から直接 Task 委譲 | `backlog-blind-validator` | planner 完了後、implementation-plan.md を見ない独立実装案を生成 |
 | Phase 3.5 → backlog.md（本体）から直接 Task 委譲（二段ネスト回避のため validator 経由にしない） | `regression-guard` | 変更ファイルの依存先・テストカバレッジ・影響再走査・過去修正履歴を一括確認。Write 持たない |
 | Phase 3.5（UI 影響時のみ）→ backlog.md（本体）から直接 Task 委譲 | `ui-evidence-runner`（`mode: before-capture`） | 実装前の現状画面を自動撮影 |
 
@@ -55,7 +54,7 @@
 | `/backlog` 各 Phase | `backlog-investigator` / `backlog-repro-runner` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator` |
 | `/test` 各 Phase（証跡採取・レポート） | `auto-evidence-runner` / `ui-evidence-runner` / `test-spec-builder` |
 | `/release`（本番リリース準備。`/backlog`・`/test` 完了後の独立段階） | `release-preparer` |
-| blind 系（Task 経由のみ・親の情報を受け取らない） | `backlog-blind-second-opinion`（起動元は investigator） / `backlog-blind-final-verifier`（起動元は `/test` Phase F-1・`judgment-result.json` の `ng == 0` の場合のみ） / `backlog-blind-validator`（起動元は backlog.md 本体） |
+| blind 系（Task 経由のみ・親の情報を受け取らない） | `backlog-blind-second-opinion`（起動元は investigator） / `backlog-blind-final-verifier`（起動元は `/test` Phase F-1・`judgment-result.json` の `ng == 0` の場合のみ） |
 | `quality-gate.md` の reviewer ゲート（reviewer が Critical 指摘を1件以上出した場合のみ）→ `sf-architect`（Phase最終）/ `sf-design-step2`（Phase 5.5）から Task 委譲 | `finding-verifier`（reviewer 指摘の反証検証。単発・非並列のため main thread への引き上げ対象外。/backlog フローには適用しない — backlog-validator + blind系3種 + regression-guard による独立検証で誤検知対策を既に担保しているため） |
 
 > `sf-design-step2` の委譲先（順番厳守）: ① `sf-screen-writer`（画面系: LWC/画面フロー/Aura/VF）→ ② `sf-design-writer`（Apex系・機能一覧、①の結果を集約）の順に両方委譲

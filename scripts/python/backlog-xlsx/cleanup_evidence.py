@@ -65,7 +65,7 @@ def _count_embedded_images(xlsx_path: str) -> int:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--folder", required=True, help="xlsx_folder（対応記録・エビデンス.xlsx の出力先）")
+    ap.add_argument("--folder", required=True, help="xlsx_folder（エビデンス.xlsx の出力先。既定 docs/logs/{issueID}）")
     ap.add_argument("--issue-id", required=True)
     ap.add_argument("--evidence-dir", required=True, help="docs/logs/{issueID}/evidence（before/after/after_R* を含む親フォルダ）")
     ap.add_argument("--judgment", default="", help="judgment-result.json のパス（最新回次）。--force 時は省略可")
