@@ -393,15 +393,11 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/generate_test_report.py" \
 
 ---
 
-### Phase F-1: 受入基準再確認・blind 最終解決判定
+### Phase F-1: 受入基準再確認
 
 > **[ハーネス直接実行]**
 
-旧 `/backlog` Phase 5.5 の `option-acceptance-criteria-recheck` / `option-final-verifier`（Phase 5.5 廃止に伴い孤児化していたが、After エビデンスが確定する `/test` の完了確認として本 Phase に統合）。詳細手順は各 option ファイルを参照する。
-
-#### F-1a: 受入基準再確認
-
-`.claude/templates/backlog/options/option-acceptance-criteria-recheck.md` の実行手順に従う:
+After エビデンスが確定した時点での完了確認。`.claude/templates/backlog/options/option-acceptance-criteria-recheck.md` の実行手順に従う:
 
 1. **軽量フェッチ（キャッシュ判定用）**: `mcp__backlog__get_issue`（課題本文。`updated` フィールドを含む）・`mcp__backlog__get_issue_comments`（`order: desc`, `count: 1` で最新コメント1件のみ）で `{issueID}` の `updated` タイムスタンプと最終コメントIDを取得する（この時点では全コメント本文は取得しない）
 2. **キャッシュ判定**: 取得した `issue_updated` と `last_comment_id` を、`{log_dir}/.acceptance-recheck.json` の前回値と比較する:
@@ -412,67 +408,26 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/generate_test_report.py" \
 
 未対応の後付け要件を発見した場合: 対応内容を `implementation-plan.md` に追記し、業務判断を伴うため自動実装はせず「最終判定: 追加実装要」としてユーザーに提示する。
 
-#### F-1b: blind 最終解決判定（`judgment-result.json` の `ng == 0` の場合のみ）
+#### 総合判定への反映
 
 ```bash
 NG_COUNT=$(python -c "import json; print(json.load(open(r'{judgment_path}', encoding='utf-8')).get('ng', 0))" 2>/dev/null || echo "1")
-echo "NG件数（blind判定の実行判定用）: ${NG_COUNT}"
+echo "NG件数: ${NG_COUNT}"
 ```
 
-**`NG_COUNT` が 0 以外の場合**: 本ステップをスキップする（既に NG が判明しており、blind 判定を追加しても新しい情報は得られないため。Phase F-2 の NG 修正ループを優先する）。
+`{log_dir}/test-report.md` の「### 総合判定」欄を以下で判定する:
 
-**`NG_COUNT` が 0 の場合**: `.blind-verdict.json` のキャッシュを確認する:
-```bash
-JUDGMENT_HASH=$(python -c "import hashlib; d=open(r'{judgment_path}', encoding='utf-8').read(); print(hashlib.sha256(d.encode('utf-8')).hexdigest())" 2>/dev/null || echo "")
-CACHED_HASH=""
-if [ -f "{log_dir}/.blind-verdict.json" ]; then
-  CACHED_HASH=$(python -c "import json; print(json.load(open(r'{log_dir}/.blind-verdict.json', encoding='utf-8')).get('judgment_hash',''))" 2>/dev/null || echo "")
-fi
-echo "JUDGMENT_HASH=${JUDGMENT_HASH} / CACHED_HASH=${CACHED_HASH}"
-```
-
-- **`JUDGMENT_HASH` が `CACHED_HASH` と一致する場合**（証跡・判定結果が前回 blind 判定時から変化なし）: `option-final-verifier` を再実行せず、`.blind-verdict.json` の `verdict_block` をそのまま `{log_dir}/test-report.md` の「## blind 最終解決判定」として再掲する。`diagnostic_block` が保存されている場合（前回が判定不能だった場合）は同じ追記に含める（以下手順1〜6はスキップ）。
-- **不一致または `.blind-verdict.json` 不在の場合**: `option-final-verifier` を実行する（以下手順1〜6）。手順6完了後、`{log_dir}/.blind-verdict.json` に `{"judgment_hash": "{JUDGMENT_HASH}", "verdict_block": "{手順6で返却された ## blind 最終解決判定 ブロック全文}", "diagnostic_block": {判定不能時は手順6で追加返却された ## 判定不能（診断詳細） ブロック全文を文字列として格納、それ以外は JSON の null（クォートしない）}}` を Write する。
-
-1. **After 状態のテキスト要約を自動生成する**（`{judgment_path}` の `results[]` から機械的に組み立てる。LLM 生成ではなく決定的な変換）:
-   ```bash
-   python "$(pwd -W)/scripts/python/backlog-xlsx/summarize_after.py" --judgment "{judgment_path}"
-   ```
-2. **実施日時を取得する**: `TZ=Asia/Tokyo date '+%Y-%m-%d %H:%M JST'`
-3. **課題本文・全コメント**: F-1a の手順2でキャッシュ不一致となり全コメントを取得済みならそれを再利用する。F-1a がキャッシュヒットして軽量フェッチ（最新コメント1件のみ）で終わっていた場合は、ここで改めて `mcp__backlog__get_issue_comments`（引数なし＝全コメント）を実行する
-4. **After エビデンスのファイルパス**: `{judgment_path}` の `results[].evidence` から null を除き最大10件を列挙する
-5. **Task ツールで `backlog-blind-final-verifier` を起動する**（`.claude/templates/backlog/options/option-final-verifier.md` の「引き渡し情報」7項目に従う。実装の経緯・`implementation-plan.md` の内容は一切渡さない）:
-   ```
-   task_description: 「{issueID} の blind 最終解決判定」
-   パラメータ:
-     issueID: {issueID}
-     issue_body: {課題本文}
-     comments: {全コメントテキスト}
-     after_evidence_paths: {エビデンスファイルパス最大10件}
-     after_summary: {手順1で生成したテキスト要約}
-     blind_declaration: "実装の経緯・実装計画は一切伝えません。課題本文と After エビデンスだけで解決しているかを判定してください"
-     executed_at: {手順2で取得した日時}
-   ```
-6. 返却された `## blind 最終解決判定` ブロックを `{log_dir}/test-report.md` に追記する。総合判定が「判定不能」の場合は、あわせて返却される `## 判定不能（診断詳細）` ブロック（種別・詳細・対応）も同じ追記に含める（missing-input / missing-evidence の原因を記録に残し、再実行前の対応判断を可能にするため）
-
-#### 総合判定への反映
-
-`{log_dir}/test-report.md` の「### 総合判定」欄を以下の組み合わせで判定する:
-
-| `NG_COUNT` | F-1a 最終判定 | F-1b 判定 | 総合判定欄 |
-|---|---|---|---|
-| ≠ 0 | （不問。F-1b は未実行） | （不問） | 変更しない（Phase F が書き込んだ「FAIL」を維持） |
-| = 0 | 追加実装要 | （不問） | 「条件付きPASS」に書き換え |
-| = 0 | リリース可 | 解決済み以外 | 「条件付きPASS」に書き換え |
-| = 0 | リリース可 | 解決済み | 変更しない（Phase F が書き込んだ「PASS」を維持） |
+| `NG_COUNT` | 受入基準再確認の最終判定 | 総合判定欄 |
+|---|---|---|
+| ≠ 0 | （不問） | 変更しない（Phase F が書き込んだ「FAIL」を維持） |
+| = 0 | 追加実装要 | 「条件付きPASS」に書き換え |
+| = 0 | リリース可 | 変更しない（Phase F が書き込んだ「PASS」を維持） |
 
 「条件付きPASS」への書き換え内容:
 ```
-条件付きPASS（要確認: 受入基準再確認・blind最終判定で指摘あり。詳細は「## 受入基準再確認」「## blind 最終解決判定」を参照）
+条件付きPASS（要確認: 受入基準再確認で指摘あり。詳細は「## 受入基準再確認」を参照）
 ```
-「変更しない」の場合も、F-1a の「追加実装要」判定自体は「## 受入基準再確認」セクションへの記録として残る（総合判定欄には反映しないだけ）。
-
-> **キャッシュ済み**: F-1b は `.blind-verdict.json`（`judgment-result.json` の hash 紐付け）により、差分再実行で証跡・判定結果に変化がない場合は `option-final-verifier` の再起動をスキップし前回結果を再掲する（2026-08-18 実装）。
+「変更しない」の場合も、「追加実装要」の判定自体は「## 受入基準再確認」セクションへの記録として残る（総合判定欄には反映しないだけ）。
 
 ---
 
@@ -658,7 +613,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 確認環境: Sandbox（{alias}）
 本番反映状況: 未 ⚠️（Sandbox 検証までの完了。本番反映は別セッションで /release {issueID} を実施）
 テスト結果: {OK=N / NG=N / 要手動=N}（うち AI 判定 {N} 件）
-総合判定: {実際の判定結果に応じて次の1つを選んで記載: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認・blind最終判定で指摘あり） / FAIL ❌ （NG が {N} 件）}
+総合判定: {実際の判定結果に応じて次の1つを選んで記載: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認で指摘あり） / FAIL ❌ （NG が {N} 件）}
 
 成果物:
   エビデンス.xlsx : {xlsx_folder}/{issueID}_エビデンス.xlsx
@@ -690,8 +645,8 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
                  修正がバグ再現 TC 以外のコンポーネントにも及ぶ場合は --full での全件再テストを検討してください。
 
 {総合判定が条件付きPASS（要確認）の場合（Phase F-1）}
-要確認: 受入基準再確認・blind最終判定で指摘があります。
-  詳細: test-report.md の「## 受入基準再確認」「## blind 最終解決判定」を参照してください。
+要確認: 受入基準再確認で指摘があります。
+  詳細: test-report.md の「## 受入基準再確認」を参照してください。
   対応: 業務判断が必要なため自動修正はしていません。指摘内容を確認し、必要なら implementation-plan.md に追記してから /backlog Phase 4 で再実装してください。
 
 {手動対応が必要な NG がある場合（要確認/未実行 / 自動修正のガードで止まった場合 / dry-run FAIL の場合）}

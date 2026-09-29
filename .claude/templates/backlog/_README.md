@@ -101,7 +101,7 @@
 | **C. 課題種別/ワード検出で判定** | 種別「バグ」「追加要望」や特定ワード（権限・データ・移行・パフォーマンス 等）でトリガ | option-permission-fls-check / option-sharing-rule-check / option-data-migration-plan / option-data-volume-analysis / option-performance-test |
 | **D. 規模・影響範囲で判定** | 影響範囲広・全社影響・重要バグ時のみ実行 | option-second-opinion / option-stakeholder-notification / option-staged-deployment-plan / option-feature-flag-design / option-security-audit |
 
-> **`_index-phase{N}.md` の対象外の option**: `option-final-verifier` / `option-acceptance-criteria-recheck` は上記 4 パターン分類（`_index-phase{N}.md` の auto-execute-when / auto-skip-when 判定）の対象外。旧 `/backlog` Phase 5.5 で使われていたが、Phase 5.5 廃止後は After エビデンスが確定する `/test` コマンド側に再統合されており、`.claude/commands/test.md` Phase F-1 から条件付き（`option-acceptance-criteria-recheck` は毎回・`option-final-verifier` は `judgment-result.json` の `ng == 0` の場合のみ）で直接呼び出される。
+> **`_index-phase{N}.md` の対象外の option**: `option-acceptance-criteria-recheck` は上記 4 パターン分類（`_index-phase{N}.md` の auto-execute-when / auto-skip-when 判定）の対象外。旧 `/backlog` Phase 5.5 で使われていたが、Phase 5.5 廃止後は After エビデンスが確定する `/test` コマンド側に再統合されており、`.claude/commands/test.md` Phase F-1 から毎回直接呼び出される。
 
 ---
 
@@ -112,7 +112,6 @@
 | オプション | 対応 subagent | 役割 |
 |---|---|---|
 | option-second-opinion | `backlog-blind-second-opinion` | parent の調査結果を見ずに原因仮説を独立に立てる |
-| option-final-verifier | `backlog-blind-final-verifier` | 実装の経緯を知らず課題本文と実挙動だけで blind 解決判定 |
 
 それ以外のオプションは parent 内実行で OK（blind 性が要件でないため）。
 
