@@ -6,6 +6,10 @@
 
 ## 実行手順
 
+### 0. Sandbox alias 解決（A/B/C 共通の前提）
+
+`sandbox-alias-check.md` の手順で Sandbox alias を解決する。Sandbox 未接続・alias 不明の場合も `{alias}` 未解決のまま Step A 以降の判定は続ける（UI 影響判定・データ採取要否判定は Sandbox 接続を前提としないため）。Sandbox 操作が実際に必要になった時点（B の撮影・C の SOQL）でのみ、それぞれ「自動採取不可（Sandbox 未接続）」として記録する。ユーザーへの手動取得依頼はしない。
+
 ### A. UI 影響判定
 
 implementation-plan.md の「変更対象ファイル」と実装方針を確認し、UI 影響の有無を判定する:
@@ -15,17 +19,16 @@ implementation-plan.md の「変更対象ファイル」と実装方針を確認
 
 ### B. Before スクリーンショット自動採取（UI 影響ありの場合のみ）
 
-1. `sandbox-alias-check.md` の手順で Sandbox alias を解決する。
-   - Sandbox 未接続・alias 不明の場合: 「自動採取不可（Sandbox 未接続）」として記録し Step C へ。ユーザーへの手動取得依頼はしない。
+`{alias}` が未解決の場合: 「自動採取不可（Sandbox 未接続）」として記録し Step C へ。alias が解決済みの場合は以下を実施する:
 
-2. implementation-plan.md / investigation.md から変更対象 UI 画面名と遷移ヒントを抽出し、`{target_screens}` リストを組み立てる。**画面が URL 直指定で到達可能な場合は nav_hint を相対パス形式で記述する**（`ui-evidence-runner` の frontdoor 認証時に `--path` 最適化が働き、1件目の遷移が短縮される。`playwright-sf-screen-ops.md`「frontdoor 認証」参照）:
+1. implementation-plan.md / investigation.md から変更対象 UI 画面名と遷移ヒントを抽出し、`{target_screens}` リストを組み立てる。**画面が URL 直指定で到達可能な場合は nav_hint を相対パス形式で記述する**（`ui-evidence-runner` の frontdoor 認証時に `--path` 最適化が働き、1件目の遷移が短縮される。`playwright-sf-screen-ops.md`「frontdoor 認証」参照）:
    ```
    - name: <画面名（スペース・記号は除去し _ 区切り）>
      nav_hint: <画面への遷移方法。URL 直指定で到達可能なら相対パスを優先（例: 「/lightning/r/Account/001.../view」）、クリック操作でしか到達できない場合はクリック手順（例: 「コミュニティホーム → プリチェック をクリック」）>
      target_label: <変更対象の表示文言（省略可。指定時は赤枠ハイライト）>
    ```
 
-3. `ui-evidence-runner` を `mode: before-capture` で `Agent` 委譲し、現状画面を自動撮影する:
+2. `ui-evidence-runner` を `mode: before-capture` で `Agent` 委譲し、現状画面を自動撮影する:
    ```
    mode: before-capture
    issueID: {issueID}
@@ -34,14 +37,14 @@ implementation-plan.md の「変更対象ファイル」と実装方針を確認
    target_screens: {target_screens リスト}
    ```
 
-4. `ui-evidence-runner` の返却（OK 件数・スキップ件数・証跡ファイルパス）を受け取る。
+3. `ui-evidence-runner` の返却（OK 件数・スキップ件数・証跡ファイルパス）を受け取る。
    - 全スキップ（OK 0 件）の場合: 「自動採取不可（遷移パス特定不可）」として記録する。ユーザー依頼はしない。
 
 ### C. Before データ値・ログ採取
 
 implementation-plan.md の「対象オブジェクト・SOQL」を確認し、変更前データ状態の確認が必要な場合は SOQL / CLI で取得する:
 
-- 必要あり（データ件数・フィールド値の変化を確認する方針）: `sf data query --query "SELECT ..." --target-org {alias}` で取得し結果を `{evidence_dir}/before/{issueID}_data_before.txt` に保存
+- 必要あり（データ件数・フィールド値の変化を確認する方針）: `{alias}` が未解決の場合は「自動採取不可（Sandbox 未接続）」として記録する。解決済みの場合は `sf data query --query "SELECT ..." --target-org {alias}` で取得し結果を `{evidence_dir}/before/{issueID}_data_before.txt` に保存
 - 不要（文言変更・UI 表示のみ・データ変化なし）: 「不要」として記録
 
 ## 出力

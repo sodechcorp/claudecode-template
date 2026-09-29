@@ -417,7 +417,7 @@ project_dir: {プロジェクトルートパス}
 
 **Step B: Before エビデンス自動採取（UI 影響ありの場合のみ・本コマンドが直接実行）**
 
-`docs/logs/{issueID}/implementation-plan.md` の「変更対象ファイル」を確認し、LWC（`.html`/`.js`）・Aura（`.cmp`）・VF（`.page`）が含まれる、または実装方針に「画面・ラベル・文言・表示・UI」の語が含まれる場合のみ、[option-evidence-check.md](../templates/backlog/options/option-evidence-check.md) の B・C 手順を実行する（Sandbox alias 解決 → `ui-evidence-runner` を `mode: before-capture` で Task 起動 → Before データ値採取）。該当しない場合は本 Step 全体をスキップし `{evidence_result}` = 「該当なし（非UI変更）」とする。
+`docs/logs/{issueID}/implementation-plan.md` の「変更対象ファイル」を確認し、LWC（`.html`/`.js`）・Aura（`.cmp`）・VF（`.page`）が含まれる、または実装方針に「画面・ラベル・文言・表示・UI」の語が含まれる場合のみ、[option-evidence-check.md](../templates/backlog/options/option-evidence-check.md) の 0・B・C 手順を実行する（Step 0: Sandbox alias 解決 → Step B: `ui-evidence-runner` を `mode: before-capture` で Task 起動 → Step C: Before データ値採取）。該当しない場合は本 Step 全体をスキップし `{evidence_result}` = 「該当なし（非UI変更）」とする。
 
 > **権限・FLS・レイアウト・RecordType・共有ルール変更の場合**: 本 Step（Before エビデンス自動採取）の対象外（`{evidence_result}` = 「該当なし（非UI変更）」）でも動作確認が不要になるわけではない。異なる権限経路の実ユーザーによる確認は Phase 6 では行わず、`/test` に一元化されている（詳細は Phase 6 セクション参照）。
 

@@ -436,7 +436,7 @@ children:
 > フォーマット: [CLAUDE.md §Output Format](../CLAUDE.md#output-format)「完了報告」行 / 詳細: [completion-report-spec.md](../templates/common/completion-report-spec.md) に従う。
 
 ```
-## {issueID} {alias} {deploy_route が `manual-operation` の場合: 管理画面操作手順書の作成完了（デプロイなし・操作は未実施） / それ以外（`normal`）の場合: Sandbox で対応完了（本番未反映）}
+## {issueID} {deploy_route が `manual-operation` の場合: 管理画面操作手順書の作成完了（デプロイなし・操作は未実施） / それ以外（`normal`）の場合: {alias} Sandbox で対応完了（本番未反映）}
 
 ### 確認環境
 - {deploy_route が `manual-operation` の場合: 未実施（Sandbox デプロイ・操作ともに未実施。担当者が手順書に従い別途操作） / それ以外の場合: {alias}（Sandbox）}
