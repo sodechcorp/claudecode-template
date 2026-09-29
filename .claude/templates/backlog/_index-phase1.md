@@ -72,11 +72,11 @@ options:
     estimated-cost: 軽
 
   - name: option-impact-scope-grep
-    description: Validation Rule / 承認プロセス / 割り当てルール / 共通ユーティリティの参照を grep
+    description: Validation Rule / 承認プロセス / 割り当てルールの参照を grep
     category: B
     auto-execute-when:
       - 変更対象がオブジェクトのフィールド・項目
-      - 変更対象が共通 Apex クラス・共通ユーティリティメソッド
+      - 変更対象の Apex・Flow が DML で書き込む項目・更新条件が変わる
     auto-skip-when:
       - 変更対象が単一 LWC 内の表示制御のみ
       - コメント・ラベル変更のみ
