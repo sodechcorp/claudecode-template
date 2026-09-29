@@ -1,6 +1,6 @@
 # Phase 3 オプションインデックス（実装計画レビュー）
 
-backlog-planner が Phase B（実装計画）の Step 0b で参照する判定情報。7 オプション。
+backlog-planner が Phase B（実装計画）の Step 0b で参照する判定情報。8 オプション。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
 
@@ -94,4 +94,15 @@ options:
       - 読み取り専用処理（クエリ・表示のみ）
       - LWC 内の表示制御のみ
     estimated-cost: 中
+
+  - name: option-minimum-change-principle
+    description: 最小変更原則チェック（決定した方針に対して実装計画が過剰修正・スコープ膨張になっていないか）
+    category: A
+    auto-execute-when:
+      - 種別がバグ（常時実行・最小修正＋既存影響ゼロが原則）
+      - 実装計画の変更範囲が複数ファイル・複数オブジェクトに及ぶ
+      - 種別が追加要望で既存ファイル改修を含む（純粋な新規ファイル追加だけではない）
+    auto-skip-when:
+      - 種別が追加要望で新規ファイル作成のみ（既存ファイル無変更）
+    estimated-cost: 軽
 ```

@@ -75,8 +75,10 @@ def _tc_prefix_match(fname: str, tc_no: str) -> bool:
     return False
 
 
-def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
-    """証跡ディレクトリから TC-001 に対応する全ファイルを返す（複数証跡・分岐ラベル対応）。"""
+def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, allow_before: bool = False) -> list:
+    """証跡ディレクトリから TC-001 に対応する全ファイルを返す（複数証跡・分岐ラベル対応）。
+    allow_before=True（前後比較・Phase3 Before 参照の TC）の場合のみ、after/ に無ければ before/ を探す。
+    それ以外で before/ に代替すると、操作途中で失敗し after 証跡が無い TC が操作前の画面で判定され偽 OK になる。"""
     # " + " で分割して各サブディレクトリを収集（重複なし・順序維持）
     subdirs_ordered = []
     seen_subdirs: set = set()
@@ -105,7 +107,7 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
                     found.append(fpath)
 
     # after/ で見つからない場合は sibling の before/ も検索（Before 証跡ケース: TC-016 等）
-    if not found:
+    if not found and allow_before:
         before_dir = os.path.join(os.path.dirname(os.path.abspath(evidence_dir)), "before")
         if os.path.isdir(before_dir):
             for fname in sorted(os.listdir(before_dir)):
@@ -120,9 +122,9 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str) -> list:
     return found
 
 
-def find_evidence_file(evidence_dir: str, tc_no: str, shubetsu: str) -> str:
+def find_evidence_file(evidence_dir: str, tc_no: str, shubetsu: str, allow_before: bool = False) -> str:
     """後方互換: 最初の1ファイルのみ返す。"""
-    files = find_evidence_files(evidence_dir, tc_no, shubetsu)
+    files = find_evidence_files(evidence_dir, tc_no, shubetsu, allow_before)
     return files[0] if files else ""
 
 
@@ -143,10 +145,10 @@ def find_prefix_mismatch_files(evidence_dir: str, tc_no: str) -> list:
     return found
 
 
-def evidence_fingerprint(evidence_dir: str, tc_no: str, shubetsu: str):
+def evidence_fingerprint(evidence_dir: str, tc_no: str, shubetsu: str, allow_before: bool = False):
     """TC に対応する全証跡ファイルの最終更新時刻の最大値を返す（差分再実行の stale reuse 検出用）。
     証跡ファイルが1つも無い場合は None を返す。"""
-    files = find_evidence_files(evidence_dir, tc_no, shubetsu)
+    files = find_evidence_files(evidence_dir, tc_no, shubetsu, allow_before)
     if not files:
         return None
     try:
@@ -197,6 +199,63 @@ def _kiki_matches(kiki: str, search_scope: str) -> bool:
     return all(k.lower() in scope_l for k in keys)
 
 
+def _unquote(s: str) -> str:
+    """照合対象の文字列から引用符（「」『』）を除去する。証跡側には引用符が出現しないため、
+    残したまま照合すると否定確認は常に「なし」（偽OK）、アンカーは常に「未検出」（偽NG）になる。"""
+    return re.sub(r"[「」『』]", "", s or "").strip()
+
+
+def _ai_pending(reason: str, actual: str = "AI判定待ち") -> dict:
+    """機械判定では信頼できる結論を出せないケース。人間の目視には回さず、/test Phase D-2 で
+    AI が証跡と期待値を読んで OK/NG を確定する（apply_ai_judgment.py で反映）。"""
+    return {"ok": None, "ai": True, "actual": actual, "reason": reason}
+
+
+# SOQL 期待値の「項目=値」表記（例: IsLease__c=false）。soql_evidence.py の証跡は
+# 「列名 | 値」の表形式のため、逐語の部分一致では照合できない。
+_FIELD_PAIR_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_.]*)\s*[=＝]\s*([^\s,、;；/]+)")
+
+
+def _field_pairs(kiki: str) -> list:
+    return [(f, _unquote(v)) for f, v in _FIELD_PAIR_RE.findall(kiki or "")]
+
+
+def _parse_soql_table(scope: str):
+    """soql_evidence.py の表形式（ヘッダー行 / 区切り行 / データ行）を (headers, rows) に分解する。
+    表が見つからなければ None を返す。"""
+    lines = (scope or "").splitlines()
+    for i in range(len(lines) - 1):
+        sep = lines[i + 1].strip()
+        if not lines[i].strip() or not re.fullmatch(r"-+(?:-\+-+)*", sep):
+            continue
+        headers = [h.strip() for h in lines[i].split(" | ")]
+        rows = []
+        for line in lines[i + 2:]:
+            if not line.strip():
+                break
+            cells = [c.strip() for c in line.split(" | ")]
+            if len(cells) != len(headers):
+                break
+            rows.append(dict(zip(headers, cells)))
+        return headers, rows
+    return None
+
+
+def _norm_val(v: str) -> str:
+    v = (v or "").strip().lower()
+    return "" if v in ("null", "none") else v
+
+
+def _table_pair_hits(table, pairs):
+    """期待値の「項目=値」を全て満たす行を返す。期待値の項目が表に無ければ None（表照合不可）。"""
+    headers, rows = table
+    by_lower = {h.lower(): h for h in headers}
+    usable = [(by_lower[f.lower()], v) for f, v in pairs if f.lower() in by_lower]
+    if not pairs or len(usable) != len(pairs):
+        return None
+    return [r for r in rows if all(_norm_val(r.get(h, "")) == _norm_val(v) for h, v in usable)]
+
+
 def _parse_positive_anchor(kiki: str):
     """期待結果からポジティブアンカー形式（test-pattern-map.md 準拠）を抽出する。
     形式: "画面描画確認: {アンカー} が表示 / 非表示確認: {対象} が非表示"
@@ -205,7 +264,7 @@ def _parse_positive_anchor(kiki: str):
     m_anchor = re.search(r"画面描画確認\s*[:：]\s*(.+?)\s*が表示", kiki)
     m_target = re.search(r"非表示確認\s*[:：]\s*(.+?)\s*が非表示", kiki)
     if m_anchor and m_target:
-        return m_anchor.group(1).strip(), m_target.group(1).strip()
+        return _unquote(m_anchor.group(1)), _unquote(m_target.group(1))
     return None, None
 
 
@@ -217,17 +276,23 @@ def _parse_kiki_by_shubetsu(kiki: str) -> dict:
     セグメントが1つしかない、またはラベル形式に一致しないセグメントが混じる場合は {} を返し、
     従来どおり kiki 全文を全証跡に共通適用させる（後方互換）。
     """
-    segments = [s.strip() for s in kiki.split("/")]
-    if len(segments) < 2:
-        return {}
     labels = "|".join(re.escape(l) for l in _SHUBETSU_SUBDIR)
-    parsed = {}
-    for seg in segments:
-        m = re.match(rf"^({labels})\s*[:：]\s*(.+)$", seg)
-        if not m:
-            return {}
-        parsed[m.group(1)] = m.group(2).strip()
-    return parsed
+    # 値に "/" を含む場合（日付 2026/07/18 等）に分割が崩れないよう、前後に空白のある " / " を
+    # 優先して区切りとみなし、ラベル形式に一致しない場合のみ従来の "/" 分割を試す
+    for splitter in (r"\s+/\s+", r"/"):
+        segments = [s.strip() for s in re.split(splitter, kiki)]
+        if len(segments) < 2:
+            continue
+        parsed = {}
+        for seg in segments:
+            m = re.match(rf"^({labels})\s*[:：]\s*(.+)$", seg)
+            if not m:
+                parsed = {}
+                break
+            parsed[m.group(1)] = m.group(2).strip()
+        if parsed:
+            return parsed
+    return {}
 
 
 def _is_blank_dom(text: str) -> bool:
@@ -321,6 +386,12 @@ def _validate_png(path: str) -> tuple:
         return False, f"PNGとしてデコード不可（{e}）"
 
 
+def _expects_no_error(kiki: str, judge_method: str) -> bool:
+    """期待結果が「例外なく完了すること」そのものである TC か。"""
+    text = f"{kiki} {judge_method}"
+    return any(w in text for w in ("例外なし", "エラーなし", "正常終了", "例外が発生しない", "エラーが発生しない"))
+
+
 def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: str) -> dict:
     """1証跡ファイルを判定し {"ok": bool|None, "actual": str, "reason": str} を返す。"""
 
@@ -366,10 +437,10 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                 search_scope = m_snap_section.group(1) if m_snap_section else snap
                 # F-3: 否定確認（PNG+DOM の場合も適用）。空撮り（前提データ未成立で画面が空白のまま撮影）による
                 # 誤 OK を防ぐため、ポジティブアンカー（test-pattern-map.md 準拠）があればアンカー未検出時に NG、
-                # アンカー未指定の旧形式 spec では DOM がほぼ空白なら SKIP（要目視）に降格する。
+                # アンカー未指定の旧形式 spec では DOM がほぼ空白なら AI 判定に回す。
                 if "含まない" in judge_method or "非表示" in judge_method or "なし確認" in judge_method:
                     anchor, neg_target = _parse_positive_anchor(kiki)
-                    target_str = neg_target if neg_target else kiki
+                    target_str = neg_target if neg_target else _unquote(kiki)
                     if anchor:
                         anchor_present = anchor.lower() in search_scope.lower()
                         if not anchor_present:
@@ -382,8 +453,10 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                         return {"ok": ok, "actual": actual_str, "reason": reason}
                     if _is_blank_dom(search_scope):
                         visible_len = len(re.sub(r"\s+", "", search_scope))
-                        return {"ok": None, "actual": f"要目視確認（DOM {visible_len}文字・空白疑い）",
-                                "reason": "DOM がほぼ空白でありポジティブアンカー未指定のため非表示確認の自動判定は信頼できません（要目視）。test-spec の期待結果にポジティブアンカーを追記してください"}
+                        return _ai_pending(
+                            "DOM がほぼ空白でありポジティブアンカー未指定のため、非表示確認を機械判定できません。"
+                            "スクショで画面が正常に描画されているかを確認して判定してください",
+                            f"AI判定待ち（DOM {visible_len}文字・空白疑い）")
                     ok = target_str.lower() not in search_scope.lower() if target_str else True
                     actual_str = f"画面表示{'OK' if ok else 'NG'}（DOM照合済）— 「{target_str[:20]}」{'なし(OK)' if ok else 'あり(NG)'}"
                     reason = "" if ok else f"「{target_str[:30]}」が DOM に残存（非表示のはずが表示されている）"
@@ -393,9 +466,11 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                 reason = "" if ok else f"DOM に「{kiki[:30]}」が含まれない（DOM照合失敗）"
                 return {"ok": ok, "actual": actual_str, "reason": reason}
             return {"ok": True, "actual": "画面表示OK（DOM照合済）", "reason": ""}
-        # F-1: DOM スナップショットなし → 観点の自動確認不可（要目視）。ok: None = SKIP 扱い
-        return {"ok": None, "actual": "スクショ取得済（DOM未取得・要目視確認）",
-                "reason": "DOM スナップショット（.txt）が採取されていません。ui-evidence-runner の saveText（download 経由の直接保存）が失敗し、かつ return 値のフォールバック Write も行われていない可能性があります"}
+        # F-1: DOM スナップショットなし → 機械照合できないため AI がスクショを読んで判定する
+        return _ai_pending(
+            "DOM スナップショット（.txt）が採取されていないため機械照合できません。スクショ画像を読んで期待結果が"
+            "表示されているかを判定してください（ui-evidence-runner の saveText 失敗の可能性）",
+            "AI判定待ち（DOM未取得・スクショのみ）")
 
     # テキスト証跡（SOQL/Apex ログ / DOM スナップショット .txt）
     content = _read_text_evidence(evidence_path)
@@ -417,9 +492,15 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                 result = json_data["result"]
                 total = result.get("totalSize", len(result.get("records", [])))
                 m_exp = re.search(r"(\d+)\s*件", kiki)
-                exp = int(m_exp.group(1)) if m_exp else 1
-                ok = (total >= exp) if "以上" in judge_method else (total == exp if m_exp else total > 0)
-                return {"ok": ok, "actual": f"SOQL {total} 件取得", "reason": "" if ok else f"期待 {exp} 件 / 実際 {total} 件"}
+                if m_exp:
+                    exp = int(m_exp.group(1))
+                    ok = (total >= exp) if "以上" in judge_method else (total == exp)
+                    return {"ok": ok, "actual": f"SOQL {total} 件取得", "reason": "" if ok else f"期待 {exp} 件 / 実際 {total} 件"}
+                if not any(k in judge_method for k in ("含む", "存在", "含まない", "非表示", "なし確認", "完全一致")):
+                    return _ai_pending("SOQL 証跡に対する期待件数・照合値の指定がなく機械判定できません。"
+                                       "観点と期待結果の意図に照らして取得レコードを判定してください",
+                                       f"AI判定待ち（SOQL {total} 件取得・照合条件なし）")
+                # 値の照合（含む/含まない/完全一致）は以降のテキスト照合に委ねる
         except Exception:
             pass
 
@@ -444,12 +525,13 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
     # sf CLI の "Total number of records retrieved: N." 形式にも対応
     if not m_actual_count:
         m_actual_count = re.search(r"Total number of records retrieved:\s*(\d+)", content, re.IGNORECASE)
-    # kiki に "N件" がなくても "完全一致" の judge_method で1件以上取得できていれば OK とみなす
-    if not m_expected_count and m_actual_count and ("完全一致" in judge_method or "件数一致" in judge_method):
+    # 期待件数の指定がない「件数一致」は仕様の不備。取得できただけで OK にすると値の誤りを見逃すため
+    # AI 判定に回す（旧: 1件以上取れれば OK にしており偽 OK の原因になっていた）。
+    # 期待件数なしの「完全一致」は以降の値照合（含む/完全一致の分岐）で判定する
+    if not m_expected_count and m_actual_count and "件数一致" in judge_method:
         act = int(m_actual_count.group(1))
-        if act > 0:
-            return {"ok": True, "actual": f"SOQL {act} 件取得", "reason": ""}
-        return {"ok": False, "actual": "SOQL 0件", "reason": "対象レコードが見つかりません"}
+        return _ai_pending("「件数一致」だが期待結果に期待件数（N件）がありません。観点の意図に照らして取得件数・値を判定してください",
+                           f"AI判定待ち（SOQL {act} 件取得・期待件数なし）")
     if m_expected_count and m_actual_count:
         exp = int(m_expected_count.group(1))
         act = int(m_actual_count.group(1))
@@ -459,6 +541,33 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         reason = "" if ok else f"期待 {exp} 件 / 実際 {act} 件"
         return {"ok": ok, "actual": actual_str, "reason": reason}
 
+    # 期待結果が「例外なく完了すること」そのものの匿名 Apex 証跡は、値照合より先に例外の有無で判定する
+    # （値照合に回すと「例外なし」という文言自体が証跡に無いため偽 NG になる）
+    if _expects_no_error(kiki, judge_method) and re.search(
+            r"^成功\s*:\s*True|Executed successfully\.", content, re.MULTILINE | re.IGNORECASE):
+        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", content)
+        if m_err:
+            return {"ok": False, "actual": "AnonApex 実行エラー", "reason": m_err.group(1)[:80]}
+        return {"ok": True, "actual": "AnonApex 実行成功（例外なし）", "reason": ""}
+
+    # 匿名 Apex の自己検証出力（auto-evidence-runner Step 3-1: 同じ匿名 Apex 内で結果を取り直して比較した結果）は
+    # 値照合より先に判定する（期待結果の文言そのものは証跡に出ないため、値照合に回すと偽 NG になる）
+    m_self = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)", content)
+    if m_self:
+        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", content)
+        if m_err:
+            return {"ok": False, "actual": "AnonApex 実行エラー", "reason": m_err.group(1)[:80]}
+        ng_c, total_c = int(m_self.group(1)), int(m_self.group(2))
+        if ng_c == 0 and total_c > 0:
+            return {"ok": True, "actual": f"AnonApex 自己検証 全{total_c}項目一致", "reason": ""}
+        if total_c == 0:
+            return _ai_pending("匿名 Apex の自己検証が0項目でした。期待結果に照らして実行ログを判定してください",
+                               "AI判定待ち（自己検証0項目）")
+        ng_lines = re.findall(r"CHECK\|([^\n]*\|NG)", content)
+        detail = ng_lines[0][:80] if ng_lines else f"NG項目数={ng_c}"
+        return {"ok": False, "actual": f"AnonApex 自己検証 NG {ng_c}/{total_c}項目",
+                "reason": f"期待値と不一致: {detail}"}
+
     # F-3: 否定確認（含まない/非表示/なし確認）: 期待文字列が証跡に存在しないことを確認。
     # 証跡（実際の値セクション）自体がほぼ空（=処理が動いていない・結果が採れていない）だと
     # 対象文字列も自明に「なし」になり誤 OK になるため、アンカーまたは空白ガードで防ぐ。
@@ -466,7 +575,22 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
         search_scope = m_actual_section.group(1) if m_actual_section else content
         anchor, neg_target = _parse_positive_anchor(kiki)
-        target_str = neg_target if neg_target else kiki
+        target_str = neg_target if neg_target else _unquote(kiki)
+        table = _parse_soql_table(search_scope)
+        neg_pairs = _field_pairs(target_str)
+        if table is not None and neg_pairs:
+            hits = _table_pair_hits(table, neg_pairs)
+            if hits is not None:
+                if anchor and anchor.lower() not in search_scope.lower():
+                    return {"ok": False, "actual": "アンカー未検出のため非表示確認は判定不能",
+                            "reason": f"アンカー「{anchor[:30]}」が証跡に見つからず、結果が採れていない疑い"}
+                if not table[1] and not anchor:
+                    return _ai_pending("SOQL 結果が0件のため「含まない」が自明に成立しています。"
+                                       "クエリ条件・前提データが正しく、0件が期待どおりかを判定してください",
+                                       "AI判定待ち（SOQL 0件・否定確認）")
+                ok = not hits
+                return {"ok": ok, "actual": f"「{target_str[:30]}」に一致する行 {len(hits)} 件",
+                        "reason": "" if ok else f"「{target_str[:30]}」に一致する行が {len(hits)} 件残存"}
         if anchor:
             if anchor.lower() not in search_scope.lower():
                 return {"ok": False, "actual": "アンカー未検出のため非表示確認は判定不能",
@@ -477,17 +601,30 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                     "reason": "" if ok else f"「{target_str[:30]}」が証跡に残存（非表示のはずが表示されている）"}
         if _is_blank_dom(search_scope):
             visible_len = len(re.sub(r"\s+", "", search_scope))
-            return {"ok": None, "actual": f"要目視確認（証跡 {visible_len}文字・空白疑い）",
-                    "reason": "証跡がほぼ空でありポジティブアンカー未指定のため非表示確認の自動判定は信頼できません（要目視）"}
+            return _ai_pending("証跡がほぼ空でありポジティブアンカー未指定のため、非表示確認を機械判定できません。"
+                               "処理が実行され結果が採れているかを確認して判定してください",
+                               f"AI判定待ち（証跡 {visible_len}文字・空白疑い）")
         ok = target_str.lower() not in search_scope.lower() if target_str else True
         actual_str = f"「{target_str[:30]}」{'あり（NG）' if not ok else 'なし（OK）'}"
         return {"ok": ok, "actual": actual_str,
                 "reason": "" if ok else f"「{target_str[:30]}」が証跡に残存（非表示のはずが表示されている）"}
 
     # 含む判定 (期待結果に含まれるべき文字列): 「実際の値:」行以降のみを検索し期待値行の誤ヒットを防ぐ
-    if "含む" in judge_method or "存在" in judge_method:
+    if "含む" in judge_method or "存在" in judge_method or "完全一致" in judge_method:
         m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
         search_scope = m_actual_section.group(1) if m_actual_section else content
+        table = _parse_soql_table(search_scope)
+        pos_pairs = _field_pairs(kiki)
+        if table is not None and pos_pairs:
+            hits = _table_pair_hits(table, pos_pairs)
+            if hits is not None:
+                rows = table[1]
+                ok = bool(rows) and (len(hits) == len(rows) if "完全一致" in judge_method else bool(hits))
+                scope_word = "全行" if "完全一致" in judge_method else "いずれかの行"
+                return {"ok": ok, "actual": f"「{kiki[:30]}」一致 {len(hits)}/{len(rows)} 行",
+                        "reason": "" if ok else f"{scope_word}で「{kiki[:30]}」を満たしません（一致 {len(hits)}/{len(rows)} 行）"}
+        if not kiki:
+            return _ai_pending("期待結果が空のため照合できません。観点の意図に照らして証跡を判定してください")
         ok = _kiki_matches(kiki, search_scope)
         actual_str = f"「{kiki[:30]}」{'あり' if ok else 'なし'}"
         return {"ok": ok, "actual": actual_str, "reason": "" if ok else f"「{kiki[:30]}」が証跡に含まれない"}
@@ -506,21 +643,28 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
             ng_c = int(m_ng_fail.group(1))
             return {"ok": False, "actual": f"AnonApex 実行成功 / NG項目 {ng_c}件",
                     "reason": f"NG項目数={ng_c}（一部項目が期待値と不一致）"}
-        return {"ok": True, "actual": "AnonApex 実行成功", "reason": ""}
+        if _expects_no_error(kiki, judge_method):
+            return {"ok": True, "actual": "AnonApex 実行成功（例外なし）", "reason": ""}
+        return _ai_pending("匿名 Apex は例外なく終了したが、期待結果を検証するアサーション出力（NG項目数）がありません。"
+                           "実行ログの出力値が期待結果を満たすかを判定してください",
+                           "AI判定待ち（AnonApex 実行成功・検証出力なし）")
 
     # Anonymous Apex 実行成功: "Executed successfully." を正として判定
     if re.search(r"Executed successfully\.", content, re.IGNORECASE):
         if not re.search(r"(Error:|FATAL_ERROR|System\.\w+Exception)", content):
-            return {"ok": True, "actual": "AnonApex 実行成功", "reason": ""}
+            if _expects_no_error(kiki, judge_method):
+                return {"ok": True, "actual": "AnonApex 実行成功（例外なし）", "reason": ""}
+            return _ai_pending("匿名 Apex は例外なく終了したが、期待結果を検証する出力がありません。"
+                               "実行ログの出力値が期待結果を満たすかを判定してください",
+                               "AI判定待ち（AnonApex 実行成功・検証出力なし）")
     if re.search(r"(FATAL_ERROR|System\.\w+Exception)", content):
         m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", content)
         reason = m_err.group(1)[:80] if m_err else "AnonApex 実行エラー"
         return {"ok": False, "actual": "AnonApex 実行エラー", "reason": reason}
 
-    # デフォルト: 判定パターン未一致は「要確認」（NG扱い）— 証跡があるだけで OK にしない
-    return {"ok": False, "actual": "証跡あり（判定パターン未一致）",
-            "reason": "判定方法を機械可読な値（含む/件数一致/完全一致/含まない/前後比較等）にしてください",
-            "ng_type": "要確認"}
+    # デフォルト: 判定パターン未一致 — 証跡があるだけで OK にせず、AI が期待結果と照らして判定する
+    return _ai_pending("判定方法が機械照合パターンに一致しません。観点・期待結果の意図に照らして証跡を判定してください",
+                       "AI判定待ち（判定パターン未一致）")
 
 
 def _strip_trailing_annotation(s: str) -> str:
@@ -604,6 +748,18 @@ def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
     return {"ok": ok, "actual": actual, "reason": reason}
 
 
+def _allows_before(tc: dict) -> bool:
+    """before/ の証跡で判定してよい TC（前後比較・Phase3 Before 参照）か。"""
+    return "前後比較" in tc.get("判定方法", "") or "Before参照" in tc.get("証跡取得", "")
+
+
+def _spec_signature(tc: dict) -> str:
+    """差分再実行で前回 OK を流用してよいかの判定用。期待結果・判定方法・種別が変わったら再判定する。"""
+    import hashlib
+    raw = "\x1f".join(tc.get(k, "").strip() for k in ("期待結果", "判定方法", "種別"))
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
 def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     """1テストケースを判定し {"ok": bool, "actual": str, "reason": str} を返す。
     複数証跡（分岐ラベル付き）がある場合は全証跡を AND 評価する。"""
@@ -630,7 +786,7 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
 
     # 複数証跡を収集（evidence_dir が渡されていれば全ファイルを探す）
     if evidence_dir:
-        all_files = find_evidence_files(evidence_dir, no, shubetsu)
+        all_files = find_evidence_files(evidence_dir, no, shubetsu, _allows_before(tc))
     elif evidence_path and os.path.exists(evidence_path):
         all_files = [evidence_path]
     else:
@@ -678,9 +834,11 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
             if matched is None:
                 # 種別ラベルが特定できない/kiki 側に該当ラベルが無い証跡は、無関係な他種別の
                 # 期待値を誤適用せず、かつ空文字フォールバックによる無条件OK化も避ける
-                # （C-2: 未検証のまま偽OKになっていた）。要目視確認（SKIP）として独立評価する。
-                results.append({"ok": None, "actual": "要目視確認（期待値の割当なし）",
-                                 "reason": f"証跡 {os.path.basename(fpath)} の種別ラベルを期待結果から特定できません"})
+                # （C-2: 未検証のまま偽OKになっていた）。AI 判定に回す。
+                results.append(_ai_pending(
+                    f"証跡 {os.path.basename(fpath)} の種別ラベルを期待結果から特定できません。"
+                    "期待結果全体の意図に照らしてこの証跡を判定してください",
+                    "AI判定待ち（期待値の割当なし）"))
                 continue
             kiki_for_file = matched
         r = judge_single_evidence(fpath, kiki_for_file, judge_method, no)
@@ -701,9 +859,10 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
         return {"ok": False, "actual": actuals, "reason": ng["reason"], "ng_type": ng.get("ng_type", "")}
 
     if skip_results:
-        # ok: None（DOM未取得・要目視等）は SKIP として伝播
+        # ok: None は AI 判定待ちとして伝播（要手動は judge_case 冒頭で返すためここには来ない）
         actuals = " / ".join(r["actual"] for r in skip_results)
-        return {"ok": None, "actual": actuals, "reason": skip_results[0].get("reason", "")}
+        reasons = " / ".join(r.get("reason", "") for r in skip_results if r.get("reason"))
+        return {"ok": None, "ai": True, "actual": actuals, "reason": reasons}
 
     # 全件 OK
     actuals = " / ".join(r["actual"] for r in ok_results)
@@ -744,25 +903,29 @@ def main():
     ng_list = []
     skip_list = []
     taigaigai_list = []
+    ai_list = []
 
     for tc in test_cases:
         no = tc.get("No", "")
         shubetsu = tc.get("種別", tc.get("実行種別", "")).strip()
-        current_fp = evidence_fingerprint(args.evidence_dir, no, shubetsu)
+        current_fp = evidence_fingerprint(args.evidence_dir, no, shubetsu, _allows_before(tc))
+        spec_sig = _spec_signature(tc)
 
         # 差分再実行: 前回 OK の TC は流用。ただし証跡ファイルが前回判定後に更新されている場合は
         # NG → OK の化け（stale reuse）を防ぐため流用せず再判定する。
         if no in prev_results:
             prev = prev_results[no]
             prev_fp = prev.get("evidence_mtime")
-            if prev_fp is not None and current_fp is not None and current_fp <= prev_fp:
+            if prev.get("spec_sig") != spec_sig:
+                print(f"[RE-JUDGE] {no}: {tc.get('観点', '')} → 期待結果・判定方法が前回から変わっているため再判定します")
+            elif prev_fp is not None and current_fp is not None and current_fp <= prev_fp:
                 results.append(prev)
                 print(f"[REUSE] {no}: {tc.get('観点', '')} → 前回OK流用 ({prev.get('actual', '')})")
                 continue
             else:
                 print(f"[RE-JUDGE] {no}: {tc.get('観点', '')} → 証跡ファイルが前回判定後に更新されているため再判定します")
 
-        evidence_path = find_evidence_file(args.evidence_dir, no, shubetsu)
+        evidence_path = find_evidence_file(args.evidence_dir, no, shubetsu, _allows_before(tc))
         judgment = judge_case(tc, evidence_path, evidence_dir=args.evidence_dir)
 
         ok = judgment["ok"]
@@ -774,6 +937,18 @@ def main():
             status = "対象外"
             taigaigai_list.append({"no": no, "label": tc.get("観点", ""), "reason": reason})
             xlsx_value = actual
+        elif ok is None and judgment.get("ai"):
+            status = "AI判定"
+            ai_list.append({
+                "no": no,
+                "label": tc.get("観点", ""),
+                "reason": reason,
+                "expected": tc.get("期待結果", ""),
+                "judge_method": tc.get("判定方法", ""),
+                "shubetsu": shubetsu,
+                "evidence_files": find_evidence_files(args.evidence_dir, no, shubetsu, _allows_before(tc)),
+            })
+            xlsx_value = "AI判定待ち"
         elif ok is None:
             status = "SKIP"
             skip_list.append(no)
@@ -795,11 +970,12 @@ def main():
             "ng_type": ng_type if status == "NG" else "",
             "evidence": evidence_path,
             "evidence_mtime": current_fp,
+            "spec_sig": spec_sig,
         })
 
         # xlsx H 列更新: テスト・検証シートは廃止済みのため行わない（エビデンスはエビデンス.xlsx に集約）
 
-        icon = {"OK": "[OK]", "NG": "[NG]", "SKIP": "[--]", "対象外": "[NA]"}[status]
+        icon = {"OK": "[OK]", "NG": "[NG]", "SKIP": "[--]", "対象外": "[NA]", "AI判定": "[AI]"}[status]
         print(f"{icon} {no}: {tc.get('観点', '')} → {actual}" + (f" ({reason})" if reason else ""))
 
     # サマリー
@@ -807,15 +983,20 @@ def main():
     ng_count = len(ng_list)
     skip_count = len(skip_list)
     taigaigai_count = len(taigaigai_list)
-    print(f"\n判定サマリー: OK={ok_count} / NG={ng_count} / 要手動={skip_count} / 対象外={taigaigai_count} / 合計={len(results)}")
+    ai_count = len(ai_list)
+    print(f"\n判定サマリー: OK={ok_count} / NG={ng_count} / AI判定待ち={ai_count} / 要手動={skip_count} / 対象外={taigaigai_count} / 合計={len(results)}")
+    if ai_count:
+        print("[INFO] AI判定待ちの TC があります。/test Phase D-2 で証跡と期待結果を読んで判定し、apply_ai_judgment.py で反映してください")
 
     output = {
         "ok": ok_count,
         "ng": ng_count,
+        "ai_pending": ai_count,
         "skip": skip_count,
         "taigaigai": taigaigai_count,
         "total": len(results),
         "ng_list": ng_list,
+        "ai_list": ai_list,
         "skip_list": skip_list,
         "taigaigai_list": taigaigai_list,
         "results": results,

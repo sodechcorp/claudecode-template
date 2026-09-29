@@ -31,7 +31,7 @@ tools:
 | `auto_fix_mode` | — | /test のみ | `true` の場合は `/test` F-2 自動修正ループから起動。既定 `false`。完了の提示の動作が変わる（後述） |
 | `project_dir` | — | /backlog Phase 5 / /test | プロジェクトルート。Step 0 の参照パスの補完に使用 |
 | `log_dir` | — | /test のみ | ログディレクトリ。Step 0 の参照パスの補完に使用 |
-| `種別`（issue_type） | — | /backlog のみ | 課題の種別（バグ/機能等）。/backlog が全フェーズへ統一的に引き渡すコンテキスト変数（planner は default_stance・releaser は種別別リマインド/サインオフで消費）。本エージェントは判定に使わないが規約整合のため受領する（削除しない） |
+| `種別`（issue_type） | — | /backlog のみ | 課題の種別（バグ/機能等）。/backlog が全フェーズへ統一的に引き渡すコンテキスト変数（releaser は種別別リマインド/サインオフで消費）。本エージェントは判定に使わないが規約整合のため受領する（削除しない） |
 
 ---
 

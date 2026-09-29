@@ -2,11 +2,11 @@
 
 ## 何をするか
 
-最小変更原則チェック。採用方針・実装計画が必要以上に大きくなっていないか（過剰修正・スコープ膨張）を確認する。バグ修正時に特に重要。
+最小変更原則チェック。担当者が決定した対応方針（approach-plan.md「## 対応方針（結論）」）に対して、実装計画が必要以上に大きくなっていないか（過剰修正・スコープ膨張）を確認する。バグ修正時に特に重要。backlog-planner Phase B が実装計画の作成時に実行する。
 
 ## 実行手順
 
-1. approach-plan.md / implementation-plan.md の変更対象ファイルリストを確認する
+1. approach-plan.md の決定方針と、implementation-plan.md の変更対象ファイルリストを確認する
 2. 以下の観点で変更範囲が最小かどうかを評価する:
 
    **変更ファイル数**:
@@ -25,11 +25,11 @@
    - 課題解決に必須な変更と、別件の変更を分離する
    - 別件は本対応のスコープ外として「## 派生事項（質問外）」節（[answer-scope-spec.md](../../common/answer-scope-spec.md) 準拠）に事実のみ記録する。確認事項には混在させない（`_README.md §確認事項の選定基準` 参照）。Backlog への新規登録は提案しない（対応要否はユーザー判断に委ね、必要ならユーザー側から依頼する）
 
-4. 結果を implementation-plan.md（または approach-plan.md）に記録する
+4. 結果を implementation-plan.md に記録する
 
 ## 出力
 
-implementation-plan.md に追記（approach-plan.md でも可）:
+implementation-plan.md に追記:
 
 ## 最小変更原則チェック
 

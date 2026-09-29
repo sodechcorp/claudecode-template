@@ -83,7 +83,7 @@ mkdir -p "{project_dir}/.sf" && python -c "import json,time; json.dump({'alias':
 
 `{judgment_path}` が指定されている知見還流モード（Phase F）ではスキップする（証跡採取を再実行しないため）。
 
-`/test` コマンド Phase A の回次退避（`.claude/commands/test.md`）は「`/test` がコマンドの入口から新規に再実行された場合」にのみ発動する。会話の流れで証跡採取・判定だけを直接再実行するショートカットを踏むとこれが発動せず、前回の証跡が新しい証跡でそのまま上書きされる。証跡採取を開始する前に本ステップで自己防衛の退避を行う（`after_R{N}` が既に存在すれば何もしないため、Phase A 側の退避と重複しても安全）:
+`/test` の各フェーズは会話の流れで証跡採取・判定だけを直接再実行するショートカットを踏まれる可能性があり、その場合コマンドの入口（Phase A）を経由しないまま前回の証跡が新しい証跡でそのまま上書きされる。回次退避（前回データのアーカイブ）は Phase A では行わない設計のため（`.claude/commands/test.md` 参照）、証跡側の退避責務は本ステップが単独で担う。証跡採取を開始する前に本ステップで自己防衛の退避を行う（`after_R{N}` が既に存在すれば何もしないため、本ステップ自体が複数回実行されても冪等に動作する）:
 
 ```bash
 JUDGMENT_PATH="{log_dir}/judgment-result.json"
@@ -154,11 +154,11 @@ mkdir -p "{evidence_dir}/before"
 
 ---
 
-## Step 1.5: メール到達安全確認（AnonApex または UI ケースがある場合のみ・必須）
+## Step 1.5: メール到達安全確認（AnonApex または UI ケースがある場合のみ）
 
 種別 = AnonApex または UI のケースが1件以上ある場合（＝ Step 3/4 で実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作が発生しうる場合）に実施する。SOQL のみの場合はスキップする。**判定母集団は今回実際に Step 3/4 で実行する TC（`{target_tc_list}` による差分絞込後の集合。差分再実行モードでない場合は spec 全体）とする**（差分再実行で SOQL の TC のみが対象の回は、spec 全体に AnonApex/UI の TC が存在しても本ステップは不要）。
 
-> [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「メール到達安全確認」を Read して実施する。該当ユーザーが検出された場合はユーザーの明示的な続行承認を得るまで Step 3/4 に進まない。
+> [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「メール到達安全確認」を Read して実施する（メール送信処理の有無 → 送信先の判定 → 自動回避 の順。お客様に届く可能性があり、かつ回避できない場合だけ担当者に確認し、判断を得るまで Step 3/4 に進まない）。自動回避でテストデータ・通知先ユーザーを差し替えた場合は、差し替えた内容を該当 TC の証跡と test-report に記録する。
 
 ---
 
@@ -198,6 +198,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 - **永続化するか rollback するかの判定基準**: 当該 TC の「期待結果」「証跡取得」「確認ポイント（着眼点）」列に画面確認・目視確認を示す記載がある、または後続の UI TC の「前提・データ準備」列が当該 TC のデータを参照している場合は**永続化**する。それ以外（AnonApex 内の SOQL・debug 出力だけで検証が完結する TC）は `Database.setSavepoint()` → ロジック/Flow 起動 → 結果確認 → `Database.rollback()` のパターンを優先する（並列安全）。
 - **永続化するレコード（rollback しないもの）は必ず `System.debug('CREATED_RECORD|' + record.getSObjectType() + '|' + record.Id + '|' + {識別値} + '|{No}');` 形式で1レコード1行 debug する**（末尾の `{No}` は生成中の当該 TC 番号をリテラルとして埋め込む。[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 の統一フォーマットに合わせるためのマーカー。3-4 で集約する。`rollback` する一時データは目視不可のため出力しない＝正しい挙動）。**`{識別値}` は対象 SObject に `Name` 項目がある場合のみ `record.Name` を使う。`Name` 項目を持たない標準オブジェクト（例: `Case` は `record.CaseNumber`、`Task`/`Event` は `record.Subject`）はその代替識別項目を使い、適切な代替が無い場合はリテラル文字列（例: SObject 名）を使う（`record.Name` は当該 SObject に存在しない場合コンパイルエラーになるため、TC ごとに実際の SObject 型を確認して個別に選ぶ）**。
 - `System.debug()` で結果・件数・フィールド値を出力し証跡に残す。**必ず「入力値→処理経路→結果値」を全て debug する**。
+- **自己検証の出力（必須）**: 処理を起動した後（rollback する TC は rollback の前に）、期待結果に書かれた確認対象を SOQL で取り直し、期待値と1項目ずつ比較して `System.debug('CHECK|' + {確認項目} + '|期待=' + {期待値} + '|実際=' + {実際値} + '|' + (一致 ? 'OK' : 'NG'));` を出力し、最後に `System.debug('NG項目数=' + ng + '/' + total + (ng == 0 ? ' (PASS)' : ''));` を1行出力する（`judge_results.py` はこの行で OK/NG を機械判定する。無いと AI 判定に回り遅くなる）。期待結果が `例外なし` の TC のみ比較出力は不要
 - Flow 起動は `Flow.Interview.{Flow_API名}` または `Database.executeBatch` を使う。
 - **条件分岐の網羅（責務は spec 側に一本化・省略禁止）**: 分岐展開の要否は test-spec.md の「証跡取得」列（`分岐ラベル` フィールド）で判定する。当該 TC に `分岐ラベル` が列挙されている場合のみ、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**（1 ファイル内で全分岐をカバー）。**`分岐ラベル` がない TC（= spec 側で分岐ごとに別 TC 行として分割済み）は当該 TC の実行アクションのみを実行し、他分岐を追加展開しない**（test-spec-builder.md §「観点」展開の注意 参照）。**`分岐ラベル` は 2026-08-18 以降の test-spec-builder.md（条件分岐は必ず別 TC 行）が生成する spec には出現しない旧仕様の名残りであり、手動で追加してはならない**（judge_results.py は分岐ラベル単位で期待結果を分割する機構を持たず、複数分岐の証跡に同一の期待結果文字列がそのまま逐語適用され誤 NG になる）。
 

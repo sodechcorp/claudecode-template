@@ -10,8 +10,7 @@
 
 investigator が `option-reverse-grep` を skip していた場合、比較対象が存在しないため以下の分岐で対応する:
 
-- **課題種別がバグ・追加要望**: 変更対象シンボル（Apex メソッド名・LWC コンポーネント名・項目 API 名）を `force-app/` 全体で Grep し、全件を新規参照として扱う（初回全件探索）
-- **課題種別が typo / ラベル変更 / 典型的自明ケース**: 本 option 自体を skip し、validation-report.md の Step 3 セクションに「Phase 1 reverse-grep スキップ済み・自明ケースのため本 option も skip」と記録する
+- 変更対象シンボル（Apex メソッド名・LWC コンポーネント名・項目 API 名）を `force-app/` 全体で Grep し、全件を新規参照として扱う（初回全件探索）
 
 ---
 

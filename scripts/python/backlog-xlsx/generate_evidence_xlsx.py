@@ -462,6 +462,9 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
     elif status == "対象外":
         judge_icon = "▲ 対象外"
         judge_fill = TAIGAIGAI_FILL
+    elif status == "AI判定":
+        judge_icon = "⬜ AI判定待ち"
+        judge_fill = MANUAL_FILL
     else:
         judge_icon = "⬜ 要手動"
         judge_fill = MANUAL_FILL
@@ -657,6 +660,9 @@ def build_result_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str,
         elif status == "対象外":
             judge_text = "▲ 対象外"
             row_fill = TAIGAIGAI_FILL
+        elif status == "AI判定":
+            judge_text = "⬜ AI判定待ち"
+            row_fill = MANUAL_FILL
         else:
             judge_text = "⬜ 要手動"
             row_fill = MANUAL_FILL

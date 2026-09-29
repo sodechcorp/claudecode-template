@@ -1,27 +1,27 @@
 ---
-description: "Backlog課題の調査・対応・記録を一気通貫で実施する。専門エージェントを順に起動し、各フェーズ完了後にユーザ確認を取りながら進める。/backlog [課題ID] で個別課題対応。"
+description: "Backlog課題の調査・対応・記録を一気通貫で実施する。対応方針は担当者が決め、ClaudeCode は判断材料の提示・決定方針のチェック・実装方針・実装・Sandbox 反映を担う（方針決定以外は問題がなければ自動進行）。/backlog [課題ID] で個別課題対応。"
 argument-hint: "[課題ID]"
 ---
 
 # /backlog [課題ID]
 
-**モード判定**: `--light` フラグが付いている場合（例: `/backlog GF-123 --light`）は軽微修正ショートカットで実行する（Phase 2 / Phase 3.5 をスキップ。詳細な例外規定は Phase 2・Phase 3.5 の各セクションを参照）。それ以外は通常フローを実行する。この判定結果を `{light_mode}` = `true`（--light 時）/ `false`（通常）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。`--light` 未指定で開始した場合も、Phase 1 完了時に investigation.md の内容次第で `{light_mode}` を `true` に格上げすることがある（[_README.md §Phase 1 完了時の light 格上げ（スコープ確定＋依頼明確性）](../templates/backlog/_README.md) 参照）。以降「`--light` の場合」と書かれた分岐は全て `{light_mode}` = `true`（格上げ含む）で判定する。
+**前提**: `/backlog` は一定のボリュームがある課題に使う。項目追加・レイアウト修正レベルの軽微な作業は `/backlog` を使わずに直接依頼する想定のため、軽量モードは持たない。
 
-**引数の解釈**: `$ARGUMENTS` の先頭トークン（`--` で始まらない最初の語）を `{issueID}` とし、`--light` 等のフラグは除外する（`GF-123 --light` も `--light GF-123` も issueID=`GF-123`）。
+**引数の解釈**: `$ARGUMENTS` の先頭トークン（`--` で始まらない最初の語）を `{issueID}` とする。
 
 ## 概要
 
-保守課題の対応を6つの専門エージェントが分担する。各フェーズはエージェントに完全委譲する。明示承認が必要なのは「対応方針確定」「実装着手」の2点のみで、それ以外は自動進行する（詳細は「絶対ルール」参照）。
+保守課題の対応を専門エージェントが分担する。**対応方針は担当者が決める**。ClaudeCode は、課題の理解（調査）・方針の判断材料の提示・決定方針のチェック・実装方針・実装・Sandbox 反映を担う。明示承認が必要なのは「対応方針の決定」1点のみで、それ以外は自動進行する（問題が見つかった時だけ止まる。詳細は「絶対ルール」参照）。
 
 | フェーズ | エージェント | 主な成果物 |
 |---|---|---|
 | Phase 0: 作業フォルダ作成 | （本コマンド直接実行） | `docs/logs/{issueID}/` |
 | Phase 1: 調査・理解 | `backlog-investigator` | `investigation.md` |
 | Phase 1.6: Sandbox 仮説検証 | `backlog-repro-runner` | `hypothesis-verification.md`（バグ系のみ） |
-| Phase 2: 対応方針の確定【明示承認】 | `backlog-planner` Phase A | `approach-plan.md` |
-| Phase 3: 実装方針の確定 | `backlog-planner` Phase B | `implementation-plan.md` |
-| Phase 3.5: 実装前検証 | `backlog-validator` | `validation-report.md` |
-| Phase 4: 実装【直前に実装着手の明示承認】 | `backlog-implementer`（内部: `sf-context-loader`） | 変更ファイル一覧 |
+| Phase 2: 対応方針の決定【担当者が決める】 | （本コマンド直接実行） | `approach-plan.md`（決定の記録） |
+| Phase 3: 実装方針の策定 | `backlog-planner` Phase B | `implementation-plan.md` |
+| Phase 3.5: 実装前検証（決定方針のチェックを含む） | `backlog-validator` | `validation-report.md` |
+| Phase 4: 実装 | `backlog-implementer`（内部: `sf-context-loader`） | 変更ファイル一覧 |
 | Phase 5: スモーク確認 | `backlog-tester`（内部: `sf-context-loader`） | スモーク結果（PASS で Phase 6 へ進む） |
 | Phase 6: Sandbox リリース・完了 | `backlog-releaser`（内部: `sf-context-loader`） | 完了報告 |
 
@@ -31,7 +31,7 @@ argument-hint: "[課題ID]"
 
 **各エージェントの内部構造**: 全エージェント（`backlog-repro-runner` を除く）は Step 0b でフェーズ用 `_index-phase{N}.md` を読んでオプション判定を行う（[à la carte 仕組み](../templates/backlog/_README.md)）。`backlog-repro-runner` は Phase 1.6（バグ系のみ）専用で Step 0b を持たず、à la carte 判定の対象外。`backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-planner` はさらに Step 0a で `sf-context-loader` を呼び出す（`backlog-planner` は digest 優先で実運用上ほぼ発火しない）。
 
-> **サブエージェントの二段ネストを避ける（`backlog-validator` は完全 leaf agent・`backlog-investigator` は部分的）**: サブエージェントがさらに別のサブエージェントを起動する二段ネストのうち、「同一メッセージでの複数 Agent/Task 同時発行」を伴う箇所は不安定化要因と特定し、本コマンド（メインスレッド）に引き上げた。単発・非並列の呼び出し（`backlog-planner → sf-effort-estimator` / `backlog-investigator → pattern-curator・backlog-blind-second-opinion` 等）は `auto-evidence-runner → ui-evidence-runner`（`/test`）と同型の安定パターンのため据え置いている。
+> **サブエージェントの二段ネストを避ける（`backlog-validator` は完全 leaf agent・`backlog-investigator` は部分的）**: サブエージェントがさらに別のサブエージェントを起動する二段ネストのうち、「同一メッセージでの複数 Agent/Task 同時発行」を伴う箇所は不安定化要因と特定し、本コマンド（メインスレッド）に引き上げた。単発・非並列の呼び出し（`backlog-planner → sf-context-loader` / `backlog-investigator → pattern-curator・backlog-blind-second-opinion` 等）は `auto-evidence-runner → ui-evidence-runner`（`/test`）と同型の安定パターンのため据え置いている。
 > - `backlog-validator`: `regression-guard`・`ui-evidence-runner`（Before-only）を本コマンドが Phase 3.5 開始時に直接 Task 起動（詳細は Phase 3.5 セクション参照）
 > - `backlog-investigator`: `sf-context-loader`（knowledge-only + 通常モード。旧設計では同一メッセージ並列発行しており不安定化要因だった）を本コマンドが Phase 1 開始時に逐次 Task 起動（詳細は Phase 1 セクション参照）。詳細は [agent-routing.md](../spec/agent-routing.md) 参照
 
@@ -49,18 +49,17 @@ argument-hint: "[課題ID]"
 > **絶対ルール**
 >
 > **【フェーズ進行】**
-> - **明示承認が必要なのは以下の2点のみ**（それ以外の遷移は自動進行する。詳細は次項）:
->   1. **対応方針確定**（Phase 2→3。担当者が「どう対応するか」を決める瞬間）
->   2. **実装着手**（Phase 3.5→4。実際にコードを変更し始める直前。`--light` 時を除く）
-> - **明示承認の進め方（上記2点のみ）**:
->   1. **フェーズ別の型は [_README.md §サマリーの書き方](../templates/backlog/_README.md) に従ってチャットに提示する**（課題の概要・前提再掲・最終挙動を含む人間向けの日本語。技術詳細は成果物に記録しチャットに並べない）
->   2. 「特に確認したい点」を **0〜3 個**テキストで挙げる。確認事項がなければ「特に確認事項はありません」と明記し、無理やり挙げない。実装詳細・テスト段取り・スコープ自明事項は確認質問に含めず本文に記載する（責務境界の詳細は各エージェント定義を参照）。何を確認事項に書いてよい／書かないかの基準は [_README.md §確認事項の選定基準](../templates/backlog/_README.md) を正本とする。
->   3. ユーザの自由テキスト応答を待つ（質問・修正依頼・承認 何でも可）
->   4. 議論が落ち着いたら「Phase N に進んでよろしいですか？」とテキストで明示確認
->   5. ユーザの承認テキスト（「OK」「進んで」等）を確認してから次フェーズへ進む。**質問・相槌（「ha」「うん」等）・別タスク依頼（「工数計算して」「見積もって」等）は承認ではない**。工数・見積依頼は `sf-effort-estimator` 委譲対象で承認を兼ねない（タスク完了後に承認プロトコルを再提示する）。確信できなければ進まず確認を出し直す（詳細は [_README.md §承認判定](../templates/backlog/_README.md) 参照）。
-> - 実装は Phase 4 以降。それ以前に実装コードを書くことは禁止。**Phase 3.5→4（実装着手）は特に厳格に明示承認を確認すること。**（**例外**: `{light_mode}` = `true` の場合、Step A/C がスキップされ validation-report.md 自体が生成されないため確認対象がない。この場合のみ明示承認を求めず自動で Phase 4 へ進む。詳細は Phase 3.5 セクション「次に進む条件」参照）
-> - **自動進行（上記2点以外の全ての遷移。デフォルト）**: Phase 0→1／1→1.6／1.6→2／Phase 3 完了時（実装方針の技術文書化を終えて Phase 3.5 へ）／Phase 3.5 完了時（実装前検証を終えて Phase 4 直前の実装着手ゲートへ。3.5→4 自体は `{light_mode}` = `true` の場合のみ自動）／4→5／5→6 は、フェーズ末サマリー＋「特に確認したい点」を提示した上で、末尾に「**異議がなければこのまま Phase N に進みます**」と明示し、明示承認テキストを待たず次フェーズへ進む（ユーザーはいつでも会話で異議・修正を差し込める。連続自動進行の回数上限は設けない — ユーザーが実際に異議を挟んだ時だけ止まる方が待ち時間を無駄にしない）。**理由**: 調査・技術文書化・実装前検証・スモークテスト・Sandbox デプロイは「人間がやるより AI がやる方が速い、または人間の目では原理的に検知できないリスクを拾う」工程であり、標準化・全自動化そのものを目的化しない（対応方針確定・実装着手のように「人間の業務判断そのもの」の工程だけを明示承認に残す）。
-> - **`/test` 要否の一言添え（新規ゲートは作らない）**: 対応方針確定（上記1）の提示で、light_mode 格上げ条件（文言・ラベルのみの変更等の明らかに軽微なケース。[_README.md §Phase 1 完了時の light 格上げ](../templates/backlog/_README.md) 参照）に該当する場合のみ、「軽微な変更のため `/test` は省略してもよいと思います。実行しますか？」と一言添える。担当者は方針確定と同じタイミングで一緒に判断する（`/test` 要否だけの新しい確認ポイントは追加しない）。
+> - **明示承認が必要なのは「対応方針の決定」（Phase 2→3）の1点のみ**。対応方針は担当者の業務判断そのものであり、ClaudeCode は判断材料と推奨を示すだけで決めない。進め方は Phase 2 セクションを参照。
+> - **それ以外の遷移は全て自動進行**（Phase 0→1／1→1.6／1.6→2／3→3.5／3.5→4／4→5／5→6）。フェーズ末サマリーを提示し、末尾に「**異議がなければこのまま Phase N に進みます**」と明示して、承認を待たず同一ターンで次フェーズへ進む（ユーザーはいつでも会話で異議・修正を差し込める）。**理由**: 調査・決定方針のチェック・実装方針・実装前検証・実装・スモークテスト・Sandbox デプロイは「人間がやるより AI がやる方が速い、または人間の目では原理的に検知できないリスクを拾う」工程であり、Sandbox は可逆のため。
+> - **自動進行を止める条件（問題が見つかった時だけ止まる）**: 以下のいずれかに該当したら自動進行せず、内容を提示して担当者の判断を待つ:
+>   - Phase 3（planner）が「決定方針では実現できない・要求を満たせない」と返した
+>   - Phase 3 で業務判断の判断ポイント（「未確定」）が残った
+>   - Phase 3.5（validator）の総合判定が「Phase 2 に戻る（決定方針に問題）」「技術確認待ち」、総合判定を返さなかった（異常終了・必要項目の欠落）、または Phase 3 戻りが上限（Phase 3.5 セクション参照）に達した
+>   - Phase 5 が条件付きPASS（NoTestRun フォールバック）
+>   - 各エージェントが担当者の確認を明示的に求めた（共有依頼の資料・症状前提の未確定等）
+> - **確認事項の出し方**: 止まる場合も含め、担当者に聞くのは業務判断だけ。何を聞いてよい／聞かないかは [_README.md §確認事項の選定基準](../templates/backlog/_README.md) を正本とする。実装詳細・テスト段取り・技術的に自分で確かめられることは聞かない。
+> - **承認とみなさない返答**: 質問・相槌（「ha」「うん」等）・別タスク依頼（「工数計算して」等）は方針決定の承認ではない。工数・見積依頼は `sf-effort-estimator` 委譲対象（タスク完了後に方針の確認を出し直す）。詳細は [_README.md §承認判定](../templates/backlog/_README.md) 参照。
+> - 実装は Phase 4 以降。それ以前に実装コードを書くことは禁止。
 >
 > **【AskUserQuestion】**
 > - **AskUserQuestion は使わない**。フェーズ承認・選択肢提示はすべてテキスト会話で行う（例外: Phase 0 の再開方法選択（investigation.md 存在時）のみ AskUserQuestion を使う）
@@ -72,7 +71,7 @@ argument-hint: "[課題ID]"
 >   3. Phase 末尾の確認プロトコルを実行する
 >
 > **【再開・変数】**
-> - **compact 後の再開について**: 長尺セッションで /compact が発生した後に /backlog を継続する場合は、必ず /backlog コマンドを再起動して Phase 0d 経由でコンテキストを復元すること。エージェント実行途中で /compact が発生した場合も同様。investigation.md のフロントマターに記録した `issue_type` / `light_mode` / `deploy_route` を Phase 0d で読み込んで変数を再設定する（フロントマター更新の義務・スキップ禁止・復元手順の詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照）
+> - **compact 後の再開について**: 長尺セッションで /compact が発生した後に /backlog を継続する場合は、必ず /backlog コマンドを再起動して Phase 0d 経由でコンテキストを復元すること。エージェント実行途中で /compact が発生した場合も同様。investigation.md のフロントマターに記録した `issue_type` / `deploy_route` を Phase 0d で読み込んで変数を再設定する（フロントマター更新の義務・スキップ禁止・復元手順の詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照）
 > - **種別変数 `{issue_type}` の管理**: Phase 1 完了時点で `investigation.md` の「種別」欄から `{issue_type}` = `バグ` / `追加要望` / `その他` / `問い合わせ` を確定し、会話の最後まで保持する。Phase 2（デフォルトスタンス／問い合わせ時は回答ドラフトモード分岐）・Phase 5（テスト観点）・Phase 6（お客様確認必須度）の分岐に使用する。種別欄が空欄・不明・記載なしの場合は「種別が判断できません。バグ / 追加要望 / その他 / 問い合わせ のどれに該当しますか？」とテキストで確認してから確定する
 >
 > **【環境・記録】**
@@ -176,7 +175,7 @@ New-Item -ItemType Directory -Force -Path "docs/logs/{issueID}" | Out-Null
 6. `validation-report.md` — 実装前検証結果
 7. `test-report.md` — テスト結果
 
-investigation.md を Read した際はフロントマター（`---` で囲まれた部分）から `issue_type` / `light_mode` / `deploy_route` を変数として読み取り、以降のフェーズで使用する。
+investigation.md を Read した際はフロントマター（`---` で囲まれた部分）から `issue_type` / `deploy_route` を変数として読み取り、以降のフェーズで使用する（旧版の `light_mode` キーが残っていても無視する）。
 
 **分割読込ルール**: investigation.md・hypothesis-verification.md・approach-plan.md・implementation-plan.md・validation-report.md・test-report.md は、**冒頭 80 行 + 末尾 30 行**を読めば十分（ファイルが 110 行未満の場合は全文）。フルが必要なフェーズ（実装フェーズなど）はエージェント側で個別に全文 Read すること（[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通)）。
 
@@ -230,7 +229,7 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 設計層コンテキスト: {design_context}
 ```
 
-エージェントが `investigation.md` を保存したら、内容をユーザに提示する。また、末尾の「[デプロイ適否の判定](#デプロイ適否の判定phase-1-終了時に適用)」セクションを参照してデプロイ可否を確定し、結果を `{deploy_route}` = `manual-operation`（該当・管理画面直接操作）/ `normal`（非該当・通常デプロイ）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。判定根拠は investigation.md の「## デプロイ適否判定」セクション（investigator が空欄で出力済み）に Edit ツールで追記する。
+エージェントが `investigation.md` を保存したら（内容の提示は下記「次に進む条件」に従う）、末尾の「[デプロイ適否の判定](#デプロイ適否の判定phase-1-終了時に適用)」セクションを参照してデプロイ可否を確定し、結果を `{deploy_route}` = `manual-operation`（該当・管理画面直接操作）/ `normal`（非該当・通常デプロイ）として会話の最後まで保持する（investigation.md フロントマターへの記録に使用）。判定根拠は investigation.md の「## デプロイ適否判定」セクション（investigator が空欄で出力済み）に Edit ツールで追記する。
 
 > **investigator が Backlog MCP 障害で中断した場合の再起動（1 回のみ）**: investigator の返却結果に「Backlog MCP が応答しません」の中断メッセージのみが含まれ `investigation.md` が未保存の場合、以下の手順で **1 回のみ**再起動する。
 > 1. ユーザーに「Backlog MCP が応答しません。課題本文・コメント全文をここに貼り付けてください」と依頼し、貼り付け内容を受け取る（本コマンドはメインスレッドのため同期的なユーザー入力待ちが可能）。
@@ -247,15 +246,13 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 > **investigator の確認記録ゲート（非同期・メインスレッド委譲）**: investigator は単発 Task サブエージェントのためユーザー応答を同期的に待てない。課題本文/コメント中の全URL・添付・スクショ・名指しレコードについて、取得不能なものは investigation.md「周辺情報」に共有依頼候補（共有依頼列 = `要`）として記録し、それに依拠する記述には `[要確認: 未共有の一次資料]` を付けたうえで Step B 以降まで進めて investigation.md を完成させる（Step A.5 の症状前提未確定も同様に `[要確認: 症状前提未確定]` で進行）。**ユーザーへの提示・応答受領は本コマンド（メインスレッド）が Phase 1 完了サマリー提示時に行う**: investigator が記録した共有依頼候補・症状前提未確定を確認事項として提示し、応答を待つ。ユーザーが資料・回答を提供した場合は investigation.md の該当セクションへ Edit で追記し（共有依頼列を `済` に更新）、追加情報が根本原因仮説に影響しうる場合のみ「Phase 1 から再調査」で investigator を再起動する（軽微な補足のみなら再起動せず Phase 1.6 へ進めてよい）。ユーザーが「不要・このまま進めて」と回答した場合は waive とみなし理由を追記する（共有依頼列を `不要（waive）` に更新）。
 
-> **`{light_mode}` の格上げ判定（`--light` 未指定時のみ）**: `{light_mode}` が現在 `false` の場合、investigation.md の内容が [_README.md §Phase 1 完了時の light 格上げ（スコープ確定＋依頼明確性）](../templates/backlog/_README.md) の①スコープ条件・②依頼明確性条件を両方満たすか確認する。両方満たす場合は `{light_mode}` = `true` に上書きし、Phase 1 完了サマリー末尾に同節の定型文を一行追記する。どちらか一方でも満たさない場合は `false` のまま次に進む（迷ったら格上げしない）。
->
-> **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `light_mode` / `deploy_route` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照)。`{tmp_dir}` = `docs/logs/{issueID}/.tmp` に固定し、以下の内容で `{tmp_dir}/write_frontmatter.py` を Write する（[inline-script-hygiene.md](../templates/common/inline-script-hygiene.md) に従い if/for を含む多行ロジックはヒアドキュメントで渡さず外部化する。値は起動時の引数で渡し、スクリプト本体には Claude 置換プレースホルダーを一切含めない。Python の f-string 波括弧との混在を避けるため）:
+> **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `deploy_route` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照)。`{tmp_dir}` = `docs/logs/{issueID}/.tmp` に固定し、以下の内容で `{tmp_dir}/write_frontmatter.py` を Write する（[inline-script-hygiene.md](../templates/common/inline-script-hygiene.md) に従い if/for を含む多行ロジックはヒアドキュメントで渡さず外部化する。値は起動時の引数で渡し、スクリプト本体には Claude 置換プレースホルダーを一切含めない。Python の f-string 波括弧との混在を避けるため）:
 > ```python
 > import pathlib, re, sys
-> issue_id, issue_type, light_mode, deploy_route = sys.argv[1:5]
+> issue_id, issue_type, deploy_route = sys.argv[1:4]
 > invest = pathlib.Path(f'docs/logs/{issue_id}/investigation.md')
 > text = invest.read_text(encoding='utf-8') if invest.exists() else ''
-> keys = {'issue_type': issue_type, 'light_mode': light_mode, 'deploy_route': deploy_route}
+> keys = {'issue_type': issue_type, 'deploy_route': deploy_route}
 > if text.startswith('---'):
 >     end = text.index('---', 3)
 >     front = text[3:end]
@@ -269,24 +266,18 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 > else:
 >     fm = '\n'.join(f'{k}: {v}' for k, v in keys.items())
 >     invest.write_text(f'---\n{fm}\n---\n\n{text}', encoding='utf-8')
-> print('[OK] investigation.md issue_type/light_mode/deploy_route 記録完了')
+> print('[OK] investigation.md issue_type/deploy_route 記録完了')
 > ```
-> Write 後、以下を実行する（置換対象は本コマンド行の4引数のみ）:
+> Write 後、以下を実行する（置換対象は本コマンド行の3引数のみ）:
 > ```bash
-> python "{tmp_dir}/write_frontmatter.py" "{issueID}" "{issue_type}" "{light_mode}" "{deploy_route}"
+> python "{tmp_dir}/write_frontmatter.py" "{issueID}" "{issue_type}" "{deploy_route}"
 > ```
 
-> **次に進む条件（自動進行）**: ユーザが調査レポートを確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従いサマリー・確認事項を提示し、「異議がなければこのまま次へ進みます」と一言添えて、承認を待たず同一ターンで次へ進む（【フェーズ進行】参照。ユーザーはいつでも異議・修正を差し込める）
-> - `{issue_type}` = `バグ` の場合: Phase 1.6 へ
-> - `{issue_type}` = `問い合わせ` の場合: Phase 1.6 をスキップして Phase 2（回答ドラフト生成）へ直接進む
-> - `{issue_type}` = `追加要望` / `その他` の場合: Phase 2 へ
-> - **バグの場合（自明バグ除く）**: Phase 1 サマリーは「最有力仮説は X（要 Sandbox 検証）」表現に留める。「根本原因は X と確定」「間違いない」等の断定は Phase 1.6 完了後まで禁止
->
-> **Phase 1 典型例（該当時のみ・0件が原則）**: 「業務要件 Q1 への仮説が正しいか」「データ X の例外時挙動を業務側に確認したい」
-> **含めてはいけない例**: 実装詳細（命名・マップキー設計）/ テスト段取り（テストユーザ・データ準備）/ 派生事項（他ファイルの同種バグ）/ スコープ自明事項
-> **ただし例外（必ず含める）**: 根本原因の共有元を経由して**報告症状そのものが別入口でも再現する**「兄弟入口」は派生事項ではなく影響範囲（区分 S）。Phase 1 サマリーで必ずユーザーに提示する（backlog-investigator.md Step C-2 参照）。
-
-> **Q 回答の書き戻し（必須・スキップ不可）**: 上記のやり取りでユーザーが investigation.md「業務要件の不確実点」の Q（Q1・Q2…）に回答した場合、次の Phase へ進む前に Edit ツールで該当 Q の直下に `- 回答: {ユーザーの回答を1〜2行で要約}` を追記する。未回答のまま保留された Q には追記しない。既に `- 回答:` 行がある Q には再追記しない（重複防止）。**目的**: `backlog-planner` Step A-1 が「回答済み Q」と「未回答 Q」を区別できるようにするため。回答欄がないと、Phase 1 で解決済みの業務要件の不確実点を planner が「未確認」とみなし approach-plan.md で再度 Q として起票してしまう（二重生成）。
+> **次に進む条件（自動進行）**: Phase 1 の結果は Phase 2 の判断材料として使うため、Phase 1 単独の長いサマリーは出さない。
+> - `{issue_type}` = `バグ` の場合: 「最有力仮説は X です。Sandbox で検証します」と1〜2行で伝えて Phase 1.6 へ進む（断定は Phase 1.6 完了後まで禁止。ただし typo・定数値誤り等のコード上で明白な自明バグは Phase 1.6 の判定に従う）
+> - `{issue_type}` = `追加要望` / `その他` / `問い合わせ` の場合: そのまま Phase 2 へ進む（Phase 2 の提示が Phase 1 のサマリーを兼ねる）
+> - 上記「investigator の確認記録ゲート」の共有依頼・症状前提の未確定がある場合は、この時点で提示して担当者の応答を待つ（自動進行を止める条件）
+> - 影響範囲に区分 S（兄弟入口: 根本原因の共有元を経由して報告症状そのものが別入口でも再現する）の行がある場合は、Phase 2 の提示で必ず伝える（backlog-investigator.md Step C-2 参照）
 
 ---
 
@@ -298,49 +289,96 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 ---
 
-### Phase 2: 対応方針の確定（backlog-planner Phase A）
+### Phase 2: 対応方針の決定（担当者が決める・本コマンド直接実行）
 
-> **`{deploy_route}` = `manual-operation` の場合（`--light` より優先。コード変更が発生せず軽量修正フローと無関係のため）**: `backlog-planner` は起動しない。本コマンドが直接 `docs/logs/{issueID}/approach-plan.md` に以下の最小内容を作成する:
-> ```
-> ## 対応方針: {issueID}
->
-> ## 対応方針（結論）
-> 実装不要・管理画面直接操作（判定根拠: investigation.md「デプロイ適否判定」セクション参照）
-> ```
-> 作成後、ユーザに提示し「Phase 3〜5（実装関連フェーズ）をスキップして Phase 6（管理画面操作手順の作成）に進んでよろしいですか？」とテキストで確認する。承認後、Phase 1.6 は通常どおり実施済みの前提で、Phase 3・3.5・4・5 を全てスキップして Phase 6 へ直接進む。
->
-> **`--light` フラグが設定されている場合**: 種別が「問い合わせ」の場合は本分岐を適用しない（下記「種別が「問い合わせ」の場合」節を優先し、回答ドラフトを生成して Phase 2 で完了する）。それ以外の種別では Phase 2 をスキップして Phase 3（実装方針）へ直接進む。対応方針は「最小修正・既存パターン踏襲」固定とし、`approach-plan.md` を作成しない。Phase 3 開始時にその旨を 1 行通知する。
+> **目的**: 担当者が対応方針を決めるための判断材料を短く提示し、決定を記録する。ClaudeCode は方針を立案・比較しない（別エージェントの起動・案の比較表・工数見積はしない）。Phase 1 のサマリーも兼ねる。
 
-#### 種別が「問い合わせ」の場合（回答ドラフト・Phase A/B とは別モード）
+#### 種別が「問い合わせ」の場合（回答ドラフト）
 
-`{issue_type}` = `問い合わせ` の場合、詳細手順（`backlog-planner` 起動パラメータ・回答提示手順・完了報告文言）を Read する: [.claude/templates/backlog/phase2-inquiry-mode.md](../templates/backlog/phase2-inquiry-mode.md)
+`{issue_type}` = `問い合わせ` の場合、詳細手順（`backlog-planner` Phase Q の起動パラメータ・回答提示手順・完了報告文言）を Read する: [.claude/templates/backlog/phase2-inquiry-mode.md](../templates/backlog/phase2-inquiry-mode.md)
+
+#### それ以外の種別
+
+**Step 1: 判断材料の確認**
+
+`docs/logs/{issueID}/investigation.md` の「## 課題サマリー」「## 課題の概要・前提」「## 要件理解」「## スコープ」「## 根本原因 / 要件の本質」「## 影響範囲」「## 業務要件の不確実点」「## デプロイ適否判定」を見出し Grep で特定して該当セクションのみ Read する。バグは `hypothesis-verification.md` の検証サマリーも Read する（採用判定 ✅ の仮説のみを原因として扱う）。
+- ✅ が0件で ⚠️（検証不可）が1件以上ある場合（本番でしか起きない等）: 方針は保留せず、「Sandbox では原因を検証できていない」旨と最有力仮説を「■ 原因・現状」に明示したうえで、「未検証のまま方針を決める / 再検証する」を担当者に選んでもらう。未検証のまま決めた場合は approach-plan.md「## 原因・現状」の先頭に `[未検証]` を付けて記録する
+- ✅ も ⚠️ も0件（全仮説が再現せず）の場合: 方針は提示せず「原因が確定していません」と伝え、Phase 1 の再調査（新しい仮説の補充）を提案する
+
+**Step 2: 担当者への提示（チャット・15行以内）**
+
+```
+【対応方針の決定】
+■ どんな課題か（{種別}）: {誰が・何に困っている／何を求めているかを2〜3行。業務の言葉で}
+■ 原因・現状: {バグ: Sandbox で確認した原因を1〜2行 / 追加要望・その他: 今どうなっているかを1〜2行}
+■ 対応方針:
+  （一択の場合）{方針を1〜2行}で対応するのがよいと思います（理由: {1行}）。これで進めてよいですか？
+  （業務判断が分かれる場合）以下を決めてください。
+  Q1. {論点}（推奨: {選択肢} — {理由1行}）
+```
+
+- 技術詳細（メソッド名・API名・行番号）は出さない。オブジェクト・項目はラベルで書く（[_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md)）
+- 影響範囲に区分 S（兄弟入口）がある場合は「■ 原因・現状」に「同じ症状が {別の画面・入口} でも起きています（あわせて直す前提です）」を1行添える
+- `{deploy_route}` = `manual-operation` の場合は「■ 対応方針」を「コード変更ではなく管理画面の操作で対応するのがよいと思います（理由: {deploy-skip-judgment の判定根拠1行}）。これで進めてよいですか？」とする
+- investigator が記録した共有依頼（未共有の資料）・症状前提の未確定が残っていれば末尾に1〜2行で添える
+
+**推奨の決め方**（推奨は1つに絞る。案を並べて比較しない）:
+- **バグ**: 報告された症状を全ての入口で解消する最小の修正。区分 S がある場合は、共有元での修正または全ての兄弟入口をカバーする修正を推奨する（1入口だけ直す修正は症状が残るため推奨しない）
+- **追加要望**: 既存の類似実装のパターンを踏襲する。類似実装がなければ最も近い既存実装のスタイルに合わせる
+- **実装レイヤーが複数成立する場合**: 要件を満たす最も軽い方式（設定 < フロー < Apex）。ただし既存に同型のパターンがあればそれに合わせる
+- **その他**: 課題の性質（データ補正・設定変更・調査依頼等）に合わせ、影響が最小で元に戻しやすい方式を推奨する。本番データへの影響・準備期間が大きい場合は Q にする
+- **Q にするのは業務判断が分かれる点だけ**（過去データの扱い・業務ルールの解釈・受入条件・適用範囲・今回のスコープに含めるか）。最大3件。investigation.md「業務要件の不確実点」の Q を引き継ぐ。テストクラスの要否・命名・実装パターンなど ClaudeCode が決められることは Q にしない
+
+**Step 3: 担当者の決定を待つ**
+
+担当者の自由テキストを待つ（質問・別案の指示・Q への回答 何でも可）。
+- 担当者が推奨と異なる方針を示した場合は、**担当者の方針を決定方針とする**。技術的な懸念があればコード・メタデータで裏取りしてから根拠（ファイル名:行番号）付きで1〜2行伝えるが、決定を覆そうとしない（方針の問題の有無は Phase 3.5 でチェックする）
+- 担当者が一部の要求・入口（区分 S の兄弟入口等）を**意図的に今回の対象外**とした場合は、その理由を記録する（下記書式の「### 今回対象外とする要求・入口」。Phase 3.5 の決定方針チェックはこれを問題にしない）
+- 顧客の回答待ちの Q は、担当者が仮の回答で進めると決めた場合に限り「仮回答（要顧客確認）: {内容}」として記録して進めてよい
+- 質問には答え、方針と Q の回答がそろうまでやり取りを続ける
+- 承認とみなす返答・みなさない返答は [_README.md §承認判定](../templates/backlog/_README.md) に従う
+
+**Step 4: 決定の記録**
+
+方針が決まったら `docs/logs/{issueID}/approach-plan.md` を以下の形式で Write する（見出し名は下流エージェントが Grep するため変えない）:
+
+```
+## 対応方針: {issueID}
+
+## 課題の内容・詳細
+{■どんな課題か の内容}
+
+## 原因・現状
+{■原因・現状 の内容}
+
+## 対応方針（結論）
+{担当者が決定した方針を1〜3行}
+
+## 方針決定の経緯・根拠
+{ClaudeCode の推奨と担当者の決定を1〜3行。推奨と異なる方針に決まった場合は、担当者が示した理由の要点}
+
+### 業務要件への回答
+- Q1. {論点} / 回答: {担当者の回答}（仮回答で進める場合は「仮回答（要顧客確認）: {内容}」）
+（Q がない場合は「Q なし」）
+
+### 今回対象外とする要求・入口
+- {要求・入口} — {担当者が対象外とした理由}
+（なければ「なし」）
+
+## 改版履歴
+| 日時 | 発見Phase | 変更内容 | 変更前 | 変更後 | 理由 | 影響 |
+|---|---|---|---|---|---|---|
+```
+
+推奨と異なる方針に決まった場合・担当者から補足の指示があった場合は discussion-log.md にも追記する。担当者から工数見積を依頼された場合は `sf-effort-estimator` に委譲し、返った `{N}h`・信頼度・採用アンカーを approach-plan.md に「## 工数見積」として追記する（見積は依頼時のみ。依頼がなければ作らない）。**対応形態の整合**: 担当者の決定が Phase 1 の `{deploy_route}` と異なる対応形態（管理画面操作と判定されていたがコードで直す、またはその逆）になった場合は、`{deploy_route}` を決定に合わせて更新し、investigation.md のフロントマター（`write_frontmatter.py` を再実行）と「## デプロイ適否判定」に更新理由を追記してから分岐する。
+
+記録後、「対応方針を記録しました。Phase 3（実装方針）に進みます」と伝えて同一ターンで次へ進む:
+- `{deploy_route}` = `normal`: Phase 3 へ
+- `{deploy_route}` = `manual-operation`: Phase 3・3.5・4・5 は実施しない。代わりに本コマンドが**簡易の方針チェック**を行う（決定した管理画面操作で課題の要求が全て解消するか、操作対象の設定を参照している処理〔入力規則・フロー・Apex〕への影響がないかを Grep で確認し、approach-plan.md の「## 方針決定の経緯・根拠」に1〜2行で記録する）。問題があれば担当者に伝えて止まり、なければ Phase 6（管理画面操作手順の作成）へ
 
 ---
 
-`backlog-planner` エージェントを起動する（Phase A: 対応方針）:
-
-```
-モード: 対応方針（Phase A）
-issueID: {issueID}
-project_dir: {プロジェクトルートパス}
-調査レポート: docs/logs/{issueID}/investigation.md
-仮説検証レポート: docs/logs/{issueID}/hypothesis-verification.md（バグ系のみ。ファイルが存在する場合）
-出力先: docs/logs/{issueID}/approach-plan.md
-種別: {issue_type}
-default_stance: {バグ="最小修正＋既存への影響ゼロを最優先" / 追加要望="既存類似実装のパターンに合わせる" / その他="スコープ規模・本番影響・準備期間を確認のうえ方針を提示し、ユーザに選択させる"}
-```
-
-エージェントが `approach-plan.md` を保存したら提示する。  
-ユーザが採用方針を確定するまで Phase 3 に進まない。
-
-> **次に進む条件**: ユーザが対応方針を確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項・「Phase 3 に進んでよろしいですか？」をテキストで提示してやり取りを経て進む
->
-> **Phase 2 典型例（該当時のみ・0件が原則）**: 「過去 X 件のデータで項目 Y が null のレコードを許容するか / 一括補完するか」「未確定の業務ルール Q1 の回答が方針の前提と合っているか」「スコープに含めるべきか別 Backlog で起票するか」
-> **含めてはいけない例**: 「テストクラスを追加するか」（実装側で判断）「採用案を確定してください」（次へ確認で兼ねる）「命名はこれで良いか」（実装側で判断）
-
----
-
-### Phase 3: 実装方針の確定（backlog-planner Phase B）
+### Phase 3: 実装方針の策定（backlog-planner Phase B）
 
 `backlog-planner` エージェントを起動する（Phase B: 実装方針）:
 
@@ -348,27 +386,21 @@ default_stance: {バグ="最小修正＋既存への影響ゼロを最優先" / 
 モード: 実装方針（Phase B）
 issueID: {issueID}
 project_dir: {プロジェクトルートパス}
-採用方針: {承認された案名}
+決定方針: docs/logs/{issueID}/approach-plan.md
 調査レポート: docs/logs/{issueID}/investigation.md
 出力先: docs/logs/{issueID}/implementation-plan.md
 種別: {issue_type}
-default_stance: {Phase 2 と同じ値を引き継ぐ}
 ```
 
-> **`--light` の場合**: 採用方針 = 「最小修正・既存パターン踏襲」固定（Phase 2 をスキップしているため `{承認された案名}` は存在しない）。
+エージェントが `implementation-plan.md` を保存したら、[_README.md §サマリーの書き方](../templates/backlog/_README.md) の Phase 3 の型でサマリーを提示する。
 
-エージェントが `implementation-plan.md` を保存したら提示する。  
-全判断ポイントが確定するまで Phase 4 に進まない。
-
-> **次に進む条件（自動進行）**: [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従いサマリー・確認事項を提示し、「異議がなければこのまま Phase 3.5 に進みます」と一言添えて、承認を待たず同一ターンで Phase 3.5 へ進む（【フェーズ進行】参照。実装方針の技術文書化であり業務判断そのものではないため）
->
-> **Phase 3 典型例（該当時のみ・0件が原則）**: 「類似実装と異なるパターンを採用した判断ポイントの整合性」「過去に蓄積された不整合データへの遡及対応を今回のスコープに含めるか」
+> **次に進む条件（自動進行）**: 「異議がなければこのまま Phase 3.5 に進みます」と一言添えて、承認を待たず同一ターンで Phase 3.5 へ進む。ただし以下は止まって担当者に確認する:
+> - planner が「決定方針では実現できない・要求を満たせない」と返した → 理由と代替の方向性を提示し、担当者が方針を決め直したら approach-plan.md の「## 対応方針（結論）」を更新し改版履歴に追記してから Phase 3 を再実行する
+> - 業務判断の判断ポイントが「未確定」で残った → その判断ポイントだけを提示し、回答を implementation-plan.md に反映してから進む
 
 ---
 
 ### Phase 3.5: 実装前検証（backlog-validator）
-
-> **`--light` フラグが設定されている場合**: Step A（regression-guard）・Step C（backlog-validator）はスキップして Phase 4（実装）へ直接進む。**ただし Step B（Before エビデンス自動採取）はスキップしない**。UI 影響判定（Step B 冒頭の判定基準）に該当する場合は light でも実行してから Phase 4 へ進む（Before 撮影は実装前限定・不可逆のため。Phase 1.6 の Sandbox 仮説検証と同じ扱い）。
 
 > **サブエージェントの二段ネストを避ける**: `backlog-validator` はサブエージェントを起動しない leaf agent。Phase 3.5 で必要な `regression-guard`（リグレッション確認）と `ui-evidence-runner`（Before エビデンス自動撮影）は、本コマンド（メインスレッド）が validator の起動前に直接 Task 起動し、結果を validator へ渡す。
 
@@ -387,27 +419,33 @@ default_stance: {Phase 2 と同じ値を引き継ぐ}
 
 `docs/logs/{issueID}/implementation-plan.md` の「変更対象ファイル」を確認し、LWC（`.html`/`.js`）・Aura（`.cmp`）・VF（`.page`）が含まれる、または実装方針に「画面・ラベル・文言・表示・UI」の語が含まれる場合のみ、[option-evidence-check.md](../templates/backlog/options/option-evidence-check.md) の B・C 手順を実行する（Sandbox alias 解決 → `ui-evidence-runner` を `mode: before-capture` で Task 起動 → Before データ値採取）。該当しない場合は本 Step 全体をスキップし `{evidence_result}` = 「該当なし（非UI変更）」とする。
 
-> **権限・FLS・レイアウト・RecordType・共有ルール変更の場合**: 本 Step（Before エビデンス自動採取）の対象外（`{evidence_result}` = 「該当なし（非UI変更）」）でも動作確認が不要になるわけではない。異なる権限経路の実ユーザーによる Login As 確認は Phase 6 では行わず、`/test`（test-spec-builder.md の権限変更検出ロジック）が確実に UI 種別のテストケースを生成し確認する設計に一元化されている（詳細は Phase 6 セクション参照）。
+> **権限・FLS・レイアウト・RecordType・共有ルール変更の場合**: 本 Step（Before エビデンス自動採取）の対象外（`{evidence_result}` = 「該当なし（非UI変更）」）でも動作確認が不要になるわけではない。異なる権限経路の実ユーザーによる確認は Phase 6 では行わず、`/test` に一元化されている（詳細は Phase 6 セクション参照）。
 
 **Step C: backlog-validator 起動**
 
 `backlog-validator` エージェントを起動する:
 
 ```
+決定方針: docs/logs/{issueID}/approach-plan.md
 実装計画: docs/logs/{issueID}/implementation-plan.md
 調査レポート: docs/logs/{issueID}/investigation.md
+仮説検証レポート: docs/logs/{issueID}/hypothesis-verification.md（バグ系のみ。ファイルが存在する場合）
 regression-guard確認結果: {regression_result}
 Beforeエビデンス採取結果: {evidence_result}
 project_dir: {プロジェクトルートパス}
 ```
 
-エージェントが `validation-report.md` を保存したら内容をユーザに提示する。Phase 3 への戻りが提案された場合は Phase 3 に戻って実装方針を修正してから Phase 3.5 を再実施する（Step A・B も再実行する。「戻り→再実施」の遷移自体は自動進行の対象）。**Phase 3 戻りは最大 2 回まで・セッション跨ぎを含めて通算カウント**（カウントは discussion-log.md の改版履歴から復元する。詳細は `test-fail-routing.md` §ループ上限 を参照）。3 回目以降の戻り提案が出た場合は自動進行を停止し、「実装方針の見直しが繰り返されています。一度オフラインで方針再検討の打ち合わせが必要かもしれません。このまま Phase 3 に戻りますか？（続行 / 中止）」とテキストで確認する。「続行」ならば Phase 3 に戻る。「中止」ならばコマンドを終了する。
+エージェントが `validation-report.md` を保存したら、総合判定に応じて次のように進める:
 
-> **次に進む条件（`{light_mode}` = `false`。通常）**: 全検証項目 OK をユーザが確認した後 — [_README.md §Phase 末尾の確認プロトコル](../templates/backlog/_README.md) に従い、サマリー・確認事項・「Phase 4 に進んでよろしいですか？ Phase 3 に戻る必要がありますか？」をテキストで提示してやり取りを経て進む
->
-> **次に進む条件（`{light_mode}` = `true`。2026-09-15追加）**: Step A/C がスキップされ validation-report.md が生成されていないため、上記の確認プロトコルは行わない。Step B（該当時のみ実行）の結果を一行報告し、「依頼が明確・スコープ確定のため実装前検証を省略しました。このまま Phase 4 に進みます」と事実として通知して、承認を待たず同一ターンで Phase 4 を起動する（質問文にしない。[answer-scope-spec.md](../templates/common/answer-scope-spec.md) 準拠）。
->
-> **Phase 3.5 典型例（該当時のみ・0件が原則）**: 「新規発見した影響箇所への対処方針」「Step 1〜3 NG への対処方針」（Before エビデンスは自動採取のためブロッカーにならない）
+| 総合判定 | 動き |
+|---|---|
+| **Phase 4（実装）へ進んでよい** | 3〜5行のサマリー（決定方針のチェック結果・影響範囲の再確認結果）を提示し、「このまま Phase 4（実装）に進みます」と伝えて同一ターンで Phase 4 を起動する |
+| **Phase 3（実装方針）に戻る** | 戻り理由を1〜2行で伝え、Phase 3 → Phase 3.5（Step A・B も再実行）を自動で再実施する |
+| **Phase 2 に戻る（決定方針に問題）** | 止まる。validator が指摘した問題（方針のままでは課題が解決しない・前提が崩れている等）と、ClaudeCode としての修正案を提示する。担当者が方針を決め直したら approach-plan.md を更新（改版履歴に追記）して Phase 3 から再実施する。担当者が**承知のうえで現方針を維持する**と明示した場合は、その理由を approach-plan.md（「### 今回対象外とする要求・入口」または「## 方針決定の経緯・根拠」）と discussion-log.md に記録し、Phase 3.5 を再判定する（実装計画に変更がなければ Step A・B は再実行しない） |
+| **技術確認待ち** | 止まる。技術的な NG の内容と対処案を提示し、担当者の判断を待つ。担当者が対処を決めたら、実装計画の修正が必要なら Phase 3 へ、そのまま進めてよいなら続行の明示を discussion-log.md に記録して Phase 4 へ |
+| **（総合判定なし）** | 止まる。validator が総合判定を返さなかった理由（必要項目の欠落等）を提示し、不足を補ってから Phase 3.5 を再実行する |
+
+**Phase 3 戻りは最大 2 回まで・セッション跨ぎを含めて通算カウント**（カウントは discussion-log.md のループ記録から復元する。詳細は `test-fail-routing.md` §ループ上限 を参照）。3 回目の戻りが出た場合は自動進行を止め、「実装方針の見直しが繰り返されています。方針自体を見直すか、このまま Phase 3 に戻るか決めてください」と担当者に確認する。**Phase 2 に戻って担当者が方針を決め直した場合は、Phase 3 戻りの回数を0から数え直す**（方針が変わった後の実装方針は別物のため）。Phase 2 戻り自体も discussion-log.md に `Phase2-戻り` として記録する。
 
 ---
 
@@ -450,7 +488,7 @@ project_dir: {プロジェクトルートパス}
 - **条件付きPASS（NoTestRun フォールバック発生）** → 自動で Phase 6 に進めない。dry-run はコンパイル成功だが対応テストクラス未整備でカバレッジ未検証。ユーザーに「テスト追加（Phase 4 戻り）」または「カバレッジ未検証を承知で本デプロイ」を求めてから進む
 - **FAIL** → Phase 4 に差し戻す（明らかな壊れを修正してから再度スモーク確認。ユーザー判断を要する分岐ではないため確認は取らない）
 
-> **次に進む条件（2026-09-15変更: Phase5→6は明示承認を要求しない）**: PASS の場合、サマリーを提示したうえで「スモーク確認PASSのため、そのままPhase 6（Sandboxリリース）に進みます」と一行で事実として通知し、承認を待たずに同一ターン内で Phase 6 を起動する（質問文にしない。[answer-scope-spec.md](../templates/common/answer-scope-spec.md) 準拠）。ユーザーは異議があればいつでも割り込める。条件付きPASS の場合のみ、上記2択をテキストで確認してから進む。FAIL の場合は「Phase 4 に差し戻して修正します」と通知し Phase 4 を起動する（確認は取らない）。
+> **次に進む条件**: PASS の場合、サマリーを提示したうえで「スモーク確認PASSのため、そのままPhase 6（Sandboxリリース）に進みます」と一行で事実として通知し、承認を待たずに同一ターン内で Phase 6 を起動する（質問文にしない。[answer-scope-spec.md](../templates/common/answer-scope-spec.md) 準拠）。ユーザーは異議があればいつでも割り込める。条件付きPASS の場合のみ、上記2択をテキストで確認してから進む。FAIL の場合は「Phase 4 に差し戻して修正します」と通知し Phase 4 を起動する（確認は取らない）。
 >
 > **Phase 5 典型例（該当時のみ・0件が原則）**: 「カバレッジ未検証（NoTestRun フォールバック）のまま本デプロイに進めてよいか」（dry-run コンパイルエラー・テスト失敗は上記の通り Phase 4 へ自動差し戻しのため業務判断を要さず、典型例に含めない）
 
@@ -578,11 +616,11 @@ main スレッドが「この課題は Phase 6 に到達しない」と判断し
 
 `/backlog {issueID}` が一度起動されたセッションでは、以降そのセッション内でそのissueIDに関する新しい情報（Backlog コメントの貼り付け・URL 共有・「追加でこれも」等の依頼）が出てきた時点で、コマンドを再起動しなくても以下を自動適用する。実運用ではユーザーはコマンドを打ち直さずそのままチャットで続けるため、「コマンド起動＝作業開始のきっかけ」「その後の振る舞い＝セッション内で継続適用される標準動作」として分離する設計である。
 
-1. **新ラウンドとして扱う**: issue_type 別フロー（バグ／追加要望／問い合わせ／その他 + light_mode）で、軽い調査・提案 → 対応方針確認 → チェック → 実装、という軽量サイクルをそのまま回す。承認が必要なのは通常フローと同じく「対応方針確定」「実装着手」の2点のみ。
+1. **新ラウンドとして扱う**: issue_type 別フロー（バグ／追加要望／問い合わせ／その他）で、調査（新情報のスコープ内）→ 判断材料の提示 → 担当者が方針を決定 → 決定方針のチェック → 実装、というサイクルを回す。承認が必要なのは通常フローと同じく「対応方針の決定」1点のみ（問題が見つかった時だけ止まる）。
 2. **discussion-log.md への記録ルールを常時発動に拡張する**: 【ユーザー応答時】の必須3点セット（差し込み・指摘・方針変更を含む返答は discussion-log.md に追記）を、`/backlog` コマンド起動中限定ではなく「セッション内でその issueID に関する会話が続く限り常時」適用する。
 3. **investigation.md に新ラウンドとして追記する**（既存内容は保持し、追加セクションとして積み上げる。上書きしない）。
 4. **implementation-plan.md の改版履歴に追記する**（NG 差し戻し時に使っている改版履歴フォーマットを流用する）。
-5. **`/test` 再実行の要否**: 新ラウンドの「対応方針確定」タイミングで、既存の仕組み（light_mode 格上げ条件の延長で機械的に一言添え、対応方針確定ゲートで人間が一緒に判断する）をそのまま適用する。新規の確認ポイントは追加しない。
+5. **approach-plan.md の改版履歴に追記する**（新ラウンドで方針が変わった・追加された場合。「## 対応方針（結論）」も更新する）。コード変更が発生した場合は Phase 6 完了後に `/test` の再実行を案内する。
 
 ---
 

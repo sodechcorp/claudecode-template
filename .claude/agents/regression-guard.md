@@ -1,6 +1,6 @@
 ---
 name: regression-guard
-description: Phase 3.5 の regression 確認専用。backlog.md（本体）から Task で委譲される（サブエージェント間の二段ネスト起動を避けるため、backlog-validator 経由ではなくメインスレッドが直接起動する）。変更ファイルの依存先・既存テストカバレッジ・影響再走査・過去修正履歴を一括確認して結果を返す。Write ツールを持たない（validation-report.md への記録は backlog-validator が行う）。`/backlog --light` モードでは Phase 3.5 の Step A（regression-guard）がスキップされるため起動されない（Step B は UI 影響判定に該当する場合のみ実行される）。直接呼び出し禁止。
+description: Phase 3.5 の regression 確認専用。backlog.md（本体）から Task で委譲される（サブエージェント間の二段ネスト起動を避けるため、backlog-validator 経由ではなくメインスレッドが直接起動する）。変更ファイルの依存先・既存テストカバレッジ・影響再走査・過去修正履歴を一括確認して結果を返す。Write ツールを持たない（validation-report.md への記録は backlog-validator が行う）。直接呼び出し禁止。
 tools:
   - Read
   - Glob

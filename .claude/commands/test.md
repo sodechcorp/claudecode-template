@@ -24,7 +24,7 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 ## compact 跨ぎの復元
 
-Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順9・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `light_mode` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。
+Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順9・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。
 
 ---
 
@@ -99,20 +99,14 @@ XLSX_FOLDER="${LOG_DIR}"
 EVIDENCE_DIR="${LOG_DIR}/evidence"
 
 INVEST_FILE="${LOG_DIR}/investigation.md"
-LIGHT_MODE="false"
-if [ -f "$INVEST_FILE" ]; then
-  LIGHT_MODE=$(python -c "import re; text = open(r'${INVEST_FILE}', encoding='utf-8').read(); m = re.search(r'^light_mode:\s*(.+)$', text, re.MULTILINE); print(m.group(1).strip().strip('\"').strip(\"'\").lower()) if m else print('false')" 2>/dev/null || echo "false")
-fi
 SPEC_PATH="${LOG_DIR}/test-spec.md"
 JUDGMENT_PATH="${LOG_DIR}/judgment-result.json"
-LIGHT_MODE="${LIGHT_MODE:-false}"
 echo "PROJECT_DIR=$PROJECT_DIR"
 echo "LOG_DIR=$LOG_DIR"
 echo "XLSX_FOLDER=$XLSX_FOLDER"
 echo "EVIDENCE_DIR=$EVIDENCE_DIR"
 echo "SPEC_PATH=$SPEC_PATH"
 echo "JUDGMENT_PATH=$JUDGMENT_PATH"
-echo "LIGHT_MODE=$LIGHT_MODE"
 
 # 6. test-spec.md の存在確認（なければ Phase B へ）
 if [ ! -f "$SPEC_PATH" ]; then
@@ -143,7 +137,8 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
   echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
 
-  # 差分対象 = 前回 NG ∪ 前回 SKIP（要目視・DOM未取得） ∪ 前回結果に存在しない TC（--force 等での新規追加分）。
+  # 差分対象 = 前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない TC（--force 等での新規追加分）。
+  # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は証跡を撮り直さず、Phase D・D-2 で判定だけやり直す。
   # 前回 OK・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
   # 証跡未採取のまま judge_results.py で「証跡ファイルが見つかりません」の偽 NG になるため）。
   # ng_type=要確認（証跡は正常採取済み・判定方法が機械可読パターンに一致しないだけ）の NG は、
@@ -172,7 +167,7 @@ fi
 # 9. compact 跨ぎ復元用コンテキストの保存（本 Phase A 確定値のスナップショット。
 # Phase B 以降で /compact が発生した場合、本ファイルがあれば Phase A を再実行せず変数を復元できる。
 # 書き込み失敗は無視・後続処理をブロックしない）
-python -c "import json; json.dump({'issue_id':'$ISSUE_ID','project_dir':r'$PROJECT_DIR','log_dir':r'$LOG_DIR','xlsx_folder':r'$XLSX_FOLDER','evidence_dir':r'$EVIDENCE_DIR','spec_path':r'$SPEC_PATH','judgment_path':r'$JUDGMENT_PATH','light_mode':'$LIGHT_MODE','alias':'$SF_ALIAS','instance_url':'$INSTANCE_URL'}, open(r'${LOG_DIR}/.test-context.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=2)" 2>/dev/null || true
+python -c "import json; json.dump({'issue_id':'$ISSUE_ID','project_dir':r'$PROJECT_DIR','log_dir':r'$LOG_DIR','xlsx_folder':r'$XLSX_FOLDER','evidence_dir':r'$EVIDENCE_DIR','spec_path':r'$SPEC_PATH','judgment_path':r'$JUDGMENT_PATH','alias':'$SF_ALIAS','instance_url':'$INSTANCE_URL'}, open(r'${LOG_DIR}/.test-context.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=2)" 2>/dev/null || true
 ```
 
 **実行内容の提示**（提示のみ・停止しない。ユーザーは `/test {issueID}` を明示入力済みで課題ID・Sandbox は確定済みのため。実データへの書き込みを伴う操作の承認は auto-evidence-runner.md Step 1.5（メール到達安全確認）に集約する）:
@@ -181,18 +176,14 @@ python -c "import json; json.dump({'issue_id':'$ISSUE_ID','project_dir':r'$PROJE
 === /test 実行内容 ===
 課題ID    : {issueID}
 Sandbox   : {alias}
-対応方式  : {LIGHT_MODE=true なら "--light（軽微修正）" / false なら "通常"}
 証跡保存先: {evidence_dir}
 Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
-
-{LIGHT_MODE=true の場合のみ}
-※ --light（軽微修正）実行分のため、TC生成（Phase B）はグレーゾーンを非該当側に倒して絞り込み、Phase F-1b（blind最終解決判定）は省略します（権限・FLS・共有ルール変更を含む場合は通常どおりフル実行）。
 
 実行内容:
   Phase A: 前提検証・接続確認（Sandbox 判定）
   Phase B: テスト仕様の展開（test-spec.md 生成・網羅性チェック）
   Phase C: SOQL / 匿名 Apex / Playwright UI の自動実行（分岐網羅・before/after）
-  Phase D: OK/NG 判定
+  Phase D: OK/NG 判定（機械判定できない TC は Phase D-2 で AI が証跡を読んで判定）
   Phase E: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
   Phase F: test-report.md 生成・一時ファイル後始末（テストデータは削除せず Sandbox に保持）
 ```
@@ -231,7 +222,7 @@ python -c "import PIL" 2>/dev/null || {
 - `pattern_map_path`: `.claude/templates/backlog/test-pattern-map.md`
 - `force`: `${FORCE_SPEC:-false}`（`--force` 指定時は true）
 - `validation_report_path`: `{log_dir}/validation-report.md`（Phase 3.5 regression-guard の逆参照結果。軸3消費者リスト source・省略可）
-- `light_mode`: `{LIGHT_MODE}`（`/backlog --light` で対応した課題かどうか。investigation.md フロントマターから読み取り済み）
+- `evidence_dir`: `{evidence_dir}`（`/backlog` Phase 3.5 の Before 証跡 `before/` の有無確認に使う）
 
 `test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。返却に `[WARN]` 行（investigation.md 不在による軸1・軸3スキップ、軸3 消費者リスト source 不在等）が含まれる場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
 
@@ -317,8 +308,36 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/judge_results.py" \
 # judge_results.py は exit 1 で NG を報告する。同一ブロック内で終了コードを確認（別ブロックだと Bash の新シェル起動により $? が無効化される）
 RC=$?
 echo "判定結果 exit code: $RC"
-cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); print(f'OK={d[\"ok\"]} NG={d[\"ng\"]} 要手動={d[\"skip\"]}')"
+cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); print(f'OK={d[\"ok\"]} NG={d[\"ng\"]} AI判定待ち={d.get(\"ai_pending\",0)} 要手動={d[\"skip\"]}')"
 ```
+
+---
+
+### Phase D-2: AI 判定（`ai_pending` が 1 件以上の場合のみ）
+
+> **[メインスレッドが実施]** 機械判定できなかった TC（期待件数の無い件数一致・検証出力の無い匿名 Apex・DOM の無いスクショ・空白に近い証跡・判定パターン未一致など）を、**人間の目視に回さず** AI が判定する。`ai_pending` が 0 なら本 Phase はスキップする。
+
+1. `{judgment_path}` の `ai_list` を読む（各要素に `no`・`label`・`expected`・`judge_method`・`shubetsu`・`evidence_files`・`reason` がある）
+2. TC ごとに、`{spec_path}` の該当行（観点・前提・実行アクション・期待結果・判定方法）と、`evidence_files` の全ファイルを **Read する**（`.txt` は本文、`.png` は画像として中身を見る）
+3. 次の基準で **OK / NG を必ず決める**（保留・要目視にしない）:
+   - **OK**: 観点と期待結果が求めていることが、証跡上で**具体的に確認できる**（どの値・どの表示を見て判断したかを書ける）
+   - **NG（ng_type 空＝実装が期待と不一致）**: 処理は実行され結果も採れているが、期待と違う
+   - **NG（ng_type `未実行`＝証跡が不十分で再採取が必要）**: 画面が空白・ログイン画面・前提データ未作成・処理が起動していない等で、期待の成否を証跡から判断できない
+   - **NG（ng_type `画面エラー`）**: Salesforce のエラー画面が写っている
+   - 証跡から確認できないことを推測で OK にしない（「たぶん表示されている」は NG `未実行`）
+4. 判定結果を `{log_dir}/.tmp/ai-decisions.json` に JSON 配列で Write する。`basis` には**証跡のどこを見て判断したか**を具体的に書く（例: 「SOQL 結果の Status__c 列が全2行とも『完了』」「スクショ右上のトーストに『保存しました』」）:
+   ```json
+   [{"no": "TC-004", "status": "OK", "basis": "..."}, {"no": "TC-007", "status": "NG", "basis": "...", "ng_type": ""}]
+   ```
+5. 反映する:
+   ```bash
+   python "$(pwd -W)/scripts/python/backlog-xlsx/apply_ai_judgment.py" \
+     --judgment "{judgment_path}" \
+     --decisions "{log_dir}/.tmp/ai-decisions.json"
+   echo "反映 exit code: $?"
+   ```
+   exit 2（反映エラー）の場合は stderr の理由を直して再実行する。`AI判定待ちが残っています` が出た場合は残りを判定してから Phase E に進む（AI判定待ちを残したまま Phase E に進まない）
+6. **期待結果・判定方法の書き方が原因で AI 判定に回った TC**（期待件数なし・`項目=値` なし・判定方法の書き漏れ等）は、次回の機械判定のために `{spec_path}` の該当行を機械判定できる形（`test-pattern-map.md`「判定方法の選択肢」参照）に Edit しておく。期待値の意味は変えない（期待値ドリフト禁止）
 
 ---
 
@@ -402,15 +421,7 @@ echo "NG件数（blind判定の実行判定用）: ${NG_COUNT}"
 
 **`NG_COUNT` が 0 以外の場合**: 本ステップをスキップする（既に NG が判明しており、blind 判定を追加しても新しい情報は得られないため。Phase F-2 の NG 修正ループを優先する）。
 
-**`LIGHT_MODE=true` かつ `NG_COUNT` が 0 の場合（2026-09-16追加）**: 以下のコマンドで `{spec_path}` の「観点」列に権限・FLS・共有ルール系のキーワードを含む TC が無いか確認する:
-```bash
-SENSITIVE_TC=$(grep -E -c "権限|FLS|共有ルール|RecordType|シェアリング|プロファイル|権限セット" "{spec_path}" 2>/dev/null || echo "0")
-echo "権限・FLS・共有ルール系TC件数: ${SENSITIVE_TC}"
-```
-- **`SENSITIVE_TC` = 0**: F-1b 本体（以下手順1〜6・キャッシュ判定含む）をスキップし、`{log_dir}/test-report.md` に「## blind 最終解決判定」として「--light（軽微修正）のため省略」を1行追記する。総合判定は「## 総合判定への反映」表の「= 0 / リリース可 / 解決済み」行と同様に「PASS」を維持する（F-1b 未実施を理由に「条件付きPASS」へは書き換えない）。
-- **`SENSITIVE_TC` ≥ 1**: 省略せず通常どおり以下を実施する。
-
-**`LIGHT_MODE=false`（通常）かつ `NG_COUNT` が 0 の場合**: `.blind-verdict.json` のキャッシュを確認する:
+**`NG_COUNT` が 0 の場合**: `.blind-verdict.json` のキャッシュを確認する:
 ```bash
 JUDGMENT_HASH=$(python -c "import hashlib; d=open(r'{judgment_path}', encoding='utf-8').read(); print(hashlib.sha256(d.encode('utf-8')).hexdigest())" 2>/dev/null || echo "")
 CACHED_HASH=""
@@ -454,7 +465,6 @@ echo "JUDGMENT_HASH=${JUDGMENT_HASH} / CACHED_HASH=${CACHED_HASH}"
 | = 0 | 追加実装要 | （不問） | 「条件付きPASS」に書き換え |
 | = 0 | リリース可 | 解決済み以外 | 「条件付きPASS」に書き換え |
 | = 0 | リリース可 | 解決済み | 変更しない（Phase F が書き込んだ「PASS」を維持） |
-| = 0 | リリース可 | （light_mode省略） | 変更しない（Phase F が書き込んだ「PASS」を維持。「解決済み」と同様に扱う） |
 
 「条件付きPASS」への書き換え内容:
 ```
@@ -593,7 +603,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    | `ng_type` | NG の意味 | 次のアクション |
    |---|---|---|
    | `"未実行"` | 証跡が採取されていない（環境起因・実行漏れ・デプロイ後キャッシュ遅延） | **再テスト**: 差分再実行（`/test {issueID}` のみ・実装修正不要） |
-   | `"要確認"` | 証跡はあるが判定パターンが機械照合できない | **test-spec.md の判定方法を修正**後に再実行 |
+   | `"要確認"` | （旧版の判定結果のみ。現在は機械照合できない TC は Phase D-2 で AI が判定するため発生しない） | Phase D・D-2 をやり直す |
    | `"画面エラー"` | Salesforce の標準エラー画面が撮影された（「問題が発生しました」「Record ID is malformed」「関連リストはレイアウトにありません」等） | **要調査**: 実装/設定の不備（レイアウトへの関連リスト未追加等）か、テスト手順・前提データの誤り（不正な ID 参照・前提レコード未作成等）かを確認し、該当する方に差し戻す |
    | `""` (空) | 証跡あり・実装が期待値と一致しない（実装バグ） | **実装差し戻し**: 実装修正→ `/test {issueID}` 再実行 |
 
@@ -647,8 +657,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 
 確認環境: Sandbox（{alias}）
 本番反映状況: 未 ⚠️（Sandbox 検証までの完了。本番反映は別セッションで /release {issueID} を実施）
-対応方式: {LIGHT_MODE=true なら "--light（軽微修正）" / false なら "通常"}
-テスト結果: {OK=N / NG=N / 要手動=N}
+テスト結果: {OK=N / NG=N / 要手動=N}（うち AI 判定 {N} 件）
 総合判定: {実際の判定結果に応じて次の1つを選んで記載: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認・blind最終判定で指摘あり） / FAIL ❌ （NG が {N} 件）}
 
 成果物:

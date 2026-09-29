@@ -34,7 +34,7 @@ from pathlib import Path
 
 from _common import parse_test_spec
 
-_STATUS_ICON = {"OK": "✅ OK", "NG": "❌ NG", "SKIP": "（要手動）", "対象外": "▲"}
+_STATUS_ICON = {"OK": "✅ OK", "NG": "❌ NG", "SKIP": "（要手動）", "対象外": "▲", "AI判定": "（AI判定待ち）"}
 
 
 def _current_round(judgment_path: str) -> int:

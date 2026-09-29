@@ -30,54 +30,62 @@ INSTANCE_URL=$(echo "$SF_ORG_JSON" | python -c "import sys,json; print(json.load
 echo "INSTANCE_URL=$INSTANCE_URL"
 ```
 
-## メール到達安全確認（DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作の直前に必須）
+## メール到達安全確認（お客様に届く可能性があるときだけ対処・自動回避を優先）
 
-**実績インシデント（2026-08-03）**: Sandbox 検証中に承認プロセスのメールアラートが実際の顧客メールアドレスへ送信された。原因は Sandbox ユーザーの Email から `.invalid` サフィックスが外れていたこと（通常は Sandbox 作成時に自動付与されるが、手動編集等で個別ユーザーだけ外れることがある。ユーザーの Email ドメインが実在するかどうかは事前に見分けが付かない）。
+**実績インシデント（2026-08-03）**: Sandbox 検証中に承認プロセスのメールアラートが実際の顧客メールアドレスへ送信された（Sandbox ユーザーの Email から `.invalid` が外れていた）。
 
-承認プロセス（Approval Process）・ワークフロー/Process Builder のメールアラート・Flow の「メールを送信」アクションを起動しうる操作（**実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作**）の直前に必ず実施する。SOQL の SELECT・dry-run デプロイ等、レコードを変更しない操作では不要。
+**原則**: 毎回人に確認しない。①そもそもメールを送る処理を動かすか、②送信先がお客様か、を機械的に判定し、③お客様に届く場合は**テストの質を落とさずに自動で回避する**。人に確認するのは、回避するとテストの前提が変わってしまう（または回避しようがない）場合だけ。
 
-```bash
-# 該当件数を先に軽量取得（COUNT()）。0件ならUsername/Emailの全件取得自体を省略してテスト時短する。
-# 該当が1件以上ある場合は下記で必ずLIMITなしの全件取得に進む（安全確認の性質上、閾値超過分を切り捨てて見逃すことは禁止）。
-MATCH_COUNT=$(sf data query --target-org "$SF_ALIAS" \
-  -q "SELECT COUNT() FROM User WHERE IsActive = true AND Email != null AND NOT Email LIKE '%.invalid'" --json \
-  | python -c "import sys,json; print(json.load(sys.stdin)['result']['totalSize'])" 2>/dev/null || echo "0")
-echo "MATCH_COUNT=$MATCH_COUNT"
+**実施タイミング**: 実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作の直前。SOQL の SELECT・dry-run デプロイ等、レコードを変更しない操作では不要。
 
-if [ "$MATCH_COUNT" = "0" ]; then
-  echo "OK: 該当ユーザーなし。メール到達安全確認は不要のためスキップします。"
-else
-  QUERY_CSV=$(sf data query --target-org "$SF_ALIAS" \
-    -q "SELECT Username, Email FROM User WHERE IsActive = true AND Email != null AND NOT Email LIKE '%.invalid'" -r csv)
-  echo "$QUERY_CSV"
+### Step 1: メール送信処理の有無
 
-  # 想定外の大量該当を検知（Sandbox作成時は通常 .invalid が全ユーザーへ一括付与されるため該当は少数のはず。
-  # 50件超は個別ユーザーの手動編集ミスではなく組織全体のメール保護設定が機能していない可能性を示す）
-  if [ "$MATCH_COUNT" -gt 50 ]; then
-    echo "WARN: 該当ユーザーが$MATCH_COUNT件と異常に多数です。Sandboxのメール保護設定（.invalid付与）が組織全体で機能していない可能性があります。"
-  fi
+今回実行する操作が起動する処理（test-spec の実行アクション、`investigation.md`「## スコープ」のスコープ内処理＝実行経路・保存時に連動するトリガー/フロー、変更対象ファイル）について、以下を `force-app/` から Grep する:
 
-  # Username,Email をソートして安定文字列化 → SHA256 でハッシュ化（機械的に算出する。LLMが暗算・独自判断で計算しない）
-  QUERY_HASH=$(echo "$QUERY_CSV" | python -c "
-import sys, csv, hashlib, io
-rows = list(csv.reader(io.StringIO(sys.stdin.read())))[1:]  # ヘッダー除く
-stable = '\n'.join(sorted(','.join(r) for r in rows))
-print(hashlib.sha256(stable.encode('utf-8')).hexdigest())
-")
-  echo "QUERY_HASH=$QUERY_HASH"
-fi
-```
+| 種類 | 検出パターン |
+|---|---|
+| Apex | `Messaging.sendEmail` / `Messaging.SingleEmailMessage` / `Messaging.MassEmailMessage` |
+| フロー | `*.flow-meta.xml` の `<actionType>emailSimple</actionType>` / `<actionType>emailAlert</actionType>` |
+| ワークフロー・メールアラート | `*.workflow-meta.xml` の `<alerts>`（起動条件が今回の操作に該当するもの） |
+| 承認プロセス | `*.approvalProcess-meta.xml`（申請・承認・却下で通知が飛ぶ） |
+| 自動レスポンス | `*.autoResponseRules-meta.xml`（ケース・リードの作成時） |
 
-**再確認スキップ判定（キャッシュ）**: `MATCH_COUNT` が0件の場合は上記の通り確認不要でそのまま続行する（後続のユーザー確認は行わない）。1件以上ある場合、上記 `QUERY_HASH` をキャッシュファイル（`{log_dir}/.email-safety-ack.json`。呼び出し元が `{log_dir}` を持たない場合は `docs/logs/{issueID}/.email-safety-ack.json`）の `hash` と比較する:
-- キャッシュが存在し `hash` が `QUERY_HASH` と一致する場合: 「前回確認済みの対象ユーザーリストと同一のため再確認をスキップします（前回確認: {キャッシュの `confirmed_at`}）」と表示して続行する（下記のユーザー確認は行わない）
-- キャッシュが不在、または `hash` が不一致（対象ユーザーが増減・変化した）の場合: 下記のとおり通常どおりユーザーに確認を取る。ユーザーが承認したら `{"hash": "$QUERY_HASH", "confirmed_at": "{ISO日時}", "usernames": [{該当ユーザー一覧}]}` をキャッシュファイルに Write する
+- **該当なし** → 「メール送信処理なし」と記録し、確認なしで進む
+- 保存時に連動するフロー・承認プロセスが force-app に取得されていない可能性がある場合（`investigation.md`「## スコープ」で組織側に存在を確認済みのものが force-app に無い等）は、「該当あり」として Step 2 に進む（安全側）
 
-- **1件でも該当（`.invalid` が付いていない実アクティブユーザー）があれば、キャッシュ一致でない限り操作を中断してユーザーに確認を取る。無断で続行しない**
-- 該当ユーザーの Username・Email を一覧化した上で「これらのユーザーが承認者・関連ユーザーになっている操作を行うと、実アドレスへメールが送信される可能性があります。続行しますか？」と確認する
-- ユーザーが続行を明示的に承認した場合のみ操作を続行する
-- より確実な対策として、Setup → メール管理 → 配信性（Email Deliverability）を「システムメールのみ」に変更することを提案してよい。ただし組織設定変更は Claude が無断で行わず、必ずユーザー判断・ユーザー実施とする
+### Step 2: 送信先の判定
 
-> このチェックを実施するエージェント: `auto-evidence-runner.md`（Step 1.5・AnonApex/UI ケースがある場合）/ `backlog-repro-runner.md`（Step 4.5・Step 5 の Sandbox 検証直前）
+送信処理がある場合、今回のテストで送信先になりうるアドレスを洗い出す:
+
+- テストで使うレコードのメール項目（取引先責任者・リード・Email 型のカスタム項目）
+- 通知先ユーザー（承認者・レコード所有者・キュー／公開グループのメンバー・メールアラートの受信者設定）
+- メールアラート・Apex に直接書かれたアドレス
+
+各アドレスを **許可ドメイン** と照合する:
+- 既定: `sodech.com`、および末尾が `.invalid`（Sandbox 作成時に付与される無効化サフィックス）
+- 追加: プロジェクトの `CLAUDE.md` に「テスト用許可メールドメイン: xxx.co.jp」の形で書かれたドメイン
+
+**全て許可ドメイン** → 「送信先は全て許可ドメイン」と記録し、確認なしで進む。
+
+### Step 3: 自動回避（許可ドメイン外の送信先がある場合）
+
+テストの条件を変えずに、次の順で回避する。回避した内容は `{log_dir}/.email-safety.json` と test-report に記録する:
+
+1. **テストデータのメール項目をテスト用アドレスにする**: テストで作るレコードは最初から `test+{issueID}@sodech.com` 等の許可ドメインのアドレスで作る。既存レコードを使う TC は、同じ条件のテスト用レコードを作ってそちらを使う
+2. **通知先ユーザーをテスト用ユーザーにする**: 承認者・所有者に、同じプロファイル・権限セットで、許可ドメインのメールを持つユーザーを指定する（テストの条件＝権限・分岐は変えない）
+3. **既存ユーザーの Email は書き換えない**（メールアドレス変更の確認メールが送信されるため）
+
+回避できたら、確認なしで進む。
+
+### Step 4: 回避できない場合のみ確認する
+
+次のいずれかに当たる場合だけ、操作を止めて担当者に確認する:
+- 送信先が処理に直接書かれていて、テストデータ・ユーザーの差し替えで変えられない
+- 特定の実在ユーザー・実在レコードでないと再現できない（差し替えるとテストの前提が変わる）
+
+確認では「どの処理が・どのアドレスに・なぜ回避できないか」と推奨（例: その TC だけ送信処理の手前までで確認する／配信性（Email Deliverability）を「システムメールのみ」に変更する〔組織設定の変更は Claude が行わず担当者が実施〕）を示す。担当者の判断は `{log_dir}/.email-safety.json` に記録し、同じ課題で送信処理・送信先が変わらない再実行では再確認しない。
+
+> このチェックを実施するエージェント: `auto-evidence-runner.md`（Step 1.5）/ `backlog-repro-runner.md`（Step 4.5・Step 5 の Sandbox 検証直前）
 
 ---
 

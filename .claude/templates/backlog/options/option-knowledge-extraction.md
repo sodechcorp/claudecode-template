@@ -8,7 +8,7 @@
 
 1. `docs/logs/{issueID}/discussion-log.md` を Read して今 Phase の議論・指摘・却下案を確認する（存在する場合のみ）
 
-2. `docs/logs/{issueID}/approach-plan.md` の改版履歴テーブルと「採用方針」欄を Read する
+2. `docs/logs/{issueID}/approach-plan.md` の改版履歴テーブルと「## 対応方針（結論）」「## 方針決定の経緯・根拠」を Read する
 
 3. 以下を「次の人に役立つ知見」として列挙する:
 

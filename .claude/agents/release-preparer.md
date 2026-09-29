@@ -37,7 +37,7 @@ Step 0a（sf-context-loader 経由の SF コンテキスト読込。サブエー
 
 > 呼び出し仕様: [.claude/templates/common/sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)
 
-まず `docs/logs/{issueID}/investigation.md` を **方式B**（[CLAUDE.md §中間成果物の分割読込](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 準拠。本ファイルは「## Step 0b オプション判定結果」「## 既存テストクラスへの影響」「## 影響ユーザー調査」（いずれも Phase 1/2 で参照）を含め消費するセクションが3個以上のため方式Bを選択）で読む。ここでは「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Grep で先に検索し、該当箇所のみ Read する（Phase 1/2 で参照する残りのセクションは、各所が実際にそのセクションを必要とする時点で同様に Grep → 該当箇所のみ Read する。Step0a でまとめて先読みはしない＝実行経路によっては参照されないセクションを無駄読みしないため）。件名 + 課題サマリー + 要件理解と対象 F-番号・オブジェクト名・機能名を抽出する。同時にフロントマターを `^deploy_route:` で Grep し `{deploy_route}` を取得する（Step 0b の test-report.md 判定で使用。investigation.md 自体が無い場合、または該当行が無い場合は `{deploy_route}` は未確定として Step 0b の通常分岐に従う）。あわせて `^light_mode:` で Grep し `{light_mode}` を取得する（`/backlog --light` またはPhase1格上げで対応した課題かどうか。Phase 2 Step 3 で使用。該当行が無い場合は `{light_mode}` = `false` とする）。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ（**判断ポイントが0件のケース**〔backlog-planner B-3 の設計により「### 実装方針まとめ」の代わりに「### 判断ポイントなし（全カテゴリ一意確定）」が出力されている場合〕は代わりに「## 関連コンポーネント一覧（変更対象ファイル）」を使う）→ 呼び出し元から渡された課題タイトルの順でフォールバックする。
+まず `docs/logs/{issueID}/investigation.md` を **方式B**（[CLAUDE.md §中間成果物の分割読込](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 準拠。本ファイルは「## Step 0b オプション判定結果」「## 既存テストクラスへの影響」「## 影響ユーザー調査」（いずれも Phase 1/2 で参照）を含め消費するセクションが3個以上のため方式Bを選択）で読む。ここでは「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Grep で先に検索し、該当箇所のみ Read する（Phase 1/2 で参照する残りのセクションは、各所が実際にそのセクションを必要とする時点で同様に Grep → 該当箇所のみ Read する。Step0a でまとめて先読みはしない＝実行経路によっては参照されないセクションを無駄読みしないため）。件名 + 課題サマリー + 要件理解と対象 F-番号・オブジェクト名・機能名を抽出する。同時にフロントマターを `^deploy_route:` で Grep し `{deploy_route}` を取得する（Step 0b の test-report.md 判定で使用。investigation.md 自体が無い場合、または該当行が無い場合は `{deploy_route}` は未確定として Step 0b の通常分岐に従う）。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ（**判断ポイントが0件のケース**〔backlog-planner B-3 の設計により「### 実装方針まとめ」の代わりに「### 判断ポイントなし（全カテゴリ一意確定）」が出力されている場合〕は代わりに「## 関連コンポーネント一覧（変更対象ファイル）」を使う）→ 呼び出し元から渡された課題タイトルの順でフォールバックする。
 
 > **ダイジェスト優先（高速化）**: `docs/logs/{issueID}/context-digest.md` が存在する場合は Read してコンテキストを再利用し、Task tool の sf-context-loader 起動を省略する。
 
@@ -147,10 +147,10 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
    ```
    `DIFF` が出力された場合（記録なし・判定不能な旧形式・または該当コミット以降 `force-app` に差分あり）「investigation.md 作成後に実装差分あり」と判定し、下記①〜③も無条件で再走査する。`UNTRACKED` が出力された場合（force-app が Git 管理対象外の標準構成で diff 自体が判定不能）は①〜③の無条件再走査は行わず、下記2. の investigation.md 記載判定にそのまま進む
 2. 差分が無い場合、または `UNTRACKED` の場合、①〜③は investigation.md の記載から Phase 1 で実行済みと判定できれば**無条件で転記し、option を実行しない**（未実行と判定した場合のみ実行する）。判定方法は項目ごとに異なる（各カッコ内の通り）:
-   - ① [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルール・共通ユーティリティへの影響（investigation.md「## Step 0b オプション判定結果」→「### 採用したオプション」に `option-impact-scope-grep` の記載があれば実行済みと判定する。「### スキップしたオプション」側にある／同セクションが無い／自明ケース判定で Step 0b が一括スキップされている、のいずれかに該当する場合は未実行として扱い本 option を実行する。**「## 影響範囲」見出しの有無では判定しない**——同見出しは backlog-investigator.md の投稿テンプレートで常時必須出力されるため、option 実行有無の代理指標にならない）
+   - ① [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルール・共通ユーティリティへの影響（investigation.md「## Step 0b オプション判定結果」→「### 採用したオプション」に `option-impact-scope-grep` の記載があれば実行済みと判定する。「### スキップしたオプション」側にある／同セクションが無い／自明ケース判定で Step 0b が一括スキップされている（旧版 investigation.md のみ）、のいずれかに該当する場合は未実行として扱い本 option を実行する。**「## 影響範囲」見出しの有無では判定しない**——同見出しは backlog-investigator.md の投稿テンプレートで常時必須出力されるため、option 実行有無の代理指標にならない）
    - ② [option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) — 既存テストクラスへの影響（investigation.md「## 既存テストクラスへの影響」の記載有無で判定）
    - ③ [option-user-impact-survey.md](../templates/backlog/options/option-user-impact-survey.md) — 影響ユーザー数・部署の見積もり（investigation.md「## 影響ユーザー調査」の記載有無で判定）。**option-user-impact-survey.md 本体の手順に従う**（本番 SELECT は `option-prod-select-reference` のユーザー許可を得て実施。Sandbox のユーザーマスタは検証用アカウントのみで本番の実在ユーザー数を表さないため代替不可。許可が得られない場合のみ Sandbox 件数を参考値とし `[要確認: 本番データ未確認]` を付す）。本番接続は `prod-readonly-check.md` 通過後の read-only に限り Phase 1 以降で許可されている（Phase 1 1a-2 の Tier 0 前倒し実行と同じ原則）
-3. [option-cross-functional-impact.md](../templates/backlog/options/option-cross-functional-impact.md) — 横断機能・他チーム・データ整合性への影響は `_index-phase1.md` に存在しない（`/backlog` Phase 1 で実行されない）オプションのため、差分の有無によらず常に実行する。**ただし `{light_mode}` = `true` の場合（2026-09-16追加）**: `/backlog` Phase 1 の light 格上げ条件（①スコープ: 影響範囲が1ファイル・1要素に確定・区分S〔兄弟入口〕なし・API名/型変更なし）で共通コンポーネントへの影響・データ整合性は既に調査済みのため、本 option の「共通コンポーネントへの影響」「データ整合性」観点は省略する。「他チーム・他プロジェクトへの影響」観点のみ実施し、release-plan.md「## 影響範囲サマリー」に「--light（軽微修正）のため共通コンポーネント影響・データ整合性は /backlog Phase 1 で確認済み（1ファイル・1要素確定、兄弟入口なし）」と一行明記する
+3. [option-cross-functional-impact.md](../templates/backlog/options/option-cross-functional-impact.md) — 横断機能・他チーム・データ整合性への影響は `_index-phase1.md` に存在しない（`/backlog` Phase 1 で実行されない）オプションのため、差分の有無によらず常に実行する
 
 ## Phase 3: チケット競合チェック
 
@@ -328,7 +328,7 @@ sf project deploy report --target-org {本番エイリアス}
 ---
 
 ## ロールバック手順
-{manual_operation_mode: false の場合}{option-rollback-strategy.md（approach-plan.md 記載があれば転記）+ option-rollback-readiness.md による最終確認}
+{manual_operation_mode: false の場合}{option-rollback-readiness.md による最終確認}
 1. `sf project deploy start --source-dir {ROLLBACK_BACKUP_DIR} --target-org {本番エイリアス}` — 事前retrieve済みの変更前メタデータを本番へ再デプロイする（新規追加コンポーネントは対象外のため、該当分は Setup 画面から手動削除する）
 2. Sandbox で動作確認
 3. 本番の状態を確認
@@ -342,7 +342,7 @@ sf project deploy report --target-org {本番エイリアス}
 - **`manual_operation_mode: true` の場合**、`has_destructive` は false 固定のため destructiveChanges.xml は生成しない。「② リリース実行」は上記「### manual-operation 版」を使う（Step 1〜4・`--test-level` 判定は記載しない）
 - **`has_destructive: true` の場合**、`docs/logs/{issueID}/destructive-changes/destructiveChanges.xml`（削除対象を種別ごとに `<types><members>{API名}</members>...<name>{メタデータ種別}</name></types>` で列挙）と `docs/logs/{issueID}/destructive-changes/package.xml`（`<version>` タグのみの空マニフェスト。バージョンは `sfdx-project.json` の `sourceApiVersion` を使う）を生成する（Step 3b で使用）
 - [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) を参照し、①/③ の資材種別別セクションを Phase 1 資材マニフェストの含有種別に合わせて組み立てる
-- [option-rollback-strategy.md](../templates/backlog/options/option-rollback-strategy.md) / [option-rollback-readiness.md](../templates/backlog/options/option-rollback-readiness.md) の内容を統合してロールバック手順セクションを埋める
+- [option-rollback-readiness.md](../templates/backlog/options/option-rollback-readiness.md) の内容でロールバック手順セクションを埋める
 - `docs/logs/{issueID}/release-note.md` の生成前に既存ファイルの有無を確認する。**既に存在する場合**（`/backlog` Phase 6 で option-release-note-generation が実行済みの可能性がある）は全文 Read し、「リリース日」欄を本番リリース予定日に更新し、「注意事項」に今回の `--test-level` 判定結果を追記する差分更新のみ行う（全面再生成しない。既存の変更内容・影響範囲の記述を消さない）。**存在しない場合のみ** [option-release-note-generation.md](../templates/backlog/options/option-release-note-generation.md) に従い新規生成する
 
 ## Phase 6: 完了・引き渡し

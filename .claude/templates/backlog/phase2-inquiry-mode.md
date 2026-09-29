@@ -1,4 +1,4 @@
-# Phase 2: 種別が「問い合わせ」の場合 詳細手順（回答ドラフト・Phase A/B とは別モード）
+# Phase 2: 種別が「問い合わせ」の場合 詳細手順（回答ドラフト・planner Phase Q）
 
 > `backlog.md` Phase 2 から `{issue_type}` = `問い合わせ` の場合のみ Read される。`backlog-planner` 起動パラメータ・回答提示手順・完了報告文言を含む。
 

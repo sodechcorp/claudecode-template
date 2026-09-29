@@ -27,7 +27,7 @@ tools: Read, Glob, Grep, Bash, mcp__backlog__get_issue, mcp__backlog__get_issues
 | `種別` | 任意 | `バグ` / `追加要望` / `その他`。渡された場合 MCP 取得をスキップ |
 | `actualHours` | 任意 | Backlog の実績時間（h）。渡された場合 MCP 取得をスキップ |
 | `課題内容` | 任意 | issueID 無しのアドホック見積用（フリーテキスト） |
-| `対応方針` | 任意 | approach-plan.md 採用案サマリ（あれば引用） |
+| `対応方針` | 任意 | approach-plan.md「## 対応方針（結論）」（あれば引用） |
 | `スコープ` | 任意 | 変更ファイル数・対象オブジェクト |
 | `mode` | 任意 | `quick`（信頼度を Step 5 決定リスト条件1により常に「低」に固定。参照データの有無やステップ省略の可否には影響しない）/ `full`（既定） |
 | `project_dir` | 任意 | プロジェクトルートパス（省略時はカレントディレクトリ） |

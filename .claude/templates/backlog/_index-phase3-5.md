@@ -16,7 +16,6 @@ options:
       - 変更対象が Apex クラス・トリガーを含む
       - 既存テストクラスがある
     auto-skip-when:
-      - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
       - Apex コードを含まない変更（設定・メタデータ・LWC のみ）
       - 新規プロジェクトでテストクラスが存在しない
     estimated-cost: 軽
@@ -28,7 +27,6 @@ options:
       - 変更対象の API 名・メソッド名・フィールド名を変更または追加
       - Phase 1 で逆参照 grep を実施した場合（確認精度向上）
     auto-skip-when:
-      - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
       - 変更が単一ファイル内に完全に閉じている（外部参照なし）
       - コメント・ラベル・表示文字列のみの変更
     estimated-cost: 中
@@ -39,7 +37,7 @@ options:
     auto-execute-when:
       - 種別がバグまたは追加要望（常時実行）
     auto-skip-when:
-      - 典型的自明ケース（`_README.md §典型的自明ケース定義` を参照）
+      - （なし。常時実行）
     estimated-cost: 中
 
   - name: option-evidence-check

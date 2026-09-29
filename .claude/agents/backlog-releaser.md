@@ -76,7 +76,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 **方式A+B ハイブリッド（[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 方式A+Bハイブリッド）を適用するファイル**（大部分は概要把握で足りるが、一部のセクションのみ本文中盤にあり方式Aでは欠落するため、方式Aに加えて該当見出しのみ追加 Grep する）:
 
 - `docs/logs/{issueID}/implementation-plan.md`（`deploy_route: manual-operation` の場合は Phase 3〜5 スキップにより存在しない。存在しない場合は「不在（Step 0d 確認済み）」として記録し、以降の Step で参照する箇所は「存在する場合のみ」の分岐に従う）: 方式Aに加えて「## 関連コンポーネント一覧（変更対象ファイル）」または「## 対象オブジェクト・コンポーネント一覧」の見出しを Grep し、該当セクションも Read する（Step 2a-1 のデプロイ対象一覧・Step 2a-5 の対象レコード特定・Step 4.5 の case-index.md コンポーネント情報・Step 4.6 の catalog/design 更新確認で常時必要になるが、実案件の実測では該当見出しが本文中盤〔GF-375/377/378 等で 83〜379 行目〕に位置し方式Aの冒頭+末尾読込窓のみでは欠落するため）
-- `docs/logs/{issueID}/approach-plan.md`: 方式Aに加えて `## 対応方針（結論）` / `## 方針決定の経緯・根拠`（現行 backlog-planner.md テンプレートの見出し。配下の `### 業務要件の確認事項` `### 対応方針` `### 推奨案と根拠` `### 業務要件への回答` を包含）を Grep し、該当セクションも Read する（Step 3 decisions.md「採用方針」、Step 3.8 の cases.md「## 採用方針」「## 却下案・代替案」「## 調査・検討の経緯」、Step 4.5 の case-index.md「採用方針」「関連用語」列で常時必要。**旧テンプレート由来の approach-plan.md（見出しが `## 対応方針` 等の異表記）では上記 Grep が不一致になるため、方式Aの冒頭+末尾読みを併用のフォールバックとして残す**）
+- `docs/logs/{issueID}/approach-plan.md`: 方式Aに加えて `## 対応方針（結論）` / `## 方針決定の経緯・根拠`（/backlog Phase 2 で main thread が記録する見出し。配下の `### 業務要件への回答` を包含）を Grep し、該当セクションも Read する（Step 3 decisions.md「採用方針」、Step 3.8 の cases.md「## 採用方針」「## 却下案・代替案」「## 調査・検討の経緯」、Step 4.5 の case-index.md「採用方針」「関連用語」列で常時必要。**旧テンプレート由来の approach-plan.md（見出しが `## 対応方針` 等の異表記）では上記 Grep が不一致になるため、方式Aの冒頭+末尾読みを併用のフォールバックとして残す**）
 - `docs/logs/{issueID}/test-report.md`（存在する場合のみ）: 方式Aに加えて「## スモーク確認結果」の見出しを Grep し、該当セクションも Read する（Step 2a-2 の dry-run スキップ判定で常時必要になるが、`/test` 実施後は本文が長くなり中盤に位置しうるため冒頭+末尾だけでは欠落するため）
 - `docs/logs/{issueID}/discussion-log.md`（存在する場合のみ）: 方式Aに加えて `ハマ` / `落とし穴` / `想定外` / `再発防止` / `気をつけ` / `注意` / `壊れ` / `不具合` / `罠`（Step 3.6 のフォールバック抽出キーワードと同一。`ハマ` は種別タグ `ハマり` を部分一致で含む）を Grep し、該当行も保持する（Step 3.6 の pitfalls.md 自動還流は本文中盤のタグ付き行・自然言語パターンも常時抽出対象とするため、方式Aの冒頭+末尾読みだけでは中盤の知見を取りこぼす。discussion-log.md の有無でキーワードが変わらないよう揃える）
 
@@ -333,9 +333,9 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    - 各節の抽出元:
      - `## TL;DR` — investigation.md の「課題サマリー」「TL;DR」セクションから200字以内で要約
      - `## 症状・要件` — investigation.md の「要件理解」または「問題の概要」セクションを整形。ない場合は approach-plan.md から補完
-     - `## 調査・検討の経緯` — approach-plan.md の「案A〜X 比較」「不確実点」等から「検討の流れ・排除案・採用理由」を抽出
-     - `## 採用方針` — approach-plan.md の「### 推奨案と根拠」内の「採用方針: 案X — 理由本文」記載（単独案確定時のみ記載される1行サマリー）から転記。無い場合（判断ポイントが1件以上あり複数案から選択されたケース）は implementation-plan.md 冒頭の「採用方針: [案X]」を使う
-     - `## 却下案・代替案` — approach-plan.md の比較表・却下案の理由を整形
+     - `## 調査・検討の経緯` — approach-plan.md の「## 方針決定の経緯・根拠」「### 業務要件への回答」と discussion-log.md から「検討の流れ・採用理由」を抽出
+     - `## 採用方針` — approach-plan.md の「## 対応方針（結論）」から転記
+     - `## 却下案・代替案` — approach-plan.md「## 方針決定の経緯・根拠」に ClaudeCode の推奨と異なる方針に決まった経緯があればそれを整形（なければ「なし」）
      - `## 教訓・再発防止` — discussion-log.md（Step 0d で Grep 済みの `ハマ`/`落とし穴`/`想定外`/`再発防止`/`気をつけ`/`注意`/`壊れ`/`不具合`/`罠`キーワードにマッチした段落。Step 3.6 pitfalls.md 抽出と同一キーワード群）から抽出。discussion-log.md が存在しない、またはマッチなしの場合は省略
      - `## 関連リンク` — 以下の2行を記載:
        - `- Backlog: （{issueID} で Backlog 検索）`
@@ -472,7 +472,7 @@ children:
 
 `docs/logs/effort-log.md` に当課題の見込み工数を1行追記する（末尾追加・昇順）。
 
-1. `docs/logs/{issueID}/approach-plan.md` の `## 工数見積` セクションから `{N}h`（sf-effort-estimator が算出した単一値）を取得する。approach-plan.md が存在しない、または `## 工数見積` セクションが無い場合はこの Step 全体をスキップし「工数見積が見つからないため effort-log.md への追記をスキップしました」と1行通知する。
+1. `docs/logs/{issueID}/approach-plan.md` の `## 工数見積` セクションから `{N}h`（sf-effort-estimator が算出した単一値）を取得する。`## 工数見積` は担当者が工数見積を依頼した場合のみ記録される（/backlog Phase 2 参照）。approach-plan.md が存在しない、または `## 工数見積` セクションが無い場合はこの Step 全体をスキップし「工数見積が見つからないため effort-log.md への追記をスキップしました」と1行通知する。
 2. 「実績」列: 空欄で書き込む。`effort-log.md` の実績列はどこからも自動参照されない記録専用フィールドであり、既定空欄のままで支障ない（[../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §effort-log.md 新規作成ヘッダーの説明文参照）。ユーザーが Step 5 の自由回答で実績工数に自発的に言及した場合のみ、Step 5-4 でこの行を更新する（能動的な質問はしない）。
 3. 「対応者種別」列は当セッションの対応形態を記載する（例: `ClaudeCode` / `手動` / `混在`）。
 4. 追記フォーマット・新規作成ヘッダー: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §effort-log.md 追記フォーマット
@@ -493,13 +493,13 @@ children:
 1. `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/investigation.md`（Step 0d で取得済み・再 Read しない）から各列の値を取得する:
    - **症状/要件（全角60字以内）** の取得優先順位:
      1. `docs/logs/{issueID}/investigation.md` の「課題サマリー」または「TL;DR」セクション冒頭1行
-     2. `docs/logs/{issueID}/approach-plan.md` の「バグの概要」または課題の種別説明冒頭
+     2. `docs/logs/{issueID}/approach-plan.md` の「## 課題の内容・詳細」冒頭
      3. Backlog 課題タイトル
    - **根本原因（全角60字以内）**: バグ種別のみ。investigation.md の「根本原因」「原因」セクションから抽出。見当たらない場合は `-`
-   - **採用方針（全角40字以内）**: approach-plan.md の「### 推奨案と根拠」内の「採用方針: 案X — 理由本文」記載（単独案確定時のみ記載される1行サマリー）から抽出。無い場合（判断ポイントが1件以上あり複数案から選択されたケース）は implementation-plan.md 冒頭の「採用方針: [案X]」から抽出
+   - **採用方針（全角40字以内）**: approach-plan.md の「## 対応方針（結論）」から抽出
    - **教訓（全角40字以内）**: discussion-log.md（Step 0d で Grep 済みの `ハマ`/`落とし穴`/`想定外`/`再発防止`/`気をつけ`/`注意`/`壊れ`/`不具合`/`罠`キーワードにマッチした段落。Step 3.6 pitfalls.md 抽出と同一キーワード群）から抽出。discussion-log.md が存在しない、またはマッチなしの場合は `-`
    - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
-   - **関連用語**: approach-plan.md の「採用方針」セクションから API 名・オブジェクト名・処理名を最大3個抽出
+   - **関連用語**: approach-plan.md の「## 対応方針（結論）」から API 名・オブジェクト名・処理名を最大3個抽出
 
    > **種別が「問い合わせ」の場合**: approach-plan.md が存在しないため、**採用方針**は `answer-draft.md` の「### 回答本文（Backlog 投稿用ドラフト）」冒頭40字、**関連用語**は同セクションから API 名・オブジェクト名を最大3個抽出、**根本原因**は `-` 固定（実装を伴わないため）とする。
 2. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）から「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
