@@ -239,7 +239,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 > 追記フォーマット: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリ
 > サイズ上限・アーカイブ通知: 同ファイル §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用 に従い、追記後のエントリ数が閾値以上なら完了報告に一行付記する。
 
-> **注**: 本番リリース実施記録（デプロイ日時・対象環境・結果）は decisions.md「リリース予定日 / 担当」欄・changelog.md で管理する。本番デプロイ後は `/release {issueID}` の Phase 7 が記録を担当する（release-checklist-matrix.md §A 参照）。
+> **注**: 本番リリース実施記録（デプロイ日時・対象環境・結果）は decisions.md「リリース予定日 / 担当」欄・changelog.md で管理する。本番デプロイ後は `/release {issueID}` の Phase 7 がリリース後確認と記録を担当する（release-preparer.md Phase 7 参照）。
 
 ---
 

@@ -4,39 +4,41 @@
 
 > **役割分担**: 権限付与の詳細は [new-metadata-permissions-checklist.md](../common/new-metadata-permissions-checklist.md)、デプロイ順序は [option-deployment-dependency-check.md](options/option-deployment-dependency-check.md)、テスト観点は [test-pattern-map.md](test-pattern-map.md) が正本。本ファイルはそれらを**リリース文脈で束ねる**ものであり、権限・順序・テスト観点の詳細ロジックを再定義しない（参照する）。
 >
-> **read-only 原則**: release-preparer は本番へ read-only 操作しか行わない。リリース後チェックのうち「本番で実行する検証」は**手順書に記載して人間が実行**する。エージェントが本番でテスト実行・DML・デプロイをすることはない。
+> **read-only 原則**: release-preparer は本番へ read-only 操作しか行わない（資材の取得・SOQL による確認は Claude が行う）。リリース後チェックのうち画面操作・本番でのテスト実行・本番での代表操作は**手順書に記載して人間が実行**する。エージェントが本番でテスト実行・DML・デプロイをすることはない。
 
 ---
 
 ## A. リリース前チェック（pre-release・全資材共通）
 
-デプロイ前に人間が確認する。release-preparer は各項目の**現時点の状態**を read-only で確認して埋められるものは埋め、埋められないものはチェックボックスのまま残す。
+【Claude確認済】は release-preparer が read-only で確認して結果を埋める項目（引き渡し時にまとめて一度だけ伝える）。【担当者】は担当者が行う作業・判断（引き渡し時に1つずつ渡す）。
 
-- [ ] Sandbox でのテスト完了（`test-report.md` の総合判定が PASS）
-- [ ] `/test` の詳細証跡取得済み（`evidence/` に before/after が揃っている）
-- [ ] デプロイ対象資材の確定（Phase 1 資材マニフェストと git diff が一致）
-- [ ] `--test-level` の決定（判定ロジックは release-preparer.md Phase 1/5 が正本。固定で `RunLocalTests` にしない）
-- [ ] デプロイ元が `force-app` 本体であることの確認（バックアップ/マージ用フォルダを `--source-dir` に指定していない）
-- [ ] デプロイ順序の確認（Phase 1 の依存関係判定。分割要ならその順序）
-- [ ] 影響範囲の確認（Phase 2 の各 option 結果にリリースを止める要素がない）
-- [ ] チケット競合チェック: 問題なし（Phase 3。競合ありなら承知の上か）
-- [ ] 本番環境ドリフト確認: 問題なし（Phase 4。ドリフトありなら承知の上か）
-- [ ] ロールバック手順の確認（`option-rollback-readiness` 準拠・ロールバック用バックアップ retrieve の準備）
-- [ ] お客様確認サイン取得済み（バグ・仕様変更を伴う場合）
-- [ ] リリース日時・実施者・立ち会い者の確定
-- [ ] リリース時間帯の業務影響確認（営業時間中か・バッチ稼働時間と重ならないか）
+- [ ] 【Claude確認済】Sandbox でのテスト完了（`test-report.md` の総合判定が PASS）
+- [ ] 【Claude確認済】`/test` の詳細証跡取得済み（`evidence/` に before/after が揃っている）
+- [ ] 【Claude確認済】デプロイ対象資材の確定（Phase 1 資材マニフェスト）
+- [ ] 【Claude確認済】`--test-level` の決定（判定ロジックは release-preparer.md Phase 1/5 が正本。固定で `RunLocalTests` にしない）
+- [ ] 【Claude確認済】デプロイ元が `force-app` 本体であることの確認（バックアップ/マージ用フォルダを `--source-dir` に指定していない）
+- [ ] 【Claude確認済】デプロイ順序の確認（Phase 1 の依存関係判定。分割要ならその順序）
+- [ ] 【Claude確認済】影響範囲の確認（Phase 2。最終資材での参照元の確認を含む。新規発見があれば担当者の判断）
+- [ ] 【Claude確認済】チケット競合チェック（Phase 3。重大度「高」があれば担当者の判断）
+- [ ] 【Claude確認済】本番環境ドリフト確認・差分の帰属確認（Phase 4。疑いがあれば担当者の判断）
+- [ ] 【Claude確認済】バックアップ（Phase 4: 本番資材 `rollback-backup/`、データに影響する場合は対象データの CSV）
+- [ ] 【担当者】データのバックアップ（Claude が取得できない件数・打ち切りがあった場合のみ。Data Loader 等で取得）
+- [ ] 【担当者】ロールバック手順の確認（`option-rollback-readiness` 準拠）
+- [ ] 【担当者】お客様確認サイン取得済み（バグ・仕様変更を伴う場合）
+- [ ] 【担当者】リリース日時・実施者・立ち会い者の確定
+- [ ] 【担当者】リリース時間帯の業務影響確認（営業時間中か・バッチ稼働時間と重ならないか）
 
 ## B. リリース実行手順（execution・全資材共通）
 
-**この手順は人間が実行する。release-preparer は実行しない。**
+**本番への実行（dry-run・デプロイ）は人間が行う。release-preparer は実行しない（1. のバックアップ最新確認のみ Claude が read-only で行う）。**
 
-> **注意**: コマンドは常に1行で実行する（bash の `\` 行継続は PowerShell では動作しない）。デプロイ元は必ず `force-app` 本体（競合解消用のバックアップ/マージ用フォルダをそのままデプロイ元に指定しない）。dry-run・デプロイ実行（2./3.）の適用範囲は Phase 1 資材マニフェストのうち変更種別が「新規/変更」の項目に絞った `--metadata <API名一覧>` を使う（`--source-dir force-app` は使わない。「削除」は 3b. で別途扱う）。直前記録（1.）は「削除」を含む全項目が対象のため退避範囲が異なる（削除予定コンポーネントもロールバック用に退避が必要なため）。
+> **注意**: コマンドは常に1行で実行する（bash の `\` 行継続は PowerShell では動作しない）。デプロイ元は必ず `force-app` 本体（競合解消用のバックアップ/マージ用フォルダをそのままデプロイ元に指定しない）。dry-run・デプロイ実行（2./3.）の適用範囲は Phase 1 資材マニフェストのうち変更種別が「新規/変更」の項目に絞った `--metadata <API名一覧>` を使う（`--source-dir force-app` は使わない。「削除」は 3b. で別途扱う）。バックアップ（1.・Claude が取得済み）は「削除」を含む本番に存在する全項目が対象のため退避範囲が異なる（削除予定コンポーネントもロールバック用に退避が必要なため）。
 
 > **実行方針（厳守）**: 下記 1〜6（削除の資材がある場合は 3b を含む）は1つずつ実行し、結果を確認してから次に進む。1個のスクリプト/コードブロックにまとめて流さない。特に 2.（dry-run）と 3.（デプロイ実行）は独立したステップとして扱い、dry-run が 0 errors であることを確認してから 3. に進む。release-plan.md 生成時もこの構成（Step ごとに個別コードブロック）を維持する。**この「1つずつ」原則は release-plan.md 生成側の構成規約であり、人間への引き渡し時に Todo 化してステップごとに逐次提示するのは呼び出し元 `release.md` Step 4 の責務**（[manual-steps-todo-handoff.md](../common/manual-steps-todo-handoff.md) 参照）。
 
 > **`--test-level` の判定ロジック（Apex 含有有無 + 専用テストクラスの特定有無で決定。固定で `RunLocalTests` にしない）は release-preparer.md Phase 1/5 が正本**。以下のコマンドの `--test-level` にはその判定結果を使う。
 
-1. **直前記録**: `force-app/` は `.gitignore` 対象（各メンバーが組織から都度 retrieve する運用）のため、コミットハッシュに基づくロールバックは機能しない。デプロイ対象コンポーネントの本番環境上の変更前状態を `sf project retrieve start --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --output-dir docs/logs/{issueID}/rollback-backup` でロールバック用バックアップとして退避する。**新規追加コンポーネント**（本番に未存在）は retrieve 対象から除外する（存在しないためエラーになる。ロールバック時は削除で対応する旨をロールバック手順に明記する）。
+1. **バックアップの最新確認（Claude）**: バックアップ（本番資材の `rollback-backup/`・データの CSV）は release-preparer Phase 4 で Claude が取得済み。dry-run と本番デプロイの直前に、本番のコンポーネントが取得後に変わっていないかを Claude が確認し、変わっていれば取り直す（担当者の作業なし）
 2. **dry-run（必須）**: `sf project deploy start --dry-run --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests/NoTestRun>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加）で 0 errors を確認
 3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）
 3b. **削除の適用**（変更種別「削除」の資材がある場合のみ）: 通常デプロイ（`--metadata`）は削除を反映できないため、`destructiveChanges.xml` + 空の `package.xml` を使って別デプロイで適用する: `sf project deploy start --manifest <package.xml のパス> --post-destructive-changes <destructiveChanges.xml のパス> --target-org <本番エイリアス>`（デプロイ実行〔3.〕の後に実施。削除対象が新規/変更コンポーネントから参照されたまま消えることを避けるため）
@@ -46,21 +48,19 @@
 
 ## C. リリース後チェック（post-release・全資材共通）
 
-デプロイ完了直後に人間が本番で確認する。
+デプロイ完了の報告を受けて、まず Claude が read-only で確認し（release-preparer Phase 7 の 7-3: 資材の一致・削除の反映・SOQL で確認できる状態・想定外の変更）、そのあと担当者が本番で確認する。以下は担当者の確認項目（Claude の確認と重複する項目は載せない）。
 
-- [ ] デプロイ成功確認（`sf project deploy report` の結果を記録）
-- [ ] 資材種別別のリリース後検証（下記 §D の該当種別を実施）
+- [ ] 資材種別別のリリース後検証のうち、Claude が実行できないもの（画面操作での確認・`sf apex run test` での本番テスト実行・本番での代表操作。下記 §D の該当種別）
 - [ ] リリース後エビデンス取得（本番での動作確認結果を `evidence/release-verification/` 相当に保存）
 - [ ] エラーログ確認（デプロイ直後の Setup → デバッグログ・例外メールに異常がないか）
 - [ ] 関係者への完了連絡・リリースノート展開
 - [ ] 問題発生時のロールバック判断基準の再確認（誰がどの症状で判断・実行するか）
-- [ ] 本番リリースの記録: `docs/decisions.md` の当該課題エントリの「リリース予定日 / 担当」欄を実施日に更新する（エントリが無ければ追記する）。`docs/logs/changelog.md` に本番リリース済みである旨がまだ反映されていなければ「日付 / 変更内容 / 関連課題ID」で追記する。**この記録は release-preparer Phase 7（デプロイ完了報告を受けて実施）が担当する**。本番リリース履歴は decisions.md / changelog.md に一本化する（対応記録.xlsx は廃止済み）
 
 ---
 
 ## D. 資材種別別チェック（該当種別のみ転記）
 
-Phase 1 資材マニフェストに含まれる種別だけを release-plan.md に転記する。「リリース後検証方法」は本番で人間が実施する。**dry-run 自体は §B Step2（全資材共通・一括実行）で検証済みのため、以下の「リリース前」には種別固有の追加確認事項のみを記載する（種別ごとの dry-run 個別実行はない）。**
+Phase 1 資材マニフェストに含まれる種別だけを release-plan.md に転記する。「リリース後検証方法」のうち、**SOQL・メタデータの取得で確認できるもの（件数・値・有効化状態・存在）は Claude が Phase 7 の 7-3 で実施**し、**画面操作での確認・`sf apex run test` での本番テスト実行（Claude は hook で本番実行不可）・本番での代表操作は担当者が実施**する。手順書の ③「担当者が実施する確認」には担当者の分だけを転記する。**dry-run 自体は §B Step2（全資材共通・一括実行）で検証済みのため、以下の「リリース前」には種別固有の追加確認事項のみを記載する（種別ごとの dry-run 個別実行はない）。**
 
 ### Apex クラス
 - **リリース前**: ガバナ制限/FLS/CRUD 確認済み・テストクラス整備とカバレッジ（推奨 75%以上）

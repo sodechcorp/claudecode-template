@@ -2,14 +2,15 @@
 
 本番組織に対して **read-only 操作のみ**を行う前に接続先を確認する。`sandbox-alias-check.md` は Sandbox 強制（`isSandbox:false` で `exit 1`）のため本番を読むこと自体ができない。本テンプレートはその逆で「本番であることを確認した上で read-only のみ許可する」ガード。
 
-> 参照元エージェント: `release-preparer.md`（Phase 1-1a の Tier 0 前倒し実行、および Phase 4 環境状態確認・ドリフト検知）のみ。他エージェントは `sandbox-alias-check.md`（Sandbox 強制）を使うこと。
+> 参照元: `release-preparer.md`（Phase 1-1a の Tier 0 前倒し実行、Phase 4 の本番確認・バックアップ・差分の帰属確認、Phase 7 のリリース後確認、バックアップ再取得モード）と `release.md`（Step 4 のバックアップ最新確認）のみ。他エージェントは `sandbox-alias-check.md`（Sandbox 強制）を使うこと。
 
 ## 前提
 
 **このガードを通過しても許可されるのは以下のみ**:
 - `sf org display`
 - `sf org list metadata` / `sf org list metadata-types`
-- `sf project retrieve start`（一時ディレクトリへの取得。`force-app/` への直接取得は禁止）
+- `sf sobject describe`（項目一覧の取得）
+- `sf project retrieve start`（`force-app/` 以外への取得。一時ディレクトリ、および `/release` のバックアップ・リリース資材の控え用の `docs/logs/{issueID}/` 配下。`force-app/` への直接取得は禁止）
 - `sf data query`（SELECT のみ）
 
 **このガードを通過しても以下は絶対に行わない**（hook / settings.json のハードブロック対象と同一。ガード通過を理由に実行を試みないこと）:

@@ -8,7 +8,7 @@
 
 1. 実行する SELECT 文を準備する:
    - 課題の原因確認・テストに必要な情報に限定する
-   - 個人情報・機密情報を取得しない WHERE / LIMIT / SELECT 列を設計する
+   - 個人情報・機密情報を取得しない WHERE / LIMIT / SELECT 列を設計する（本 option は調査・参照用途の規定。`/release` のデータバックアップ〔release-preparer Phase 4 の7.〕は復元に使うためマスクせず取得し、リリース後確認で問題がなければ削除する別ルールで扱う）
    - `SELECT Id, {必要なフィールドのみ} FROM {Object} WHERE {条件} LIMIT {N}` の形式
 
 2. ユーザーに許可を求める:

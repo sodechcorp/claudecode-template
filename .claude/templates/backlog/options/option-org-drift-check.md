@@ -9,7 +9,7 @@
 
 Tier1/2 は release-preparer Phase 1 で確定した資材マニフェストに載っているコンポーネントしか検査しない。そのためマニフェスト自体に漏れがある場合（実例: GF-368 — 親 LWC のみが資材化され、参照される子コンポーネントの旧版が本番に残置。子は今回のコミット差分に含まれないためマニフェストに現れず、Tier1/2 の検査対象にすら入らなかった。本番だけ旧版のまま9日間・申込31件全てで必須項目が保存されず気づかれなかった）は Tier1/2 単独では検知できない。**Tier0 はマニフェストとは独立にスコープを決定して UAT/本番を直接比較することで、この穴を塞ぐ。**
 
-**本番に対しては read-only のみ**（Tooling API の SELECT のみ。`force-app/` への取得・書き込みは一切行わない）。[prod-readonly-check.md](../../common/prod-readonly-check.md) を先に実施してから本オプションを実行する。**Tier 0 のみ UAT（Sandbox）との比較を伴うため、[sandbox-alias-check.md](../../common/sandbox-alias-check.md) で Sandbox 接続（`$SF_ALIAS`）も確認する**（Tier 1/2 は本番のみで完結するため不要）。
+**本番に対しては read-only のみ**（Tooling API の SELECT・`sf org list metadata`・`force-app/` 以外への retrieve のみ。`force-app/` への取得・書き込みは一切行わない）。[prod-readonly-check.md](../../common/prod-readonly-check.md) を先に実施してから本オプションを実行する。**Tier 0 のみ UAT（Sandbox）との比較を伴うため、[sandbox-alias-check.md](../../common/sandbox-alias-check.md) で Sandbox 接続（`$SF_ALIAS`）も確認する**（Tier 1/2 は本番のみで完結するため不要）。
 
 ## 実行手順
 
@@ -75,7 +75,7 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
 
 ### Tier 2: 深掘り（Tier 1 で痕跡ありのコンポーネントのみ）
 
-1. 痕跡ありコンポーネントのみを対象に、一時ディレクトリへ本番から retrieve する（**`force-app/` には絶対に取得しない**）:
+1. 痕跡ありコンポーネントのみを対象に、本番の現行資材を用意する（**`force-app/` には絶対に取得しない**）。`/release` では release-preparer Phase 4 の4. が資材マニフェストのうち本番に存在する資材を `docs/logs/{issueID}/rollback-backup/` へ取得するため、**それがあればそのファイルを使い、改めて取得しない**（その場合は下記 2. の diff を「`rollback-backup` 内の該当ファイル」と「`docs/logs/{issueID}/release-snapshot/` 内の該当ファイル」の比較に読み替える。**4. の削除は行わない**）。無い場合のみ一時ディレクトリへ取得する（取得先の実際のパスは Glob で確認してから diff する）:
    ```bash
    mkdir -p "{tmp_dir}/prod-drift-check"
    sf project retrieve start --metadata "ApexClass:{クラス名}" --target-org "$PROD_ALIAS" --output-dir "{tmp_dir}/prod-drift-check" --json
@@ -88,7 +88,7 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
    - **差分なし**: 誰かが触ったが結果的に今の Sandbox/リポジトリ内容と一致 → 「痕跡あるが実害なし」
    - **差分あり かつ 今回のリリース内容と非干渉**（無関係な別ロジックの変更）: 「他者変更あり・要確認（リリースで上書きする点をユーザーに警告）」
    - **差分あり かつ 今回のリリース内容と重なる**（同一メソッド・同一項目）: 「競合・要人間判断」（最重要警告）
-4. 一時ディレクトリを削除する（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠）:
+4. 一時ディレクトリを削除する（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠）。**1. で `rollback-backup` を使った場合は削除しない**（ロールバック用のバックアップのため）:
    ```bash
    python -c "import shutil; shutil.rmtree(r'{tmp_dir}/prod-drift-check', ignore_errors=True)"
    ```

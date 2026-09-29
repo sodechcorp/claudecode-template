@@ -1,5 +1,5 @@
 ---
-description: "本番リリース準備を行う。資材確定・影響範囲・チケット競合・本番環境ドリフトを read-only で確認し、人間が実行する本番リリース手順書を生成する。本番へのデプロイは行わない。/release [課題ID] で個別課題対応。"
+description: "本番リリース準備を行う。資材確定・最終資材での影響確認・チケット競合・本番環境ドリフト・差分の帰属確認とバックアップを read-only で行い、人間が実行する手順書を1ステップずつ渡す。デプロイ後はリリース後確認（read-only）と記録を行う。本番へのデプロイは行わない。/release [課題ID] で個別課題対応。"
 argument-hint: "[課題ID]"
 ---
 
@@ -9,12 +9,13 @@ argument-hint: "[課題ID]"
 
 ## 概要
 
-`/backlog`（Sandbox リリース）・`/test`（証跡採取）完了後の独立したライフサイクル段階として、本番リリース準備を `release-preparer` に一気通貫で委譲する。**本番へのデプロイ・dry-run・書き込みは一切行わない**。成果物は人間が実行する手順書（`release-plan.md`）。
+`/backlog`（Sandbox リリース）・`/test`（証跡採取）完了後の独立したライフサイクル段階として、本番リリースを丁寧に確認したうえで、人間が実行する手順を1ステップずつ渡す。**本番へのデプロイ・dry-run・書き込みは一切行わない**（本番に対しては資材の取得と SELECT の read-only のみ）。
 
 | 担当 | 主な成果物 |
 |---|---|
-| （本コマンド直接実行） | 前提確認・手順書の逐次引き渡し・Phase 7 起動判定 |
-| `release-preparer` | `docs/logs/{issueID}/release-plan.md` + `release-note.md` |
+| （本コマンド直接実行） | 前提確認・手順の1ステップずつの引き渡し（結果の記録と次の手順の組み立て直し）・Phase 7 起動 |
+| `release-preparer` | リリース前の確認（最終資材での影響・チケット競合・ドリフト・差分の帰属確認）とバックアップ取得、`release-plan.md` + `release-note.md`。デプロイ後はリリース後確認と記録（Phase 7） |
+| 担当者 | 本番への dry-run・デプロイの実行、画面でしか確認できないリリース後確認 |
 
 ---
 
@@ -47,14 +48,15 @@ argument-hint: "[課題ID]"
 ### Step 2b: 再起動時の意図確認
 
 `docs/logs/{issueID}/release-plan.md` が既に存在するか（Glob）を確認する:
-- **存在する場合**: AskUserQuestion で確認する（question: 「`{issueID}` の本番リリース手順書は既に生成済みです。今回の実行は何が目的ですか？」/ header: 「実行目的」/ options: 「本番デプロイ完了を報告する」〔以降の Step 3・4 をスキップし、下記の通り Phase 7 のみを起動して終了する〕・「手順書を再生成する」〔Step 3 へ進み通常どおり実施する〕）
+- **存在する場合**: AskUserQuestion で確認する（question: 「`{issueID}` の本番リリース手順書は既に生成済みです。今回の実行は何が目的ですか？」/ header: 「実行目的」/ options: 「途中から再開する」〔`docs/logs/{issueID}/release-log.md` の最後の記録から Step 4 の引き渡しを再開する〕・「本番デプロイ完了を報告する」〔以降の Step 3・4 をスキップし、下記の通り Phase 7 のみを起動する〕・「手順書を再生成する」〔Step 3 へ進み通常どおり実施する。release-log.md に本番デプロイを実行した記録がある場合は「本番は既にデプロイ後の状態の可能性があります」と先に伝える〕）
+  - 「途中から再開する」を選んだ場合: release-plan.md と release-log.md を Read し、完了済みのステップを completed として TodoWrite に復元してから、次の未完了ステップを渡す。② まで終わっている（Phase 7 の記録がある）場合は Step 5 の ③ の担当者確認・データのバックアップ削除の続きから再開する
   - 「本番デプロイ完了を報告する」を選んだ場合: チャットでデプロイ日時・結果を確認したうえで Task tool で `release-preparer` を起動する:
     ```
-    task_description: 「/release 起動: {issueID} の Phase 7（リリース実施後の記録）のみを実施。デプロイ完了報告: {ユーザーからの報告内容}」
+    task_description: 「/release 起動: {issueID} の Phase 7（リリース後確認と記録）のみを実施。デプロイ完了報告: {ユーザーからの報告内容}」
     project_dir: {プロジェクトルートパス}
     issueID: {issueID}
     ```
-    完了報告をそのままユーザーに提示して終了する（以降の Step は実施しない）。
+    以降は Step 5 の「完了報告を受けたら」と同じ手順で進める（Step 3・4 の手順書生成・引き渡しは実施しない）。release-preparer が「既に本番リリース実施記録済み」と返した場合は、release-log.md を見て ③ の担当者確認・データのバックアップ削除の残りがあればその続きから進める。
 - **存在しない場合**: そのまま Step 3 へ進む
 
 ### Step 3: release-preparer への委譲
@@ -64,7 +66,7 @@ argument-hint: "[課題ID]"
 Task tool で `release-preparer` を起動する:
 
 ```
-task_description: 「/release 起動: {issueID} の本番リリース準備（資材確定・影響範囲・チケット競合・本番環境ドリフト検知・release-plan.md 生成）」
+task_description: 「/release 起動: {issueID} の本番リリース準備（資材確定・最終資材での影響確認・チケット競合・本番環境ドリフト検知・差分の帰属確認とバックアップ・release-plan.md 生成）」
 project_dir: {プロジェクトルートパス}
 issueID: {issueID}
 issue_title: {件名}
@@ -78,26 +80,47 @@ issue_title: {件名}
 
 完了報告に含まれる `release_plan_generated` の値で分岐する（`test-report.md` 不在時に続行を希望しなかった場合など、release-preparer が前提未達で中断した場合は `false` になる。この場合 `docs/logs/{issueID}/release-plan.md` が過去実行分として残っていても今回生成されたものではないため参照しない）:
 - **`false` の場合**: 完了報告の提示のみで終了する（以降の手順は行わない）
-- **`true` の場合**: `docs/logs/{issueID}/release-plan.md` を Read し、[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従って引き渡しを行う（**手順書全文を一度に貼らない**）:
+- **`true` の場合**: `docs/logs/{issueID}/release-plan.md` を Read し、[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従って**担当者の作業を1ステップずつ**渡す（手順書全文を一度に貼らない）。release-plan.md ヘッダーの `manual_operation_mode:` 行を Grep して、管理画面操作版かどうかを先に確認する:
 
-1. 「① リリース前チェック」セクションをそのまま一度に提示する（チェックリスト。実行順序を強制しないため分解しない）
-2. 「② リリース実行」冒頭の共通説明段落（`### Step 1` より前の本文。--test-level の判定根拠・今回の判定・実行方針）をそのまま一度に提示する（`### Step N:` 単位の逐次提示では見出し前のこの部分が対象に含まれず、以降ずっとユーザーの目に入らないため、ここで一度だけ提示する）
-3. 「② リリース実行」内の `### Step N: ...` 各項目（+ 管理画面手動操作の記載があればそれも1項目）を TodoWrite でタスク化する
-4. 先頭の未完了ステップのみ内容（コマンド）を提示し、「実行結果を教えてください」と添える。ユーザーの自由テキスト応答を待つ（質問・修正依頼 何でも可）
-5. ユーザーの報告を確認する: **実行結果が成功したと明確に確認できる報告**（例:「完了しました」「成功しました」等、エラーが無いことを示す内容）を受けた場合のみ該当 Todo を completed にし、次のステップへ進む。**成否が不明瞭な報告**（エラー有無に触れていない等）は completed にせず、成否を確認する質問を返す。エラー・失敗の報告なら Todo を進めずその場で回答する
-6. ② の全 Todo が completed になったら「③ リリース後チェック」セクションを一度に提示する
-7. ③ 提示後、「本番デプロイが完了したら教えてください（Phase 7 のリリース実施記録を行います）」と改めて一言添える
-
-やり取りが落ち着いたら終了する。
+1. **最重要警告の確認**: release-plan.md 冒頭の最重要警告ブロック（何を警告に含めるかは release-preparer.md Phase 4 の9. が正本）に1件でも記載があれば、最初にそれだけを提示し、担当者の判断を得るまで次に進まない。判断を `docs/logs/{issueID}/release-log.md` に記録する。判断によっては先に進まず戻る:
+   - 「他の変更が混入している疑い（手元側）」で「取り除く」→ force-app を直してから `/release {issueID}` を再実行するよう案内して終了
+   - 「本番の変更を上書きする疑い」で「force-app に取り込む」→ `/backlog {issueID}` に戻る（実装・テストのやり直し）よう案内して終了
+   - 本番未接続でバックアップ等が未実施 → 担当者に再認証（`sf org login web`）を依頼し、`release-preparer` を下記の再取得モードで起動してから進む:
+     ```
+     task_description: 「/release 起動: {issueID} の Phase 4 のバックアップ・差分の帰属確認のみ再実施（理由: {本番未接続からの復旧 / バックアップ取得後の本番の変更}）」
+     project_dir: {プロジェクトルートパス}
+     issueID: {issueID}
+     ```
+2. **Claude が確認済みの項目**: ① の【Claude確認済】（テスト完了・資材マニフェスト・影響確認・チケット競合・ドリフト・差分の帰属確認・バックアップ〔取得した項目・件数・保存先・削除予定を含む〕）は、結果を3〜5行にまとめて一度だけ伝える（Todo にしない）
+3. **担当者の作業を Todo にする**: ① の【担当者】→ ② の `### Step N: ...`（通常経路では Step 1 は Claude が実行するため除く。**管理画面操作版は Step 1 から担当者の操作なので全て含める**）＋管理画面手動操作 の順に TodoWrite でタスク化する（③ はデプロイ完了後に Step 5 で扱う）
+4. **② Step 1（バックアップの最新確認）は Claude が実行する**（通常経路のみ）: **dry-run のステップを渡す直前と、本番デプロイ（Step 3）のステップを渡す直前**に、[prod-readonly-check.md](../templates/common/prod-readonly-check.md) で本番接続を確認し、資材マニフェストの本番コンポーネントの最終更新日時（`sf org list metadata`）が release-plan.md「事前記録」のコンポーネントごとの `lastModifiedDate` と一致するかを確認する。あわせて、資材マニフェスト分の force-app が `docs/logs/{issueID}/release-snapshot/` と一致するかも確認する（手順書作成後に force-app が取り直されていないか）。
+   - 本番の最終更新日時が一致しない → `release-preparer` を上記1.の再取得モードで起動し、取り直した結果（差分の帰属確認・データの再取得を含む）を伝える。**新たな最重要警告が返ってきたら 1. と同じく担当者の判断を取ってから進む**。Step 3 の直前に不一致を検知した場合は、dry-run（Step 2）からやり直す
+   - force-app が release-snapshot と一致しない → 手順書作成後に force-app が変わっているため、そこで止めて `/release {issueID}` の再実行（手順書の再生成）を案内する
+   - 本番に接続できない → 次に進まず、担当者に再認証を依頼する
+5. 先頭の未完了ステップのみ内容（コマンド）を提示し、「実行結果を教えてください」と添える
+6. **報告を受けたら**: 結果を `docs/logs/{issueID}/release-log.md` に1行追記し（日時・ステップ・報告内容・次の対応）、**結果に合わせて次のステップを組み立て直す**:
+   - 成功が明確 → Todo を completed にして次のステップへ（成否が不明瞭な報告は completed にせず確認する）
+   - dry-run でエラー → エラー文を読み、release-plan.md「dry-run/デプロイが失敗した場合の切り分け」に従って原因を特定し、本番デプロイのステップは出さない。本番固有の原因なら解消後に `/release {issueID}` を再実行、実装起因なら `/backlog` への差し戻しを案内する
+   - 本番デプロイ（Step 3）でエラー → 本番へのデプロイは全体が取り消されるため本番は変わっていない。dry-run のエラーと同じ切り分けに進む（ロールバックは不要）
+   - Step 3 成功後に Step 3b（削除）でエラー → 新規/変更だけが反映された状態のため、release-plan.md「ロールバック手順」を次のステップにするか、削除だけ再実行するかを原因とあわせて提示する
+   - 状況が変わって不要になったステップは理由を記録して飛ばす
+7. ② の全 Todo が completed になったら「本番デプロイが完了したら教えてください（Claude がリリース後確認を行います）」と一言添える
 
 ### Step 5: 本番デプロイ完了報告を受けての Phase 7 起動
 
-**本番デプロイ完了の報告を受けた場合**（本セッション継続中のみ。`/release {issueID}` 再起動時は Step 2b で判定済み）: Task tool で `release-preparer` を再起動し、Phase 7（リリース実施後の記録）のみを実施させる:
+**本番デプロイ完了の報告を受けた場合**（本セッション継続中のみ。`/release {issueID}` 再起動時は Step 2b で判定済み）: Task tool で `release-preparer` を再起動し、Phase 7（リリース後確認と記録）のみを実施させる:
 ```
-task_description: 「/release 起動: {issueID} の Phase 7（リリース実施後の記録）のみを実施。デプロイ完了報告: {ユーザーからの報告内容}」
+task_description: 「/release 起動: {issueID} の Phase 7（リリース後確認と記録）のみを実施。デプロイ完了報告: {ユーザーからの報告内容}」
 project_dir: {プロジェクトルートパス}
 issueID: {issueID}
 ```
+
+**完了報告を受けたら**: リリース後確認（資材の一致・削除の反映・状態確認・想定外の変更）の結果を伝える。
+- **差異あり**: ロールバックの要否を担当者に確認する（release-plan.md「ロールバック手順」を1ステップずつ渡す）。ロールバックを実施したら、その結果を `prod-release-issue.md` と `docs/decisions.md` の当該課題エントリ（「ロールバック状況」）に追記する
+- **未実施（本番未接続）**: 担当者に再認証を依頼し、認証後に Phase 7 をやり直す
+- **OK・担当者作業待ち**: release-plan.md「③ リリース後チェック」の担当者の確認項目（担当者作業待ちの内容〔フローの有効化等〕を含む）を Step 4 と同じ方式で1つずつ渡し、結果を release-log.md に記録する
+
+**③ の担当者確認が全て終わったら**: データのバックアップ（`docs/logs/{issueID}/backup/data/`）を取得していた場合は削除する（個人情報を含みうるため残さない）。[cleanup-rules.md](../spec/cleanup-rules.md) に従い `ignore_errors=True` を使わずに削除し、削除後に存在しないことを確認してから「データのバックアップを削除しました」と伝える（削除に失敗した場合はパスを示して担当者に手動削除を依頼する）。メタデータの `rollback-backup/`・`release-snapshot/` は個人情報を含まないため残す。
 
 ---
 
@@ -105,5 +128,5 @@ issueID: {issueID}
 
 - **本番デプロイは本コマンドの範囲外**。`release-plan.md` に記載された CLI コマンド（`deploy_route: manual-operation` の場合は管理画面操作ステップ）は人間が手動で実行する
 - 課題間の並行対応でチケット競合が検出された場合、または本番環境ドリフトで「競合・要人間判断」が検出された場合は、release-preparer の完了報告で明示的に警告される。警告を無視してデプロイしないこと
-- 本番組織への接続確認は `release-preparer` 内部（Phase 4）で行う。本コマンド自体は組織に接続しない
-- `docs/logs/` は `.gitignore` 対象のため、`release-plan.md` / `release-note.md` は生成した本人のローカル環境にのみ存在する。他メンバーと共有する場合は手動でファイルを渡す必要がある
+- 本番組織への接続は read-only に限る。`release-preparer` 内部（Phase 1・Phase 4・Phase 7・バックアップ再取得モード）のほか、本コマンドも Step 4 の4.（バックアップの最新確認）でのみ `prod-readonly-check.md` を通して `sf org list metadata` を実行する
+- `docs/logs/` は `.gitignore` 対象のため、`release-plan.md` / `release-note.md` / `release-log.md` / バックアップ（`rollback-backup/`・`backup/data/`）は生成した本人のローカル環境にのみ存在する。他メンバーと共有する場合は手動でファイルを渡す必要がある。データのバックアップ（CSV）は個人情報を含みうるため、③ の担当者確認が全て終わった後に Step 5 で削除する

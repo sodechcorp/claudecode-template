@@ -555,7 +555,7 @@ esac
 
 > **管理画面操作手順書（2b）がある場合**: `docs/logs/{issueID}/manual-operation-steps.md` が存在する場合、完了報告に続けて [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従い引き渡しを行う（**手順書全文を一度に貼らない**）。同ファイルを Read し、「操作ステップ」内の番号付き各項目を TodoWrite でタスク化し、先頭の未完了ステップのみ内容を提示して「実行結果を教えてください」と添える。ユーザーの実行報告を受けたら該当 Todo を completed にし次のステップへ進む。エラー・質問ならその場で回答し Todo は進めない。全 Todo 完了後、「確認事項」セクションを一度に提示する。
 
-> **📋 本番リリース後 TODO**: 本フローは Sandbox リリースまで。**本番リリースは人間が手動で実施する**ため、本番デプロイ後は `/release {issueID}` を起動（または継続）し、デプロイ完了を報告すること。`/release` Phase 7 が decisions.md「リリース予定日 / 担当」欄・changelog.md への記録を代行する。
+> **📋 本番リリース後 TODO**: 本フローは Sandbox リリースまで。**本番リリースは人間が手動で実施する**ため、本番デプロイ後は `/release {issueID}` を起動（または継続）し、デプロイ完了を報告すること。`/release` Phase 7 がリリース後確認（read-only）と decisions.md「リリース予定日 / 担当」欄・changelog.md への記録を行う。
 
 > **Phase 6 完了後の次アクション（テスト・証跡採取）**: `{deploy_route}` = `manual-operation` の場合、Phase 3〜5 スキップによりコード変更・Sandbox デプロイが発生していないため本アクション自体をスキップする（`/test` はデプロイ済み Sandbox 前提のため対象がない）。`{deploy_route}` = `normal` の場合のみ、完了報告の末尾に、次の1行を **`{issueID}` を実際の課題IDに展開した状態** でコードブロックとして提示し、そのままコピペで別セッションに貼れるようにする。併せて1行案内する:「上記を **別セッション（クリーンな会話）で起動** してください。網羅的テスト・証跡採取・エビデンス Excel 生成を実施します（`/test` はデプロイ済み Sandbox 前提。clean session 分離の設計意図により自動起動はしません）。」
 >
