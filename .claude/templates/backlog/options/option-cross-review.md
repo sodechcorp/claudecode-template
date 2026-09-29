@@ -14,7 +14,7 @@
 
 | 観点 | 確認内容 | 実コード確認結果 |
 |---|---|---|
-| プロファイル / 権限セット | 変更・追加フィールドへの CRUD 権限設定 | |
+| プロファイル / 権限セット | 変更・追加オブジェクトへの CRUD 権限設定（allowCreate/allowRead/allowEdit/allowDelete） | |
 | FLS 項目レベル | `Schema.sObjectType.{Object}.fields.{Field}.isAccessible()` 等の enforcement | |
 | Apex `with sharing` | クラス宣言が `with sharing` か `without sharing` か `inherited sharing` か | |
 | SOQL `WITH SECURITY_ENFORCED` | クエリ単位の enforcement 有無 | |
