@@ -120,7 +120,7 @@ options:
     estimated-cost: 軽
 
   - name: option-permission-fls-check
-    description: 権限セット・プロファイル・FLS の影響確認
+    description: 権限セット・プロファイル・FLS・オブジェクト権限（CRUD）の影響確認
     category: C
     auto-execute-when:
       - 変更対象がオブジェクト・フィールドの追加・削除・型変更
