@@ -45,7 +45,6 @@ Salesforce 開発プロジェクト向けの Claude Code テンプレート。
 | `/backlog [課題ID]` | Backlog 課題の調査 → 担当者が対応方針を決定 → 方針チェック・実装 → Sandbox 反映まで一気通貫 | 担当者の方針決定後は、問題がなければ自動で実装まで進む |
 | `/test [課題ID]` | 実装後テストを全自動実行し証跡採取・OK/NG判定・エビデンスExcel出力 | `/backlog` Phase 6（Sandboxデプロイ）後に実行 |
 | `/release [課題ID]` | 本番リリース準備（資材確定・最終資材での影響確認・チケット競合・ドリフト確認・差分の帰属確認・バックアップ）を read-only で行い、手順を1ステップずつ渡す。デプロイ後はリリース後確認と記録 | 本番へのデプロイ自体は担当者が行う |
-| `/sf-code-analyze [対象]` | `sf code-analyzer`（PMD/CPD/regex）による実エンジン静的解析。Critical/Warning/Info で報告 | org 接続不要・reviewer.md の目視レビューと併用が前提 |
 
 ### ドキュメント生成系
 
