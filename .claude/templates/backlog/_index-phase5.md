@@ -21,7 +21,7 @@ options:
     estimated-cost: 中
 
   - name: option-prod-select-reference
-    description: 本番 SELECT 参照（許可取得→実行→要約。実データ確認が必要な場合）
+    description: 本番データの読み取り（許可不要。実行→要約。実データ確認が必要な場合）
     category: D
     auto-execute-when:
       - 実データの状態確認が原因特定・テストに必要

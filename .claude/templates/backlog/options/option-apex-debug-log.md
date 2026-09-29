@@ -118,7 +118,7 @@ investigation.md「根本原因」セクションに追記:
 
 ## 禁止事項
 
-- **本番組織での TraceFlag 設定・ログ取得は原則禁止**。本番ログが不可欠な場合は `option-prod-select-reference` 準拠でユーザー明示許可を得てから実行する
+- **本番組織での TraceFlag 設定は禁止**（TraceFlag・DebugLevel のレコード作成＝本番への書き込みのため）。本番に既に存在するデバッグログの一覧・内容の読み取り（`sf apex list log` / `sf apex get log`）は読み取りのため許可不要で行ってよい
 - 本番に対する INSERT / UPDATE / DELETE / UPSERT / DML 実行は絶対禁止
 - context 肥大を防ぐため、ログ全文を investigation.md に貼り付けない。抽出した重要行のみを記録する
 

@@ -32,7 +32,7 @@ sf data query --query "SELECT {調査対象フィールドリスト} FROM {Objec
 3. Step C で読んだコードで条件分岐に使われているフィールド
 4. 不明な場合は `FIELDS(ALL)` を使うが LIMIT 5 以下にする
 
-> Sandbox にデータが存在しない場合、本番 SELECT は `option-prod-select-reference` 準拠でユーザー許可を得てから実行する。
+> Sandbox にデータが存在しない場合は本番で SELECT する（`option-prod-select-reference` 準拠・許可不要）。
 
 ### Step 3: フィールド差分の比較
 
@@ -86,6 +86,6 @@ investigation.md「根本原因」セクションに追記:
 
 ## 禁止事項
 
-- 本番組織での SOQL 実行は `option-prod-select-reference` 準拠でユーザー明示許可なしに実行しない
-- 比較結果に個人情報（氏名・メールアドレス・電話番号等）が含まれる場合は investigation.md に記録せず、フィールド名と差分パターンのみ記録する（値はマスク: ****）
+- 本番組織での SOQL 実行は `option-prod-select-reference` 準拠（読み取りは許可不要）
+- 比較結果に個人情報（氏名・メールアドレス・電話番号等）が含まれる場合、investigation.md（`docs/logs/` は git 管理対象外）には記録してよいが、git 管理のドキュメント（`docs/knowledge/` 等）へ転記するときは値を書かず差分パターンに置き換える
 - 本番に対する INSERT / UPDATE / DELETE / UPSERT は絶対禁止

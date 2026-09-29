@@ -9,7 +9,7 @@
 1. 変更対象の機能・オブジェクトを使用しているユーザーの属性を特定する:
    - どのプロファイル・権限セットを持つユーザーが対象か
    - `docs/overview/` の組織概要・ユーザー構成を参照
-2. **影響ユーザー数は本番で確認する（Sandbox のユーザーはテストデータ・代替不可）**: Sandbox のユーザーマスタは検証用アカウントのみで本番の実在ユーザー数を表さない。`option-prod-select-reference` 準拠でユーザー許可を得たうえで本番に対して実行する:
+2. **影響ユーザー数は本番で確認する（Sandbox のユーザーはテストデータ・代替不可）**: Sandbox のユーザーマスタは検証用アカウントのみで本番の実在ユーザー数を表さない。`option-prod-select-reference` 準拠（読み取りは許可不要）で本番を確認する:
    ```bash
    sf data query --query "SELECT COUNT() FROM User WHERE Profile.Name = '{プロファイル名}' AND IsActive = true" --target-org {prod-alias} --json
    ```
