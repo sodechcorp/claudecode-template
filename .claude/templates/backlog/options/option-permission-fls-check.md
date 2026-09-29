@@ -28,12 +28,22 @@
 5. 対象フィールド・オブジェクトが以下のどのアクセスを持つか確認する:
    - フィールド（FLS）: `readable: true / false` / `editable: true / false`
    - オブジェクト（CRUD）: `allowCreate / allowRead / allowEdit / allowDelete`
-6. **0 件時の扱い（誤って「無関係」と結論しないための必須確認）**: ローカルの `permissionset`/`profile` に対象の `fieldPermissions`/`objectPermissions` エントリが1件もない場合、「権限なし」を意味するとは限らない（`sf project retrieve` は同時に取得した範囲外の権限エントリを省略することがある）。0 件の場合は対象組織に問い合わせて確認する:
-   ```bash
-   sf data query -q "SELECT Parent.Name, PermissionsCreate, PermissionsRead, PermissionsEdit, PermissionsDelete FROM ObjectPermissions WHERE SobjectType = '{オブジェクト API 名}'" --target-org <alias> --json
-   sf data query -q "SELECT Parent.Name, PermissionsRead, PermissionsEdit FROM FieldPermissions WHERE Field = '{オブジェクト API 名}.{フィールド API 名}'" --target-org <alias> --json
-   ```
-   組織に問い合わせられない場合は「無関係」と断定せず `**[要確認: 権限未確認（組織問い合わせ不可）]**` を付ける。
+6. **組織問い合わせが必須のケース**: 以下のいずれかに該当する場合、ローカルの `permissionset`/`profile` の値だけで判定を終えず、対象組織に問い合わせて確認する:
+   - ローカルの `permissionset`/`profile` に対象の `fieldPermissions`/`objectPermissions` エントリが1件もない場合（「権限なし」を意味するとは限らない。`sf project retrieve` は同時に取得した範囲外の権限エントリを省略することがある）:
+     ```bash
+     sf data query -q "SELECT Parent.Name, PermissionsCreate, PermissionsRead, PermissionsEdit, PermissionsDelete FROM ObjectPermissions WHERE SobjectType = '{オブジェクト API 名}'" --target-org <alias> --json
+     sf data query -q "SELECT Parent.Name, PermissionsRead, PermissionsEdit FROM FieldPermissions WHERE Field = '{オブジェクト API 名}.{フィールド API 名}'" --target-org <alias> --json
+     ```
+   - 上記、または手順2・4で権限を付与していると判明した権限セットが所属する PermissionSetGroup に `<mutingPermissionSets>` が設定されている場合（`force-app/main/default/permissionsetgroups/**/*.xml` で確認。Muting Permission Set 本体は通常 `scripts/sf-retrieve.sh` の取得対象外でローカルに存在しない）: 上記クエリで返る構成権限セット単体の行は Muting 適用前の値のため、グループ経由でアクセス権を得るユーザー1名の実効権限を直接問い合わせる（対象ユーザーは課題報告者、または `SELECT AssigneeId FROM PermissionSetAssignment WHERE PermissionSetGroupId IN (SELECT Id FROM PermissionSetGroup WHERE DeveloperName = '{グループ名}')` で特定）:
+     ```bash
+     sf data query -q "SELECT DurableId, IsReadable, IsEditable, IsCreatable, IsDeletable FROM UserEntityAccess WHERE UserId = '{対象ユーザーID}' AND EntityDefinition.QualifiedApiName = '{オブジェクト API 名}'" --target-org <alias> --json
+     ```
+     フィールド単位は `UserFieldAccess.DurableId` がカスタム項目では `{オブジェクトAPI名}.{フィールドAPI名}` ではなく内部形式になり0件またはエラーになるため、先に `FieldDefinition` で解決してから問い合わせる:
+     ```bash
+     sf data query -q "SELECT DurableId FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '{オブジェクト API 名}' AND QualifiedApiName = '{フィールド API 名}'" --target-org <alias> --json
+     sf data query -q "SELECT DurableId, IsAccessible, IsUpdatable FROM UserFieldAccess WHERE DurableId = '{直前のクエリで取得した DurableId}.{対象ユーザーID}'" --target-org <alias> --json
+     ```
+   組織に問い合わせられない場合は「無関係」と断定せず `**[要確認: 権限未確認（組織問い合わせ不可、または権限セットグループの Muting 未確認）]**` を付ける。
 7. 課題の症状（見えない・保存できない・作成できない・削除できない・エラーになる）と FLS / オブジェクト権限の関係を評価する:
    - FLS またはオブジェクト権限が原因の場合 → 修正方針を「権限設定変更」方向に更新
    - 組織問い合わせも含めて確認しどちらも無関係と判明した場合のみ → 「FLS・オブジェクト権限 確認済み・無関係」と記録
