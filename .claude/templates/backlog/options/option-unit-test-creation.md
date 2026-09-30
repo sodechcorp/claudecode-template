@@ -17,10 +17,7 @@
    - 権限系: 権限なしユーザーでの挙動（with sharing の場合）
    - バルク系: 200 件以上での挙動
 5. テストデータは `@TestSetup` で共通化する
-6. テストを実行してカバレッジ・全 PASS を確認する:
-   ```bash
-   sf apex run test --class-names {TestClassName} --code-coverage --target-org {sandbox-alias} --json
-   ```
+6. 作成・拡充したテストクラスを backlog-tester Step 2 の dry-run の `--tests` に含めて実行し、カバレッジ・全 PASS を確認する
 
 ## 出力
 

@@ -66,7 +66,7 @@ Apex テストクラスの回帰確認・カバレッジは `/backlog` Phase 5 �
 
 ## 権限・ユーザ切り替えテストのアーキテクチャ（Login As）
 
-`/test` では権限・FLS/CRUD・共有ロジックの差分確認を **UI Login As の実画面（画面の動き）＋ SOQL/AnonApex（データの動き）** に一本化する。`System.runAs` を使った Apex テストクラスでの権限検証は `/backlog` Phase 5/6 の回帰テストが担当し、`/test` では扱わない（テストクラスの Pass/Fail は人が見ても意味が分からずエビデンス化しない）。
+`/test` では権限・FLS/CRUD・共有ロジックの差分確認を **UI Login As の実画面（画面の動き）＋ SOQL/AnonApex（データの動き）** に一本化する。`System.runAs` を使った Apex テストクラスでの権限検証は `/backlog` Phase 5 の回帰テストが担当し、`/test` では扱わない（テストクラスの Pass/Fail は人が見ても意味が分からずエビデンス化しない）。
 
 ### UI 表示差分（権限別画面） → Playwright + Login As（管理者1認証のまま）
 

@@ -56,7 +56,7 @@ focus_hints: ["{関連コンポーネント一覧から抽出したキーワー�
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
 > 本 agent の Phase: 5（_index-phase5.md を Read して判定）
 
-> **Phase 5 は dry-run 限定（Sandbox 実操作不可）**: 採用したオプション（`option-regression-test` / `option-edge-case-test` / `option-permission-test` / `option-performance-test` / `option-unit-test-creation` 等）の実行手順に Sandbox への実操作・UI 確認・デプロイ後の計測が含まれる場合、本 Phase では dry-run の制約上その部分は実施できない（Step 2・Step 3 参照。コードは Sandbox に永続化されない）。該当箇所は「/test で実施予定」として test-report.md に記録し、静的に確認可能な範囲（コードレビュー・観点の洗い出し・テストクラスの作成）のみ実施する。デプロイ後の実操作確認・証跡採取は `/test` の担当範囲（観点は [test-pattern-map.md](../templates/backlog/test-pattern-map.md) 参照）であり、重複実施しない。
+> **Phase 5 は dry-run 限定（Sandbox 実操作不可）**: 採用したオプション（`option-regression-test` / `option-edge-case-test` / `option-permission-test` / `option-performance-test` 等）の実行手順に Sandbox への実操作・UI 確認・デプロイ後の計測が含まれる場合、本 Phase では dry-run の制約上その部分は実施できない（Step 2・Step 3 参照。コードは Sandbox に永続化されない）。該当箇所は「/test で実施予定」として test-report.md に記録し、静的に確認可能な範囲（コードレビュー・観点の洗い出し・テストクラスの作成）と dry-run で確認できる範囲（Apex テストの実行）のみ実施する。デプロイ後の実操作確認・証跡採取は `/test` の担当範囲（観点は [test-pattern-map.md](../templates/backlog/test-pattern-map.md) 参照）であり、重複実施しない。
 
 判定結果（採用・スキップしたオプション）は `docs/logs/{issueID}/test-report.md` の「## スモーク確認結果」セクション末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
@@ -107,7 +107,7 @@ Step 2（dry-run デプロイ）が `<alias>` を使うため、ここで先に�
 
 `implementation-plan.md` の変更対象ファイルに Apex クラス（`.cls`）またはトリガー（`.trigger`）が含まれるかで test-level を切り替える:
 
-**`<テストクラス名>` の特定方法**: `docs/logs/{issueID}/validation-report.md` の「## Step 2: 既存テストカバレッジ確認」表（regression-guard確認結果由来）に対応するテストクラス名の記載があれば、それを優先してそのまま使う。記載が無い、または表自体が存在しない場合のみ、変更対象クラス・トリガーごとに命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls`。トリガーはファイル名（拡張子除く）を `{ClassName}` として同じ規則を適用する）で Glob/Grep して特定する（release-preparer.md Phase 1 と同じ特定方法に統一。regression-guard.md Step 2 の候補パターンとも一致）。
+**`<テストクラス名>` の特定方法**: `docs/logs/{issueID}/validation-report.md` の「## Step 2: 既存テストカバレッジ確認」表（regression-guard確認結果由来）に対応するテストクラス名の記載があれば、それを優先してそのまま使う。記載が無い、または表自体が存在しない場合のみ、変更対象クラス・トリガーごとに命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls`。トリガーはファイル名（拡張子除く）を `{ClassName}` として同じ規則を適用する）で Glob/Grep して特定する（release-preparer.md Phase 1 と同じ特定方法に統一。regression-guard.md Step 2 の候補パターンとも一致）。Step 0b の option-unit-test-creation で作成・拡充したテストクラスは、どちらの場合も加える。
 
 **部分該当（変更対象の一部のクラス・トリガーだけ対応テストクラスが見つかった場合）**: 見つかった分のみをスペース区切りで `<テストクラス名>` に列挙し `RunSpecifiedTests` で実行する（下記の NoTestRun フォールバックは変更対象**全件**が不在の場合のみに適用し、部分該当では適用しない）。`RunSpecifiedTests` はデプロイ対象クラス・トリガーごとに個別 75% カバレッジを要求するため、テストクラスが見つからなかったクラス・トリガーがあれば dry-run 自体がそのクラスのカバレッジ不足で FAIL しうる（Step 4 の FAIL 分岐でそのまま報告すればよく、黙って見逃されない）。
 
