@@ -24,7 +24,7 @@
 
 release-plan.md「## 影響範囲サマリー」に直接反映する（`/release`〔release-preparer.md Phase 2〕専用のオプションで `_index-phase1.md` にも登録がないため、test-report.md への追記は行わない）:
 
-## 横断機能影響確認
+**横断機能影響確認**
 
 - 確認対象: {確認した機能・コンポーネント}
 - 問題: なし / あり（{詳細・対応済み内容}）

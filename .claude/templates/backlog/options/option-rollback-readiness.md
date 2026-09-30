@@ -27,9 +27,7 @@
 
 ## 出力
 
-リリース手順書（または test-report.md）に追記:
-
-## ロールバック最終確認
+release-plan.md「## ロールバック手順」節の先頭（[release-preparer.md](../../../agents/release-preparer.md) 手順書テンプレートの `{option-rollback-readiness.md による最終確認}` の位置。この枠は manual_operation_mode: false の場合のみで、true の場合は記録しない）に記録する:
 
 - コードロールバック手順: バックアップ retrieve 済み（`{ROLLBACK_BACKUP_DIR}`）+ 再デプロイ（所要: {N} 分）
 - データロールバック: バックアップ有 / 不要

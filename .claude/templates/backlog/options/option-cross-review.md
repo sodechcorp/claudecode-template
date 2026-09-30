@@ -10,15 +10,15 @@
 
 ### 1. 権限 / FLS 確認
 
-実コードを Grep して以下の各観点の対応有無を確認し、表に記録する（Apex を含まない変更は該当項目を「対象外」と記録する）:
+実コードを Grep して以下の各観点の対応有無を確認する（Apex を含まない変更は該当項目を「対象外」とする）:
 
-| 観点 | 確認内容 | 実コード確認結果 |
-|---|---|---|
-| プロファイル / 権限セット | 変更・追加オブジェクトへの CRUD 権限設定（allowCreate/allowRead/allowEdit/allowDelete） | |
-| FLS 項目レベル | `Schema.sObjectType.{Object}.fields.{Field}.isAccessible()` 等の enforcement | |
-| Apex `with sharing` | クラス宣言が `with sharing` か `without sharing` か `inherited sharing` か | |
-| SOQL `WITH SECURITY_ENFORCED` | クエリ単位の enforcement 有無 | |
-| DML `Security.stripInaccessible` | 書き込み時のフィールドアクセス制御 | |
+| 観点 | 確認内容 |
+|---|---|
+| プロファイル / 権限セット | 変更・追加オブジェクトへの CRUD 権限設定（allowCreate/allowRead/allowEdit/allowDelete） |
+| FLS 項目レベル | `Schema.sObjectType.{Object}.fields.{Field}.isAccessible()` 等の enforcement |
+| Apex `with sharing` | クラス宣言が `with sharing` か `without sharing` か `inherited sharing` か |
+| SOQL `WITH SECURITY_ENFORCED` | クエリ単位の enforcement 有無 |
+| DML `Security.stripInaccessible` | 書き込み時のフィールドアクセス制御 |
 
 - 新規フィールドを追加する場合: 必要な権限セット・プロファイルで readable / editable が設定されているか
 - 既存フィールドを変更する場合: FLS の変更が必要ないか
@@ -40,12 +40,4 @@ implementation-plan.md の実装案と、既存の類似実装を比較する:
 
 ## 出力
 
-validation-report.md に追記:
-
-## 多角レビュー結果
-
-**権限 / FLS**: 問題なし / 要修正（{内容}）/ 要実装確認（{観点}）
-**副作用考慮**: 実装に反映済み / 未反映（{内容}）
-**類似実装整合**: 整合 / 差異あり（{内容・意図的 / 要修正}）
-
-総合判定: OK → 実装進行 / 要修正（{修正内容}）
+validation-report.md の `## Step 4: クロスレビュー` 表（[backlog-validator.md](../../../agents/backlog-validator.md) §出力形式）の各行に記録する。権限/FLS 行の確認結果には手順 1 の各観点の結果（「対象外」「要実装確認」を含む）を書く。
