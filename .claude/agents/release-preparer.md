@@ -21,7 +21,7 @@ tools:
 
 > **絶対原則**: 本番組織に対しては **read-only 操作のみ**。`sf project deploy`（`--dry-run` 含む）・DML・`force-app/` への書き込みは一切行いません。あなたの成果物は「人間が実行する手順書」であり、あなた自身がデプロイを実行することはありません。
 >
-> **read-only で自分で実行するもの（人間に渡さない）**: 本番の現行資材の取得（バックアップ兼・差分の帰属確認）、データへの影響がある場合の対象データの CSV 退避、リリース後の確認（資材の一致・有効化状態・削除の反映）。いずれも [prod-readonly-check.md](../templates/common/prod-readonly-check.md) で許可された `sf project retrieve start`（force-app 以外への取得）・`sf org list metadata`・`sf sobject describe`・`sf data query`（SELECT）だけで行う。本番に対するコマンドは `cd "{project_dir}" &&` を付けて実行する（`docs/logs/...` の相対パスと SFDX プロジェクトを前提にするため）。この原則は hook（`pre-operation.js`）・settings.json の deny リストでも機械的にブロックされていますが、そもそも実行を試みないこと。
+> **read-only で自分で実行するもの（人間に渡さない）**: 本番の現行資材の取得（バックアップ兼・差分の帰属確認）、データへの影響がある場合の対象データの CSV 退避、リリース後の確認（資材の一致・有効化状態・削除の反映。本番の画面の閲覧確認は `prod-ui-verifier` が `release.md` Step 5 から別途実施する）。いずれも [prod-readonly-check.md](../templates/common/prod-readonly-check.md) で許可された `sf project retrieve start`（force-app 以外への取得）・`sf org list metadata`・`sf sobject describe`・`sf data query`（SELECT）だけで行う。本番に対するコマンドは `cd "{project_dir}" &&` を付けて実行する（`docs/logs/...` の相対パスと SFDX プロジェクトを前提にするため）。この原則は hook（`pre-operation.js`）・settings.json の deny リストでも機械的にブロックされていますが、そもそも実行を試みないこと。
 >
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
 >
@@ -368,7 +368,7 @@ sf project deploy report --target-org {本番エイリアス}
 
 ### manual-operation 版（`manual_operation_mode: true` の場合はこちらを使う。上記 Step 1〜4・`--test-level` 判定は記載しない）
 
-**具体的な操作内容は本節が正本**。`docs/logs/{issueID}/manual-operation-steps.md`「### 操作ステップ」の各項目を `### Step {N}: {ステップの要約}` 見出しに変換し、それぞれ独立したセクションとして転記する（内容自体は書き換えない。[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) が `### Step N: ...` 単位で TodoWrite 化する既存ロジックに揃えるため、通常経路の Step 1〜4 と同じ見出し形式にする。Sandbox 固有の値〔レコードID等〕が含まれる場合は該当ステップ直下に「⚠️ Sandbox 固有の値を含む可能性があります。本番の実値に読み替えてください」を挿入する）。「### 確認事項」はここに含めない（③ リリース後チェックに転記する。SOQL で確認できるものは Claude が Phase 7 で確認し、それ以外は担当者の確認項目として1つずつ渡す）。
+**具体的な操作内容は本節が正本**。`docs/logs/{issueID}/manual-operation-steps.md`「### 操作ステップ」の各項目を `### Step {N}: {ステップの要約}` 見出しに変換し、それぞれ独立したセクションとして転記する（内容自体は書き換えない。[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) が `### Step N: ...` 単位で TodoWrite 化する既存ロジックに揃えるため、通常経路の Step 1〜4 と同じ見出し形式にする。Sandbox 固有の値〔レコードID等〕が含まれる場合は該当ステップ直下に「⚠️ Sandbox 固有の値を含む可能性があります。本番の実値に読み替えてください」を挿入する）。「### 確認事項」はここに含めない（③ リリース後チェックに転記する。SOQL で確認できるものは Claude が Phase 7 で確認し、画面の閲覧で判定できるものは `prod-ui-verifier`〔③「Claude が実施する確認（画面…）」表〕、保存・代表操作を伴うものは担当者の確認項目として1つずつ渡す）。
 
 対象環境: {本番エイリアス}
 
@@ -396,12 +396,21 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
 - 資材マニフェストのコンポーネントに、デプロイ以降に想定外の変更が入っていないか（Tier 1 の再スキャン）
 {manual_operation_mode: true の場合}
 - manual-operation-steps.md「### 確認事項」のうち SOQL で確認できるものを確認する
+{共通}
+- 本番の画面の閲覧確認（下の表）は Phase 7 の後に `release.md` Step 5 が `prod-ui-verifier` を起動して実施する（Phase 7 自身は画面を開かない）
+
+## Claude が実施する確認（画面・デプロイ完了の報告後に `prod-ui-verifier` が read-only で実施）
+{本番の画面を**閲覧するだけ**で確認できる項目を表にする。`release.md` Step 5 が、この表が 1 行以上あれば `prod-ui-verifier` を起動する。該当なしなら「該当なし」と書く。行の作り方は下記「手順書生成時に以下を実施」の画面確認の項を参照}
+
+| No | 確認内容 | 確認ユーザー | 対象画面（遷移） | 期待結果 | 由来 |
+|---|---|---|---|---|---|
+| V-1 | {例: 項目「〇〇」が取引先の詳細画面に表示される} | 管理者 / {プロファイル名}（Login As） | {相対 URL、またはクリック手順} | {画面上で判定できる具体的な文言・要素} | {matrix §D の種別 / test-spec.md の TC-xxx} |
 
 ## 担当者が実施する確認（引き渡し時に1つずつ渡す）
-{matrix §C の担当者の項目と、matrix §D の該当種別のうち Claude が実行できないもの（画面操作での確認・`sf apex run test` での本番テスト実行・本番での代表操作）だけを転記する。Claude の確認と重複する項目は載せない}
+{matrix §C の担当者の項目と、matrix §D の該当種別のうち Claude が実行できないもの（**保存・代表操作・データ更新を伴う確認**、入力規則の違反データ入力、画面フローの実行、`sf apex run test` での本番テスト実行）だけを転記する。Claude の確認（SOQL・資材の一致・上記の画面確認）と重複する項目は載せない}
 
 ## 資材種別別・リリース後検証の注意点
-{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「注意点」を転記（「リリース後検証方法」のうち担当者の分は上の「担当者が実施する確認」に転記済み）。`manual_operation_mode: true` の場合は、manual-operation-steps.md「### 確認事項」のうち SOQL で確認できないものを上の「担当者が実施する確認」に転記する（引き渡し時に1つずつ渡す）。`{本番エイリアス}` は Step 1〜4 と同じ値を埋め込む（未確定の場合の扱いも同様）}
+{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「注意点」を転記（「リリース後検証方法」のうち担当者の分は上の「担当者が実施する確認」に転記済み）。`manual_operation_mode: true` の場合は、manual-operation-steps.md「### 確認事項」のうち、SOQL で確認できるものは Claude の確認、画面の閲覧で判定できるものは上の「Claude が実施する確認（画面…）」表、それ以外（保存・代表操作を伴うもの）を上の「担当者が実施する確認」に転記する（担当者の分は引き渡し時に1つずつ渡す）。`{本番エイリアス}` は Step 1〜4 と同じ値を埋め込む（未確定の場合の扱いも同様）}
 
 ---
 
@@ -421,6 +430,12 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
 - **`manual_operation_mode: true` の場合**、`has_destructive` は false 固定のため destructiveChanges.xml は生成しない。「② リリース実行」は上記「### manual-operation 版」を使う（Step 1〜4・`--test-level` 判定は記載しない）
 - **`has_destructive: true` の場合**、`docs/logs/{issueID}/destructive-changes/destructiveChanges.xml`（削除対象を種別ごとに `<types><members>{API名}</members>...<name>{メタデータ種別}</name></types>` で列挙）と `docs/logs/{issueID}/destructive-changes/package.xml`（`<version>` タグのみの空マニフェスト。バージョンは `sfdx-project.json` の `sourceApiVersion` を使う）を生成する（Step 3b で使用）
 - [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) を参照し、①/③ の資材種別別セクションを Phase 1 資材マニフェストの含有種別に合わせて組み立てる
+- **③「Claude が実施する確認（画面…）」の表を作る**（本番の画面確認は `prod-ui-verifier` が Phase 7 の後に実施する。範囲の正本: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)「本番 UI 確認（read-only）」）:
+  - **行の由来**: (a) matrix §D の該当種別の「リリース後検証」のうち、画面を閲覧するだけで判定できるもの（項目・タブ・レイアウトの表示、権限・項目レベルセキュリティによる見え方〔Login As〕、一覧・レポート・ダッシュボードの表示）。(b) `docs/logs/{issueID}/test-spec.md` の UI 種別 TC のうち、実行アクションが閲覧・遷移だけのもの（対象画面・確認ユーザー・期待結果を本番向けに転記。TC 番号を「由来」に書く）
+  - **Sandbox の値を持ち込まない**: 対象画面はタブ・一覧・設定などの**相対パス**、またはレコード ID を使わずに本番で対象を特定できる導線（一覧のフィルタ・SOQL 条件）で書く。Sandbox のレコード ID・ドメイン・ユーザー名を含む遷移先、AnonApex でのデータ作成を前提にする TC は転記しない（本番に存在せず、到達できないだけで誤った NG になるため）
+  - **含めない（担当者の確認へ）**: 保存・作成・更新・削除・承認・送信を伴う確認、新規・編集フォームを開く確認（レコードタイプの選択肢の確認等。開いただけで処理が走る上書きボタンを機械的に見分けられないため）、入力規則の違反データ入力、画面フローの実行、Apex／トリガーの実挙動
+  - **期待結果は画面上で判定できる形**にする（表示される文言・要素の有無。「正しく動く」等は不可）。確認ユーザーはプロファイル名（Login As。ユーザー名を指定してもよい）または「管理者」。**最大 10 行**（超える場合は、権限による見え方 → 変更した画面の表示 → その他の順で残す）
+  - `manual_operation_mode: true` の場合は manual-operation-steps.md「### 確認事項」のうち画面の閲覧で判定できるものを同じ形で表にする
 - [option-rollback-readiness.md](../templates/backlog/options/option-rollback-readiness.md) の内容でロールバック手順セクションを埋める
 - `docs/logs/{issueID}/release-note.md` の生成前に既存ファイルの有無を確認する。**既に存在する場合**（`/backlog` Phase 6 で option-release-note-generation が実行済みの可能性がある）は全文 Read し、「リリース日」欄を本番リリース予定日に更新し、「注意事項」に今回の `--test-level` 判定結果を追記する差分更新のみ行う（全面再生成しない。既存の変更内容・影響範囲の記述を消さない）。**存在しない場合のみ** [option-release-note-generation.md](../templates/backlog/options/option-release-note-generation.md) に従い新規生成する
 
@@ -455,7 +470,7 @@ release_plan_generated: true
 
 ### 重要
 - {manual_operation_mode: false の場合}本番デプロイは人間が手順書の CLI コマンドを実行してください。{true の場合}本番への管理画面操作は人間が手順書の操作ステップに従って実行してください。このエージェントは本番へ read-only 操作のみ行い、デプロイ・書き込みは一切行っていません
-- リリース後チェック（③）は、Claude が read-only で確認できるもの（資材の一致・削除の反映・SOQL で確認できる状態）を Phase 7 で先に確認し、画面操作等でしか確認できないものを担当者に1つずつ渡します
+- リリース後チェック（③）は、Claude が read-only で確認できるもの（資材の一致・削除の反映・SOQL で確認できる状態は Phase 7、本番の画面の閲覧・Login As での見え方は `prod-ui-verifier`）を先に確認し、保存・代表操作を伴うものだけを担当者に1つずつ渡します
 - {競合・ドリフトの警告があればここに再掲}
 - 本番デプロイが完了したら、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください。Claude がリリース後確認（read-only）を行い、decisions.md・changelog.md に記録します（Phase 7）
 {Phase 1 2a で「要確認（ローカル実在）」の候補が検出された場合}- **要確認**: 「資材マニフェスト外で言及されているコンポーネント」の {検出コンポーネント名} をリリース対象に含めるべきですか？含める場合は資材マニフェストへ追加のうえ `/release {issueID}` を再実行してください（release-plan.md を再生成します）

@@ -1,6 +1,6 @@
 # Playwright Salesforce 画面操作 共通手順
 
-Salesforce Sandbox での Playwright 画面操作に関する共通手順。
+Salesforce Sandbox での Playwright 画面操作に関する共通手順（例外として、本番の閲覧のみを行う「本番 UI 確認モード」を「本番ガード」に定める）。
 このファイルを Read したエージェントは以下の手順・指針に従う。
 
 ---
@@ -10,7 +10,7 @@ Salesforce Sandbox での Playwright 画面操作に関する共通手順。
 Sandbox 接続確認は `.claude/templates/common/sandbox-alias-check.md` を Read して実施する。
 `isSandbox = True` でなければ即座に中止する（`/test`・`auto-evidence-runner`・`ui-evidence-runner`・`backlog-repro-runner` を含む通常の呼び出しは、これが既定であり変更しない）。
 
-**例外 — 本番 UI 確認（read-only）モード**: 本番の画面を確認する目的（`/release` のリリース後確認、またはユーザーが本番画面の確認を直接依頼した場合）で起動されたときに限り、上記の中止に代えて [prod-readonly-check.md](prod-readonly-check.md) の接続確認を行い、本番と確認できたら同ファイル「本番 UI 確認（read-only）」の**許可範囲のみ**で続行する（frontdoor 認証・Login As・閲覧・スクリーンショット・DOM テキスト取得）。本ファイル後段のフォーム入力・保存・送信を伴う手順は本番では実行しない。
+**例外 — 本番 UI 確認（read-only）モード**: 本番の画面を確認する目的（`/release` のリリース後確認〔`prod-ui-verifier`〕、またはユーザーが本番画面の確認を直接依頼した場合）で起動されたときに限り、上記の中止に代えて [prod-readonly-check.md](prod-readonly-check.md) の接続確認を行い、本番と確認できたら同ファイル「本番 UI 確認（read-only）」の**許可範囲のみ**で続行する（frontdoor 認証・Login As・閲覧・スクリーンショット・DOM テキスト取得）。本ファイル後段のフォーム入力・保存・送信を伴う手順は本番では実行しない。
 
 ---
 
@@ -38,8 +38,10 @@ Salesforce Setup 配下（`/_ui/`・`/lightning/setup/` 等）の URL は、**�
 **1件目の遷移先（相対パス）が判明している場合（推奨）**: `--path` に渡すと `FRONTDOOR_URL` の `retURL` にその画面が埋め込まれ、ログイン直後に対象画面へ直接着地する（`--path` 省略時は既定の Lightning ホームに着地してから別途アプリ内遷移が必要になり、その分の画面読み込みが毎回無駄になる）。
 
 ```bash
-sf org open --target-org "$SF_ALIAS" --url-only --json --path "{1件目の対象画面の相対パス}"
+MSYS_NO_PATHCONV=1 sf org open --target-org "$SF_ALIAS" --url-only --json --path "{1件目の対象画面の相対パス}"
 ```
+
+**`MSYS_NO_PATHCONV=1` は必須（Windows の Git Bash）**: Bash ツールは `.bashrc` を読まないため、付けないと `--path` の先頭 `/` が `C:/Program Files/Git/...` に変換され、`startURL` が壊れて対象画面に着地しない（実績: `/lightning/setup/ManageUsers/home` が `startURL=C:/Program Files/Git/lightning/...` になった）。着地しても別画面のスクリーンショットを対象画面として採取してしまうため、`--path` を渡すコマンドには必ず付ける。
 
 **1件目の遷移先が未確定、またはクリック操作でしか到達できない場合**: `--path` を省略する。
 
@@ -437,13 +439,24 @@ async (page) => {
     }
   }
 
+  // 本人確認: 現在のセッションが対象ユーザーか。true=対象に切り替わった / false=別ユーザーのまま / null=判定不能（$A なし）
+  // 失敗マーカーだけでは成功と誤判定する（実績: 統合ユーザー等、Login As できないユーザーへの servlet.su は
+  // エラー表示なしで管理者のまま残る）。権限差分の確認は「対象ユーザーの画面を見ていること」が前提のため、本人確認を必須にする
+  async function isCurrentUser(p, userId) {
+    const id = await p.evaluate(() => { try { return (typeof $A !== 'undefined') ? $A.get('$SObjectType.CurrentUser.Id') : null; } catch (e) { return null; } });
+    if (!id) return null;
+    return String(id).slice(0, 15) === String(userId).slice(0, 15);
+  }
+
   // ─── Login As 高速パス（servlet.su 直接遷移。上記で解決済みの OrgId/UserId を使う）───
+  // targetURL は Lightning 画面にする（本人確認の $A が使える。Classic の home.jsp は本人確認できない）
   let loginAsOk = false;
   try {
-    await page.goto('/servlet/servlet.su?oid={OrgId}&suorgadminid={UserId}&targetURL=%2Fhome%2Fhome.jsp');
+    await page.goto('/servlet/servlet.su?oid={OrgId}&suorgadminid={UserId}&targetURL=%2Flightning%2Fpage%2Fhome');
     await waitSfReady(page);
+    await page.waitForTimeout(3000); // $A の初期化待ち
     const checkText = await getPageText(page);
-    loginAsOk = !looksLikeLoginAsFailure(checkText, page.url());
+    loginAsOk = !looksLikeLoginAsFailure(checkText, page.url()) && (await isCurrentUser(page, '{UserId}')) === true;
   } catch (e) {
     loginAsOk = false;
   }
@@ -460,6 +473,14 @@ async (page) => {
     await waitSfReady(page);
     await page.getByRole('button', {name: 'ユーザに代わってログイン'}).click();
     await waitSfReady(page);
+    await page.waitForTimeout(3000);
+    loginAsOk = (await isCurrentUser(page, '{UserId}')) === true;
+  }
+  if (!loginAsOk) {
+    // 対象ユーザーに切り替わっていない（管理者のまま、または判定不能）: 管理者の画面を対象ユーザーの結果として採取しない。
+    // このユーザーの TC は実行せず `loginAs: 'unavailable'` を返す（呼び出し元は、/test では ui-evidence-runner「Login As が実行時に失敗した場合の手順」に従い、
+    // 本番 UI 確認では prod-ui-verifier が「要手動（Login As 不可）」にする）。切り替わっていないので /secur/logout.jsp は実行しない（管理者自身のセッションが切れる）
+    return JSON.stringify([{ ok: false, loginAs: 'unavailable' }]);
   }
 
   // ─── 当該ユーザの TC を連続撮影（TC が増えてもここに追加するだけ）───
@@ -509,7 +530,8 @@ async (page) => {
 ```
 
 **注意**:
-- プロキシ解除 `/secur/logout.jsp` は**当該ユーザの全 TC 完了後に 1 回だけ**実行（次ユーザの Login As 前に管理者セッションに戻る）
+- プロキシ解除 `/secur/logout.jsp` は**当該ユーザの全 TC 完了後に 1 回だけ**実行（次ユーザの Login As 前に管理者セッションに戻る）。Login As が成立していない（本人確認が true でない）状態では実行しない（管理者自身のセッションが切れる）
+- **Login As の成否は本人確認（`isCurrentUser`）で判定する**。`looksLikeLoginAsFailure` のマーカー検査だけでは、切り替え不可のユーザー（統合ユーザー等）への `servlet.su` を成功と誤判定し、管理者の画面を対象ユーザーの結果として採取してしまう（2026-09-30 実測）。実測済みの範囲: Lightning の `$A.get('$SObjectType.CurrentUser.Id')`（切り替え前後で管理者→対象ユーザーに変わること、`/secur/logout.jsp` 後に管理者へ戻ることを確認）。Classic 画面（`$A` なし）は判定不能＝未検証のため、成功とは扱わない
 - 複数ユーザがいる場合は**ユーザ分コードブロックを繰り返す**（1ユーザ = 1コードブロック、TC 数は各コードブロック内で吸収）
 - ユーザ名リンクの特定が難しい場合は先に `mcp__playwright__browser_snapshot` で DOM を確認してからコードブロックに組み込む
 
@@ -819,7 +841,8 @@ mcp__playwright__browser_network_requests
 ## セキュリティ規約（全操作共通・必須）
 
 - **FRONTDOOR_URL（accessToken 含む）をコードブロック引数に直書きしない**（エージェント変数として展開した値を文字列に埋め込む）
-- `browser_run_code_unsafe` は RCE 相当のため **Sandbox セッション限定**で使う
+- `browser_run_code_unsafe` は RCE 相当のため **Sandbox セッション、または本番 UI 確認（read-only）モード〔`prod-ui-verifier`〕に限る**。本番では、閲覧・スクリーンショット・DOM 取得・Login As（本人確認とプロキシ解除を含む）以外のコードを書かない。本番で書いてはいけないもの: `.fill` / `.type` / `.press` / `selectOption` / `setInputFiles`、保存・削除・承認・送信系ボタンの `click`、`fetch` 等による API 呼び出し。唯一の例外は Login As フォールバックの ManageUsers 検索欄（`searchBox.fill` と Enter）のみ。範囲の正本: [prod-readonly-check.md](prod-readonly-check.md)「本番 UI 確認（read-only）」
+- **Playwright MCP は操作のたびに `.playwright-mcp/` へページ全文のスナップショット・コンソールログ・ダウンロードの複製を自動保存する**（エージェントの証跡ルールの外）。本番の画面では実顧客のデータが残るため、本番モードでは終了時に開始時刻以降のファイルを削除する（`prod-ui-verifier` Step 4）。`.playwright-mcp/` は `.gitignore` で追跡対象外にしている
 - accessToken はいかなる形でもファイル・ログ・証跡・return 値に出力しない
 - 操作完了後は必ず `mcp__playwright__browser_close` でセッションを閉じる
 - **Salesforce のログイン画面へ Playwright でユーザー名・パスワードを直接入力する方式は使わない**。認証は必ず sf CLI 認証済みセッション経由の frontdoor（上記）のみを正規経路とする。別ユーザーでの確認が必要な場合は「Login As」（パスワード不要）を使う。対象ユーザーが sf CLI 未認証で Login As も使えない場合は、パスワードを聞き出さず `sandbox-alias-check.md` の「未認証時の対処」（ユーザー本人による `sf org login web`）に従う

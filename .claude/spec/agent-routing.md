@@ -53,7 +53,7 @@
 | `/sf-doc` 各ステップ | `sf-doc-overview-writer` / `sf-doc-objects-writer` |
 | `/backlog` 各 Phase | `backlog-investigator` / `backlog-repro-runner` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator` |
 | `/test` 各 Phase（証跡採取・レポート） | `auto-evidence-runner` / `ui-evidence-runner` / `test-spec-builder` |
-| `/release`（本番リリース準備。`/backlog`・`/test` 完了後の独立段階） | `release-preparer` |
+| `/release`（本番リリース準備。`/backlog`・`/test` 完了後の独立段階） | `release-preparer` / `prod-ui-verifier`（デプロイ後の本番の画面確認・read-only。`release.md` Step 5 から直接 Task 委譲し、二段ネストにしない） |
 | blind 系（Task 経由のみ・親の情報を受け取らない） | `backlog-blind-second-opinion`（起動元は investigator） |
 | `quality-gate.md` の reviewer ゲート（reviewer が Critical 指摘を1件以上出した場合のみ）→ `sf-architect`（Phase最終）/ `sf-design-step2`（Phase 5.5）から Task 委譲 | `finding-verifier`（reviewer 指摘の反証検証。単発・非並列のため main thread への引き上げ対象外。/backlog フローには適用しない — backlog-validator + blind系3種 + regression-guard による独立検証で誤検知対策を既に担保しているため） |
 

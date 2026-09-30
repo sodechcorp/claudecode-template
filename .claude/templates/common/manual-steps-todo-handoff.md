@@ -4,7 +4,7 @@
 
 ## 適用対象
 
-- `/release`（`release.md` Step 4・Step 5）: `release-plan.md` の担当者が実行・確認する項目すべて。**① の【担当者】→ ② の `### Step N: ...` 各項目〔+ 管理画面手動操作〕を先に渡し、③ の担当者確認はデプロイ完了後に Claude のリリース後確認（Phase 7）が終わってから渡す**。Claude が read-only で確認済みの項目・Claude が実行する項目（通常経路の ② Step 1 のバックアップ最新確認、③ の Claude の確認）は Todo にせず Claude が実施して結果だけ伝える
+- `/release`（`release.md` Step 4・Step 5）: `release-plan.md` の担当者が実行・確認する項目すべて。**① の【担当者】→ ② の `### Step N: ...` 各項目〔+ 管理画面手動操作〕を先に渡し、③ の担当者確認はデプロイ完了後に Claude のリリース後確認（Phase 7）が終わってから渡す**。Claude が read-only で確認済みの項目・Claude が実行する項目（通常経路の ② Step 1 のバックアップ最新確認、③ の Claude の確認〔画面確認は `prod-ui-verifier`〕）は Todo にせず Claude が実施して結果だけ伝える
 - `/backlog`（`backlog.md` Phase 6）: `backlog-releaser` が管理画面直接操作（2b）を選んだ場合に生成する `manual-operation-steps.md` の「操作ステップ」内、番号付き各項目
 
 `/backlog` の manual-operation-steps.md の「確認事項」（チェックリスト形式）は対象外で、一度に提示してよい。`/release` は ①〜③ の担当者項目をすべて1つずつ渡す（前の結果で次の内容が変わりうるため）。
@@ -24,7 +24,7 @@
    - **`/release` の場合の追加手順**: 報告を受けるたびに、結果（日時・実行したこと・報告内容・次の対応）を `docs/logs/{issueID}/release-log.md` に1行追記する。そのうえで**次のステップの内容を結果に合わせて組み立て直す**（手順書の固定文をそのまま出さない）。例: dry-run でエラー → エラー文を読んで原因を切り分け（release-plan.md「dry-run/デプロイが失敗した場合の切り分け」）、本番デプロイに進めず対処のステップを出す／Step 3 のデプロイ失敗 → 本番は変わっていないため dry-run と同じ切り分けに進む／Step 3 成功後の Step 3b（削除）失敗 → ロールバックか削除だけ再実行かを提示する／削除デプロイが不要になった → Step 3b を飛ばす
    - **中断・持ち越し宣言** → 現在の Todo は未完了のまま残し、残りステップを保留した旨を一言添えて終了する
 5. 全ステップが `completed` になったら、後続の案内を提示する:
-   - `/release`: ① ② が終わったら「本番デプロイが完了したら教えてください」と案内する（release-preparer.md Phase 7 の起動条件）。③ は Phase 7 の後に同じ方式で渡す
+   - `/release`: ① ② が終わったら「本番デプロイが完了したら教えてください」と案内する（release-preparer.md Phase 7 の起動条件）。③ は Phase 7 と画面確認（`prod-ui-verifier`）の後に同じ方式で渡す
    - `/backlog`: 管理画面操作手順書に紐づく完了報告の残作業チェック（backlog-releaser.md §2b 参照）
 
 ## 適用しない場面

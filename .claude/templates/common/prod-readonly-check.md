@@ -2,7 +2,7 @@
 
 本番組織に対して **read-only 操作のみ**を行う前に接続先を確認する。`sandbox-alias-check.md` は Sandbox 強制（`isSandbox:false` で `exit 1`）のため本番を読むこと自体ができない。本テンプレートはその逆で「本番であることを確認した上で read-only のみ許可する」ガード。
 
-> 参照元: `release-preparer.md`（Phase 1-1a の Tier 0 前倒し実行、Phase 4 の本番確認・バックアップ・差分の帰属確認、Phase 7 のリリース後確認、バックアップ再取得モード）と `release.md`（Step 4 のバックアップ最新確認）、および `playwright-sf-screen-ops.md`「本番ガード」の本番 UI 確認モード（下記「本番 UI 確認」）のみ。他エージェントは `sandbox-alias-check.md`（Sandbox 強制）を使うこと。
+> 参照元: `release-preparer.md`（Phase 1-1a の Tier 0 前倒し実行、Phase 4 の本番確認・バックアップ・差分の帰属確認、Phase 7 のリリース後確認、バックアップ再取得モード）と `release.md`（Step 4 のバックアップ最新確認）、および `prod-ui-verifier.md`（`release.md` Step 5 の画面確認）と、`playwright-sf-screen-ops.md`「本番ガード」の本番 UI 確認モード（下記「本番 UI 確認」）のみ。他エージェントは `sandbox-alias-check.md`（Sandbox 強制）を使うこと。
 
 ## 前提
 
@@ -73,14 +73,15 @@ sf org login web --alias <alias> --instance-url https://<instance>.salesforce.co
 - frontdoor 認証（`sf org open --target-org "$PROD_ALIAS" --url-only`。セキュリティ規約は `playwright-sf-screen-ops.md`「frontdoor 認証」）
 - Lightning／Setup／Experience Cloud 画面の閲覧（一覧・レコード詳細・タブ・アプリ切替）、DOM テキスト取得、スクリーンショット
 - Login As（他ユーザーとして閲覧）: 権限・項目レベルセキュリティ・レイアウトの見え方の差分確認。手順は `playwright-sf-screen-ops.md`「Login As」。確認後は必ず `/secur/logout.jsp` でプロキシ解除してから終了する（Login As のまま放置しない）
-
 **禁止（状態を変えるもの。ユーザー指示があっても実行しない）**:
 - 保存・作成・更新・削除・承認／却下・送信（メール・Chatter 投稿を含む）・ファイルアップロードの操作
 - パスワード変更・セキュリティトークンのリセット・Setup の設定変更
 - 副作用の有無を確認できていない Setup URL への直接遷移（`playwright-sf-screen-ops.md`「未検証 URL への navigate 前チェック」を厳守。「Confirm」に見える URL でも遷移時点で実行される実績がある）
 - 画面フロー・Apex を起動するボタン等の実行（存在と表示の確認までにとどめる）
+- 新規・編集フォームを開く確認（ボタンの上書き・クイックアクション・画面フローで、開いただけで処理が走る場合を機械的に見分けられないため、担当者の確認に回す。レコードタイプの選択肢の確認等）
+- `browser_run_code_unsafe` で、上記の許可以外のコードを書くこと（`.fill` / `.type` / `.press` / `selectOption` / `setInputFiles`、保存・削除・承認・送信系のクリック、`fetch` による API 呼び出し）。唯一の例外は Login As フォールバックの ManageUsers 検索欄。なお Playwright の操作を機械的にブロックする hook は無く、この禁止は指示による制約である
 
-**証跡の扱い**: 本番画面には実顧客の個人情報・機密が写る。スクリーンショット・DOM テキストは `docs/logs/{issueID}/` 配下に保存し、個人情報が写っていないことを確認するまでチャット・Backlog・共有ドライブ・git コミットへ載せない（写っている場合はマスクするか、個人情報のない画面・レコードに選び直す）。
+**証跡の扱い**: 本番画面には実顧客の個人情報・機密が写る。スクリーンショット・DOM テキストは `docs/logs/{issueID}/` 配下に保存し、個人情報が写っていないことを確認するまでチャット・Backlog・共有ドライブ・git コミットへ載せない（写っている場合はマスクするか、個人情報のない画面・レコードに選び直す）。**Playwright MCP が自動保存するファイル（プロジェクト直下の `.playwright-mcp/` のページスナップショット・コンソールログ・ダウンロードの複製）も同じく個人情報を含む**ため、本番の画面確認の終了時に開始時刻以降のファイルを削除する（`prod-ui-verifier` Step 4）。git コミットする文書（`decisions.md` 等）には、レコードの値・氏名を書かず、V 番号・画面名・差の種類だけを書く。
 
 > Claude Code の自動モード（分類器）が本番の読み取り・画面確認をブロックする場合は、メンバー個人設定（`~/.claude/settings.json` の `autoMode`）が必要。プロジェクト共有の settings.json では効かない。手順: [security-and-permissions.md](../../spec/security-and-permissions.md)「自動モードの分類器設定」。
 
