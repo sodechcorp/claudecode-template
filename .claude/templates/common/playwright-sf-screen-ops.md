@@ -8,7 +8,9 @@ Salesforce Sandbox での Playwright 画面操作に関する共通手順。
 ## 本番ガード（必須・最初に実行）
 
 Sandbox 接続確認は `.claude/templates/common/sandbox-alias-check.md` を Read して実施する。
-`isSandbox = True` でなければ即座に中止する。
+`isSandbox = True` でなければ即座に中止する（`/test`・`auto-evidence-runner`・`ui-evidence-runner`・`backlog-repro-runner` を含む通常の呼び出しは、これが既定であり変更しない）。
+
+**例外 — 本番 UI 確認（read-only）モード**: 本番の画面を確認する目的（`/release` のリリース後確認、またはユーザーが本番画面の確認を直接依頼した場合）で起動されたときに限り、上記の中止に代えて [prod-readonly-check.md](prod-readonly-check.md) の接続確認を行い、本番と確認できたら同ファイル「本番 UI 確認（read-only）」の**許可範囲のみ**で続行する（frontdoor 認証・Login As・閲覧・スクリーンショット・DOM テキスト取得）。本ファイル後段のフォーム入力・保存・送信を伴う手順は本番では実行しない。
 
 ---
 

@@ -30,7 +30,7 @@
 ## 必須ルール（絶対厳守）
 
 ### 本番組織
-`sf org display` で `isSandbox: false` の場合: DML / デプロイ / force-app 書き込みを**絶対に実行しない**（ユーザー指示があっても解除不可）。許可: SOQL SELECT / retrieve / ファイル読み取り / docs/ 書き込み。DML / デプロイ / force-app 書き込みの直前に `sf org display` でライブ確認する（毎メッセージではなく操作直前の1回）。共通手順: [sandbox-alias-check.md](.claude/templates/common/sandbox-alias-check.md)
+`sf org display` で `isSandbox: false` の場合: DML / デプロイ / force-app 書き込みを**絶対に実行しない**（ユーザー指示があっても解除不可）。許可（確認不要・自動実行）: SOQL SELECT / retrieve / ファイル読み取り / docs/ 書き込み / 画面確認（Playwright での閲覧・スクリーンショット・Login As。保存・送信・削除・承認等の状態変更は禁止。範囲と証跡の扱い: [prod-readonly-check.md](.claude/templates/common/prod-readonly-check.md)「本番 UI 確認」）。DML / デプロイ / force-app 書き込みの直前に `sf org display` でライブ確認する（毎メッセージではなく操作直前の1回）。共通手順: [sandbox-alias-check.md](.claude/templates/common/sandbox-alias-check.md)。自動モードで本番の読み取り・画面確認がブロックされる場合は個人設定が必要: [security-and-permissions.md](.claude/spec/security-and-permissions.md)「自動モードの分類器設定」
 
 ### Sandbox 検証時のメール到達（実績インシデント: 2026-08-03）
 Sandbox は本番であっても DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作が承認プロセス・ワークフロー/Process Builder のメールアラートを経由して**実際の顧客メールアドレスへメールを送信しうる**（Sandbox ユーザーの Email から `.invalid` が外れているケースがあり、事前の見分けは付かない）。上記の操作を行う直前は SOQL SELECT 同様に「安全」と即断せず、[sandbox-alias-check.md](.claude/templates/common/sandbox-alias-check.md) の「メール到達安全確認」を必ず実施する（送信処理・送信先を機械的に判定し、お客様に届く場合はテストデータ・通知先ユーザーの差し替えで自動回避する。人に確認するのは回避できない場合だけ）。

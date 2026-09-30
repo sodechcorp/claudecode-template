@@ -17,7 +17,33 @@
 - org 設定変更（`sf org assign/enable/disable/delete`）
 - メタデータ変更・force-app への書き込み
 
-**許可**: SOQL SELECT・`sf project retrieve`・ファイル読み取り・docs/ への書き込み
+**許可**: SOQL SELECT・`sf project retrieve`・ファイル読み取り・docs/ への書き込み・画面確認（Playwright での閲覧・スクリーンショット・Login As。範囲と禁止事項: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)「本番 UI 確認（read-only）」）
+
+## 自動モードの分類器設定（メンバー個人設定）
+
+Claude Code の自動モードは、ツール呼び出しを分類器で判定する。分類器の既定では、名前に `prod` を含む接続先は機密性の高いリモート先とみなされ、Salesforce 本番の SOQL や Login As による画面確認が「本番での機密性の高いリモート操作」としてブロックされうる。ブロックされたら、次を各メンバーの `~/.claude/settings.json` に追記する（公式: https://code.claude.com/docs/en/auto-mode-config.md）。
+
+- **プロジェクトの `.claude/settings.json` や `settings.local.json` には書けない**（分類器は `autoMode` をそこから読まない。リポジトリ経由の許可ルール注入を防ぐための仕様）。テンプレートから配布できないため、メンバー個人が設定する
+- 各配列の先頭に必ず `"$defaults"` を入れる（無いと本番デプロイ等の既定ブロックが全て消える）
+- 本番の書き込み（DML・デプロイ・Apex 実行）は、この設定で許可しない。上記の絶対ルールどおり `permissions.deny` と hook が止める
+
+```json
+{
+  "autoMode": {
+    "environment": [
+      "$defaults",
+      "Trusted internal domains: *.my.salesforce.com, *.sandbox.my.salesforce.com, *.lightning.force.com, *.sandbox.lightning.force.com, *.salesforce-setup.com, *.force.com (client Salesforce orgs reached through the sf CLI and Playwright)"
+    ],
+    "allow": [
+      "$defaults",
+      "Salesforce production org read-only inspection is allowed: sf data query (SOQL SELECT), sf sobject describe, sf org display, sf org list metadata, sf project retrieve into a temp or docs directory, and Tooling API GET queries. These only read data and metadata and change nothing in the org. A production org alias or name containing 'prod' does not by itself make a read-only Salesforce query a Production Reads or Sensitive Remote Exec case, because no remote shell, credential dump or channel opaque to the classifier is involved.",
+      "Salesforce production org UI verification with Playwright is allowed: opening the org through the frontdoor URL from 'sf org open --url-only', navigating Lightning and Setup pages, reading page text, taking screenshots, and using Salesforce 'Login As' (servlet.su, Setup > Users > Login, or Experience Cloud 'Log in to Experience as User') to view screens as another user and then logging out of the proxy session (/secur/logout.jsp). This is the standard, audited Salesforce admin verification feature and is for read-only viewing only. It does not include clicking Save, Submit, Delete, Approve or any action that creates, updates or deletes records or setup, changing passwords, or resetting security tokens; those stay blocked by the Production Deploy and other default rules."
+    ]
+  }
+}
+```
+
+追記後に反映を確認する: `claude auto-mode config`（`allow` と `environment` の件数が既定より増え、`soft_deny` の件数が変わらないこと）。ブロックされた理由の名前（`[Production Reads]` 等）は拒否メッセージの角括弧、または `/permissions` の「Recently denied」で確認できる。
 
 ## 共有フォルダ保護
 
