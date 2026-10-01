@@ -135,7 +135,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 6. **`apex_in_scope: true` の場合、`--test-level` 判定用にテストクラスを確定する**（目的: 無関係な既存テストを全件実行する `RunLocalTests` を既定にせず、Salesforce 公式仕様上カバレッジ要件が「デプロイ対象クラス単位」で完結する `RunSpecifiedTests` をデフォルトにするため。根拠: RunSpecifiedTests は対象クラス/トリガーごとに個別カバレッジ75%が要件で無関係な既存テストの合否を問わないが、RunLocalTests は組織内の全ローカルテストの実行・合格が要件になる）:
    - `test-report.md`「### dry-run デプロイ検証」の「指定テストクラス: ...」に具体的なクラス名の記載があれば（backlog-tester Step 2 で確定済み・値が「なし」以外）、**Phase 1 で確定した資材マニフェストの全 `.cls`/`.trigger` それぞれについて、命名規則（`{ClassName}Test.cls` 等。下記 Glob/Grep 探索と同一パターン）に合致する専用テストクラスが「指定テストクラス」一覧に含まれているかを確認する**（`test-report.md` は `/test` 実行時点のスナップショットであり、その後 force-app に新規/変更で Apex クラス・トリガーが加わっていても反映されないため）。全クラスが一覧に含まれていればそれを `target_test_classes` としてそのまま転記し、以下の Glob/Grep 探索は行わない。1件でも一覧に含まれないクラスがあれば（`/test` 後に追加・変更された Apex を検知）、転記せず以下の Glob/Grep 探索で全クラス分を再特定する
    - 上記に該当しない場合（「指定テストクラス:」の行自体が無い、または値が「なし」の場合〔対応テストクラス不在と backlog-tester 側で確定済みのケースを含む〕）、デプロイ対象の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls`）で専用テストクラスを Glob/Grep で特定する（regression-guard.md Step 2 の候補パターンと一致）
-   - `docs/logs/{issueID}/investigation.md` の「## 既存テストクラスへの影響」（option-test-class-impact.md が Phase 2 で作成済みの場合）に追加で挙がっているテストクラスがあれば取り込む
+   - `docs/logs/{issueID}/investigation.md` の「## 既存テストクラスへの影響」（option-test-class-impact.md が `/backlog` Phase 1 で作成済みの場合）に追加で挙がっているテストクラスがあれば取り込む
    - 全デプロイ対象クラスに専用テストクラスが見つかった場合 → `test_coverage_risk: false`、特定したテストクラス一覧を `target_test_classes` として記録
    - 1件でも専用テストクラスが見つからない場合 → `test_coverage_risk: true`、該当クラス名を記録（Phase 5 で `RunLocalTests` フォールバックの根拠にする）
 
@@ -157,9 +157,9 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
    fi
    ```
    `DIFF` が出力された場合（記録なし・判定不能な旧形式・または該当コミット以降 `force-app` に差分あり）「investigation.md 作成後に実装差分あり」と判定し、下記①〜③も無条件で再走査する。`UNTRACKED` が出力された場合（force-app が Git 管理対象外の標準構成で diff 自体が判定不能）は①〜③の無条件再走査は行わず、下記2. の investigation.md 記載判定にそのまま進む
-2. 差分が無い場合、または `UNTRACKED` の場合、①〜③は investigation.md の記載から Phase 1 で実行済みと判定できれば**無条件で転記し、option を実行しない**（未実行と判定した場合のみ実行する）。判定方法は項目ごとに異なる（各カッコ内の通り）:
+2. 差分が無い場合、または `UNTRACKED` の場合、①〜③は investigation.md の記載から `/backlog` Phase 1 で実行済みと判定できれば**無条件で転記し、option を実行しない**（未実行と判定した場合のみ実行する）。判定方法は項目ごとに異なる（各カッコ内の通り）:
    - ① [option-impact-scope-grep.md](../templates/backlog/options/option-impact-scope-grep.md) — Validation Rule・承認プロセス・割り当てルールへの影響（investigation.md「## Step 0b オプション判定結果」→「### 採用したオプション」に `option-impact-scope-grep` の記載があれば実行済みと判定する。「### スキップしたオプション」側にある／同セクションが無い／自明ケース判定で Step 0b が一括スキップされている（旧版 investigation.md のみ）、のいずれかに該当する場合は未実行として扱い本 option を実行する。**「## 影響範囲」見出しの有無では判定しない**——同見出しは backlog-investigator.md の投稿テンプレートで常時必須出力されるため、option 実行有無の代理指標にならない）
-   - ② [option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) — 既存テストクラスへの影響（investigation.md「## 既存テストクラスへの影響」の記載有無で判定）
+   - ② [option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) — 既存テストクラスへの影響（investigation.md「## 既存テストクラスへの影響」の記載有無で判定）。**② を実行した場合、`apex_in_scope: true` なら ② の影響表に挙げたテストクラスを、Phase 1 の6.の investigation.md 取り込みと同じく `target_test_classes` に加える**（Phase 5 の `--tests` は `target_test_classes` だけを使うため）
    - ③ [option-user-impact-survey.md](../templates/backlog/options/option-user-impact-survey.md) — 影響ユーザー数・部署の見積もり（investigation.md「## 影響ユーザー調査」の記載有無で判定）。**option-user-impact-survey.md 本体の手順に従う**（本番の読み取りは許可不要で実施する。Sandbox のユーザーマスタは検証用アカウントのみで本番の実在ユーザー数を表さないため代替不可。本番に接続できない場合のみ Sandbox 件数を参考値とし `[要確認: 本番データ未確認]` を付す）。本番接続は `prod-readonly-check.md` 通過後の read-only に限り Phase 1 以降で許可されている（Phase 1 1a-2 の Tier 0 前倒し実行と同じ原則）
 3. [option-cross-functional-impact.md](../templates/backlog/options/option-cross-functional-impact.md) — データ整合性・UI の一貫性への影響は `_index-phase1.md` に存在しない（`/backlog` Phase 1 で実行されない）オプションのため、差分の有無によらず常に実行する（他チーム・並行作業との競合は Phase 3 で扱うため本 option では扱わない）
 4. **最終資材を起点とした参照元の確認（常時実行）**: `/backlog` の影響範囲は実装前の計画に対する調査のため、**実際にリリースする資材**で確かめ直す。Phase 1 の資材マニフェストの各コンポーネント（新規・変更・削除）について、API 名・項目名・メソッド名を `force-app/` 全体で Grep し、参照している Apex・LWC・Aura・VF・フロー・入力規則・レイアウト・権限セットを列挙する（参照箇所だけ確認する。参照元のファイル全体はレビューしない）
@@ -314,7 +314,7 @@ ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （{取得済み: {取
 
 **具体的な実行コマンド・Step構成は本セクション（Step 1〜4）が正本**。matrix §B は同じ実行手順を人間向け参照用に保持しているが、`{issueID}`/`{test_level}`/`{本番エイリアス}` 等の実値埋め込みが必要な release-plan.md 生成は本セクションのテンプレートをそのまま使う（matrix §B からの転記は行わない）。**`{本番エイリアス}` は Phase 4 で確認済みの値をそのまま埋め込む。Phase 4 をスキップした場合（未接続等）は値が確定していないため `{本番エイリアス}` の文字列のまま残す。この場合、「⚠️ 本番エイリアス未確定: 実行前に対象組織のエイリアスへ置き換えてください」を Step 2・3・3b・4 の各コードブロック直下に個別に挿入する**（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の逐次提示ではステップが1つずつ単独で提示され、他ステップの内容は見せないため、セクション冒頭に1回だけ書いても該当ステップ提示時にユーザーの目に入らない）。
 
-**`--test-level` の決定（Phase 1 で判定した `apex_in_scope` / `test_coverage_risk` / `target_test_classes` に基づく。固定で `RunLocalTests` にしない）**:
+**`--test-level` の決定（Phase 1 で判定した `apex_in_scope` / `test_coverage_risk` と、Phase 1・Phase 2 ② で確定した `target_test_classes` に基づく。固定で `RunLocalTests` にしない）**:
 
 Salesforce はテストレベルによってカバレッジ計算方式が異なる。`RunSpecifiedTests` は**デプロイ対象クラス/トリガーごとの個別カバレッジ75%**が要件で無関係な既存テストの合否を問わない。`RunLocalTests` は**組織内の全ローカルテストの実行・合格**が要件になるため、今回の変更と無関係な既存テストクラスが1件でも壊れていると本番デプロイ全体がブロックされる。この違いを使い、無関係なテスト実行を避けるのが既定方針:
 
