@@ -24,7 +24,7 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 ## compact 跨ぎの復元
 
-Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順9・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。
+Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順8・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。
 
 ---
 
@@ -45,10 +45,9 @@ if [ -z "$ISSUE_ID" ]; then
 fi
 
 # オプション（/test {issueID} [--full] [--force] [--serial]）— アシスタントが起動引数から置換
-#   --full 指定時 → FORCE_FULL=1 / 未指定 → 空
 #   --force 指定時 → FORCE_SPEC=true / 未指定 → false
 #   --serial 指定時 → FORCE_SERIAL=true / 未指定 → false（低速組織・API 制限時の全逐次フォールバック。Phase C の serial パラメータに渡す）
-FORCE_FULL="{force_full}"
+#   --full は Phase C 冒頭の差分対象の算出で使う
 FORCE_SPEC="{force_spec}"
 FORCE_SERIAL="{force_serial}"
 
@@ -115,58 +114,12 @@ if [ ! -f "$SPEC_PATH" ]; then
   echo "[INFO] test-spec.md が見つかりません。Phase B でテスト仕様を展開します。"
 fi
 
-# 6.5. 証跡PNG削除マーカーの検出（cleanup_evidence.py 実行済みなら差分再実行モードを使わない）
-# 前回 NG=0（全件OK）だった場合は下記 7. の既存フォールバックで結果的に全量再実行されるが、
-# --force で新規 TC のみ追加された場合等は raw_target が空にならず差分モードに入りうる。
-# その場合に既存 OK 分の PNG が既に削除済みだと証跡ファイル不在で偽 NG になるため、
-# マーカーがあれば経路によらず確実に全量実行へ倒す（次回1回のみ・使用後は消費して削除）。
-if [ -f "${EVIDENCE_DIR}/.png-cleaned" ]; then
-  echo "[INFO] 証跡PNGが削除済み（cleanup_evidence.py 実行済み）を検出。差分再実行モードは使わず今回は全量実行します。"
-  FORCE_FULL=1
-  rm -f "${EVIDENCE_DIR}/.png-cleaned"
-fi
-
-# 7. 差分再実行モードの判定
-# 回次退避（前回データのアーカイブ）はここでは行わない。/test がコマンドの入口（本 Phase A）から
-# 新規に再実行された場合にしかここを通らないため、会話の流れで証跡採取・判定だけを直接再実行する
-# ショートカットを踏むと退避が効かず履歴が失われる（2026-07-06 DFA-198 で確認された実害）。
-# 退避の実体は実際にデータを上書きする箇所に移設済み:
-#   - 証跡（evidence/after）: auto-evidence-runner.md Step 0.5（証跡採取モードのみ・自己防衛）
-#   - 判定（judgment-result.json）: judge_results.py の _archive_previous_round（--out 書込み直前）
-# どちらも「まだ退避されていなければ」実行する冪等な自己防衛のため、経路によらず必ず履歴が残る。
-TARGET_TC_LIST=""
-if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
-  echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
-  echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
-
-  # 差分対象 = 前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない TC（--force 等での新規追加分）。
-  # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は証跡を撮り直さず、Phase D・D-2 で判定だけやり直す。
-  # 前回 OK・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
-  # 証跡未採取のまま judge_results.py で「証跡ファイルが見つかりません」の偽 NG になるため）。
-  # ng_type=要確認（証跡は正常採取済み・判定方法が機械可読パターンに一致しないだけ）の NG は、
-  # test-spec.md の判定方法を修正すれば既存証跡のまま Phase D が正しく再判定できるため、証跡の
-  # 再採取対象からは除外する（判定パターン未一致だけで Playwright/SOQL/AnonApex を無駄に再実行しない）。
-  # ただし除外した結果リストが空になる場合（残り NG が要確認のみ）は「空リスト＝全件再実行」の
-  # 既存フォールバックに落ちて無関係な OK 済み TC まで巻き込んでしまうため、その場合のみ除外前の
-  # リストにロールバックする（=除外前と同じ挙動に留め、退化させない）。
-  TARGET_TC_LIST=$(python "$(pwd -W)/scripts/python/backlog-xlsx/resolve_target_tcs.py" --judgment "$JUDGMENT_PATH" --spec "$SPEC_PATH" 2>/dev/null || echo "")
-  if [ -z "$TARGET_TC_LIST" ]; then
-    echo "[INFO] 前回 NG・SKIP・新規 TC なし（前回全件 OK）。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
-  else
-    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC。判定パターン未一致=要確認のみだった NG は証跡再採取から除外済み）: $TARGET_TC_LIST"
-    echo "[INFO] 影響範囲の TC は今回の実行対象には含まれません（Phase F で NG があった場合のみ、次回再テストの判断材料として提示されます）。"
-  fi
-else
-  echo "[INFO] 全量実行モード（初回または --full 指定）"
-fi
-echo "TARGET_TC_LIST=$TARGET_TC_LIST"
-
-# 8. 再開確認
+# 7. 再開確認
 if [ -d "${EVIDENCE_DIR}/after" ]; then
   echo "[INFO] ${EVIDENCE_DIR}/after が既に存在します。差分再実行モードでは非対象 TC の既存証跡を維持します。"
 fi
 
-# 9. compact 跨ぎ復元用コンテキストの保存（本 Phase A 確定値のスナップショット。
+# 8. compact 跨ぎ復元用コンテキストの保存（本 Phase A 確定値のスナップショット。
 # Phase B 以降で /compact が発生した場合、本ファイルがあれば Phase A を再実行せず変数を復元できる。
 # 書き込み失敗は無視・後続処理をブロックしない）
 python -c "import json; json.dump({'issue_id':'$ISSUE_ID','project_dir':r'$PROJECT_DIR','log_dir':r'$LOG_DIR','xlsx_folder':r'$XLSX_FOLDER','evidence_dir':r'$EVIDENCE_DIR','spec_path':r'$SPEC_PATH','judgment_path':r'$JUDGMENT_PATH','alias':'$SF_ALIAS','instance_url':'$INSTANCE_URL'}, open(r'${LOG_DIR}/.test-context.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=2)" 2>/dev/null || true
@@ -228,11 +181,11 @@ python -c "import PIL" 2>/dev/null || {
 
 `test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。返却に `[WARN]` 行（investigation.md 不在による軸1・軸3スキップ、軸3 消費者リスト source 不在等）が含まれる場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
 
-`target=` 必須ルールのバックストップ自己チェック（test-spec-builder Step 4 の抜け漏れ検知）:
+`target=` 必須ルールのバックストップ自己チェック（test-spec-builder Step 3 軸0 の抜け漏れ検知）:
 ```bash
 MISSING_TARGET=$(python "$(pwd -W)/scripts/python/backlog-xlsx/check_target_required.py" --spec "{spec_path}" 2>/dev/null || echo "")
 if [ -n "$MISSING_TARGET" ]; then
-  echo "[WARN] target= 未付記の UI TC があります: $MISSING_TARGET（test-spec-builder Step 4 で追記されているはずです。test-spec.md を確認してください）"
+  echo "[WARN] target= 未付記の UI TC があります: $MISSING_TARGET（test-spec-builder Step 3 軸0 で追記されているはずです。test-spec.md を確認してください）"
 fi
 ```
 `[WARN]` が出た場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
@@ -247,6 +200,62 @@ fi
 ---
 
 ### Phase C: 自動テスト実行＋証跡採取
+
+> **[ハーネス直接実行（差分対象の算出）]**
+
+```bash
+# Phase B で test-spec.md が確定してから算出する（--force で追加された TC を差分対象に含めるため）
+FORCE_FULL="{force_full}"   # --full 指定時 → 1 / 未指定 → 空（アシスタントが起動引数から置換）
+EVIDENCE_DIR="{evidence_dir}"
+SPEC_PATH="{spec_path}"
+JUDGMENT_PATH="{judgment_path}"
+
+# 1. 証跡PNG削除マーカーの検出（cleanup_evidence.py 実行済みなら差分再実行モードを使わない）
+# 前回 NG=0（全件OK）だった場合は下記 2. の既存フォールバックで結果的に全量再実行されるが、
+# --force で新規 TC のみ追加された場合等は raw_target が空にならず差分モードに入りうる。
+# その場合に既存 OK 分の PNG が既に削除済みだと証跡ファイル不在で偽 NG になるため、
+# マーカーがあれば経路によらず確実に全量実行へ倒す（次回1回のみ・使用後は消費して削除）。
+if [ -f "${EVIDENCE_DIR}/.png-cleaned" ]; then
+  echo "[INFO] 証跡PNGが削除済み（cleanup_evidence.py 実行済み）を検出。差分再実行モードは使わず今回は全量実行します。"
+  FORCE_FULL=1
+  rm -f "${EVIDENCE_DIR}/.png-cleaned"
+fi
+
+# 2. 差分再実行モードの判定
+# 回次退避（前回データのアーカイブ）はここでは行わない。/test を最初（Phase A）から実行した
+# 場合にしかここを通らないため、会話の流れで証跡採取・判定だけを直接再実行する
+# ショートカットを踏むと退避が効かず履歴が失われる（2026-07-06 DFA-198 で確認された実害）。
+# 退避の実体は実際にデータを上書きする箇所に移設済み:
+#   - 証跡（evidence/after）: auto-evidence-runner.md Step 0.5（証跡採取モードのみ・自己防衛）
+#   - 判定（judgment-result.json）: judge_results.py の _archive_previous_round（--out 書込み直前）
+# どちらも「まだ退避されていなければ」実行する冪等な自己防衛のため、経路によらず必ず履歴が残る。
+TARGET_TC_LIST=""
+if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
+  echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
+  echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
+
+  # 差分対象 = 前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない TC（--force 等での新規追加分）。
+  # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は証跡を撮り直さず、Phase D・D-2 で判定だけやり直す。
+  # 前回 OK・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
+  # 証跡未採取のまま judge_results.py で「証跡ファイルが見つかりません」の偽 NG になるため）。
+  # ng_type=要確認（証跡は正常採取済み・判定方法が機械可読パターンに一致しないだけ）の NG は、
+  # test-spec.md の判定方法を修正すれば既存証跡のまま Phase D が正しく再判定できるため、証跡の
+  # 再採取対象からは除外する（判定パターン未一致だけで Playwright/SOQL/AnonApex を無駄に再実行しない）。
+  # ただし除外した結果リストが空になる場合（残り NG が要確認のみ）は「空リスト＝全件再実行」の
+  # 既存フォールバックに落ちて無関係な OK 済み TC まで巻き込んでしまうため、その場合のみ除外前の
+  # リストにロールバックする（=除外前と同じ挙動に留め、退化させない）。
+  TARGET_TC_LIST=$(python "$(pwd -W)/scripts/python/backlog-xlsx/resolve_target_tcs.py" --judgment "$JUDGMENT_PATH" --spec "$SPEC_PATH" 2>/dev/null || echo "")
+  if [ -z "$TARGET_TC_LIST" ]; then
+    echo "[INFO] 前回 NG・SKIP・新規 TC なし（前回全件 OK）。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
+  else
+    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC。判定パターン未一致=要確認のみだった NG は証跡再採取から除外済み）: $TARGET_TC_LIST"
+    echo "[INFO] 影響範囲の TC は今回の実行対象には含まれません（Phase F で NG があった場合のみ、次回再テストの判断材料として提示されます）。"
+  fi
+else
+  echo "[INFO] 全量実行モード（初回または --full 指定）"
+fi
+echo "TARGET_TC_LIST=$TARGET_TC_LIST"
+```
 
 > **[auto-evidence-runner（オーケストレータ）へ委譲]**
 
@@ -423,7 +432,7 @@ echo "NG件数: ${NG_COUNT}"
 |---|---|---|
 | ≠ 0 | （不問） | 変更しない（Phase F が書き込んだ「FAIL」を維持） |
 | = 0 | 追加実装要 | 「条件付きPASS」に書き換え |
-| = 0 | リリース可 | 変更しない（Phase F が書き込んだ「PASS」を維持） |
+| = 0 | リリース可 | `PASS` に書き換え |
 
 「条件付きPASS」への書き換え内容:
 ```
@@ -615,7 +624,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 確認環境: Sandbox（{alias}）
 本番反映状況: 未 ⚠️（Sandbox 検証までの完了。本番反映は別セッションで /release {issueID} を実施）
 テスト結果: {OK=N / NG=N / 要手動=N}（うち AI 判定 {N} 件）
-総合判定: {実際の判定結果に応じて次の1つを選んで記載: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認で指摘あり） / FAIL ❌ （NG が {N} 件）}
+総合判定: {実際の判定結果に応じて次の1つを選んで記載: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認で指摘あり） / FAIL ❌ （NG が {N} 件） / 受入基準再確認待ち ⏸（Phase F-1 未完了）}
 
 成果物:
   エビデンス.xlsx : {xlsx_folder}/{issueID}_エビデンス.xlsx
@@ -650,6 +659,9 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 要確認: 受入基準再確認で指摘があります。
   詳細: test-report.md の「## 受入基準再確認」を参照してください。
   対応: 業務判断が必要なため自動修正はしていません。指摘内容を確認し、必要なら implementation-plan.md に追記してから /backlog Phase 4 で再実装してください。
+
+{総合判定が受入基準再確認待ちの場合（Phase F-1 未完了）}
+要対応: 受入基準再確認（Phase F-1）が完了していません。Backlog に接続できる状態で Phase F-1 だけをやり直し、この完了報告を出し直してください（別セッションでは /backlog {issueID} の再開で F-1 だけを実施できます。/test 全体の再実行は不要）。
 
 {手動対応が必要な NG がある場合（要確認/未実行 / 自動修正のガードで止まった場合 / dry-run FAIL の場合）}
 NG 一覧:

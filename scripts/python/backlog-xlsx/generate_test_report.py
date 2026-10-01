@@ -202,7 +202,7 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
 
     lines.append("### 総合判定")
     if judgment.get("ng", 0) == 0:
-        lines.append("PASS — Phase 6 リリース準備へ進めます")
+        lines.append("受入基準再確認待ち — /test Phase F-1 の完了で確定します")
     else:
         lines.append("FAIL — Phase 4/3/2 に差し戻し")
     lines.append("")

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """backlog-xlsx / resolve_target_tcs.py
-test.md Phase A 手順7（差分再実行モードの判定）から抽出した差分対象 TC 算出ロジック。
+test.md Phase C 冒頭（差分再実行モードの判定）から抽出した差分対象 TC 算出ロジック。
 inline-script-hygiene.md のルール（`python -c` は単一物理行限定・多行ロジックは .py 化）に
 従い、if/try-except を含む多行ロジックを本スクリプトへ切り出した。
 

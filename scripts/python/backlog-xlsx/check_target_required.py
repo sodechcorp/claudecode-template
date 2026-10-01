@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """backlog-xlsx / check_target_required.py
 test.md Phase B のバックストップ自己チェック。
-test-spec-builder.md Step 4（種別に UI を含む全 TC の「確認ポイント（着眼点）」列に
+test-spec-builder.md Step 3 軸0（種別に UI を含む全 TC の「確認ポイント（着眼点）」列に
 target= が付記されているかの自己チェック）の抜け漏れを、オーケストレータ側からも
 検知できるようにする。
 

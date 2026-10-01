@@ -24,7 +24,7 @@ DOM テキスト（.txt）・ハイライト実績（.json）・investigation.md
 
 差分再実行モードへの影響: /test は前回 OK の TC を再撮影しない設計のため、削除後に /test を
 再実行すると証跡ファイル不在で偽 NG になる。削除完了時に {evidence_dir}/.png-cleaned を書き込み、
-次回 /test 実行時に一度だけ全量再実行へ倒す（test.md Phase A 参照）。
+次回 /test 実行時に一度だけ全量再実行へ倒す（test.md Phase C 冒頭参照）。
 
 Usage（/test 完了報告からの案内・通常の完了後クリーンアップ）:
     python cleanup_evidence.py \\
@@ -171,7 +171,7 @@ def main():
     print(f"[DONE] {deleted} 件削除（約 {_fmt_mb(deleted_size)}）。" + (f" 失敗 {failed} 件。" if failed else ""))
 
     # 差分再実行モード対策: 次回 /test は今回削除した分を「前回OK」として再利用できないため、
-    # マーカーを残し test.md Phase A で検知させて次回1回だけ全量再実行に倒す。
+    # マーカーを残し test.md Phase C 冒頭で検知させて次回1回だけ全量再実行に倒す。
     if deleted:
         marker = os.path.join(evidence_dir, ".png-cleaned")
         try:
