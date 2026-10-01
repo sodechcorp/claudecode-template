@@ -64,7 +64,7 @@
    | **判断不能** | どちらにもマッチしない / グレー | オプションに `default-when-uncertain: skip` が設定されていれば**黙ってスキップ**（理由「判断不能 + default skip」を成果物末尾に記録）。未設定または `execute` の場合は**実行に倒す**（ユーザー確認なし） |
    | **競合** | `auto-execute-when` と `auto-skip-when` の両方にマッチ | **実行を優先する**（`default-when-uncertain` の設定にかかわらず）。成果物末尾の「採用したオプション」欄に「競合（skip条件「{条件}」もヒットしたが execute 優先）」と 1 行記録する |
 
-3. **実行決定したオプションのみ** `options/option-{name}.md` を Read して実行
+3. **実行決定したオプションのみ** `options/option-{name}.md` を Read して実行（実行する位置をエージェント本体が指定している場合はその位置で実行する）
 4. 各オプションの結果を成果物（`investigation.md` / `implementation-plan.md` / `validation-report.md` / `test-report.md` 等）に統合
 5. スキップしたオプションは成果物末尾に「スキップ理由」付きで記録
 
@@ -99,7 +99,7 @@
 | **A. 常時実行** | `auto-skip-when` 空、ほぼ無条件で実行 | option-symptom-reverification / option-multi-cause-hypothesis / option-counter-evidence-search / option-knowledge-extraction |
 | **B. コード変更の有無で判定** | コード実体に影響しない変更（コメント・ラベル等）はスキップ確認 | option-reverse-grep / option-similar-impl-search / option-unit-test-creation / option-bulk-processing-check / option-soql-governor-limit-check |
 | **C. 課題種別/ワード検出で判定** | 種別「バグ」「追加要望」や特定ワード（権限・データ・移行・パフォーマンス 等）でトリガ | option-permission-fls-check / option-sharing-rule-check / option-data-migration-plan / option-data-volume-analysis / option-performance-test |
-| **D. 規模・影響範囲で判定** | 影響範囲広・全社影響・重要バグ時のみ実行 | option-second-opinion / option-stakeholder-notification / option-staged-deployment-plan / option-feature-flag-design / option-security-audit |
+| **D. 規模・影響範囲で判定** | 影響範囲広・全社影響・重要バグ時のみ実行 | option-second-opinion / option-staged-deployment-plan / option-feature-flag-design / option-security-audit |
 
 > **`_index-phase{N}.md` の対象外の option**: `option-acceptance-criteria-recheck` は上記 4 パターン分類（`_index-phase{N}.md` の auto-execute-when / auto-skip-when 判定）の対象外。旧 `/backlog` Phase 5.5 で使われていたが、Phase 5.5 廃止後は After エビデンスが確定する `/test` コマンド側に再統合されており、`.claude/commands/test.md` Phase F-1 から毎回直接呼び出される。
 

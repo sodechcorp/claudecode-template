@@ -1,6 +1,6 @@
 # Phase 6 オプションインデックス（Sandbox リリース）
 
-backlog-releaser が Phase 6 の Step 0b で参照する判定情報。2 オプション。
+backlog-releaser が Phase 6 の Step 0b で参照する判定情報。1 オプション。
 
 判定の使い方は [_README.md](./_README.md) §Step 0 を参照。
 
@@ -22,20 +22,6 @@ options:
       - typo 修正・ラベル変更レベル
       - 単一ユーザー・単一プロファイル向け修正
     estimated-cost: 中
-
-  - name: option-stakeholder-notification
-    description: 関係者への完了通知（Slack・メール等の文面案起案。Backlog コメント投稿はユーザーが手動）
-    category: D
-    auto-execute-when:
-      - 全社影響を伴う修正
-      - 課題に「関係者に連絡」「周知が必要」等の言及
-      - お客様・他チームへの影響がある修正
-      - 課題優先度が「緊急」
-    auto-skip-when:
-      - 開発者内のみで完結する修正
-      - 単純なバグ修正で影響範囲が小さい
-      - typo 修正・ラベル変更レベル
-    estimated-cost: 軽
 
   # option-rollback-readiness は Phase 6 から除去（Phase 6 は Sandbox 専用のため常に auto-skip になるため）。
   # 将来の本番リリース専用コマンドで再利用予定。資産は _archive-production-release.md に退避済み。

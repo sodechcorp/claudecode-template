@@ -445,7 +445,7 @@ children:
 **未反映**（本番リリースは別途 /release {issueID} で準備・人間が実施）
 
 ### 残作業
-- [ ]（Sandbox 接続の場合）動作確認結果を関係者に共有する
+- [ ]（Sandbox 接続の場合）`/test {issueID}` で網羅テストを実施する
 - [ ]（管理画面操作の場合）管理画面操作手順書（docs/logs/{issueID}/manual-operation-steps.md）に従い担当者が操作を実施する（この後 backlog.md 側がステップごとに逐次提示する）
 - [ ]（`pending-signoff.md` がある場合）お客様確認サイン（`/test` の総合判定確定後にリマインドされます。Step 3.7 参照）
 - [ ] 本番反映が必要な場合は /release {issueID} を実行する

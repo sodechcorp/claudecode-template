@@ -61,7 +61,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
 > 本 agent の Phase: 4（_index-phase4.md を Read して判定）
 
-判定結果（採用・スキップしたオプション）は **implementation-plan.md** の末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
+ここでは判定のみ行う。Phase 4 のオプションは実装したコードを対象とするため、採用したオプションは「### 3. 実装」末尾の記述に従って実装後に実行し、判定結果（採用・スキップしたオプション）は実行後に **implementation-plan.md** の末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
 > **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。Before/After 説明文・実装サマリーは日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
 
@@ -128,6 +128,8 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 - APIフィールド名は計画書記載の API 名を起点とし、field-meta.xml で存在を確認した上で使用する
 - エラーハンドリングを含める
 - APIキー・パスワードをハードコードしない
+
+実装を終えたら、Step 0b で採用したオプションを実行する（option-progressive-commits のみ、docs 更新もコミット単位に含むため「### 4. ドキュメント更新」の後に実行する）。
 
 ### 4. ドキュメント更新
 
@@ -207,6 +209,7 @@ implementation-plan.md の「関連コンポーネント一覧（変更対象フ
 - [ ] ガバナ制限・バルク処理・FLS の考慮漏れがないか
 - [ ] API名・フィールド名が計画書通りか（誤字を含む）
 - [ ] ドキュメント更新（catalog/design/changelog.md）が完了しているか
+- [ ] Step 0b で採用したオプションを全て実行し、判定結果を implementation-plan.md の末尾に記録したか
 
 ### 7. implementation-summary.md の書き出し（Phase 4 完了後に必ず実行）
 
