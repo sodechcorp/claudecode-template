@@ -221,7 +221,7 @@ Step 5-1 で作成した REPRO_ プレフィックスの新規レコードは削
 
 ### 6-2. 既存レコードの原値復元（restore_H*.json がある場合のみ）
 
-`{証跡保存先}/logs/restore_H{N}.json` の原値を `sf data update record` で元の値に戻し、**復元後に同じ Id を SOQL で再取得して `fields` の各値と一致するか検証する**。Step 5-0 では前回実行の残り全件を、5-6 ではその H の分を、本 Step では残っている `restore_H*.json` 全件（Step 5 で戻せなかったもの）を対象にする。ファイルが存在しない場合はこのステップをスキップする。
+`{証跡保存先}/logs/restore_H{N}.json` の原値を `sf data update record` で元の値に戻し、**復元後に同じ Id を SOQL で再取得して `fields` の各値と一致するか検証する**。Step 5-0 では前回実行の残り全件を、5-6 ではその H の分を、本 Step と Step 7（中断時）では残っている `restore_H*.json` 全件を対象にする。ファイルが存在しない場合はこのステップをスキップする。
 
 `restore_H{N}.json` の形式:
 ```json
@@ -254,7 +254,7 @@ r = {k.lower(): v for k, v in json.load(sys.stdin)['result']['records'][0].items
 n = lambda v: '' if v is None else str(v)
 print('OK' if all(n(r.get(k.lower())) == n(v) for k, v in d['fields'].items()) else 'NG')
 ")
-# 一致したら restore_H{N}.json を削除し、消えたことまで確認する（残っているファイル＝未復元として Step 5-0・5-1・6-2 が扱うため）
+# 一致したら restore_H{N}.json を削除し、消えたことまで確認する（残っているファイル＝未復元として Step 5-0・5-1・6-2・7 が扱うため）
 # 不一致なら削除しない（Step 6-2 の終了時点で残っているファイルは、Step 8 の hypothesis-verification.md「テストデータ」に [WARN] 原値未復元 として明記する）
 if [ "$MATCH" = "OK" ]; then
   echo "原値復元: H{N} {件数} 件" >> "{証跡保存先}/logs/cleanup.txt"
@@ -280,7 +280,7 @@ fi
 
 ## Step 7: ブラウザセッションの終了
 
-**Step 5〜6 のいずれかで想定外のエラー・タイムアウト等により処理を中断する場合も、ユーザーへの中断報告の前に必ず本 Step を実行する**（ブラウザセッション・Login As プロキシを残したまま報告しない）。Login As 中に中断した場合は、`browser_close` の前に `playwright-sf-screen-ops.md`「Login As」の手順に従い `/secur/logout.jsp` でプロキシ解除する。
+**Step 5〜6 のいずれかで想定外のエラー・タイムアウト等により処理を中断する場合は、ユーザーへの中断報告の前に、残っている `{証跡保存先}/logs/restore_H*.json` を Step 6-2 の手順で原値に戻してから本 Step を実行する**（変更後の既存レコード・ブラウザセッション・Login As プロキシを残したまま報告しない）。戻せずに残った `restore_H*.json` があれば、その件数と各ファイルのパス・SObject・Id を中断報告に含める。Login As 中に中断した場合は、`browser_close` の前に `playwright-sf-screen-ops.md`「Login As」の手順に従い `/secur/logout.jsp` でプロキシ解除する。
 
 ```tool
 mcp__playwright__browser_close
