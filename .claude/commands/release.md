@@ -51,7 +51,7 @@ argument-hint: "[課題ID]"
 `docs/logs/{issueID}/release-plan.md` が既に存在するか（Glob）を確認する:
 - **存在する場合**: AskUserQuestion で確認する（question: 「`{issueID}` の本番リリース手順書は既に生成済みです。今回の実行は何が目的ですか？」/ header: 「実行目的」/ options: 「途中から再開する」〔`docs/logs/{issueID}/release-log.md` の最後の記録から Step 4 の引き渡しを再開する〕・「本番デプロイ完了を報告する」〔以降の Step 3・4 をスキップし、下記の通り Phase 7 のみを起動する〕・「手順書を再生成する」〔Step 3 へ進み通常どおり実施する。release-log.md に本番変更の記録（定義は `release-preparer.md` Phase 4 冒頭）がある場合は「本番は既にデプロイ後の状態の可能性があります」と先に伝える〕）
   - 「途中から再開する」を選んだ場合: release-plan.md と release-log.md を Read し、完了済みのステップを completed として TodoWrite に復元してから、次の未完了ステップを渡す。② まで終わっている（Phase 7 の記録がある）場合は、Phase 7 判定が「OK」または「担当者作業待ち」で「画面確認: 完了」の記録が無ければ Step 5 の「本番の画面確認」から、それ以外（画面確認が完了済み、または Phase 7 判定が差異あり・未実施）は Step 5 の該当する扱い（差異あり／未実施の対応、または ③ の担当者確認・データのバックアップ削除の続き）から再開する
-  - 「本番デプロイ完了を報告する」を選んだ場合: チャットでデプロイ日時・結果を確認したうえで Task tool で `release-preparer` を起動する:
+  - 「本番デプロイ完了を報告する」を選んだ場合: チャットでデプロイ日時・結果を確認し、Step 5 と同じく release-log.md に1行追記してから、Task tool で `release-preparer` を起動する:
     ```
     task_description: 「/release 起動: {issueID} の Phase 7（リリース後確認と記録）のみを実施。デプロイ完了報告: {ユーザーからの報告内容}」
     project_dir: {プロジェクトルートパス}
@@ -109,7 +109,7 @@ issue_title: {件名}
 
 ### Step 5: 本番デプロイ完了報告を受けての Phase 7 起動
 
-**本番デプロイ完了の報告を受けた場合**（本セッション継続中のみ。`/release {issueID}` 再起動時は Step 2b で判定済み）: Task tool で `release-preparer` を再起動し、Phase 7（リリース後確認と記録）のみを実施させる:
+**本番デプロイ完了の報告を受けた場合**（本セッション継続中のみ。`/release {issueID}` 再起動時は Step 2b で判定済み）: 報告内容を `docs/logs/{issueID}/release-log.md` に「本番デプロイ完了の報告」として1行追記してから（形式は Step 4 の6.。報告内容にデプロイ日時・結果を書く）、Task tool で `release-preparer` を再起動し、Phase 7（リリース後確認と記録）のみを実施させる:
 ```
 task_description: 「/release 起動: {issueID} の Phase 7（リリース後確認と記録）のみを実施。デプロイ完了報告: {ユーザーからの報告内容}」
 project_dir: {プロジェクトルートパス}
