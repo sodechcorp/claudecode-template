@@ -26,6 +26,7 @@
 - `implementation-plan.md` 存在（validation-report.md なし） → 「Phase 3.5（実装前検証）から / Phase 3（実装方針確定）から / 中止 のどれにしますか？」
 - `approach-plan.md` 存在（implementation-plan.md なし） → 「Phase 3（実装方針）から / Phase 2（対応方針の決定）から / 中止 のどれにしますか？」
 - `investigation.md` のみ存在 → `investigation.md` フロントマターの `issue_type` を確認し、以下の通り選択肢を提示する:
+  - フロントマターに `issue_type` が無い（Phase 1 完了時に書き込まれるため、調査途中で中断したファイル） → 「Phase 1 から再調査 / 中止 のどれにしますか？」
   - `issue_type` = `バグ` → 「Phase 1.6（Sandbox 仮説検証）から / 中止 のどれにしますか？」
   - `issue_type` = `問い合わせ` → 「Phase 2（対応方針確定）から / 中止 のどれにしますか？」
   - `issue_type` = `追加要望` / `その他` → 「Phase 2（対応方針確定）から / 中止 のどれにしますか？」
