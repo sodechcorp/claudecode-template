@@ -30,6 +30,8 @@ Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{
 
 ## フェーズ構成
 
+> **Phase B（test-spec-builder）・Phase C（auto-evidence-runner）が完了報告を返さず中断した場合**は、test-spec.md・証跡が途中まで保存されていても完了とみなさず、次の Phase に進まずにその報告を提示して止まる。
+
 ### Phase A: 前提検証・接続確認
 
 > **[ハーネス直接実行]**
