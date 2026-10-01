@@ -40,11 +40,11 @@
    - **Backlog コメント**: 起案文をチャットで提示。ユーザーが Backlog UI から手動で投稿
    - **Slack / メール**: 起案文をチャットで提示。ユーザーが手動で送信（必要なら communicator エージェントに依頼してトーン調整）
 
-4. 通知文案を test-report.md に記録する
+4. 通知文案を `docs/logs/{issueID}/stakeholder-notification.md` に保存する
 
 ## 出力
 
-test-report.md に追記:
+`docs/logs/{issueID}/stakeholder-notification.md` に保存:
 
 ## ステークホルダー通知
 
