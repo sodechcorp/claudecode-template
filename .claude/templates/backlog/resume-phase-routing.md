@@ -39,7 +39,7 @@ Phase 5 または Phase 6 で根本的な問題（原因誤特定・スコープ
 
 1. **既存成果物のアーカイブ**:
    - `docs/logs/{issueID}/` 配下の全 MD を `docs/logs/{issueID}/archive/v{N}/` に移動する
-   - `N` は既存の archive フォルダ数 + 1（初回は v1）
+   - `N` は既存の `archive/v*/` の最大番号 + 1（初回は v1。欠番があってもフォルダ数ではなく最大値を基準にする）
    - `docs/logs/{issueID}/discussion-log.md` はアーカイブせず残存させ、「v{N} やり直し理由: {理由}」を追記してから続行
 
 2. **Phase 1 から再起動**:

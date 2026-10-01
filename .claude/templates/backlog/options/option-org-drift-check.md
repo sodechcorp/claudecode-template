@@ -75,7 +75,7 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
 
 ### Tier 2: 深掘り（Tier 1 で痕跡ありのコンポーネントのみ）
 
-1. 痕跡ありコンポーネントのみを対象に、本番の現行資材を用意する（**`force-app/` には絶対に取得しない**）。`/release` では release-preparer Phase 4 の4. が資材マニフェストのうち本番に存在する資材を `docs/logs/{issueID}/rollback-backup/` へ取得するため、**それがあればそのファイルを使い、改めて取得しない**（その場合は下記 2. の diff を「`rollback-backup` 内の該当ファイル」と「`docs/logs/{issueID}/release-snapshot/` 内の該当ファイル」の比較に読み替える。**4. の削除は行わない**）。無い場合のみ一時ディレクトリへ取得する（取得先の実際のパスは Glob で確認してから diff する）:
+1. 痕跡ありコンポーネントのみを対象に、本番の現行資材を用意する（**`force-app/` には絶対に取得しない**）。`/release` では release-preparer Phase 4 の4. が資材マニフェストのうち本番に存在する資材を取得済み（本番変更の記録がない場合は `docs/logs/{issueID}/rollback-backup/`、ある場合は `{tmp_dir}/prod-drift-check/`）のため、**それがあればそのファイルを使い、改めて取得しない**（その場合は下記 2. の diff を「その取得先内の該当ファイル」と「`docs/logs/{issueID}/release-snapshot/` 内の該当ファイル」の比較に読み替える。**4. の削除は行わない**）。無い場合のみ一時ディレクトリへ取得する（取得先の実際のパスは Glob で確認してから diff する）:
    ```bash
    mkdir -p "{tmp_dir}/prod-drift-check"
    sf project retrieve start --metadata "ApexClass:{クラス名}" --target-org "$PROD_ALIAS" --output-dir "{tmp_dir}/prod-drift-check" --json
@@ -88,7 +88,7 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
    - **差分なし**: 誰かが触ったが結果的に今の Sandbox/リポジトリ内容と一致 → 「痕跡あるが実害なし」
    - **差分あり かつ 今回のリリース内容と非干渉**（無関係な別ロジックの変更）: 「他者変更あり・要確認（リリースで上書きする点をユーザーに警告）」
    - **差分あり かつ 今回のリリース内容と重なる**（同一メソッド・同一項目）: 「競合・要人間判断」（最重要警告）
-4. 一時ディレクトリを削除する（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠）。**1. で `rollback-backup` を使った場合は削除しない**（ロールバック用のバックアップのため）:
+4. 一時ディレクトリを削除する（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠）。**1. で release-preparer Phase 4 の4. の取得先を使った場合は削除しない**（`rollback-backup` はロールバック用のバックアップ、`prod-drift-check` は release-preparer の6. でも使うため。後者は release-preparer の 8.・Phase 最終で削除される）:
    ```bash
    python -c "import shutil; shutil.rmtree(r'{tmp_dir}/prod-drift-check', ignore_errors=True)"
    ```

@@ -579,8 +579,9 @@ def discover_rounds(judgment_path: str, evidence_dir: str) -> list:
         ev_d = os.path.join(ev_parent, f"after_R{n}")
         rounds.append((label, j_path, ev_d))
 
-    # 現回次番号: アーカイブ数 + 1
-    current_n = len(archived) + 1
+    # 現回次番号: アーカイブの最大回次 + 1（欠番があってもファイル数ではなく最大値を基準にする。
+    # judge_results.py の _next_archive_round・generate_test_report.py と同一基準）
+    current_n = (archived[-1][0] if archived else 0) + 1
     rounds.append((f"R{current_n}", judgment_path, evidence_dir))
     return rounds
 

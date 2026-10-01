@@ -39,7 +39,7 @@ Step 0a（sf-context-loader 経由の SF コンテキスト読込。サブエー
 
 > 起動プロンプトに「Phase 4 のバックアップ・差分の帰属確認のみ再実施」という指示が含まれる場合に適用する（`release.md` Step 4 の1.〔本番未接続からの復旧〕・4.〔バックアップ取得後に本番のコンポーネントが更新されたことを検知〕から起動される）。
 
-Step 0a・Step 0b・Phase 1〜3・Phase 5〜6 はスキップする。Step 0c を行い、`prod-readonly-check.md` で本番接続を確認してから、`release-plan.md` の資材マニフェストを入力に、Phase 4 の3.（lastModifiedDate の記録・新規資材の既存チェック）・4.（本番資材の取得）・6.（差分の帰属確認）・7.（データのバックアップ。対象がある場合）を実施する。本番未接続からの復旧の場合は、加えて 2.（Tier 0）・5.（Tier 2）も実施し、release-plan.md の Step 2/3/3b/4 に残っている `{本番エイリアス}` を確認できた値に置き換え、最重要警告の「本番未接続」行を消す。
+Step 0a・Step 0b・Phase 1〜3・Phase 5〜6 はスキップする。Step 0c を行い、`prod-readonly-check.md` で本番接続を確認してから、`release-plan.md` の資材マニフェストを入力に、Phase 4 の3.（lastModifiedDate の記録・新規資材の既存チェック）・4.（本番資材の取得）・6.（差分の帰属確認）・7.（データのバックアップ。対象がある場合）・8.（一時ディレクトリの削除。4. が本番の現行資材を `{tmp_dir}/prod-drift-check` に取得した場合を含む）を実施する。本番未接続からの復旧の場合は、加えて 2.（Tier 0）・5.（Tier 2）も実施し、release-plan.md の Step 2/3/3b/4 に残っている `{本番エイリアス}` を確認できた値に置き換え、最重要警告の「本番未接続」行を消す。
 - **release-snapshot の扱い**: 4. で `release-snapshot/` を作り直す前に、既存の `release-snapshot/` と現在の force-app（資材マニフェスト分）を比較する。違いがあれば「手順書作成後に force-app が変わっている」として最重要警告に記録し、差分の帰属確認は新しい force-app で行う
 - `release-plan.md`「事前記録」（取得日時・lastModifiedDate・データのバックアップ）と「## 差分の帰属確認」表を更新し、新たな疑いがあれば最重要警告に追記する
 - 完了報告は「再取得したコンポーネント・差分の帰属確認の結果・データの再取得結果・**新たに増えた最重要警告**」を返す（呼び出し元は増えた警告について担当者の判断を取ってから進む）
@@ -197,14 +197,15 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、進
 2. **Tier 0（環境間実体差分チェック・マニフェスト非依存）**: Phase 1 の 1a で前倒し実行済みの場合は再実行せず、その結果を release-plan.md に転記する。未実施の場合はここで実施する（実施前に `sandbox-alias-check.md` で Sandbox 接続も確認する。Sandbox 未接続の場合は Tier 0 のみスキップし「Tier 0: 未実施（Sandbox未接続）」と明記する）
 3. **Tier 1（軽量スキャン）**: `sf org list metadata` で資材マニフェストの各コンポーネントの最終更新日時／更新者を取得し、base コミット日時より後に他者が触った痕跡を抽出する（1a フォールバック使用時は option-org-drift-check.md Tier 1 の安全側フォールバックに従う）。**各コンポーネントの最終更新日時（`lastModifiedDate`）を release-plan.md「事前記録」に記録する**（引き渡し時のバックアップ最新確認で、本番がその後変わっていないかをこの値との一致で判定するため）。あわせて、変更種別「新規」の API 名が本番に既に存在しないかも確認する（存在すれば最重要警告）。資材にフローが含まれる場合は、リリース前の `FlowDefinitionView` の `LatestVersionId`・`ActiveVersionId` も記録する（Phase 7 でデプロイされたか・有効化されたかの判定に使う）
 4. **本番資材の取得（バックアップ兼用）**:
-   - 既存の `docs/logs/{issueID}/rollback-backup/` があれば `rollback-backup.R{N}/`（N = 既存の `rollback-backup.R*` の最大回次 + 1）へ退避してから取得する（再生成で上書きしない。取得は同じ出力先に上書き・追加するため）。本番変更の記録がある場合は、「本番は既にデプロイ後の状態の可能性があります。リリース前の状態は退避した rollback-backup.R{N} です」を完了報告と最重要警告に記録する
-   - 資材マニフェストのうち本番に存在するコンポーネント（変更・削除）を取得する（**force-app へは取得しない**）:
+   - **本番変更の記録がある場合**（定義は Phase 4 冒頭）は `rollback-backup/` を取り直さない（デプロイ後の本番で上書きすると、ロールバックの戻し先であるリリース前の状態を失う）。既存の `docs/logs/{issueID}/rollback-backup/` をそのまま保持し（退避も取得もしない）、事前記録には前回の `release-plan.md`（Phase 5 で退避する前のもの）の取得日時を引き継いで「取り直していません（本番変更後）」を添え、「本番は既にデプロイ後の状態の可能性があります。リリース前の状態として既存の rollback-backup/ を保持しています」を完了報告と最重要警告に記録する。今回の資材の変更・削除コンポーネントに既存の `rollback-backup/` に無いもの（`rollback-backup/` 自体が無い場合は全て）があれば、「{コンポーネント}は本番変更後のため取得できず、ロールバック手順 1 では戻せません」を事前記録と最重要警告に記録する
+   - **それ以外の場合**は、既存の `docs/logs/{issueID}/rollback-backup/` があれば `rollback-backup.R{N}/`（N = 既存の `rollback-backup.R*` の最大回次 + 1）へ退避する（再生成で上書きしない。取得は同じ出力先に上書き・追加するため）
+   - 資材マニフェストのうち本番に存在するコンポーネント（変更・削除）を取得する（**force-app へは取得しない**）。取得先 `{取得先}` は、本番変更の記録がない場合は `docs/logs/{issueID}/rollback-backup`（ロールバック用バックアップ兼、5.・6. の比較元）、ある場合は `{tmp_dir}/prod-drift-check`（5.・6. の比較元だけ。ロールバックの戻し先を上書きしない）:
      ```bash
-     cd "{project_dir}" && sf project retrieve start --metadata "{本番に存在する資材の Type:Name 一覧}" --target-org {本番エイリアス} --output-dir docs/logs/{issueID}/rollback-backup
+     cd "{project_dir}" && sf project retrieve start --metadata "{本番に存在する資材の Type:Name 一覧}" --target-org {本番エイリアス} --output-dir {取得先}
      ```
      取得先のディレクトリ構成は Glob で確認してから以降の比較に使う
-   - 同時に、リリースする資材（force-app の該当ファイル）を `docs/logs/{issueID}/release-snapshot/` にコピーする（Phase 7 のリリース後確認で「何をリリースしたか」の基準にするため。force-app は後で取り直されうる）
-   - 取得日時を release-plan.md「事前記録」に記録する
+   - いずれの場合も、リリースする資材（force-app の該当ファイル）を `docs/logs/{issueID}/release-snapshot/` にコピーする（Phase 7 のリリース後確認で「何をリリースしたか」の基準にするため。force-app は後で取り直されうる）
+   - 取得日時を release-plan.md「事前記録」に記録する（本番変更の記録がある場合は上記の引き継ぎ）
 5. **Tier 2（深掘り）**: Tier 1 で痕跡ありのコンポーネントについて、4. で取得した本番資材と `release-snapshot/` の差分を option-org-drift-check.md Tier 2 の基準（痕跡あるが実害なし／他者変更あり／競合・要人間判断）で評価する（本番からの取得は 4. の1回だけ行う）
 6. **差分の帰属確認（対象が絞れているか・必須）**: 4. の本番資材と `release-snapshot/` をコンポーネントごとに diff し、差分の1か所ずつを向きで分けて判定する:
    - **手元にだけある変更**（リリースで本番に入る）: 今回の課題の変更で説明できるかを、`implementation-summary.md`（「変更を加えた資材一覧」「Before / After」）・`implementation-plan.md`（実装方針・関連コンポーネント・改版履歴）・`discussion-log.md`・（force-app が Git 管理対象なら）`git diff`／`git log` を根拠に確認する。説明できない → 「他の変更が混入している疑い（手元側）」。担当者の判断は「含めてよい／取り除く」（取り除く場合は force-app を直して `/release` を再実行する）
@@ -234,7 +235,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、進
    - 最終資材での影響確認の「新規発見」、削除・名前変更・型変更の資材を参照する箇所の残り（Phase 2 の4.）
    - 新規資材が本番に既に存在する（3.）
    - 本番未接続によりバックアップ・差分の帰属確認・ドリフト確認が未実施（1.）
-   - 手順書の再生成時に本番が既にデプロイ後の状態の可能性（4.）・本番変更後のためデータを取り直していない（7.）・手順書作成後に force-app が変わっている（再取得モード）
+   - 手順書の再生成時に本番が既にデプロイ後の状態の可能性・本番変更後のためバックアップ（メタデータ）を取り直していない／取得できないものがある（4.）・本番変更後のためデータを取り直していない（7.）・手順書作成後に force-app が変わっている（再取得モード）
    - Step 0b でテスト未完了のまま続行した
    - Phase 1 の 1a（資材マニフェストを環境間実体差分から再構築した）・2a（資材マニフェスト外で言及されているコンポーネントのうちローカル実在のもの）
    - Backlog 本文照合による競合（option-ticket-conflict-check.md の重大度「高」「中」）
@@ -247,7 +248,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、進
 
 **資材種別に応じた組み立て（重要）**: Phase 1 で確定した資材マニフェストに**実際に含まれる種別のみ**を §D 資材種別別チェックから転記する（含まれない種別の行は書かない）。マトリクスにない種別が出た場合はマトリクス §E に従い `[要確認]` 付きで検証方法を起案する（推測で断定しない）。「前・実行・後」の3段構成は資材の有無によらず必ず全て記載する。
 
-`docs/logs/{issueID}/release-plan.md` が既に存在する場合（`/release {issueID}` の再実行。「本番固有の失敗」からの再試行等）は `release-plan.R{N}.md`（N = 既存の `release-plan.R*.md` 本数 + 1）へリネームして退避してから新規作成する（前回手順書を上書きで消さない。`prod-release-issue.md` の退避規約と同じパターン）。`docs/logs/{issueID}/release-plan.md` を新規作成する。構成（リリース前 → 実行 → 後の順を厳守）:
+`docs/logs/{issueID}/release-plan.md` が既に存在する場合（`/release {issueID}` の再実行。「本番固有の失敗」からの再試行等）は `release-plan.R{N}.md`（N = 既存の `release-plan.R*.md` の最大回次 + 1）へリネームして退避してから新規作成する（前回手順書を上書きで消さない。`prod-release-issue.md` の退避規約と同じパターン）。`docs/logs/{issueID}/release-plan.md` を新規作成する。構成（リリース前 → 実行 → 後の順を厳守）:
 
 ```markdown
 # 本番リリース手順書
@@ -299,12 +300,12 @@ manual_operation_mode: {true / false}（`release.md`・Phase 7・再取得モー
 
 ## 事前記録: ロールバック用バックアップ
 {manual_operation_mode: false の場合}`force-app/` は `.gitignore` 対象のため、コミットハッシュに基づくロールバックは機能しない。リリース対象コンポーネントの本番の現行状態を Claude が取得済み（Phase 4 の4.）。
-ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （{取得済み: {取得日時} / 未取得（本番未接続）}）
+ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （{取得済み: {取得日時} / 取り直していません（本番変更後。取得日時: {前回の値}） / 未取得（本番未接続、または本番変更後で取得できません）}）
 リリース資材の控え: docs/logs/{issueID}/release-snapshot/
 本番コンポーネントの最終更新日時（取得時点）: {コンポーネントごとの lastModifiedDate。② Step 1 の最新確認で使う}
 データのバックアップ: {Phase 4 の7. の記録（ファイル・取得項目・件数・保存先・削除予定） / 「対象外（データに影響する変更なし）」 / 「担当者が取得（{理由}）」 / 「取り直していません（本番変更後。7. の 1.）」 / 「未取得（本番未接続）」}
 差分の帰属確認: {OK / 疑いあり（「## 差分の帰属確認」参照） / 未実施（本番未接続）}
-{manual_operation_mode: true の場合}管理画面操作のため metadata retrieve によるロールバック用バックアップは取得しない。**操作直前**に、対象項目の変更前の値・設定状態を下記「ロールバック手順」の記載に従って人間が記録する（画面キャプチャ・設定値メモ等）。
+{manual_operation_mode: true の場合}管理画面操作のため metadata retrieve によるロールバック用バックアップは取得しない。**操作直前**に、対象項目の変更前の値・設定状態を下記「ロールバック手順」の記載に従って人間が記録する（画面キャプチャ・設定値メモ等）。データのバックアップ（Phase 4 の7.）は、上の「データのバックアップ:」行と同じ形式で常に記録する（7. の対象が無ければ「対象外（データに影響する変更なし）」）。
 
 ---
 
@@ -423,9 +424,10 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
 {manual_operation_mode: false の場合}{option-rollback-readiness.md による最終確認}
 1. `sf project deploy start --source-dir {ROLLBACK_BACKUP_DIR} --target-org {本番エイリアス}` — Claude が取得済みの変更前メタデータを本番へ再デプロイする（新規追加コンポーネントは対象外のため、該当分は Setup 画面から手動削除する）
 1b. データのバックアップを取得した場合は、`docs/logs/{issueID}/backup/data/` の CSV を Data Loader 等で戻す（担当者が実施。CSV は担当者のリリース後確認が全て終わるまで削除しない）
+{事前記録に「取得できず」（メタデータ）・「取得できません」（データ）の対象がある場合は、手順 1・1b（manual 側で加える 1b を含む）のそれぞれ直下に「⚠️ {対象}はこの手順では戻りません（本番変更後でリリース前の状態を取得できていません）。担当者が戻し方を判断してください」を個別に挿入する（手順は1つずつ単独で提示され、事前記録の注記は目に入らないため）}
 2. Sandbox で動作確認
 3. 本番の状態を確認
-{manual_operation_mode: true の場合}manual-operation-steps.md「### ロールバック手順」をそのまま転記する（事前記録の変更前の値・設定状態を使って Setup 画面から手動で元に戻す）
+{manual_operation_mode: true の場合}manual-operation-steps.md「### ロールバック手順」をそのまま転記する（事前記録の変更前の値・設定状態を使って Setup 画面から手動で元に戻す）。事前記録の「データのバックアップ:」が「対象外」以外（今回取得・前回分を保持・担当者が取得のいずれも）なら、転記内容の後ろに上の 1b と同じ手順を「1b.」として加える（manual-operation-steps.md は Sandbox 段階で作られ、本番のデータのバックアップを知らないため）
 
 ## リリースノート
 {option-release-note-generation.md に従い docs/logs/{issueID}/release-note.md を別途生成し、ここにリンクする}
@@ -448,7 +450,7 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
 
 > **全文提示はしない**: `release-plan.md` の全文をこの場でチャットに貼り付けない。Todo 化・ステップごとの逐次提示は呼び出し元（`release.md` Step 4）の責務。仕様: [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md)。本エージェントは完了報告でファイルパスと構成概要（Step 数または操作ステップ数・管理画面手動操作の有無）のみ伝える。
 
-完了報告の前に、下記「Phase 最終: クリーンアップ」を実施する（Phase 1/4 で `{tmp_dir}/prod-drift-check` ・ `{tmp_dir}/org-drift-tier0` を作成した場合のみ）。
+完了報告の前に、下記「Phase 最終: クリーンアップ」を実施する（Phase 1/4 で `{tmp_dir}/prod-drift-check` ・ `{tmp_dir}/org-drift-tier0` を作成した場合のみ。作成したのは 4. の取得・Tier 2 の取得・Tier 0 のいずれか）。
 
 完了報告を提示する:
 
@@ -465,7 +467,7 @@ release_plan_generated: true
 - チケット競合: なし / あり（{issueID} を確認してください）
 - 本番環境ドリフト: なし / あり（{詳細}） / 未リリース積み残しあり（{詳細}） / 未実施（本番未接続） / 一部未実施（Tier 0 のみ Sandbox未接続のため未実施。Tier 1/2 は実施済み）
 - 差分の帰属確認: OK / 他の変更が混入している疑い（{コンポーネント}。担当者の判断が必要）
-- バックアップ: メタデータ {取得済み（{件数}件） / 未取得（本番未接続）} / データ {取得済み（{ファイル}・{取得項目}・{件数}件） / 対象外 / 担当者が取得 / 取り直していない（本番変更後。既存分を保持） / 未取得（本番未接続）}
+- バックアップ: メタデータ {取得済み（{件数}件） / 取り直していない（本番変更後。既存分を保持。取得できないもの {件数}件） / 未取得（本番未接続）} / データ {取得済み（{ファイル}・{取得項目}・{件数}件） / 対象外 / 担当者が取得 / 取り直していない（本番変更後。既存分を保持） / 未取得（本番未接続）}
 - 最終資材での影響確認: 新規発見なし / 新規発見あり（{参照元}。要確認）
 - 資材マニフェスト外で言及されているコンポーネント: なし / 要確認あり（{詳細}） / 未検証あり（{件数}件、ローカル非実在のため保留）
 
@@ -493,7 +495,7 @@ Notion タスクに紐づく作業であれば、完了後に「ナレッジ／�
 **実施タイミング**: 通常フロー（Phase 1〜6）では Phase 6 の完了報告直前に実施する（上記の通り）。Phase 7 単独実行モードでは 7-3 の6. で `{tmp_dir}/post-release/` を削除するため、本節で削除する対象は通常残っていない。
 
 以下の一時ディレクトリを作成した場合は、成果物書き出し後・完了報告前に必ず削除する（`docs/logs/{issueID}/rollback-backup/`・`release-snapshot/`・`backup/data/` は一時ディレクトリではないため削除しない）:
-- `{tmp_dir}/prod-drift-check`（Phase 4 Tier 2）
+- `{tmp_dir}/prod-drift-check`（Phase 4 Tier 2、または 4. で本番変更の記録がある場合の本番の現行資材）
 - `{tmp_dir}/org-drift-tier0`（Phase 1 1a-2 前倒し実行時、または Phase 4 Tier 0 実行時）
 
 ```bash
@@ -541,7 +543,7 @@ Phase 6 の完了報告後、ユーザーから本番デプロイ完了の報告
   3. 担当者作業待ちがある場合は、その内容を release-log.md に残し、完了報告で ③ の担当者の確認として伝える
 - **それ以外（一部失敗・失敗・7-3 で差異あり）**: decisions.md・changelog.md へは「リリース済み」の体裁で記録しない（実態と乖離した完了記録を残さない）。代わりに:
   - ロールバックの要否と実施状況を確認する（Step 3 の失敗では本番は変わらないため、ロールバックが必要なのは Step 3b の失敗・リリース後確認の差異のとき）
-  - 既存の `docs/logs/{issueID}/prod-release-issue.md` があれば `prod-release-issue.R{N}.md` へリネームして退避してから、今回の内容（デプロイ日時・結果・リリース後確認の差異・ロールバック状況）を `docs/logs/{issueID}/prod-release-issue.md` に記録する
+  - 既存の `docs/logs/{issueID}/prod-release-issue.md` があれば `prod-release-issue.R{N}.md`（N = 既存の `prod-release-issue.R*.md` の最大回次 + 1）へリネームして退避してから、今回の内容（デプロイ日時・結果・リリース後確認の差異・ロールバック状況）を `docs/logs/{issueID}/prod-release-issue.md` に記録する
   - decisions.md の当該課題エントリには「本番リリース: {一部失敗 / リリース後確認で差異あり}（{日時}）。ロールバック状況: {内容}。詳細は prod-release-issue.md 参照」と追記する（「リリース予定日 / 担当」欄は更新しない＝未完了のため）
 - **7-3 が未実施の場合**: 記録せず、担当者の再認証後に Phase 7 をやり直す
 
