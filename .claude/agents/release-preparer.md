@@ -355,7 +355,7 @@ sf project deploy report --target-org {本番エイリアス}
 ```
 → `--job-id` を指定しない場合は直近のデプロイジョブが対象になる。`has_destructive: true` の場合は Step 3b（削除）の結果が対象になるため、Step 3（新規/変更）の結果は Step 3 実行直後に別途 `sf project deploy report --target-org {本番エイリアス}` で確認しておく。
 
-> `{tests_flag}`: `--test-level RunSpecifiedTests` の場合のみ `--tests {クラス1} --tests {クラス2} ...`（`target_test_classes` を1つずつ `--tests` で列挙）を付与する。`RunLocalTests` / `NoTestRun` では付与しない。`--post-destructive-changes`（Step 3b）は `--test-level` を指定しない（削除のみのデプロイのため対象外）。
+> `{tests_flag}`: `--test-level RunSpecifiedTests` の場合のみ `--tests {クラス1} --tests {クラス2} ...`（`target_test_classes` を拡張子なしのクラス名で1つずつ `--tests` で列挙）を付与する。`RunLocalTests` / `NoTestRun` では付与しない。`--post-destructive-changes`（Step 3b）は `--test-level` を指定しない（削除のみのデプロイのため対象外）。
 
 > **実行時の注意**: 各コマンドは1行のまま実行する（bash 風の `\` 行継続は PowerShell では動作しない）。Step 2/3 の `--metadata` 一覧は Phase 1 資材マニフェストのうち変更種別が「新規」「変更」の項目（削除を除く）をそのまま転記する。バックアップ（Phase 4 の4.）は「削除」を含む本番に存在する全項目が対象のため Step 2/3 とは範囲が異なる（削除予定コンポーネントもロールバック用に退避が必要なため）。他チケットとの競合解消用に作ったバックアップ/マージ用フォルダの内容は、force-app へマージ済みであることを確認してから実行する（force-app 以外を参照しない）。
 

@@ -107,14 +107,14 @@ Step 2（dry-run デプロイ）が `<alias>` を使うため、ここで先に�
 
 `implementation-plan.md` の変更対象ファイルに Apex クラス（`.cls`）またはトリガー（`.trigger`）が含まれるかで test-level を切り替える:
 
-**`<テストクラス名>` の特定方法**: `docs/logs/{issueID}/validation-report.md` の「## Step 2: 既存テストカバレッジ確認」表（regression-guard確認結果由来）に対応するテストクラス名の記載があれば、それを優先してそのまま使う。記載が無い、または表自体が存在しない場合のみ、変更対象クラス・トリガーごとに命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls`。トリガーはファイル名（拡張子除く）を `{ClassName}` として同じ規則を適用する）で Glob/Grep して特定する（release-preparer.md Phase 1 と同じ特定方法に統一。regression-guard.md Step 2 の候補パターンとも一致）。Step 0b の option-unit-test-creation で作成・拡充したテストクラスは、どちらの場合も加える。`RunSpecifiedTests` で実行する場合は、変更対象クラス名で `force-app/**/*Test*.cls` を Grep し（単語単位・大文字小文字を区別しない）、ヒットしたテストクラス（変更対象を呼ぶ既存テストクラス。[option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) 実行手順2のクラス名での探し方）も加える（下記の NoTestRun フォールバックの判定には含めない）。
+**`<テストクラス名>` の特定方法**: `docs/logs/{issueID}/validation-report.md` の「## Step 2: 既存テストカバレッジ確認」表（regression-guard確認結果由来）に対応するテストクラス名の記載があれば、それを優先して使う。記載が無い、または表自体が存在しない場合のみ、変更対象クラス・トリガーごとに命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls`。トリガーはファイル名（拡張子除く）を `{ClassName}` として同じ規則を適用する）で Glob/Grep して特定する（release-preparer.md Phase 1 と同じ特定方法に統一。regression-guard.md Step 2 の候補パターンとも一致）。Step 0b の option-unit-test-creation で作成・拡充したテストクラスは、どちらの場合も加える。`RunSpecifiedTests` で実行する場合は、変更対象クラス名で `force-app/**/*Test*.cls` を Grep し（単語単位・大文字小文字を区別しない）、ヒットしたテストクラス（変更対象を呼ぶ既存テストクラス。[option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) 実行手順2のクラス名での探し方）も加える（下記の NoTestRun フォールバックの判定には含めない）。
 
 **部分該当（変更対象の一部のクラス・トリガーだけ対応テストクラスが見つかった場合）**: 見つかった分をスペース区切りで `<テストクラス名>` に列挙し `RunSpecifiedTests` で実行する（下記の NoTestRun フォールバックは変更対象**全件**が不在の場合のみに適用し、部分該当では適用しない）。`RunSpecifiedTests` はデプロイ対象クラス・トリガーごとに個別 75% カバレッジを要求するため、テストクラスが見つからなかったクラス・トリガーがあれば dry-run 自体がそのクラスのカバレッジ不足で FAIL しうる（Step 4 の FAIL 分岐でそのまま報告すればよく、黙って見逃されない）。
 
-**Apex 変更あり**（`<テストクラス名>` は上記の特定方法で特定したテストクラスをスペース区切りで列挙）:
+**Apex 変更あり**（`<テストクラス名>` は上記の特定方法で特定したテストクラスを拡張子なしのクラス名でスペース区切りで列挙）:
 ```bash
 sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
-  --test-level RunSpecifiedTests --tests <テストクラス名> --concise \
+  --test-level RunSpecifiedTests --tests <テストクラス名> --concise --junit \
   --coverage-formatters json-summary --results-dir docs/logs/{issueID}/coverage
 ```
 
@@ -130,7 +130,7 @@ sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
 
 確認:
 - dry-run が 0 errors で成功すること（デプロイ可能）
-- Apex 変更ありの場合: 指定テストが全 PASS すること
+- Apex 変更ありの場合: 指定したテストクラスがすべて実行され、全 PASS すること。実行されたクラスは `docs/logs/{issueID}/coverage/` 配下の `junit.xml`（Glob `**/junit.xml`）の `classname` と照合する（`--tests` は存在しない名前・`.cls` 付き・@isTest でないクラス名を黙って無視して成功を返すため）。実行されなかった名前は、綴り・拡張子の誤りなら直して再実行し、テストメソッドを持たないクラス（@isTest でない・テストデータ作成用など）なら一覧から外す
 - Apex 変更ありの場合: 変更クラスのカバレッジが適切であること（目安: 75% 以上。coverage-summary.json 参照）
 
 ---
@@ -175,7 +175,7 @@ test-report.md の「### 総合判定」セクションには、上記ルール�
 | 実装計画との整合 | PASS / FAIL | |
 
 ### dry-run デプロイ検証
-指定テストクラス: {Step 2 で列挙した `<テストクラス名>` をそのまま転記。Apex 変更なし/対応テストクラス不在の場合は「なし」}
+指定テストクラス: {Step 2 で実行を確認したテストクラス名（拡張子なし）を転記。Apex 変更なし/対応テストクラス不在の場合は「なし」}
 dry-run: PASS（0 errors） / FAIL
 Apex テスト: PASS / FAIL / 対象なし（Apex 変更なし）
 変更クラスカバレッジ: XX% / 対象なし
