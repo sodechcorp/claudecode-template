@@ -199,7 +199,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 課題ID: {issueID} — {件名}
 作成日: {YYYY-MM-DD}
-接続先: 本番 / Sandbox
+接続先: Sandbox
 
 ### 操作対象
 | オブジェクト / メタデータ | API名 | 変更種別 |
@@ -239,7 +239,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 > 追記フォーマット: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md エントリ
 > サイズ上限・アーカイブ通知: 同ファイル §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用 に従い、追記後のエントリ数が閾値以上なら完了報告に一行付記する。
 
-> **注**: 本番リリース実施記録（デプロイ日時・対象環境・結果）は decisions.md「リリース予定日 / 担当」欄・changelog.md で管理する。本番デプロイ後は `/release {issueID}` の Phase 7 がリリース後確認と記録を担当する（release-preparer.md Phase 7 参照）。
+> **注**: 本番デプロイ後は `/release {issueID}` の Phase 7 がリリース後確認と記録を担当する（release-preparer.md Phase 7 参照）。
 
 ---
 
@@ -446,7 +446,7 @@ children:
 
 ### 残作業
 - [ ]（Sandbox 接続の場合）`/test {issueID}` で網羅テストを実施する
-- [ ]（管理画面操作の場合）管理画面操作手順書（docs/logs/{issueID}/manual-operation-steps.md）に従い担当者が操作を実施する（この後 backlog.md 側がステップごとに逐次提示する）
+- [ ]（管理画面操作の場合）管理画面操作手順書（docs/logs/{issueID}/manual-operation-steps.md）に従い担当者が Sandbox で操作を実施する（この後 backlog.md 側がステップごとに逐次提示する）
 - [ ]（`pending-signoff.md` がある場合）お客様確認サイン（`/test` の総合判定確定後にリマインドされます。Step 3.7 参照）
 - [ ] 本番反映が必要な場合は /release {issueID} を実行する
 - 上記以外に残作業が無ければ「残作業なし」と記載する
@@ -548,7 +548,7 @@ Step 4 の完了報告に続けて、同じ応答内で以下を提示しユー�
 2. Phase 末尾の確認プロトコルは `_README.md §Phase 末尾の確認プロトコル` に従う。**Phase 6 は `/backlog` の最終フェーズのため【次へ】は「Phase {N+1} に進んでよろしいですか？」を使わず「以上で Phase 6（最終フェーズ）の対応は完了です。追加のご確認・ご質問はありますか？（無ければ『完了』とお伝えください）」に置き換える**。【確認事項】欄の Phase 6 固有の典型例（該当時のみ・0件が原則）:
    - 上記チェックリストの「目視確認のご案内」でユーザーが確認できているか
    - **網羅的テスト・証跡採取（リリース後エビデンス含む）は別セッションで `/test {issueID}` を起動**（デプロイ済み Sandbox 前提・`/test` は通常フローではデプロイしない。例外: Phase F-2 の NG 自動修正ループが発動した場合のみ、修正後の軽量再デプロイを実施する。**`deploy_route` = `manual-operation`（2b. 管理画面直接操作）の場合はコード変更・Sandbox デプロイ自体が発生していないためこの案内はスキップする**）
-   - **本番リリースを控えている場合は `/release {issueID}` を起動**（`deploy_route` = `normal` の場合は `/test {issueID}` 完了後に、`deploy_route` = `manual-operation` の場合は管理画面操作手順書の操作完了後に起動。資材確定・影響範囲・チケット競合・本番環境ドリフト検知を経て手順書を生成）
+   - **本番リリースを控えている場合は `/release {issueID}` を起動**（`deploy_route` = `normal` の場合は `/test {issueID}` 完了後に、`deploy_route` = `manual-operation` の場合は Sandbox での管理画面操作の完了後に起動。資材確定・影響範囲・チケット競合・本番環境ドリフト検知を経て手順書を生成）
 3. ユーザの自由テキスト応答を待つ（質問・確認 何でも可）。実績工数は能動的に質問しない（`effort-log.md` の実績列はどこからも自動参照されない記録専用フィールドで、既定空欄のままで支障ないため）
 4. 回答に実績工数への自発的な言及が含まれる場合のみ、`docs/logs/effort-log.md` の当課題行の「実績」列を Edit で更新する（言及が無い場合は空欄のまま）
 5. やり取りが落ち着いたら、お礼・クロージングの短い一言で締めくくる。**Step 4 の完了報告は再掲しない**。ただしやり取りの結果、確認環境・本番反映状況・残作業・確認方法・未確認事項のいずれかの内容に変更が生じた場合のみ、変更箇所を「訂正: {項目名}」として差分だけ提示する（全文の再掲は不要）
