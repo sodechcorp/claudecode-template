@@ -47,7 +47,7 @@ fi
 # オプション（/test {issueID} [--full] [--force] [--serial]）— アシスタントが起動引数から置換
 #   --force 指定時 → FORCE_SPEC=true / 未指定 → false
 #   --serial 指定時 → FORCE_SERIAL=true / 未指定 → false（低速組織・API 制限時の全逐次フォールバック。Phase C の serial パラメータに渡す）
-#   --full は Phase C 冒頭の差分対象の算出で使う
+#   --full は Phase C 冒頭の差分対象の算出で使う（--force で test-spec.md を作り直した回も全量実行）
 FORCE_SPEC="{force_spec}"
 FORCE_SERIAL="{force_serial}"
 
@@ -124,6 +124,8 @@ fi
 # 書き込み失敗は無視・後続処理をブロックしない）
 python -c "import json; json.dump({'issue_id':'$ISSUE_ID','project_dir':r'$PROJECT_DIR','log_dir':r'$LOG_DIR','xlsx_folder':r'$XLSX_FOLDER','evidence_dir':r'$EVIDENCE_DIR','spec_path':r'$SPEC_PATH','judgment_path':r'$JUDGMENT_PATH','alias':'$SF_ALIAS','instance_url':'$INSTANCE_URL'}, open(r'${LOG_DIR}/.test-context.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=2)" 2>/dev/null || true
 ```
+
+`{log_dir}/test-report.md` に `## テスト結果:` 見出しがあれば、その見出しより後の最初の `### 総合判定` の次の行を `再テスト待ち — テストの完了で確定します` に Edit で書き換える（今回の /test が途中で止まったとき、前回の判定が完了扱いされないようにするため。test-report.md は Phase F で作り直される）。
 
 **実行内容の提示**（提示のみ・停止しない。ユーザーは `/test {issueID}` を明示入力済みで課題ID・Sandbox は確定済みのため。実データへの書き込みを伴う操作の承認は auto-evidence-runner.md Step 1.5（メール到達安全確認）に集約する）:
 
@@ -204,21 +206,19 @@ fi
 > **[ハーネス直接実行（差分対象の算出）]**
 
 ```bash
-# Phase B で test-spec.md が確定してから算出する（--force で追加された TC を差分対象に含めるため）
-FORCE_FULL="{force_full}"   # --full 指定時 → 1 / 未指定 → 空（アシスタントが起動引数から置換）
+# Phase B の後で算出する（Phase B で test-spec.md を作った回は全量実行にするため）
+FORCE_FULL="{force_full}"   # --full 指定時、または Phase B で test-spec.md を作った（--force・既存なしからの生成）とき → 1 / それ以外 → 空（アシスタントが置換。作り直した TC を全て撮り直す）
 EVIDENCE_DIR="{evidence_dir}"
 SPEC_PATH="{spec_path}"
 JUDGMENT_PATH="{judgment_path}"
 
 # 1. 証跡PNG削除マーカーの検出（cleanup_evidence.py 実行済みなら差分再実行モードを使わない）
-# 前回 NG=0（全件OK）だった場合は下記 2. の既存フォールバックで結果的に全量再実行されるが、
-# --force で新規 TC のみ追加された場合等は raw_target が空にならず差分モードに入りうる。
-# その場合に既存 OK 分の PNG が既に削除済みだと証跡ファイル不在で偽 NG になるため、
-# マーカーがあれば経路によらず確実に全量実行へ倒す（次回1回のみ・使用後は消費して削除）。
+# 前回に SKIP（要手動）がある等で差分モードに入ると、PNG 削除済みの前回 OK の TC が
+# 証跡ファイル不在の偽 NG になるため、マーカーがあれば全量実行へ倒す。
+# マーカーは全量採取の完了後（下の証跡ファイルの存在確認）で消す（Phase C が途中で止まっても次回も全量実行になるように）。
 if [ -f "${EVIDENCE_DIR}/.png-cleaned" ]; then
   echo "[INFO] 証跡PNGが削除済み（cleanup_evidence.py 実行済み）を検出。差分再実行モードは使わず今回は全量実行します。"
   FORCE_FULL=1
-  rm -f "${EVIDENCE_DIR}/.png-cleaned"
 fi
 
 # 2. 差分再実行モードの判定
@@ -234,7 +234,7 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
   echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
 
-  # 差分対象 = 前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない TC（--force 等での新規追加分）。
+  # 差分対象 = 前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない TC（test-spec.md に後から追加した TC）。
   # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は証跡を撮り直さず、Phase D・D-2 で判定だけやり直す。
   # 前回 OK・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
   # 証跡未採取のまま judge_results.py で「証跡ファイルが見つかりません」の偽 NG になるため）。
@@ -252,7 +252,7 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
     echo "[INFO] 影響範囲の TC は今回の実行対象には含まれません（Phase F で NG があった場合のみ、次回再テストの判断材料として提示されます）。"
   fi
 else
-  echo "[INFO] 全量実行モード（初回または --full 指定）"
+  echo "[INFO] 全量実行モード（初回・--full 指定・test-spec.md を作った回のいずれか）"
 fi
 echo "TARGET_TC_LIST=$TARGET_TC_LIST"
 ```
@@ -282,7 +282,7 @@ echo "TARGET_TC_LIST=$TARGET_TC_LIST"
 4. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）。読み取り専用ケースは複数コンテキスト並列（max_workers_ui=3）、データ更新/Login As ケースは逐次
 5. 証跡存在確認（後始末・test-report.md 生成は Phase F が担当）
 
-実行後に証跡ファイルの存在確認（0件ゲート・早期検知）:
+auto-evidence-runner が完了報告を返したら、証跡ファイルの存在を確認する（0件ゲート・早期検知）:
 ```bash
 echo "=== 証跡ファイル一覧 ==="
 ls -lhR "{evidence_dir}/after/" 2>/dev/null | grep -E "\.(txt|png)$"
@@ -290,6 +290,8 @@ EVIDENCE_COUNT=$(find "{evidence_dir}/after" -type f \( -name "*.txt" -o -name "
 if [ "$EVIDENCE_COUNT" -eq 0 ]; then
   echo "[WARN] 証跡ファイルが1件も見つかりません。auto-evidence-runner が正常に完了したか確認してください（このまま Phase D に進むと全 TC が「証跡ファイルが見つかりません」で NG になります）。"
 fi
+# 全量で採取し終えた回（差分対象なし）だけ、証跡PNG削除マーカーを消す（Phase C 冒頭参照）
+if [ -z "{target_tc_list}" ] && [ "$EVIDENCE_COUNT" -gt 0 ]; then rm -f "{evidence_dir}/.png-cleaned"; fi
 ```
 
 ---
@@ -412,10 +414,10 @@ After エビデンスが確定した時点での完了確認。`.claude/template
 
 1. **軽量フェッチ（キャッシュ判定用）**: `mcp__backlog__get_issue`（課題本文。`updated` フィールドを含む）・`mcp__backlog__get_issue_comments`（`order: desc`, `count: 1` で最新コメント1件のみ）で `{issueID}` の `updated` タイムスタンプと最終コメントIDを取得する（この時点では全コメント本文は取得しない）
 2. **キャッシュ判定**: 取得した `issue_updated` と `last_comment_id` を、`{log_dir}/.acceptance-recheck.json` の前回値と比較する:
-   - キャッシュが存在し、`issue_updated` と `last_comment_id` が両方とも前回値と完全一致し、かつ前回 `verdict` が「リリース可」だった場合: 全コメント取得・後付け要件確認（手順3〜4）を実行せず、`{log_dir}/test-report.md` に前回の「## 受入基準再確認」内容をそのまま再掲する（末尾に「（コメント・課題本文に増分なしのため前回結果を再掲）」を付記）
-   - キャッシュ不在、値が不一致、または前回 `verdict` が「追加実装要」だった場合: `mcp__backlog__get_issue_comments`（引数なし＝全コメント）で全件を改めて取得し、手順3〜4を実行する
+   - キャッシュが存在し、`issue_updated` と `last_comment_id` が両方とも前回値と完全一致し、かつ前回 `verdict` が「リリース可」で `section` がある場合: 全コメント取得・後付け要件確認（手順3〜4）を実行せず、キャッシュの `section`（前回追記したセクション本文）を `{log_dir}/test-report.md` に追記する（末尾に「（コメント・課題本文に増分なしのため前回結果を再掲）」を付記）
+   - キャッシュ不在、値が不一致、前回 `verdict` が「追加実装要」、または `section` が無い場合: `mcp__backlog__get_issue_comments`（引数なし＝全コメント）で全件を改めて取得し、手順3〜4を実行する
 3. 後付け要件・受入基準充足・スコープ縮小を確認する
-4. `{log_dir}/test-report.md` に「## 受入基準再確認」セクションを option-acceptance-criteria-recheck.md の出力フォーマットに従って追記する。完了後、`{log_dir}/.acceptance-recheck.json` に `{"issue_updated": "{updated値}", "last_comment_id": "{最終コメントID}", "verdict": "{最終判定}"}` を Write する
+4. `{log_dir}/test-report.md` に「## 受入基準再確認」セクションを option-acceptance-criteria-recheck.md の出力フォーマットに従って追記する。完了後、`{log_dir}/.acceptance-recheck.json` に `{"issue_updated": "{updated値}", "last_comment_id": "{最終コメントID}", "verdict": "{最終判定}", "section": "{追記したセクション本文（「## 受入基準再確認」と、書いた場合は「## 派生事項（質問外）」）}"}` を Write する
 
 未対応の後付け要件を発見した場合: 対応内容を `implementation-plan.md` に追記し、業務判断を伴うため自動実装はせず「最終判定: 追加実装要」としてユーザーに提示する。
 

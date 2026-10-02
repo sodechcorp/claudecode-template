@@ -3,10 +3,9 @@
 /test Phase F（レポート・後始末）のうち、決定論的な部分（tmp/ 削除・test-report.md 生成）を
 LLM サブエージェントを起動せずに実行する。
 
-judgment-result.json（judge_results.py が Phase E で生成）と test-spec.md を突き合わせて
-test-report.md を組み立てる。ロジックは .claude/agents/auto-evidence-runner.md の Step 5・
-Step 6 の仕様（テンプレート・省略ルール）と完全に一致させること（仕様を変更したら本スクリプトも
-同期して変更する）。
+judgment-result.json（judge_results.py が Phase D で生成）と test-spec.md を突き合わせて
+test-report.md を組み立てる。本スクリプトが test-report.md の書式の正本
+（.claude/agents/auto-evidence-runner.md の要約はこれに追随する）。
 
 知見還流（テストデータレシピ・落とし穴、write-after）は判断を要するため対象外。
 Phase F では本スクリプト実行後に auto-evidence-runner を Step 7 専用モードで委譲し、
@@ -234,7 +233,7 @@ def main():
     out_path = args.out or os.path.join(args.log_dir, "test-report.md")
     Path(out_path).write_text(report, encoding="utf-8")
 
-    # Step 5 相当: tmp/ 一時ファイルの後始末
+    # tmp/ 一時ファイルの後始末
     shutil.rmtree(os.path.join(args.log_dir, "tmp"), ignore_errors=True)
 
     print(f"生成完了: {out_path}")

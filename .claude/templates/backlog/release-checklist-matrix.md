@@ -12,7 +12,7 @@
 
 【Claude確認済】は release-preparer が read-only で確認して結果を埋める項目（引き渡し時にまとめて一度だけ伝える）。【担当者】は担当者が行う作業・判断（引き渡し時に1つずつ渡す）。
 
-- [ ] 【Claude確認済】Sandbox でのテスト完了（`test-report.md` の総合判定が PASS）
+- [ ] 【Claude確認済】Sandbox でのテスト完了（`test-report.md` の `## テスト結果:` 見出しより後の最初の総合判定が PASS）
 - [ ] 【Claude確認済】`/test` の詳細証跡取得済み（`evidence/` に before/after が揃っている）
 - [ ] 【Claude確認済】デプロイ対象資材の確定（Phase 1 資材マニフェスト）
 - [ ] 【Claude確認済】`--test-level` の決定（判定ロジックは release-preparer.md Phase 1/5 が正本。固定で `RunLocalTests` にしない）

@@ -122,7 +122,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 2. dry-run 検証（スキップ判定あり）:
 
    **スキップ判定**（本デプロイ前に以下を確認する）:
-   1. Step 0d で取得済みの `test-report.md`「## スモーク確認結果」の内容（補完 Grep 分含む）から `dry-run: PASS` の記録があるか確認する（再 Read しない）
+   1. Step 0d で取得済みの `test-report.md`「## スモーク確認結果」の内容（補完 Grep 分含む）から `dry-run: PASS` の記録があるか確認する（再 Read しない）。同セクションの `### 総合判定` が `再テスト待ち` の場合（Phase 4 で再実装した後、Phase 5 を通っていない）は記録なしとして扱う
    2. PASS の記録がある場合、Phase 5 以降に force-app が変更されていないかを確認する:
       ```bash
       find force-app -type f -newer docs/logs/{issueID}/test-report.md

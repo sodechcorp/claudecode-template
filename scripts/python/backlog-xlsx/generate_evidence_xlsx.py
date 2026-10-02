@@ -22,9 +22,6 @@ Usage（初回・単一回次）:
 
 回次履歴は judgment-result.R1.json / evidence/after_R1/ として自動退避済みの場合、
 --judgment / --evidence-dir に現在のパスを指定するだけで過去回次を自動発見・表示する。
-退避コマンド例（test.md Phase A で実行）:
-    cp judgment-result.json judgment-result.R1.json
-    cp -r evidence/after    evidence/after_R1
 """
 
 import argparse
