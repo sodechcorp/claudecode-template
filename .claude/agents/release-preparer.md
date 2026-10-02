@@ -39,7 +39,8 @@ Step 0a（sf-context-loader 経由の SF コンテキスト読込。サブエー
 
 > 起動プロンプトに「Phase 4 のバックアップ・差分の帰属確認のみ再実施」という指示が含まれる場合に適用する（`release.md` Step 4 の1.〔本番未接続からの復旧〕・4.〔バックアップ取得後に本番のコンポーネントが更新されたことを検知し、手順書の外でのデプロイが否定された場合〕から起動される）。
 
-Step 0a・Step 0b・Phase 1〜3・Phase 5〜6 はスキップする。Step 0c を行い、`prod-readonly-check.md` で本番接続を確認してから、`release-plan.md` の資材マニフェストを入力に、Phase 4 の3.（lastModifiedDate の記録・新規資材の既存チェック）・4.（本番資材の取得）・6.（差分の帰属確認）・7.（データのバックアップ。対象がある場合）・8.（一時ディレクトリの削除。4. が本番の現行資材を `{tmp_dir}/prod-drift-check` に取得した場合を含む）を実施する（release-plan.md ヘッダーの `manual_operation_mode:` が true の場合は、Phase 4 冒頭の規定どおり 7. だけ）。本番未接続からの復旧の場合は、加えて 2.（Tier 0）・5.（Tier 2）も実施し（manual は除く）、release-plan.md に残っている `{本番エイリアス}` を確認できた値に置き換え、「⚠️ 本番エイリアス未確定」の注記と最重要警告の「本番未接続」行を消す。
+Step 0a・Step 0b・Phase 1〜3・Phase 5〜6 はスキップする。Step 0c を行い、`prod-readonly-check.md` で本番接続を確認してから、`release-plan.md` の資材マニフェストを入力に、Phase 4 の3.（lastModifiedDate の記録・新規資材の既存チェック）・4.（本番資材の取得）・6.（差分の帰属確認）・7.（データのバックアップ。対象がある場合）・8.（一時ディレクトリの削除。`{tmp_dir}/prod-drift-check` を含む）を実施する（release-plan.md ヘッダーの `manual_operation_mode:` が true の場合は、Phase 4 冒頭の規定どおり 7. だけ）。本番未接続からの復旧の場合は、加えて 2.（Tier 0）・5.（Tier 2）も実施し（manual は除く）、release-plan.md に残っている `{本番エイリアス}` を確認できた値に置き換え、「⚠️ 本番エイリアス未確定」の注記と最重要警告の「本番未接続」行を消す。
+- **取り直す前の照合**（理由が「バックアップ取得後の本番の変更」の場合のみ。3. より前に行う）: 4. と同じ対象を本番から `{tmp_dir}/prod-drift-check` に取得し、既存の `release-snapshot/`・`rollback-backup/` と比べる（書式だけの差は除く）。`release-snapshot/` と一致し `rollback-backup/` とは違うコンポーネントがあれば、AskUserQuestion で確認する（question: 「{コンポーネント}の本番の内容が、リリース前のバックアップから今回リリースする資材と同じ内容に変わっています。手順書の外で今回の資材がデプロイされましたか？」/ header: 「本番の内容」/ options: 「デプロイされた」〔取り直さない〕・「デプロイされていない」〔取り直す〕）。「デプロイされた」なら 3.・4.・6.・7. を実施せず（`rollback-backup/`・`backup/data/`・事前記録を変えない）、8. だけ行って「手順書の外でデプロイ済み（取り直していません）」と返す
 - **release-snapshot の扱い**: 4. で `release-snapshot/` を作り直す前に、既存の `release-snapshot/` と現在の force-app（資材マニフェスト分）を比較する。違いがあれば「手順書作成後に force-app が変わっている」として最重要警告に記録し、差分の帰属確認は新しい force-app で行う
 - `release-plan.md`「事前記録」（取得日時・lastModifiedDate・データのバックアップ）・「## 差分の帰属確認」表・「## ロールバック手順」の最終確認（option-rollback-readiness の出力）と手順 1・1b 直下の ⚠️（手順書テンプレートの条件で付け直す）を更新し、新たな疑いがあれば最重要警告に追記する
 - 完了報告は「再取得したコンポーネント・差分の帰属確認の結果・データの再取得結果・**新たに増えた最重要警告**」を返す（呼び出し元は増えた警告について担当者の判断を取ってから進む）
@@ -496,7 +497,7 @@ Notion タスクに紐づく作業であれば、完了後に「ナレッジ／�
 **実施タイミング**: 通常フロー（Phase 1〜6）では Phase 6 の完了報告直前に実施する（上記の通り）。Phase 7 単独実行モードでは 7-3 の6. で `{tmp_dir}/post-release/` を削除するため、本節で削除する対象は通常残っていない。
 
 以下の一時ディレクトリを作成した場合は、成果物書き出し後・完了報告前に必ず削除する（`docs/logs/{issueID}/rollback-backup/`・`release-snapshot/`・`backup/data/` は一時ディレクトリではないため削除しない）:
-- `{tmp_dir}/prod-drift-check`（Phase 4 Tier 2、または 4. で本番変更の記録がある場合の本番の現行資材）
+- `{tmp_dir}/prod-drift-check`（本番の現行資材の一時取得先）
 - `{tmp_dir}/org-drift-tier0`（Phase 1 1a-2 前倒し実行時、または Phase 4 Tier 0 実行時）
 
 ```bash
