@@ -43,7 +43,6 @@ options:
       - 既存テストカバレッジが低い（70% 未満）
     auto-skip-when:
       - Apex コードを含まない変更
-      - 既存テストクラスで十分なカバレッジを確保済み
     estimated-cost: 重
 
   - name: option-regression-test
