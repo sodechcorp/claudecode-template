@@ -3,7 +3,7 @@
 `docs/knowledge/cases/<案件キー>.md`（案件詳細ファイル）の **出力構造の正本**。
 セクション見出しの種類・順序・各節の意味を定義する。
 
-> **参照方法**: backlog-releaser（/backlog Phase 3.8）および sf-analyst-cat6（/sf-memory Step 5）がこのスキーマを基準として生成する。抽出元データや経路固有フィールドは各エージェントが追加指定する。
+> **参照方法**: backlog-releaser Step 3.8（/backlog）および sf-analyst-cat6 Step 5（/sf-memory）がこのスキーマを基準として生成する。抽出元データや経路固有フィールドは各エージェントが追加指定する。
 
 ---
 
@@ -43,4 +43,4 @@
 
 ---
 
-*このテンプレートを参照するエージェント: `backlog-releaser`（/backlog Phase 3.8）・`sf-analyst-cat6`（/sf-memory Step 5）*
+*このテンプレートを参照するエージェント: `backlog-releaser` Step 3.8（/backlog）・`sf-analyst-cat6` Step 5（/sf-memory）*

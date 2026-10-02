@@ -57,7 +57,7 @@
 | {YYYY-MM-DD} | {issueID} | {カテゴリ（例: LWC×Apex / 数式項目）} | {何をするとどうなるか（全角60字以内）} | {対処・回避策（全角40字以内）} | [fallback] |
 ```
 
-> 検出方法列: Phase 3.6 経由の追記は常に `[fallback]`（discussion-log.md から抽出のため）。
+> 検出方法列: backlog-releaser Step 3.6 経由の追記は常に `[fallback]`（discussion-log.md から抽出のため）。
 
 **verify-*.md / answer-scope-spec.md 追加ルール記入欄への追記フォーマット**:
 

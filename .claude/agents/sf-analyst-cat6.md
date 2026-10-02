@@ -95,7 +95,7 @@ Step 2 で取得した**全完了課題**を LLM で構造化抽出し、`docs/k
 
 コメント取得対象外の課題は 根本原因 / 教訓 ともに `-`。
 
-**ファイルフォーマット**（backlog-releaser Phase 4.5 と完全整合）:
+**ファイルフォーマット**（backlog-releaser Step 4.5 と完全整合）:
 
 ```markdown
 # 対応事例インデックス
@@ -157,7 +157,7 @@ Pass A でヒットしなかった課題のうち、以下を満たすものを�
 
 Pass A と Pass B で同一 issueID + 同一カテゴリが重複した場合は Pass A を優先（明示記述優先）。
 
-**ファイルフォーマット**（backlog-releaser Phase 3.6 と完全整合）:
+**ファイルフォーマット**（backlog-releaser Step 3.6 と完全整合）:
 
 ```markdown
 # プロジェクト固有のハマりポイント
