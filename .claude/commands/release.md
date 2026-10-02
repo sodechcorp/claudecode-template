@@ -58,6 +58,7 @@ argument-hint: "[課題ID]"
     issueID: {issueID}
     ```
     以降は Step 5 の「完了報告を受けたら」と同じ手順で進める（Step 3・4 の手順書生成・引き渡しは実施しない）。
+  - 「手順書を再生成する」を選んだ場合: release-log.md に本番変更の記録が無く、release-plan.md「事前記録」に本番コンポーネントの最終更新日時があれば、Step 3 の前に Step 4 の4. と同じく本番と一致するかを確認する。一致しなければ Step 4 の4. と同じ AskUserQuestion で確認し、「デプロイされた」ならデプロイ日時・結果を確認して同じ1行（「Step 2（dry-run）・Step 3（本番デプロイ）完了扱い: …」）を release-log.md に記録してから Step 3 へ進む（本番変更の記録になり、release-preparer は取り直さない）。「デプロイされていない」（全体が失敗していた場合を含む）なら、一致しなかったコンポーネントを Step 3 の「取り直す前の照合」に渡す。本番に接続できない場合は、Step 3 へ進まず担当者に再認証を依頼し、認証後に確認する
 - **存在しない場合**: そのまま Step 3 へ進む
 
 ### Step 3: release-preparer への委譲
@@ -71,6 +72,7 @@ task_description: 「/release 起動: {issueID} の本番リリース準備（�
 project_dir: {プロジェクトルートパス}
 issueID: {issueID}
 issue_title: {件名}
+取り直す前の照合: {Step 2b で渡す場合のみ、一致しなかったコンポーネント}
 ```
 
 ### Step 4: 完了後の提示
@@ -149,5 +151,5 @@ evidence_dir: docs/logs/{issueID}/release-verification
 
 - **本番デプロイは本コマンドの範囲外**。`release-plan.md` に記載された CLI コマンド（`deploy_route: manual-operation` の場合は管理画面操作ステップ）は人間が手動で実行する
 - 課題間の並行対応でチケット競合が検出された場合、または本番環境ドリフトで「競合・要人間判断」が検出された場合は、release-preparer の完了報告で明示的に警告される。警告を無視してデプロイしないこと
-- 本番組織への接続は read-only に限る。`release-preparer` 内部（Phase 1・Phase 4・Phase 7・バックアップ再取得モード）と `prod-ui-verifier`（Step 5 の画面確認。閲覧・Login As のみ）のほか、本コマンドも Step 4 の4.（バックアップの最新確認）でのみ `prod-readonly-check.md` を通して `sf org list metadata` を実行する
+- 本番組織への接続は read-only に限る。`release-preparer` 内部（Phase 1・Phase 4・Phase 7・バックアップ再取得モード）と `prod-ui-verifier`（Step 5 の画面確認。閲覧・Login As のみ）のほか、本コマンドも Step 2b（手順書の再生成前の確認）と Step 4 の4.（バックアップの最新確認）でのみ `prod-readonly-check.md` を通して `sf org list metadata` を実行する
 - `docs/logs/` は `.gitignore` 対象のため、`release-plan.md` / `release-note.md` / `release-log.md` / バックアップ（`rollback-backup/`・`backup/data/`）は生成した本人のローカル環境にのみ存在する。他メンバーと共有する場合は手動でファイルを渡す必要がある。データのバックアップ（CSV）は個人情報を含みうるため、③ の担当者確認が全て終わった後に Step 5 で削除する
