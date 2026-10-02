@@ -220,7 +220,7 @@ B-3 の提示内容をユーザに見せたら、以下を必ず行う:
    - 不含: テストクラス追加要否・命名・カバレッジ要件・技術的な判断ポイント（推奨で確定済み）・派生事項・抽象的な文言（「念のため〇〇」等）
    - **discussion-log.md 追記（確認プロトコル出力直後・ユーザー応答待ち前）**: `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・判断ポイントの確定理由・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）
 3. 「未確定」の判断ポイントがなければ「異議がなければこのまま Phase 3.5 に進みます」と一言添える（明示承認は不要 — [_README.md §承認判定](../templates/backlog/_README.md) 参照）。「未確定」があれば担当者の回答を待ち、回答を「採用する選択肢」に反映してから進む
-4. `docs/logs/{issueID}/implementation-plan.md` を確定版として保存する（B-3 時点の下書きを上書き）
+4. `docs/logs/{issueID}/implementation-plan.md` を確定版として保存する（B-3 時点の下書きを上書き。Phase 3 のやり直しでは前回の計画の改版履歴を引き継がない）
 5. **保存完了をコマンド本体（呼び出し元 /backlog）に明示報告する**（planner からは bash を実行しない）
 
 ### Phase B 完了の基準
