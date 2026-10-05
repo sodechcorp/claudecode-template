@@ -21,7 +21,7 @@
 //     Bash に含む場合はブロック。C:\c フォルダや文字化けゴミファイルの生成を防ぐ。
 //     forward-slash 形式（C:/Users/...AppData/...）は通過。
 //
-// (5) Apex/LWC コード品質スキャン: 警告のみ（permissionDecision は返さず systemMessage のみ）
+// (5) Apex/LWC コード品質スキャン: 警告のみ（permissionDecision は返さず additionalContext のみ）
 //     Write / Edit / MultiEdit で .cls / .trigger / .page / lwc配下 .js を書く際、
 //     FLS/CRUD漏れ・SOQLインジェクション・ハードコードID・SOQL in loop を正規表現で簡易スキャン。
 //     処理は止めない（人間のレビュー・reviewer.md の詳細チェックを代替しない簡易検出）。
@@ -163,7 +163,7 @@ process.stdin.on('end', () => {
   // ---- Check 5: Apex/LWC コード品質スキャン（警告のみ・deny しない） ----
   // Write/Edit/MultiEdit で .cls/.trigger/.page/.js（lwc配下）を書く際に、
   // FLS/CRUD漏れ・SOQLインジェクション・ハードコードID・SOQL in loop を正規表現で簡易スキャンする。
-  // 検出しても処理は止めない（systemMessage のみ・permissionDecision は返さない）。
+  // 検出しても処理は止めない（additionalContext のみ・permissionDecision は返さない）。
   // 根拠: security-guidance(A2) / Salesforce Development Plugin(B28) のデプロイ検証Hookの思想。
   // 制約: 正規表現ベースの簡易検出のため見逃し・誤検知があり得る。reviewer.md の詳細レビューを代替しない。
   if (toolName === 'Write' || toolName === 'Edit' || toolName === 'MultiEdit') {
@@ -234,7 +234,7 @@ process.stdin.on('end', () => {
         console.log(JSON.stringify({
           hookSpecificOutput: {
             hookEventName: 'PreToolUse',
-            systemMessage: '[Check5: コード品質スキャン警告] ' + filePath + '\n- ' + findings.join('\n- ') + '\n※ 正規表現ベースの簡易検出です。誤検知の可能性があり、人間のレビューを代替しません。'
+            additionalContext: '[Check5: コード品質スキャン警告] ' + filePath + '\n- ' + findings.join('\n- ') + '\n※ 正規表現による簡易検出のため誤検知がある。実際に問題かは文脈で判断し、問題でも依頼の範囲外なら直さず、派生事項として報告に添えること。'
           }
         }));
         return;

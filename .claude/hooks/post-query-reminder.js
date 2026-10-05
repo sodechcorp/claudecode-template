@@ -3,7 +3,7 @@
 //
 // 目的: sf data query / count / tree 等を「非本番組織」に向けて実行した直後、
 //       「この結果を本番の件数・存在・有無の根拠にしてはいけない」ことを
-//       systemMessage で Claude に思い出させる。
+//       additionalContext で Claude に思い出させる。
 //
 // 発火条件:
 //   - ツール: Bash
@@ -66,13 +66,15 @@ process.stdin.on('end', () => {
   const customProdAliases = loadCustomProdAliases();
   if (customProdAliases.length > 0 && customProdAliases.includes(match[1])) return;
 
-  // ---- 非本番クエリ検知 → systemMessage でリマインダー注入 ----
+  // ---- 非本番クエリ検知 → additionalContext でリマインダー注入 ----
   const message = [
     `[非本番クエリ検知: ${orgAlias}]`,
     `この結果（件数・レコード存在・項目の有無）を本番の事実として断定しないこと。`,
-    `本番で実査できない場合は必ず **[要確認: 本番データ未確認]** を付けること。`,
+    `本番について述べるときに本番で実査できなければ、必ず **[要確認: 本番データ未確認]** を付けること。`,
     `（根拠: .claude/CLAUDE.md §環境スコープの確認）`,
   ].join(' ');
 
-  process.stdout.write(JSON.stringify({ systemMessage: message }));
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: message }
+  }));
 });
