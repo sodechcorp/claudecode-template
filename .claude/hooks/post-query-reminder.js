@@ -8,34 +8,25 @@
 // 発火条件:
 //   - ツール: Bash・PowerShell
 //   - コマンドに "sf data query / count / tree" が含まれる
-//   - かつ --target-org / -o の値が prod / production に「一致しない」
+//   - かつ接続先（org 指定の値。無ければ既定の接続先）が prod / production・.prod-aliases に「一致しない」
 //
 // 非発火条件:
 //   - prod / production 宛（本番で実査済みのためリマインダー不要）
-//   - org 指定なし（デフォルト組織が不明なためノイズ化を防ぐ）
+//   - 接続先が分からない（org 指定も既定の接続先も無い）
 //   - sf data query 以外のコマンド
 //
 // 根拠ルール: .claude/CLAUDE.md §環境スコープの確認
 // =============================================================================
 
-const fs = require('fs');
-
-// ---- .prod-aliases: プロジェクト固有の本番エイリアス追加パターン ----
-// pre-operation.js Check 1 と同じロジック。
-function loadCustomProdAliases() {
-  try {
-    const content = fs.readFileSync('.prod-aliases', 'utf8');
-    return content.split('\n')
-      .map(l => l.trim())
-      .filter(l => l && !l.startsWith('#'));
-  } catch (e) {
-    return [];
-  }
-}
+// 接続先の読み取りは pre-operation.js Check 1 と同じもの
+const { loadCustomProdAliases, isProdOrg, sfCommands, cmdWords, targetOrgs } = require('./pre-operation');
 
 let buf = '';
 process.stdin.on('data', c => (buf += c));
 process.stdin.on('end', () => {
+  // pre-operation.js が関数を持たない古い版（.upgrade-keep 等で残った場合）なら何もしない
+  if (typeof cmdWords !== 'function') return;
+
   let d;
   try {
     d = JSON.parse(buf);
@@ -50,25 +41,23 @@ process.stdin.on('end', () => {
   // Bash・PowerShell 以外は何もしない
   if (toolName !== 'Bash' && toolName !== 'PowerShell') return;
 
-  // sf data query / count / tree のいずれかを含むか
-  if (!/sf\s+data\s+(query|count|tree)\b/.test(command)) return;
+  // sf data query / count / tree（単語の順番・別名 force:data:soql:query を問わない）の呼び出し
+  const call = sfCommands(command, toolName === 'Bash' ? '\\' : '`').find(c => {
+    const w = cmdWords(c.cmd);
+    return w.has('data') && ['query', 'count', 'tree'].some(x => w.has(x)) && !w.has('import');
+  });
+  if (!call) return;
 
-  // --target-org / -o の値を抽出
-  const match = command.match(/(?:--target-org|-o)\s+([^\s]+)/);
-  if (!match) return; // org 指定なし → リマインダー対象外
+  const orgs = targetOrgs(call, command);
+  if (!orgs.length) return; // 接続先が分からない → リマインダー対象外
 
-  const orgAlias = match[1].toLowerCase();
-
-  // prod / production 宛なら発火しない（pre-operation.js Check 1 と同じ判定ロジック）
-  if (/prod|production/.test(orgAlias)) return;
-
-  // .prod-aliases に登録されたカスタム本番 alias にも発火しない
+  // prod / production・.prod-aliases のカスタム本番 alias 宛なら発火しない
   const customProdAliases = loadCustomProdAliases();
-  if (customProdAliases.length > 0 && customProdAliases.includes(match[1])) return;
+  if (orgs.some(o => isProdOrg(o, customProdAliases))) return;
 
   // ---- 非本番クエリ検知 → additionalContext でリマインダー注入 ----
   const message = [
-    `[非本番クエリ検知: ${orgAlias}]`,
+    `[非本番クエリ検知: ${orgs.join(', ')}]`,
     `この結果（件数・レコード存在・項目の有無）を本番の事実として断定しないこと。`,
     `本番について述べるときに本番で実査できなければ、必ず **[要確認: 本番データ未確認]** を付けること。`,
     `（根拠: .claude/CLAUDE.md §環境スコープの確認）`,
