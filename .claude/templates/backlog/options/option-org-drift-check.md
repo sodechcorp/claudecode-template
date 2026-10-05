@@ -77,7 +77,7 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
 
 ### Tier 2: 深掘り（Tier 1 で痕跡ありのコンポーネントのみ）
 
-1. 痕跡ありコンポーネントのみを対象に、本番の現行資材を用意する（**`force-app/` には絶対に取得しない**）。`/release` では release-preparer Phase 4 の4. が資材マニフェストのうち本番に存在する資材を取得済み（本番変更の記録がない場合は `docs/logs/{issueID}/rollback-backup/`、ある場合は `{tmp_dir}/prod-drift-check/`）のため、**それがあればそのファイルを使い、改めて取得しない**（その場合は下記 2. の diff を「その取得先内の該当ファイル」と「`docs/logs/{issueID}/release-snapshot/` 内の該当ファイル」の比較に読み替える。**4. の削除は行わない**）。無い場合のみ一時ディレクトリへ取得する（取得先の実際のパスは Glob で確認してから diff する）:
+1. 痕跡ありコンポーネントのみを対象に、本番の現行資材を用意する（**`force-app/` には絶対に取得しない**）。`/release` では release-preparer Phase 4 の4. が資材マニフェストのうち本番に存在する資材を取得済み（本番変更の記録がない場合は `docs/logs/{issueID}/rollback-backup/`、ある場合は `{tmp_dir}/prod-drift-check/`）のため、**それがあればそのファイルを使い、改めて取得しない**（その場合は下記 2. の diff を「その取得先内の該当ファイル」と「`docs/logs/{issueID}/release-snapshot/` 内の該当ファイル」の比較に読み替える。プロファイルは release-preparer.md Phase 1 の 2b の比べ方。**4. の削除は行わない**）。無い場合のみ一時ディレクトリへ取得する（取得先の実際のパスは Glob で確認してから diff する）:
    ```bash
    mkdir -p "{tmp_dir}/prod-drift-check"
    sf project retrieve start --metadata "ApexClass:{クラス名}" --target-org "$PROD_ALIAS" --output-dir "{tmp_dir}/prod-drift-check" --json
