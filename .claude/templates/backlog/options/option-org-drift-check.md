@@ -68,6 +68,7 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
    sf org list metadata --metadata-type Flow --target-org "$PROD_ALIAS" --json
    # リリース対象に含まれる種別のみ実行（全種別を舐めない）
    ```
+   **一覧に出ない資材**: フォルダに入る種別（Report・Dashboard・EmailTemplate・Document）は `--folder {フォルダ名}`（API 名の最後の「/」より前）を付けないと0件になる。標準項目（`Account.Industry` 等）と StandardValueSet はどう指定しても一覧に出ないので、本番に在るものとして扱い、一覧で最終更新日時を判定せず、痕跡ありとして扱う
 3. **base コミット日時が確定できる場合**（release-preparer Phase 1 で通常の `git diff` パスを使った場合。1a フォールバック未使用）: 出力の `lastModifiedDate` / `lastModifiedByName` を確認し、以下のいずれかに該当するコンポーネントを「痕跡あり」としてマークする:
    - 最終更新日が **base コミット日時（release-preparer Phase 1 で特定した差分起点）より後**
    - 最終更新者が **今回のリリース担当者・実装者以外**
