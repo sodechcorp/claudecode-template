@@ -18,7 +18,7 @@
 
 ## 判断フロー（断定 vs 推定 vs 要確認）
 
-**マーカーを付ける前に必ず §調査尽くしゲートを通過すること**（詳細手順: [verify-implementation-spec.md](./verify-implementation-spec.md) §調査尽くしゲート。サブエージェントから到達可能な正本はこちら。`.claude/CLAUDE.md` はメインスレッドのみ自動注入対象）。「調べればわかるかもしれない」状態でマーカーを付けてはいけない。
+**マーカーを付ける前に必ず §調査尽くしゲートを通過すること**（詳細手順: `.claude/CLAUDE.md` §実装裏付け・出典確認 の調査尽くしゲート）。「調べればわかるかもしれない」状態でマーカーを付けてはいけない。
 
 ```
 断定してよいか？
@@ -52,6 +52,6 @@
 
 ## 参照
 
-- 実装裏付けルール: [verify-implementation-spec.md](./verify-implementation-spec.md)
+- 実装裏付けルール: [CLAUDE.md §実装裏付け・出典確認](../../CLAUDE.md#実装裏付け出典確認全エージェント共通常に適用)（backlog 固有 extras: [verify-implementation-spec.md](./verify-implementation-spec.md)）
 - 出典確認ルール: [verify-source-attribution-spec.md](./verify-source-attribution-spec.md)
 - 確証なし時の決定木: [CLAUDE.md §確証なし時の行動原則](../../CLAUDE.md#確証なし時の行動原則全エージェント共通)
