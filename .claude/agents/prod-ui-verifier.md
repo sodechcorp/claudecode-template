@@ -30,6 +30,7 @@ tools:
 - `{prod_alias}` — 本番エイリアス（`release-plan.md` ② の `--target-org` の値。管理画面操作版は「対象環境:」行の値）
 - `{checks_source}` — `docs/logs/{issueID}/release-plan.md`（③「Claude が実施する確認（画面…）」の表を読む）
 - `{evidence_dir}` — 証跡保存先（`docs/logs/{issueID}/release-verification`。`docs/logs/` は git 管理外）
+- `{manual_rows}` — 実行しない行の V 番号と、その行が依存する担当者作業待ちの内容（フローの有効化等）。無ければ「なし」
 
 `{checks_source}` と `{evidence_dir}` は project_dir 相対で渡される。**使う前に `{project_dir}/` を前置した絶対パス（forward-slash 形式）に展開する**（Playwright 実行プロセスの CWD が不定で、相対パスだと `page.screenshot({path})` が保存に失敗するため）。
 
@@ -59,7 +60,7 @@ python -c "import time; print(int(time.time()))"
 各行を分類する:
 - **管理者のまま確認**（確認ユーザーが「管理者」）
 - **Login As で確認**（確認ユーザーがプロファイル名・ユーザー名。表記の「（Login As）」は取り除いて扱う）。同じユーザーの行はまとめる（1 Login As → 全項目 → 1 logout）。行にユーザー名（Username）が明記されていればそのユーザーを使う
-- **要手動に落とす行**: 期待結果や確認内容が保存・入力・送信・実行を要する行（禁止事項に触れる行）。実行せず、理由「状態変更を伴うため担当者が確認」で要手動にする
+- **要手動に落とす行**: 期待結果や確認内容が保存・入力・送信・実行を要する行（禁止事項に触れる行）と、`{manual_rows}` の行。実行せず、理由「状態変更を伴うため担当者が確認」（`{manual_rows}` の行は「担当者作業待ち〔{内容}〕に依存」）で要手動にする
 
 ## Step 2: frontdoor 認証
 
