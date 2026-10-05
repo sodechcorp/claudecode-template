@@ -42,7 +42,7 @@ Step 0a（sf-context-loader 経由の SF コンテキスト読込。サブエー
 Step 0a・Step 0b・Phase 1〜3・Phase 5〜6 はスキップする。Step 0c を行い、`prod-readonly-check.md` で本番接続を確認してから、`release-plan.md` の資材マニフェストを入力に、Phase 4 の3.（lastModifiedDate の記録・変更種別と本番の有無の照合）・4.（本番資材の取得）・6.（差分の帰属確認）・7.（データのバックアップ。対象がある場合）・8.（一時ディレクトリの削除。`{tmp_dir}/prod-drift-check` を含む）を実施する（release-plan.md ヘッダーの `manual_operation_mode:` が true の場合は、Phase 4 冒頭の規定どおり 7. だけ）。本番未接続からの復旧の場合は、加えて 2.（Tier 0）・5.（Tier 2）も実施し（manual は除く）、release-plan.md に残っている `{本番エイリアス}` を確認できた値に置き換え、「⚠️ 本番エイリアス未確定」の注記と最重要警告の「本番未接続」行を消す（下の release-plan.md の更新を全て終えた後、最後に行う）。
 - **取り直す前の照合**（理由が「バックアップ取得後の本番の変更」の場合のみ。3. より前に行う）: 4. と同じ対象を本番から `{tmp_dir}/prod-drift-check` に取得し、既存の `release-snapshot/`・`rollback-backup/` と比べる（書式だけの差は除く）。`release-snapshot/` と一致し `rollback-backup/` とは違うコンポーネントがあれば、AskUserQuestion で確認する（question: 「{コンポーネント}の本番の内容が、リリース前のバックアップから今回リリースする資材と同じ内容に変わっています。手順書の外で今回の資材がデプロイされましたか？」/ header: 「本番の内容」/ options: 「デプロイされた」〔取り直さない〕・「デプロイされていない」〔取り直す〕）。「デプロイされた」なら 3.・4.・6.・7. を実施せず（`rollback-backup/`・`backup/data/`・事前記録を変えない）、8. だけ行って「手順書の外でデプロイ済み（取り直していません）」と返す
 - **release-snapshot の扱い**: 4. で `release-snapshot/` を作り直す前に、既存の `release-snapshot/` と現在の force-app（資材マニフェスト分）を比較する。違いがあれば、作り直す前に「手順書作成後に force-app が変わっている」を release-plan.md の最重要警告に追記し（既にあれば追記しない。この警告だけは下の「全て終えてから」を待たない。作り直した後に止まると、引き渡しの force-app と release-snapshot の照合が通ってしまうため）、差分の帰属確認は新しい force-app で行う
-- 実施する項目を全て終えてから、`release-plan.md` に、新たな疑いがあれば最重要警告を追記し、「## リリース対象メタデータ」の変更種別（3. で直したもの）・「## 差分の帰属確認」表・「## ロールバック手順」の最終確認（option-rollback-readiness の出力）と手順 1 のテストレベル（`{rollback_test_flag}`）とその ⚠️（取り直した `rollback-backup/` で Phase 5 と同じく決める。`target_test_classes` は ②「今回の判定」に書かれたものを使う）・手順 1・1b 直下の ⚠️（手順書テンプレートの条件で付け直す）を更新して、最後に「事前記録」（取得日時・lastModifiedDate〔3. の記録もここで書く〕・データのバックアップ）を更新する（途中で止まったとき、`release.md` の引き渡し・再開が事前記録の lastModifiedDate や「本番未接続」行の有無を見て、取り直しが済んだと読まないように）
+- 実施する項目を全て終えてから、`release-plan.md` に、新たな疑いがあれば最重要警告を追記し、「## リリース対象メタデータ」の変更種別（3. で直したもの）・「## 差分の帰属確認」表・「## ロールバック手順」の最終確認（option-rollback-readiness の出力）と手順 1 のテストレベル（`{rollback_test_flag}`）とその ⚠️（取り直した `rollback-backup/` で Phase 5 と同じく決める。`target_test_classes` は ②「今回の判定」に書かれたものを使う）・手順 1・1b 直下の ⚠️（手順書テンプレートの条件で付け直す）を更新し、`rollback-deploy/` を取り直した `rollback-backup/` から Phase 5 と同じく作り直して、最後に「事前記録」（取得日時・lastModifiedDate〔3. の記録もここで書く〕・データのバックアップ）を更新する（途中で止まったとき、`release.md` の引き渡し・再開が事前記録の lastModifiedDate や「本番未接続」行の有無を見て、取り直しが済んだと読まないように）
 - 完了報告は「再取得したコンポーネント・差分の帰属確認の結果・データの再取得結果・**新たに増えた最重要警告**」を返す（呼び出し元は増えた警告について担当者の判断を取ってから進む）
 
 ## Step 0a: SFコンテキスト読込（sf-context-loader 経由）
@@ -233,7 +233,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、進
    4. 保存先は `docs/logs/{issueID}/backup/data/`（`docs/logs/` は git 管理対象外）。**本番の読み取りは許可不要**（option-prod-select-reference の方針どおり）。バックアップは復元に使うため値をそのまま保存する（課題フォルダに保存・git 管理外・リリース後に削除）。取得した項目・件数は引き渡しの冒頭で担当者に伝える。削除は `release.md` Step 5 で担当者のリリース後確認が全て終わった後に行う（1. で退避した `backup/data.R*/` も同じ）
    5. release-plan.md「事前記録」に、ファイル・取得項目（SELECT 列）・件数・保存先・削除予定（③ の担当者確認の完了後に `release.md` Step 5 で削除）を記録する
    6. 手順書生成からデプロイまで日が空くことがあるため、引き渡し時のバックアップ最新確認（通常経路の ② Step 1）で本番が変わっていた場合は、`release.md` Step 4 の4. に従う（手順書の外でデプロイされていなければ再取得モードで取り直す）
-8. **一時ディレクトリの削除**: Tier 0 で作成した `{tmp_dir}/org-drift-tier0` 等、`{tmp_dir}` 配下の一時ディレクトリのみ削除する（[cleanup-rules.md](../spec/cleanup-rules.md) 準拠。下記「Phase 最終: クリーンアップ」と同じ対象で、削除済みなら何もしない）。**`rollback-backup/`・`release-snapshot/`・`backup/data/` は削除しない**（ロールバックとリリース後確認に使う）
+8. **一時ディレクトリの削除**: Tier 0 で作成した `{tmp_dir}/org-drift-tier0` 等、`{tmp_dir}` 配下の一時ディレクトリのみ削除する（[cleanup-rules.md](../spec/cleanup-rules.md) 準拠。下記「Phase 最終: クリーンアップ」と同じ対象で、削除済みなら何もしない）。**`rollback-backup/`・`rollback-deploy/`・`release-snapshot/`・`backup/data/` は削除しない**（ロールバックとリリース後確認に使う）
 9. **最重要警告の記録**: 次のいずれかがあれば release-plan.md 冒頭の最重要警告ブロックに記録する（`release.md` Step 4 はこのブロックだけを見て引き渡しを止めるため、ここに集約する）:
    - 未リリース積み残し・その疑い・競合・要人間判断（Tier 0〜2）
    - 差分の帰属確認で「他の変更が混入している疑い（手元側）」「本番の変更を上書きする疑い」
@@ -370,7 +370,7 @@ sf project deploy report --target-org {本番エイリアス}
 > - **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等が原因）→ 既存の `docs/logs/{issueID}/prod-release-issue.md` があれば `prod-release-issue.R{N}.md`（N = 既存の `prod-release-issue.R*.md` の最大回次番号 + 1。欠番があってもファイル数ではなく最大値を基準にする）へリネームして退避してから、差し戻し理由・現象・ログ・差し戻し先 Phase（`Phase 4`）を `docs/logs/{issueID}/prod-release-issue.md`（退避後のため新規作成）に記録し（backlog-releaser.md §2a の `release-issue.md` と同じスキーマ・退避ルールだが、**ファイル名は `prod-release-issue.md` とし `release-issue.md`〔Sandbox 段階・backlog-releaser 用〕とは分ける**＝本番段階とSandbox段階の差し戻し回数カウンタ・resume-phase-routing.md の案内文言が混線しないようにする。`resume-phase-routing.md` がこのファイルを読んで再開選択肢を出す）、「`/backlog {issueID}` を再実行して Phase 4（実装修正）から再開 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施してください」と人間に案内する
 > - 切り分けが困難な場合は上記2択を提示し、人間に判断してもらう
 
-{デプロイ順序が分割要の場合は Phase 1 の順序をここに明記。管理画面手動操作がある場合は操作手順を記載し、各操作の先頭に「操作直前に、対象の変更前の値・設定状態を記録する（画面キャプチャ・設定値メモ等）」を入れる（ロールバック手順 1c で使う。本番変更の記録にその操作の実施があれば、代わりに下の manual-operation 版と同じ実施済みの ⚠️ を入れる）}
+{デプロイ順序が分割要の場合は Phase 1 の順序をここに明記し、分けた各コマンドの `--test-level` と `{tests_flag}` は、そのコマンドの資材で上の `--test-level` の決定をし直して書く（Apex クラス・トリガーを含まず、そのコマンドに付けた削除にも無いコマンドには付けない）。管理画面手動操作がある場合は操作手順を記載し、各操作の先頭に「操作直前に、対象の変更前の値・設定状態を記録する（画面キャプチャ・設定値メモ等）」を入れる（ロールバック手順 1c で使う。本番変更の記録にその操作の実施があれば、代わりに下の manual-operation 版と同じ実施済みの ⚠️ を入れる）}
 
 ### manual-operation 版（`manual_operation_mode: true` の場合はこちらを使う。上記 Step 1〜4・`--test-level` 判定は記載しない）
 
@@ -422,7 +422,7 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
 
 ## ロールバック手順
 {manual_operation_mode: false の場合}{option-rollback-readiness.md による最終確認}
-1. `sf project deploy start --source-dir {ROLLBACK_BACKUP_DIR} --target-org {本番エイリアス}{rollback_test_flag}` — Claude が取得済みの変更前メタデータを本番へ再デプロイする（新規追加コンポーネントは対象外のため、該当分は Setup 画面から手動削除する）
+1. `sf project deploy start --metadata-dir docs/logs/{issueID}/rollback-deploy --target-org {本番エイリアス}{rollback_test_flag}` — Claude が取得済みの変更前メタデータを本番へ再デプロイし、同じデプロイで今回新規に追加した Apex・Visualforce・LWC・Aura（あれば）を削除する。それ以外の新規追加コンポーネントは、この後に Setup 画面から手動削除する（手順 1 が、削除する資材を使っているもの〔それ以外の新規追加コンポーネント・1c の画面や設定・スケジュール済みのジョブ等〕からの参照で止まったら、本番は変わっていないので、先にそれを無効化・削除・中止〔1c は先に実施〕してから実行し直す）
 1b. 事前記録の「データのバックアップ:」が「対象外」以外なら、データのバックアップの CSV（`docs/logs/{issueID}/backup/data/`。担当者が取得した分はその保存先）を Data Loader 等で戻す（担当者が実施。CSV は担当者のリリース後確認が全て終わるまで削除しない）
 {Phase 1 の4. で分離した管理画面手動操作がある場合}1c. 管理画面手動操作の分は、操作直前に記録した変更前の値・設定状態で Setup 画面から戻す（担当者が実施）{本番変更の記録に手順書の外で実施した管理画面手動操作があれば、1c の直下に下の manual-operation 版と同じ「手順書の外で実施されました」の ⚠️ を入れる}
 {事前記録に「取得できず」（メタデータ）・「取得できません」（データ）の対象がある場合は、手順 1・1b（manual 側で加える 1b を含む）のそれぞれ直下に「⚠️ {対象}はこの手順では戻りません（本番変更後でリリース前の状態を取得できていません）。担当者が戻し方を判断してください」を個別に挿入する（手順は1つずつ単独で提示され、事前記録の注記は目に入らないため）}
@@ -445,7 +445,8 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
   - **期待結果は画面上で判定できる形**にする（表示される文言・要素の有無。「正しく動く」等は不可）。確認ユーザーはプロファイル名（Login As。ユーザー名を指定してもよい）または「管理者」。**最大 10 行**（超える場合は、権限による見え方 → 変更した画面の表示 → その他の順で残す）
   - `manual_operation_mode: true` の場合は manual-operation-steps.md「### 確認事項」のうち画面の閲覧で判定できるものを同じ形で表にする
 - [option-rollback-readiness.md](../templates/backlog/options/option-rollback-readiness.md) の内容でロールバック手順セクションを埋める
-- ロールバック手順 1 の `{rollback_test_flag}` は `rollback-backup/` の中身で決める（戻るのは rollback-backup にある変更前の版だけで、今回新規に入れたテストクラスは変更前のクラスで通るとは限らないため、Step 2/3 の判定は流用しない。`RunLocalTests` を既定にしない理由は Step 2/3 と同じ）。Apex クラス・トリガーが無ければ付けない。あれば、テストクラスを除く各クラス・トリガーの専用テストクラスを Phase 1 の6. の命名規則で、`rollback-backup/` 内と、force-app のうち資材マニフェストに無いもの（リリースの前後で本番の版が変わらない）から探す。全てに見つかれば（探す対象が無い場合を含む）` --test-level RunSpecifiedTests` と、見つかった専用テストクラス・`rollback-backup/` 内のテストメソッドを持つテストクラス・`target_test_classes` のうち資材マニフェストに無いものを `{tests_flag}` と同じ形で付け、手順 1 の直下に「⚠️ 変更前の版のクラスがクラスごとのカバレッジ（75%）に届かずに止まったら、本番は変わっていないので `--test-level RunLocalTests` にして実行し直す」と書く。1件でも見つからなければ ` --test-level RunLocalTests` にし、手順 1 の直下に「⚠️ {クラス名}の専用テストクラスが見つからないため RunLocalTests です（今回と無関係な既存テストが本番で失敗していると、このデプロイは止まります）」と書く
+- ロールバック手順 1 の `docs/logs/{issueID}/rollback-deploy/` を作る（`manual_operation_mode: true`、または本番未接続で `rollback-backup/` を取得していなければ作らない）。既存の `rollback-deploy/` を削除し（[cleanup-rules.md](../spec/cleanup-rules.md) の project_dir 配下の削除に従い、無くなったことを確かめる）、`cd "{project_dir}" && sf project convert source --root-dir docs/logs/{issueID}/rollback-backup --output-dir docs/logs/{issueID}/rollback-deploy` で変換し（`rollback-backup/` が無ければ `package.xml` を has_destructive の `package.xml` と同じ `<version>` だけで作る）、資材マニフェストの変更種別が新規の ApexClass・ApexTrigger・ApexPage・ApexComponent・LightningComponentBundle・AuraDefinitionBundle があれば、has_destructive の `destructiveChanges.xml` と同じ形式で列挙した `destructiveChangesPost.xml` を同じフォルダに置く（`--manifest` は force-app の版を読むため使わない。本番では Apex を Setup 画面から削除できず、変更前の版と新規のコードが参照し合うと、戻すだけでは新規のコードが無効のまま残るか RunLocalTests で止まり、先に消すだけでは参照で止まる）。`destructiveChangesPost.xml` を置いた場合は、手順 1 の直下に「⚠️ 『No {種別} named {名前} found』で止まったら、その資材は本番に入っていません（本番は変わっていません）。末尾に ` --ignore-warnings` を付けて実行し直してください」と書く
+- ロールバック手順 1 の `{rollback_test_flag}` は `rollback-backup/` の中身で決める（戻るのは rollback-backup にある変更前の版だけで、今回新規に入れたテストクラスは変更前のクラスで通るとは限らないため、Step 2/3 の判定は流用しない。`RunLocalTests` を既定にしない理由は Step 2/3 と同じ）。Apex クラス・トリガーが無ければ、資材マニフェストの変更種別が新規の Apex クラス・トリガー（`destructiveChangesPost.xml` で削除するもの）がある場合は ` --test-level RunLocalTests`（Step 2/3 の削除と同じ）にして手順 1 の直下に「⚠️ 新規の Apex を削除するため RunLocalTests です（今回と無関係な既存テストが本番で失敗していると、このデプロイは止まります）」と書き、無い場合は付けない。`rollback-backup/` にあれば、テストクラスを除く各クラス・トリガーの専用テストクラスを Phase 1 の6. の命名規則で、`rollback-backup/` 内と、force-app のうち資材マニフェストに無いもの（リリースの前後で本番の版が変わらない）から探す。全てに見つかれば（探す対象が無い場合を含む）` --test-level RunSpecifiedTests` と、見つかった専用テストクラス・`rollback-backup/` 内のテストメソッドを持つテストクラス・`target_test_classes` のうち資材マニフェストに無いものを `{tests_flag}` と同じ形で付け、手順 1 の直下に「⚠️ 変更前の版のクラスがクラスごとのカバレッジ（75%）に届かずに止まったら、本番は変わっていないので `--test-level RunLocalTests` にして実行し直す」と書く。1件でも見つからなければ ` --test-level RunLocalTests` にし、手順 1 の直下に「⚠️ {クラス名}の専用テストクラスが見つからないため RunLocalTests です（今回と無関係な既存テストが本番で失敗していると、このデプロイは止まります）」と書く
 - `docs/logs/{issueID}/release-note.md` の生成前に既存ファイルの有無を確認する。**既に存在する場合**（`/backlog` Phase 6 で option-release-note-generation が実行済みの可能性がある）は全文 Read し、「リリース日」欄を本番リリース予定日に更新し、「注意事項」に今回の `--test-level` 判定結果を追記する差分更新のみ行う（全面再生成しない。既存の変更内容・影響範囲の記述を消さない）。**存在しない場合のみ** [option-release-note-generation.md](../templates/backlog/options/option-release-note-generation.md) に従い新規生成する
 
 ## Phase 6: 完了・引き渡し
@@ -496,7 +497,7 @@ Notion タスクに紐づく作業であれば、完了後に「ナレッジ／�
 
 **実施タイミング**: 通常フロー（Phase 1〜6）では Phase 6 の完了報告直前に実施する（上記の通り）。Phase 7 単独実行モードでは 7-3 の6. で `{tmp_dir}/post-release/` を削除するため、本節で削除する対象は通常残っていない。
 
-以下の一時ディレクトリを作成した場合は、成果物書き出し後・完了報告前に必ず削除する（`docs/logs/{issueID}/rollback-backup/`・`release-snapshot/`・`backup/data/` は一時ディレクトリではないため削除しない）:
+以下の一時ディレクトリを作成した場合は、成果物書き出し後・完了報告前に必ず削除する（`docs/logs/{issueID}/rollback-backup/`・`rollback-deploy/`・`release-snapshot/`・`backup/data/` は一時ディレクトリではないため削除しない）:
 - `{tmp_dir}/prod-drift-check`（本番の現行資材の一時取得先）
 - `{tmp_dir}/org-drift-tier0`（Phase 1 1a-2 前倒し実行時、または Phase 4 Tier 0 実行時）
 
