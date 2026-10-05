@@ -50,7 +50,7 @@ options:
     default-when-uncertain: skip
 
   - name: option-deployment-dependency-check
-    description: デプロイ順序・依存関係確認（オブジェクト → フィールド → Apex の順序等）
+    description: デプロイの依存関係確認（分けるのはデプロイの間に作業が要る場合だけ。順序は1回のデプロイ内で処理される）
     category: D
     auto-execute-when:
       - 複数メタデータタイプを含む変更（オブジェクト + Apex + Flow 等）
