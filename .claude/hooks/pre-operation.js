@@ -3,12 +3,14 @@
 //
 // 5つの保護レイヤを提供する:
 //
-// (1) 本番組織へのコマンド: ハードブロック（permissionDecision: deny）
+// (1) 本番組織へのコマンド: ハードブロック（permissionDecision: deny、Bash・PowerShell）
 //     sf project deploy / data ops / apex run / package / org delete を
 //     --target-org *prod* / *production* で実行しようとするとブロック。
+//     PowerShell はこの hook だけで止める。settings.json の deny に PowerShell(...) を足すと、
+//     Bash の deny で無効になっていた PowerShell ツールが全利用者で有効になる（公式 tools-reference）。
 //
 // (2) G:\共有ドライブ（Google Drive マウント）への削除操作: ハードブロック
-//     Bash: rm / rmdir / del / mv（移動も実質削除）/ Python rmtree・unlink を検出
+//     Bash・PowerShell: rm / rmdir / del / mv（移動も実質削除）/ Remove-Item 等 / Python rmtree・unlink を検出
 //     Write / Edit / MultiEdit は通過（書き込みはエージェントが日本語警告を出してから実行）
 //
 // (3) Backlog 書き込み系 MCP: ハードブロック（permissionDecision: deny）
@@ -16,9 +18,9 @@
 //     コメント投稿・課題更新・PR操作等は人間が Backlog UI から手動で実施。
 //     get / count / list 等の読み取り系は対象外。
 //
-// (4) スクラッチパッド絶対パスの壊れた形式: ハードブロック（Bash のみ）
-//     POSIX ドライブ形式（/c/Users/...AppData...）またはバックスラッシュ形式（C:\Users\...）を
-//     Bash に含む場合はブロック。C:\c フォルダや文字化けゴミファイルの生成を防ぐ。
+// (4) スクラッチパッド絶対パスの壊れた形式: ハードブロック（Bash・PowerShell）
+//     POSIX ドライブ形式（/c/Users/...AppData...）、または Bash ではバックスラッシュ形式（C:\Users\...）も
+//     含む場合はブロック。C:\c フォルダや文字化けゴミファイルの生成を防ぐ。
 //     forward-slash 形式（C:/Users/...AppData/...）は通過。
 //
 // (5) Apex/LWC コード品質スキャン: 警告のみ（permissionDecision は返さず additionalContext のみ）
@@ -75,8 +77,10 @@ process.stdin.on('end', () => {
     return;
   }
 
-  // ---- Check 1: 本番組織コマンドのハードブロック（Bash のみ） ----
-  if (toolName === 'Bash') {
+  const isShell = toolName === 'Bash' || toolName === 'PowerShell';
+
+  // ---- Check 1: 本番組織コマンドのハードブロック（Bash・PowerShell） ----
+  if (isShell) {
     const command = input.command || '';
     const segs = command.split(/&&|\|\||;/);
 
@@ -84,21 +88,23 @@ process.stdin.on('end', () => {
     // data resume: 非同期 bulk DML の再開も本番では危険なため対象に含める
     // metadata deploy: sf project deploy とは別の旧来型コマンド
     // org assign/enable/disable: 本番の権限・機能設定変更
-    const dangerousCmdRe = /^sf\s+(?:project\s+deploy|metadata\s+deploy|data\s+(?:upsert|delete|update|create|import|bulk|resume)|apex\s+run|package\s+(?:install|uninstall)|org\s+(?:delete|assign|enable|disable))/i;
+    // sf は区切りの直後に限らない（CI=true sf・$(sf …)・PowerShell の & sf・if ($?) { sf … }・"…\sf.cmd"）。
+    // 引用符の中の言及（git commit -m・grep のパターン等）でも止まる（安全側）
+    const dangerousCmdRe = /(?:^|[\s&({"'`\\\/])sf(?:\.cmd|\.exe|\.ps1)?["']?\s+(?:project\s+deploy|metadata\s+deploy|data\s+(?:upsert|delete|update|create|import|bulk|resume)|apex\s+run|package\s+(?:install|uninstall)|org\s+(?:delete|assign|enable|disable))/i;
 
     // 本番エイリアス検出: --target-org と -o 短縮形の両方に対応
     const targetProdRe = /(?:--target-org|-o)\s+\S*(?:prod|production)/i;
     // *prod*/*production* に一致しないプロジェクト固有 alias（.prod-aliases 参照）
-    const targetOrgValRe = /(?:--target-org|-o)\s+(\S+)/i;
+    // 改行で文を続ける書き方（PowerShell）では1区切りに複数の org 指定が入るため、全ての値を見る
+    const targetOrgValRe = /(?:--target-org|-o)\s+(\S+)/gi;
     const customProdAliases = loadCustomProdAliases();
 
     const prodBlocked = segs.some(s => {
       const t = s.trim();
       if (!dangerousCmdRe.test(t)) return false;
       if (targetProdRe.test(t)) return true;
-      if (customProdAliases.length > 0) {
-        const m = t.match(targetOrgValRe);
-        if (m && customProdAliases.includes(m[1])) return true;
+      for (const m of t.matchAll(targetOrgValRe)) {
+        if (customProdAliases.includes(m[1])) return true;
       }
       return false;
     });
@@ -118,13 +124,16 @@ process.stdin.on('end', () => {
   // 検出パターン: G:\共有ドライブ\... / G:\Shared drives\... （大小文字・スラッシュ両対応）
   const sharedDriveRe = /g:[\\\/](?:共有ドライブ|shared\s+drives)[\\\/]/i;
 
-  if (toolName === 'Bash') {
+  if (isShell) {
     const command = input.command || '';
     if (sharedDriveRe.test(command)) {
       // 削除・移動のみブロック。書き込み（cp/copy/redirect/shutil.copy2 等）は通過させる
       // mv は移動先に上書きするため削除を伴う → ブロック対象に含める
+      // rd/ri/mi/move は PowerShell の Remove-Item・Move-Item の別名（rd・move は cmd でも同じ）。
+      // パスの一部（G:\共有ドライブ\RD部 等）と区別するため、直後に空白がある形だけを拾う
+      // Clear-Content（clc）は truncate、[IO.File]::Delete・.Delete() は unlink に当たる PowerShell の書き方
       // Python ワンライナー経由の shutil.rmtree / pathlib.unlink も捕捉する
-      const deleteRe = /\b(rm|rmdir|del|erase|mv|truncate)\b|Remove-Item|Move-Item|shutil\.rmtree|\.unlink\s*\(|Path\s*\([^)]*\)\.unlink/i;
+      const deleteRe = /\b(rm|rmdir|del|erase|mv|truncate)\b|\b(?:rd|ri|mi|move|clc)\s|Remove-Item|Move-Item|Clear-Content|::Delete\s*\(|\.Delete\s*\(\s*\)|shutil\.rmtree|\.unlink\s*\(|Path\s*\([^)]*\)\.unlink/i;
       if (deleteRe.test(command)) {
         console.log(JSON.stringify({
           hookSpecificOutput: {
@@ -138,17 +147,17 @@ process.stdin.on('end', () => {
     }
   }
 
-  // ---- Check 4: 壊れたスクラッチパッド絶対パスのハードブロック（Bash のみ） ----
+  // ---- Check 4: 壊れたスクラッチパッド絶対パスのハードブロック（Bash・PowerShell） ----
   // C:\c\... や CWD 直下の文字化けファイル（C:Users...AppData...）の生成を防ぐ。
   // 原因: スクラッチパッド絶対パスを mangle-prone な形式で渡している。
-  //   - POSIX ドライブ形式 /c/Users/...AppData... → native exe が C:\c\... を生成
-  //   - バックスラッシュ形式 C:\Users\...AppData... → bash で区切りが消失
+  //   - POSIX ドライブ形式 /c/Users/...AppData... → native exe が C:\c\... を生成（PowerShell も C:\c\... と解釈する）
+  //   - バックスラッシュ形式 C:\Users\...AppData... → bash で区切りが消失（PowerShell では正しいパスなので Bash のみ）
   // 安全な唯一の形式は forward-slash の C:/Users/...AppData/...（bash・native 両対応）。
-  if (toolName === 'Bash') {
+  if (isShell) {
     const command = input.command || '';
     const posixDrivePath   = /(?:^|[\s"'=(>])\/[a-zA-Z]\/Users\/[^\s"']*AppData/;  // /c/Users/...AppData
     const backslashWinPath = /[a-zA-Z]:\\Users\\[^\s"']*AppData/;                  // C:\Users\...AppData
-    if (posixDrivePath.test(command) || backslashWinPath.test(command)) {
+    if (posixDrivePath.test(command) || (toolName === 'Bash' && backslashWinPath.test(command))) {
       console.log(JSON.stringify({
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',
@@ -172,35 +181,57 @@ process.stdin.on('end', () => {
     const isLwcJs = /\.js$/i.test(filePath) && /[\\/]lwc[\\/]/i.test(filePath);
 
     if (isApexOrPage || isLwcJs) {
-      let code = '';
+      // 書き込み前のファイル（Edit/MultiEdit の置換位置とテストクラスの判定に使う）
+      let disk = '';
+      if (toolName !== 'Write') {
+        try { disk = fs.readFileSync(filePath, 'utf8'); } catch (e) { /* 読めなければ new_string だけで判定 */ }
+      }
+      // 置換位置がブロックコメント（ApexDoc 等）の中なら、断片の先頭に /* を補ってコメントとして扱う
+      const inBlockComment = old => {
+        const i = old ? disk.indexOf(old) : -1;
+        if (i < 0) return false;
+        const before = disk.slice(0, i);
+        return before.lastIndexOf('/*') > before.lastIndexOf('*/');
+      };
+      const fragment = e => (inBlockComment(e.old_string) ? '/*' : '') + (e.new_string || '');
+      let fragments = [];
       if (toolName === 'Write') {
-        code = input.content || '';
+        fragments = [input.content || ''];
       } else if (toolName === 'Edit') {
-        code = input.new_string || '';
+        fragments = [fragment(input)];
       } else if (toolName === 'MultiEdit') {
-        code = (input.edits || []).map(e => e.new_string || '').join('\n');
+        fragments = (input.edits || []).map(fragment);
       }
 
       const findings = [];
 
-      // (a) SOQLインジェクション: SELECT と FROM を含む行に + 連結があり、
+      // コメントは全項目で、文字列リテラルは (c)(d) のキーワード判定で読み飛ばす
+      // （文字列中の // をコメントと誤らないよう、左から1つの正規表現で拾う。行は残す。閉じていないブロックコメントは断片の末尾まで）
+      const tokenRe = /\/\*[\s\S]*?(?:\*\/|$)|\/\/[^\n]*|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"/g;
+      const stripComments = s => s.replace(tokenRe, m => (m[0] === '/' ? m.replace(/[^\n]/g, '') : m));
+      const stripCode = s => s.replace(tokenRe, m => (m[0] === '/' ? m.replace(/[^\n]/g, '') : "''"));
+      const noComments = fragments.map(stripComments).join('\n');
+      const codeOnly = fragments.map(stripCode).join('\n');
+
+      // (a) SOQLインジェクション: SELECT と FROM を含む行で文字列リテラルが + 連結されており、
       //     escapeSingleQuotes による対策が見当たらない
-      //     （クォート境界の厳密パースはエスケープされた ' の扱いが崩れるため、行単位のキーワード共起で判定）
-      const soqlConcatLineRe = /^(?=.*\bSELECT\b)(?=.*\bFROM\b).*\+.*$/im;
-      if (soqlConcatLineRe.test(code) && !/escapeSingleQuotes/.test(code)) {
+      //     （クォート境界の厳密パースはエスケープされた ' の扱いが崩れるため、行単位のキーワード共起で判定。
+      //      + は ' の直前・直後にあるものだけを連結とみなす。i++ 等は対象外）
+      const soqlConcatLineRe = /^(?=.*\bSELECT\b)(?=.*\bFROM\b)(?=.*(?:'\s*\+|\+=?\s*')).*$/im;
+      if (soqlConcatLineRe.test(noComments) && !/escapeSingleQuotes/.test(noComments)) {
         findings.push('SOQLインジェクションの疑い: SOQL文字列らしきリテラルが + で連結されており、String.escapeSingleQuotes が見当たりません');
       }
 
       // (b) ハードコードID: 標準オブジェクト(00始まり)/カスタムオブジェクト(a+数字始まり)の
       //     15桁/18桁IDリテラル（reviewer.md パターン4と同一パターン）
       const hardcodedIdRe = /['"](00[0-9A-Za-z]|a[0-9][0-9A-Za-z])[0-9A-Za-z]{12}([0-9A-Za-z]{3})?['"]/;
-      if (hardcodedIdRe.test(code)) {
+      if (hardcodedIdRe.test(noComments)) {
         findings.push('ハードコードIDの疑い: 15桁/18桁のSalesforce ID文字列リテラルが含まれています');
       }
 
       // (c) SOQL in loop: for/whileループの「本体」でSOQLクエリを発行している
       //     （ループ宣言の for (x : [SELECT ...]) 形式は1回しか評価されないため対象外）
-      const lines = code.split('\n');
+      const lines = codeOnly.split('\n');
       let depth = 0;
       const loopStartDepths = [];
       let soqlInLoop = false;
@@ -222,11 +253,14 @@ process.stdin.on('end', () => {
       }
 
       // (d) FLS/CRUD漏れ: DML/SOQLがあるのに、ファイル内にFLS/CRUDチェックの形跡が見当たらない
-      const hasDml = /\b(?:insert|update|delete|upsert|undelete)\s+\w/.test(code) ||
-                     /Database\.(?:insert|update|delete|upsert|undelete)\s*\(/.test(code);
-      const hasSoql = /\[\s*SELECT\b/i.test(code) || /Database\.query\s*\(/.test(code);
-      const hasFlsCheck = /Security\.stripInaccessible|\.isAccessible\s*\(\)|\.isCreateable\s*\(\)|\.isUpdateable\s*\(\)|\.isDeletable\s*\(\)|WITH\s+SECURITY_ENFORCED|WITH\s+USER_MODE|AccessLevel\.USER_MODE/i.test(code);
-      if ((hasDml || hasSoql) && !hasFlsCheck) {
+      //     テストクラス（@isTest / testMethod）はテストデータ作成の DML が主なため対象外。
+      //     Edit/MultiEdit の new_string には @isTest が無いことが多いため、書き込み前のファイルも見る
+      const hasDml = /\b(?:insert|update|delete|upsert|undelete)\s+\w/.test(codeOnly) ||
+                     /Database\.(?:insert|update|delete|upsert|undelete)\s*\(/.test(codeOnly);
+      const hasSoql = /\[\s*SELECT\b/i.test(codeOnly) || /Database\.query\s*\(/.test(codeOnly);
+      const hasFlsCheck = /Security\.stripInaccessible|\.isAccessible\s*\(\)|\.isCreateable\s*\(\)|\.isUpdateable\s*\(\)|\.isDeletable\s*\(\)|WITH\s+SECURITY_ENFORCED|WITH\s+USER_MODE|AccessLevel\.USER_MODE|\b(?:insert|update|upsert|delete|undelete|merge)\s+as\s+user\b/i.test(noComments);
+      const isTestClass = () => /@isTest\b|\btestMethod\b/i.test(codeOnly + '\n' + stripCode(disk));
+      if ((hasDml || hasSoql) && !hasFlsCheck && !isTestClass()) {
         findings.push('FLS/CRUDチェック漏れの疑い: DML/SOQLがありますが、isAccessible等・WITH SECURITY_ENFORCED・Security.stripInaccessible等が見当たりません');
       }
 

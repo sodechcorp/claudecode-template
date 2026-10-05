@@ -19,7 +19,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Write|Edit|MultiEdit|mcp__backlog__.*",
+        "matcher": "Bash|PowerShell|Write|Edit|MultiEdit|mcp__backlog__.*",
         "hooks": [
           {
             "type": "command",
@@ -31,7 +31,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",

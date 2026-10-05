@@ -6,14 +6,14 @@
 //       additionalContext で Claude に思い出させる。
 //
 // 発火条件:
-//   - ツール: Bash
+//   - ツール: Bash・PowerShell
 //   - コマンドに "sf data query / count / tree" が含まれる
 //   - かつ --target-org / -o の値が prod / production に「一致しない」
 //
 // 非発火条件:
 //   - prod / production 宛（本番で実査済みのためリマインダー不要）
 //   - org 指定なし（デフォルト組織が不明なためノイズ化を防ぐ）
-//   - sf data query 以外の Bash コマンド
+//   - sf data query 以外のコマンド
 //
 // 根拠ルール: .claude/CLAUDE.md §環境スコープの確認
 // =============================================================================
@@ -47,8 +47,8 @@ process.stdin.on('end', () => {
   const toolName = d.tool_name || '';
   const command  = (d.tool_input && d.tool_input.command) || '';
 
-  // Bash 以外は何もしない
-  if (toolName !== 'Bash') return;
+  // Bash・PowerShell 以外は何もしない
+  if (toolName !== 'Bash' && toolName !== 'PowerShell') return;
 
   // sf data query / count / tree のいずれかを含むか
   if (!/sf\s+data\s+(query|count|tree)\b/.test(command)) return;
