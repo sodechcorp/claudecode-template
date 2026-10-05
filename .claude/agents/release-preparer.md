@@ -325,7 +325,7 @@ ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （{取得済み: {取
 
 Salesforce はテストレベルによってカバレッジ計算方式が異なる。`RunSpecifiedTests` は**デプロイ対象クラス/トリガーごとの個別カバレッジ75%**が要件で無関係な既存テストの合否を問わない。`RunLocalTests` は**組織内の全ローカルテストの実行・合格**が要件になるため、今回の変更と無関係な既存テストクラスが1件でも壊れていると本番デプロイ全体がブロックされる。この違いを使い、無関係なテスト実行を避けるのが既定方針:
 
-- `apex_in_scope: false`（Flow・LWC・オブジェクト・レイアウト等のみで Apex を含まない）→ `--test-level NoTestRun`（Salesforce 仕様上テスト実行は不要）
+- `apex_in_scope: false`（Flow・LWC・オブジェクト・レイアウト等のみで Apex を含まない）→ `--test-level` を付けない（本番では `NoTestRun` を指定できず、Apex を含まないデプロイは指定しなければテストが走らない）
 - `apex_in_scope: true` かつ `test_coverage_risk: false`（テストクラスを除くデプロイ対象の全 Apex クラス/トリガーに専用テストクラスを特定済み）→ **`--test-level RunSpecifiedTests`（デフォルト）** + `target_test_classes` を `--tests` で列挙。無関係な既存テストクラスは実行対象に含まれないため合否に影響しない
 - `apex_in_scope: true` かつ `test_coverage_risk: true`（テストクラスを除くデプロイ対象の一部 Apex クラス/トリガーに専用テストクラスが見つからない）→ `--test-level RunLocalTests` にフォールバック（該当クラス名を明記。専用テストクラス不在のままでは `RunSpecifiedTests` で対象クラスのカバレッジ75%を満たせない可能性が高いため）。release-plan.md に「{クラス名} の専用テストクラスが見つからないため RunLocalTests にフォールバック。次回リリースを RunSpecifiedTests 化するには専用テストクラス追加を検討」と記録する
 
@@ -361,7 +361,7 @@ sf project deploy report --target-org {本番エイリアス}
 ```
 → `--job-id` を指定しない場合は直近のデプロイジョブが対象になる。`has_destructive: true` の場合は Step 3b（削除）の結果が対象になるため、Step 3（新規/変更）の結果は Step 3 実行直後に別途 `sf project deploy report --target-org {本番エイリアス}` で確認しておく。
 
-> `{tests_flag}`: `--test-level RunSpecifiedTests` の場合のみ `--tests {クラス1} --tests {クラス2} ...`（`target_test_classes` を拡張子なしのクラス名で1つずつ `--tests` で列挙）を付与する。`RunLocalTests` / `NoTestRun` では付与しない。`--post-destructive-changes`（Step 3b）は `--test-level` を指定しない（削除のみのデプロイのため対象外）。
+> `{tests_flag}`: `--test-level RunSpecifiedTests` の場合のみ `--tests {クラス1} --tests {クラス2} ...`（`target_test_classes` を拡張子なしのクラス名で1つずつ `--tests` で列挙）を付与する。`RunLocalTests` では付与しない。`--test-level` を付けない場合（`apex_in_scope: false`）は ` --test-level {test_level}{tests_flag}` ごと書かない。`--post-destructive-changes`（Step 3b）は `--test-level` を指定しない（削除のみのデプロイのため対象外）。
 
 > **実行時の注意**: 各コマンドは1行のまま実行する（bash 風の `\` 行継続は PowerShell では動作しない）。Step 2/3 の `--metadata` 一覧は Phase 1 資材マニフェストのうち変更種別が「新規」「変更」の項目（削除を除く）をそのまま転記する。バックアップ（Phase 4 の4.）は「削除」を含む本番に存在する全項目が対象のため Step 2/3 とは範囲が異なる（削除予定コンポーネントもロールバック用に退避が必要なため）。他チケットとの競合解消用に作ったバックアップ/マージ用フォルダの内容は、force-app へマージ済みであることを確認してから実行する（force-app 以外を参照しない）。
 
@@ -468,12 +468,12 @@ release_plan_generated: true
 
 ### サマリー
 - リリース対象: {N} 件のコンポーネント（新規 {a} 件・変更 {b} 件・削除 {c} 件）
-- --test-level: {manual_operation_mode: true の場合「対象外（manual-operation）」。false の場合 test_level（判定根拠: apex_in_scope={true/false}, test_coverage_risk={true/false}）/ 対象テストクラス: RunSpecifiedTests の場合は target_test_classes をカンマ区切りで列挙。RunLocalTests/NoTestRun の場合は「該当なし」}
+- --test-level: {manual_operation_mode: true の場合「対象外（manual-operation）」。false の場合 test_level（`--test-level` を付けない場合は「指定なし」）（判定根拠: apex_in_scope={true/false}, test_coverage_risk={true/false}）/ 対象テストクラス: RunSpecifiedTests の場合は target_test_classes をカンマ区切りで列挙。RunLocalTests・指定なしの場合は「該当なし」}
 - 削除デプロイ（Step 3b）: {manual_operation_mode: true の場合「対象外（manual-operation）」。false の場合 不要 / 要（has_destructive: true。{c} 件を destructiveChanges.xml で別デプロイ）}
 - 影響範囲: {概要}
 - チケット競合: なし / あり（{issueID} を確認してください）
 - 本番環境ドリフト: なし / あり（{詳細}） / 未リリース積み残しあり（{詳細}） / 未実施（本番未接続） / 一部未実施（Tier 0 のみ Sandbox未接続のため未実施。Tier 1/2 は実施済み）
-- 差分の帰属確認: OK / 他の変更が混入している疑い（{コンポーネント}。担当者の判断が必要）
+- 差分の帰属確認: OK / 疑いあり（{コンポーネント}: {他の変更が混入している疑い（手元側）／本番の変更を上書きする疑い}。担当者の判断が必要） / 未実施（本番未接続） / 対象外（manual-operation）
 - バックアップ: メタデータ {取得済み（{件数}件） / 取り直していない（本番変更後。既存分を保持。取得できないもの {件数}件） / 未取得（本番未接続）} / データ {取得済み（{ファイル}・{取得項目}・{件数}件） / 対象外 / 担当者が取得 / 取り直していない（本番変更後。{前回の記録を引き継ぎ / 引き継ぎなし}。取得できないもの {対象の数}件） / 未取得（本番未接続）}
 - 最終資材での影響確認: 新規発見なし / 新規発見あり（{参照元}。要確認）
 - 資材マニフェスト外で言及されているコンポーネント: なし / 要確認あり（{詳細}） / 未検証あり（{件数}件、ローカル非実在のため保留）

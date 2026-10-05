@@ -39,7 +39,7 @@
 > **`--test-level` の判定ロジック（Apex 含有有無 + 専用テストクラスの特定有無で決定。固定で `RunLocalTests` にしない）は release-preparer.md Phase 1/5 が正本**。以下のコマンドの `--test-level` にはその判定結果を使う。
 
 1. **バックアップの最新確認（Claude）**: バックアップ（本番資材の `rollback-backup/`・データの CSV）は release-preparer Phase 4 で Claude が取得済み。dry-run と本番デプロイの直前に、本番のコンポーネントが取得後に変わっていないかを Claude が確認し、変わっていれば `release.md` Step 4 の4. に従う（手順書の外でデプロイされていなければ取り直す）
-2. **dry-run（必須）**: `sf project deploy start --dry-run --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests/NoTestRun>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加）で 0 errors を確認
+2. **dry-run（必須）**: `sf project deploy start --dry-run --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加。判定が「付けない」なら `--test-level` ごと省く）で 0 errors を確認
 3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）
 3b. **削除の適用**（変更種別「削除」の資材がある場合のみ）: 通常デプロイ（`--metadata`）は削除を反映できないため、`destructiveChanges.xml` + 空の `package.xml` を使って別デプロイで適用する: `sf project deploy start --manifest <package.xml のパス> --post-destructive-changes <destructiveChanges.xml のパス> --target-org <本番エイリアス>`（デプロイ実行〔3.〕の後に実施。削除対象が新規/変更コンポーネントから参照されたまま消えることを避けるため）
 4. **デプロイ順序**: 一括不可の場合は Phase 1 の依存順序（構造 → ロジック → UI → 自動化 → 権限 → レイアウト）で分割実行
