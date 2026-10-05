@@ -118,18 +118,21 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
    - **いずれも差分が空の場合、まず `force-app/` が `.gitignore` 対象かを確認する**（`git check-ignore -q force-app/` の終了コード、または `.gitignore` を Grep。Phase 2 の同種チェックと表記を統一）:
      - **`.gitignore` 対象の場合（テンプレート既定の `.gitignore` 構成であり、実運用ではこちらが標準経路）**: 各メンバーが組織から都度 retrieve する運用のため `git diff` は構造的に機能しない。人間に丸投げせず、**1a** の手順でマニフェストを再構築する
      - **`.gitignore` 対象でない場合（`force-app/` を Git 管理対象に含めるようカスタマイズした非標準プロジェクトでのみ発生する例外経路）**: AskUserQuestion で確認する（question: 「対象差分が見つかりませんでした。デプロイ範囲をどうしますか？」/ header: 「デプロイ範囲」/ options: 「中断する」〔release-plan.md を生成せず終了〕・「指定して続行」〔選択時は Other 欄に対象コンポーネントを Type:Name 形式で直接記入してもらう〕）。Glob 全量フォールバックは行わない
-1a. **【1. で `.gitignore` 対象により差分が取得できなかった場合のみ実施】資材マニフェストを環境間実体差分から再構築する**（`git diff` が使えない環境向けの代替ソース。人間の記憶と implementation-plan.md だけに依存しない）:
+1a. **【1. で `.gitignore` 対象により差分が取得できなかった場合のみ実施】資材マニフェストを環境間実体差分と変更記録から再構築する**（`git diff` が使えない環境向けの代替ソース。人間の記憶と implementation-plan.md だけに依存しない）:
    1. [unreleased-component-scan.md](../templates/backlog/_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出し、`docs/logs/{issueID}/implementation-summary.md`「変更を加えた資材一覧」（資材名の括弧内の API 名）・`implementation-plan.md`「関連コンポーネント一覧（変更対象ファイル）」の資材を加えて 1a-2 の比較対象にする
-   2. `sandbox-alias-check.md`（Sandbox/UAT 接続・`{Sandbox/UATエイリアス}`）と `prod-readonly-check.md`（本番接続・`{本番エイリアス}`）の両方を確認したうえで、[option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md) Tier 0 を本 Phase の時点で前倒し実行し、1a-1 の比較対象について UAT/本番の Tooling API 実体比較を行う（**対象は LWC / Apex クラス / Apex トリガーの3種のみ。それ以外の種別は Tier 0 で判定不可**。詳細は option-org-drift-check.md Tier 0 冒頭の検査対象範囲の注記を参照）。「UAT にのみ存在」「UAT と本番で内容が異なる」と判定されたコンポーネントを実差分として資材マニフェストに採用する。**いずれかの組織に接続できない場合はこの前倒し実行を諦め、通常どおり Phase 1 の1.（`.gitignore` 対象でない場合）と同じ AskUserQuestion でデプロイ範囲を確認する**（1a 全体のフォールバック）
-   3. 確定したマニフェストを AskUserQuestion で確認する（question: 「資材マニフェストを確定しました。この内容で進めてよいですか？」/ header: 「マニフェスト確認」/ description に件数・種別内訳〔新規{a}件・変更{b}件・削除{c}件〕を記載 / options: 「この内容で進める」・「修正したい」〔選択時は Other 欄に修正内容を直接記入してもらう〕）。承認を取ってから 2. に進む（`git diff` より精度が落ちる推定ソースのため自動確定しない）
-   4. 前倒し実行した Tier 0 の結果はそのまま release-plan.md「## 本番環境ドリフト確認」に転記する（Phase 4 で Tier 0 を再実行する必要はない旨を明記する）
+   2. `sandbox-alias-check.md`（Sandbox/UAT 接続・`{Sandbox/UATエイリアス}`）と `prod-readonly-check.md`（本番接続・`{本番エイリアス}`）の両方を確認したうえで、[option-org-drift-check.md](../templates/backlog/options/option-org-drift-check.md) Tier 0 を本 Phase の時点で前倒し実行し、1a-1 の比較対象と、そのうちの LWC と参照し合う LWC（Tier 0 手順1 の2.）について UAT/本番の Tooling API 実体比較を行う（**いずれかの組織に接続できない場合はこの前倒し実行を諦め、通常どおり Phase 1 の1.（`.gitignore` 対象でない場合）と同じ AskUserQuestion でデプロイ範囲を確認する**＝1a 全体のフォールバック）。資材マニフェストには、1a-1 で加えた変更記録のうち Salesforce のメタデータの資材（設計書などのドキュメントと、レコードの作成・更新・削除などデータの操作の行は除く。implementation-summary.md と implementation-plan.md で食い違えば implementation-summary.md に従う。Type:Name は force-app の該当ファイルの場所、削除は本番の一覧で決める）を次のとおり採用する。変更記録に無い候補（decisions.md・cases・参照し合う LWC から挙がったもの）は採用せず、Tier 0 の判定のまま残す:
+      - 変更種別が削除以外の LWC / Apex クラス / Apex トリガー（Tier 0 で比べられる3種）: 比較結果が「UAT のみ存在」（新規）・「内容相違」（変更）のもの
+      - 変更種別が削除以外のそれ以外の種別: 変更記録の変更種別のとおり（新規追加は新規。本番との突き合わせは Phase 4 の3.・6. で行う）
+      - 変更種別が削除のもの（全種別）: 本番に在り force-app に無いもの（本番は `sf org list metadata` で確かめる。フォルダ型は `--folder` を付ける）
+   3. 確定したマニフェストを AskUserQuestion で確認する（question: 「資材マニフェストを確定しました（{件数・種別内訳〔新規{a}件・変更{b}件・削除{c}件〕、削除する資材の Type:Name、変更記録にあるが採用しなかった資材とその理由、変更記録に無く Tier 0 で未リリース積み残し（その疑い）と判定された資材}）。この内容で進めてよいですか？」/ header: 「マニフェスト確認」/ options: 「この内容で進める」・「修正したい」〔選択時は Other 欄に修正内容を直接記入してもらう〕）。採用が0件の場合は、代わりに 1.（`.gitignore` 対象でない場合）と同じ AskUserQuestion でデプロイ範囲を確認する（question に上の採用しなかった資材と Tier 0 の判定を添える）。ここで加わった・指定された資材は、それと参照し合う LWC を含めて 1a-2 と同じく Tier 0 で比べる（1a-2 で比べたものを除く）。承認を取ってから 2. に進む（`git diff` より精度が落ちる推定ソースのため自動確定しない）
+   4. 前倒し実行した Tier 0 の結果を、1a-3 で確定した資材マニフェストに照らして（option-org-drift-check.md 手順4 の「今回のリリース対象」）release-plan.md「## 本番環境ドリフト確認」に転記する。Phase 4 で Tier 0 を再実行する必要はない旨を明記する
 2. 各ファイルをメタデータ種別・API名・変更種別（新規/変更/削除）に分類し、資材マニフェスト表を作成する（1. の `git diff` 結果、または 1a を実施した場合はその確定結果を使う）。**この時点で Apex クラス（`.cls`）・Apex トリガー（`.trigger`）が資材マニフェストに1件でも含まれるかを判定し `apex_in_scope: true/false` として記録する**（Phase 5 の `--test-level` 決定に使用する。デプロイ本体に Apex が含まれない場合、参照先が Apex であっても `apex_in_scope` は変更しない＝あくまで「今回デプロイするファイルそのもの」で判定する）。**同時に、変更種別「削除」が1件でも含まれるかを判定し `has_destructive: true/false` として記録する**（`true` の場合、該当コンポーネントは Phase 5 Step 2/3 の通常デプロイ対象からは除外し Step 3b の削除デプロイに振り分ける。`sf project deploy start` の通常デプロイは削除を反映できず、`destructiveChanges.xml` による別デプロイが必要なため）
 2a. **未リリース積み残しの突合**（`.gitignore` 有無に関わらず常に実施。`git diff` が正常に効いた場合でも、今回のコミット差分に含まれない過去のスコープ変更分は `git diff` では原理的に検出できないため。実例: GF-368 — 課題が「初回実装 → 保留 → 再スコープ → リリース」の経路をたどり、再スコープ後の implementation-plan.md から初回実装分の未リリース資材（LWC 子コンポーネント）が消えた）:
    1. [unreleased-component-scan.md](../templates/backlog/_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出する（1a を実施済みならその暫定候補リストをそのまま再利用する〔1a-1 で加えた変更記録の資材は含めない〕。パーシャル側の同一セッションキャッシュ規定を参照）
    2. 抽出したコンポーネント名を 2. の資材マニフェストと突き合わせ、マニフェストに含まれないものを検出する
    3. マニフェストに含まれない候補を、`force-app/main/default/{lwc,aura}/{名前}/` または `{classes,triggers}/{名前}.{cls,trigger}` としてローカルに実在するかで二分する（**この判定は 2a-1 の抽出結果自体を書き換えない**。option-org-drift-check.md Tier 0 は同じ抽出結果を UAT/本番の Tooling API 実在確認にそのまま使うため、抽出結果は無加工で Tier 0 にも渡る）:
       - **ローカル実在**（GF-368 と同型。過去に実装済みで今回のスコープ文書からだけ落ちた、最有力パターン）: release-plan.md に「資材マニフェスト外で言及されているコンポーネント（要確認）」として最重要警告に記録し、完了報告でユーザーに「リリース対象に含めるべきか」を確認する（自動でマニフェストに追加しない）
-      - **ローカル非実在**（プローズ中の一般語等のノイズと、ローカルから削除済みで UAT/本番にのみ残っている可能性の両方があり、ローカル情報だけでは区別できない）: 完了報告での確認は求めない。release-plan.md に「ローカル未実在のため保留した候補」として一覧のみ記録する（**黙って破棄しない**）。Phase 4 で Tier 0（option-org-drift-check.md）を実施した場合、**Tier 0 の検査対象である LWC / Apex クラス / Apex トリガーの候補のみ**その判定結果（「UAT のみ存在」＝未リリース積み残し等）で本一覧を上書きする。**Aura コンポーネント等 Tier 0 の検査対象外の候補は、Tier 0 を実施していても上書きせず「未検証」のまま残す**（option-org-drift-check.md Tier 0 冒頭の検査対象範囲の注記のとおり Tier 0 では判定不可のため）。Tier 0 未実施（本番未接続等）の場合は全候補を「未検証」のまま残す
+      - **ローカル非実在**（プローズ中の一般語等のノイズと、ローカルから削除済みで UAT/本番にのみ残っている可能性の両方があり、ローカル情報だけでは区別できない）: 完了報告での確認は求めない。release-plan.md に「ローカル未実在のため保留した候補」として一覧のみ記録する（**黙って破棄しない**）。Tier 0（option-org-drift-check.md。1a-2 の前倒し実行を含む）を実施した場合、**Tier 0 の検査対象である LWC / Apex クラス / Apex トリガーの候補のみ**その判定結果（「UAT のみ存在」＝未リリース積み残し等）で本一覧を上書きする。**Aura コンポーネント等 Tier 0 の検査対象外の候補は、Tier 0 を実施していても上書きせず「未検証」のまま残す**（option-org-drift-check.md Tier 0 冒頭の検査対象範囲の注記のとおり Tier 0 では判定不可のため）。Tier 0 未実施（本番未接続等）の場合は全候補を「未検証」のまま残す
 3. [option-deployment-dependency-check.md](../templates/backlog/options/option-deployment-dependency-check.md) を実施し、デプロイ順序・一括可否を判定する
 4. [deploy-skip-judgment.md](../templates/backlog/deploy-skip-judgment.md) の考え方を適用し、ソースデプロイ不可・管理画面手動操作が必要な資材があれば分離して記録する
 5. **デプロイ元は常に `force-app` 本体**。他チケットとの競合解消やマージ検証のためにバックアップ/作業用フォルダ（例: `.release-backup/{issueID}/...`）を作った場合でも、そこを Phase 5 のデプロイコマンドの参照先に指定しない。競合解消後の変更は必ず `force-app` にマージしてから 1. の diff 抽出・Phase 5 のデプロイコマンドに反映する（`force-app` 外のフォルダは source-tracking・metadata 構造の前提を満たさず `NothingToDeploy` 等の予期しないエラーを招く）。**Phase 5 の dry-run・本番デプロイ（Step 2/3）は `--source-dir force-app`（全量）ではなく、資材マニフェストのうち変更種別が「新規/変更」の項目に絞った `--metadata` を使う**（削除は Step 3b の destructiveChanges で別途扱うため Step 2/3 の対象外。詳細は Phase 5 Step 2/3 参照）。**バックアップ（Phase 4 の4.）は「削除」を含む本番に存在する全項目が対象のため Step 2/3 とは範囲が異なる**（適用範囲〔Step 2/3〕＋削除デプロイ範囲〔Step 3b〕と退避範囲を一致させる。`--source-dir force-app` のままだと、force-app 配下に紛れ込んだ他チケットの未レビュー変更や、資材マニフェストに含まれない変更まで黙って本番に混入しうる）
@@ -238,7 +241,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、進
    - 本番未接続によりバックアップ・差分の帰属確認・ドリフト確認が未実施（1.）
    - 手順書の再生成時に本番が既にデプロイ後の状態の可能性・本番変更後のためバックアップ（メタデータ）を取り直していない／取得できないものがある（4.）・本番変更後のためデータを取り直していない／取得できないものがある（7.）・手順書作成後に force-app が変わっている（再取得モード）
    - Step 0b でテスト未完了のまま続行した
-   - Phase 1 の 1a（資材マニフェストを環境間実体差分から再構築した）・2a（資材マニフェスト外で言及されているコンポーネントのうちローカル実在のもの）
+   - Phase 1 の 1a（資材マニフェストを環境間実体差分と変更記録から再構築した）・2a（資材マニフェスト外で言及されているコンポーネントのうちローカル実在のもの）
    - Backlog 本文照合による競合（option-ticket-conflict-check.md の重大度「高」「中」）
 
 ## Phase 5: リリース手順書の生成
@@ -259,7 +262,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧）を使い、進
 作成者: release-preparer（Claude Code）
 manual_operation_mode: {true / false}（`release.md`・Phase 7・再取得モードがこの行を Grep して経路を判定する）
 
-{Phase 4 の9. に該当するものがあれば、ここに最重要警告ブロックを挿入する（1件ずつ、何が起きていて担当者に何を判断してほしいかを書く）。**1a を実施した場合は必ず**「本手順書の②デプロイコマンド（Step 2/3）は資材マニフェストに列挙されたコンポーネントのみを対象とします（`--metadata` 指定）。本資材マニフェストは Tooling API による環境間実体比較で再構築した値であり、ローカル `force-app` の実ファイルと自動的には一致しません。実行前にこのマニフェストが実際の変更内容と過不足なく一致しているか目視確認してください」を記載する}
+{Phase 4 の9. に該当するものがあれば、ここに最重要警告ブロックを挿入する（1件ずつ、何が起きていて担当者に何を判断してほしいかを書く）。**1a を実施した場合は必ず**「本手順書の②デプロイコマンド（Step 2/3）は資材マニフェストに列挙されたコンポーネントのみを対象とします（`--metadata` 指定）。本資材マニフェストは環境間実体比較と今回の課題の変更記録から再構築した値であり、ローカル `force-app` の実ファイルと自動的には一致しません。実行前にこのマニフェストが実際の変更内容と過不足なく一致しているか目視確認してください」を記載する}
 
 ## リリース対象メタデータ
 | 種別 | API名 / ファイルパス | 変更種別 |
@@ -482,7 +485,7 @@ release_plan_generated: true
 - リリース後チェック（③）は、Claude が read-only で確認できるもの（資材の一致・削除の反映・SOQL で確認できる状態は Phase 7、本番の画面の閲覧・Login As での見え方は `prod-ui-verifier`）を先に確認し、保存・代表操作を伴うものだけを担当者に1つずつ渡します
 - {競合・ドリフトの警告があればここに再掲}
 - 本番デプロイが完了したら、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください。Claude がリリース後確認（read-only）を行い、decisions.md・changelog.md に記録します（Phase 7）
-{Phase 1 2a で「要確認（ローカル実在）」の候補が検出された場合}- **要確認**: 「資材マニフェスト外で言及されているコンポーネント」の {検出コンポーネント名} をリリース対象に含めるべきですか？含める場合は資材マニフェストへ追加のうえ `/release {issueID}` を再実行してください（release-plan.md を再生成します）
+{Phase 1 2a で「要確認（ローカル実在）」の候補、または Tier 0 で未リリース積み残し（その疑い）が検出された場合}- **要確認**: {検出コンポーネント名} をリリース対象に含めるべきですか？含める場合は `/release {issueID}` を再実行し、資材マニフェストに加えてください（1a の経路では資材マニフェストの確認〔Phase 1 の 1a-3〕で加えます。release-plan.md を再生成します）
 ```
 
 この直後、呼び出し元（`release.md` Step 4）が `release-plan.md` を読み込み、最重要警告の確認 → ①【Claude確認済】の要約 → ①【担当者】・② を1ステップずつ、の順で引き渡しを続ける（③ はデプロイ完了後の Phase 7 のあと）（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) 参照）。
