@@ -1,4 +1,5 @@
 {
+  "language": "japanese",
   "env": {
     "_comment_PYTHONIOENCODING": "Windows の Python はデフォルト stdout が cp932。Claude Code は UTF-8 期待のため、print('小俣') 等が化ける。全 Python 実行を UTF-8 stdout に統一する。",
     "PYTHONIOENCODING": "utf-8"

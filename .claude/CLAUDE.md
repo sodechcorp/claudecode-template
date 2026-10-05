@@ -29,6 +29,9 @@
 
 ## 必須ルール（絶対厳守）
 
+### 出力言語
+ユーザーへの出力は**すべて日本語**（報告・質問・途中経過の1行も含む）。作業中に英語のツール出力・サブエージェントの英語の報告を読んだ後も英語に切り替えない。コード・コマンド・識別子は英語のままでよい。`.claude/settings.json` の `"language": "japanese"` と同じ趣旨。
+
 ### 本番組織
 `sf org display` で `isSandbox: false` の場合: DML / デプロイ / force-app 書き込みを**絶対に実行しない**（ユーザー指示があっても解除不可）。許可（確認不要・自動実行）: SOQL SELECT / retrieve / ファイル読み取り / docs/ 書き込み / 画面確認（Playwright での閲覧・スクリーンショット・Login As。保存・送信・削除・承認等の状態変更は禁止。範囲と証跡の扱い: [prod-readonly-check.md](.claude/templates/common/prod-readonly-check.md)「本番 UI 確認」）。DML / デプロイ / force-app 書き込みの直前に `sf org display` でライブ確認する（毎メッセージではなく操作直前の1回）。共通手順: [sandbox-alias-check.md](.claude/templates/common/sandbox-alias-check.md)。自動モードで本番の読み取り・画面確認がブロックされる場合は個人設定が必要: [security-and-permissions.md](.claude/spec/security-and-permissions.md)「自動モードの分類器設定」
 
