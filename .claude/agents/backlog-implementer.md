@@ -122,6 +122,7 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 以下のルールで実装する:
 
 - **force-app を最初に編集する直前に（新規作成を含む。下の API 名の照合の後）**: `docs/logs/{issueID}/test-report.md` があれば、その中の全ての `### 総合判定` の次の行を `再テスト待ち — テストの完了で確定します` に書き換える（前回の Phase 5・/test の判定は今回の変更を確かめていないため）
+- **force-app のファイルを変更・削除する前に（ファイルごと）**: そのファイル（`-meta.xml` があればそれも。LWC・Aura はバンドルのフォルダごと）が `docs/logs/{issueID}/before-snapshot/` に無ければ、同じ相対パス（`force-app/...`）でコピーする（`/release` が本番との差のうち今回の課題が消した部分を見分けるのに使う。既にあれば上書きしない）
 - FLS / CRUD / `with sharing` / ガバナ制限 / バルク処理を意識する
 - **新規メタデータ作成時（項目・オブジェクト・レコードタイプ・タブ・Apex・フロー）**: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md) の該当種別セクションに従い、FLS・CRUD・ページレイアウト配置・タブ設定を**付与する（付与方針の詳細はchecklist参照）**。**権限セットの新規作成・恒久的な役割設計は方針を一言ユーザーに伝えてから進める**（Sandbox内での試作・ラベル変更等の軽微な調整は確認不要）。チェック漏れを黙殺しない（「確認したが不要と判断した」場合もその旨を明示する）
 - **実装前に**: implementation-plan.md の API 名を `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` で再照合し、一致することを確認してから使用する

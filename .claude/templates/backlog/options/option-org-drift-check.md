@@ -86,8 +86,8 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
    ```bash
    diff "{tmp_dir}/prod-drift-check/force-app/main/default/classes/{クラス名}.cls" "force-app/main/default/classes/{クラス名}.cls"
    ```
-3. diff の内容を評価する:
-   - **差分なし**: 誰かが触ったが結果的に今の Sandbox/リポジトリ内容と一致 → 「痕跡あるが実害なし」
+3. diff のうち、今回のリリースの変更で説明できない差（`/release` では release-preparer Phase 4 の6. で「本番の変更を上書きする疑い」とした差。以下と出力の「差分」はこの差を指す）を評価する:
+   - **差分なし**: 誰かが触ったが、今回のリリースの変更以外に差が無い → 「痕跡あるが実害なし」
    - **差分あり かつ 今回のリリース内容と非干渉**（無関係な別ロジックの変更）: 「他者変更あり・要確認（リリースで上書きする点をユーザーに警告）」
    - **差分あり かつ 今回のリリース内容と重なる**（同一メソッド・同一項目）: 「競合・要人間判断」（最重要警告）
 4. 一時ディレクトリを削除する（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠）。**1. で release-preparer Phase 4 の4. の取得先を使った場合は削除しない**（`rollback-backup` はロールバック用のバックアップ、`prod-drift-check` は release-preparer の6. でも使うため。後者は release-preparer の 8.・Phase 最終で削除される）:

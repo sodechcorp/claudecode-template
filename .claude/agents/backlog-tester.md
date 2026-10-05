@@ -60,7 +60,7 @@ focus_hints: ["{関連コンポーネント一覧から抽出したキーワー�
 
 判定結果（採用・スキップしたオプション）は `docs/logs/{issueID}/test-report.md` の「## スモーク確認結果」セクション末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
-採用したオプションで force-app を変えた場合（テストクラスの作成・拡充、見つけた問題の修正）は、変えた資材ごとに `docs/logs/{issueID}/implementation-summary.md`「変更を加えた資材一覧」へ行を加える（同じ資材の行が既にあれば、その行の「変更内容」に追記する。書き方は backlog-implementer.md の 7. に合わせる）。後工程（`/test` の変更点回帰・`/release` の差分の帰属確認等）はこの一覧で今回の課題の変更を知り、test-report.md は `/test` で作り直されて残らないため。
+採用したオプションで force-app のファイルを変更・削除する前に、backlog-implementer.md の 3. と同じく変更前の写しを `docs/logs/{issueID}/before-snapshot/` に取る。force-app を変えた場合（テストクラスの作成・拡充、見つけた問題の修正）は、変えた資材ごとに `docs/logs/{issueID}/implementation-summary.md`「変更を加えた資材一覧」へ行を加える（同じ資材の行が既にあれば、その行の「変更内容」に追記する。書き方は backlog-implementer.md の 7. に合わせる）。後工程（`/test` の変更点回帰・`/release` の差分の帰属確認等）はこの一覧で今回の課題の変更を知り、test-report.md は `/test` で作り直されて残らないため。
 
 > **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。test-report.md の所見・確認結果は日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
 

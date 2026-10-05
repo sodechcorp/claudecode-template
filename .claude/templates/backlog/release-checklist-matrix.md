@@ -32,16 +32,15 @@
 
 **本番への実行（dry-run・デプロイ）は人間が行う。release-preparer は実行しない（1. のバックアップ最新確認のみ Claude が read-only で行う）。**
 
-> **注意**: コマンドは常に1行で実行する（bash の `\` 行継続は PowerShell では動作しない）。デプロイ元は必ず `force-app` 本体（競合解消用のバックアップ/マージ用フォルダをそのままデプロイ元に指定しない）。dry-run・デプロイ実行（2./3.）の適用範囲は Phase 1 資材マニフェストのうち変更種別が「新規/変更」の項目に絞った `--metadata <API名一覧>` を使う（`--source-dir force-app` は使わない。「削除」は 3b. で別途扱う）。バックアップ（1.・Claude が取得済み）は「削除」を含む本番に存在する全項目が対象のため退避範囲が異なる（削除予定コンポーネントもロールバック用に退避が必要なため）。
+> **注意**: コマンドは常に1行で実行する（bash の `\` 行継続は PowerShell では動作しない）。デプロイ元は必ず `force-app` 本体（競合解消用のバックアップ/マージ用フォルダをそのままデプロイ元に指定しない）。dry-run・デプロイ実行（2./3.）の適用範囲は Phase 1 資材マニフェストのうち変更種別が「新規/変更」の項目に絞った `--metadata <API名一覧>` を使う（`--source-dir force-app` は使わない。「削除」がある場合は `--metadata` の代わりに `--manifest <新規/変更を列挙した package.xml> --post-destructive-changes <destructiveChanges.xml>` で同じデプロイに付ける）。バックアップ（1.・Claude が取得済み）は「削除」を含む本番に存在する全項目が対象のため退避範囲が異なる（削除予定コンポーネントもロールバック用に退避が必要なため）。
 
-> **実行方針（厳守）**: 下記 1〜6（削除の資材がある場合は 3b を含む）は1つずつ実行し、結果を確認してから次に進む。1個のスクリプト/コードブロックにまとめて流さない。特に 2.（dry-run）と 3.（デプロイ実行）は独立したステップとして扱い、dry-run が 0 errors であることを確認してから 3. に進む。release-plan.md 生成時もこの構成（Step ごとに個別コードブロック）を維持する。**この「1つずつ」原則は release-plan.md 生成側の構成規約であり、人間への引き渡し時に Todo 化してステップごとに逐次提示するのは呼び出し元 `release.md` Step 4 の責務**（[manual-steps-todo-handoff.md](../common/manual-steps-todo-handoff.md) 参照）。
+> **実行方針（厳守）**: 下記 1〜6 は1つずつ実行し、結果を確認してから次に進む。1個のスクリプト/コードブロックにまとめて流さない。特に 2.（dry-run）と 3.（デプロイ実行）は独立したステップとして扱い、dry-run が 0 errors であることを確認してから 3. に進む。release-plan.md 生成時もこの構成（Step ごとに個別コードブロック）を維持する。**この「1つずつ」原則は release-plan.md 生成側の構成規約であり、人間への引き渡し時に Todo 化してステップごとに逐次提示するのは呼び出し元 `release.md` Step 4 の責務**（[manual-steps-todo-handoff.md](../common/manual-steps-todo-handoff.md) 参照）。
 
 > **`--test-level` の判定ロジック（Apex 含有有無 + 専用テストクラスの特定有無で決定。固定で `RunLocalTests` にしない）は release-preparer.md Phase 1/5 が正本**。以下のコマンドの `--test-level` にはその判定結果を使う。
 
 1. **バックアップの最新確認（Claude）**: バックアップ（本番資材の `rollback-backup/`・データの CSV）は release-preparer Phase 4 で Claude が取得済み。dry-run と本番デプロイの直前に、本番のコンポーネントが取得後に変わっていないかを Claude が確認し、変わっていれば `release.md` Step 4 の4. に従う（手順書の外でデプロイされていなければ取り直す）
 2. **dry-run（必須）**: `sf project deploy start --dry-run --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加。判定が「付けない」なら `--test-level` ごと省く）で 0 errors を確認
 3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）
-3b. **削除の適用**（変更種別「削除」の資材がある場合のみ）: 通常デプロイ（`--metadata`）は削除を反映できないため、`destructiveChanges.xml` + 空の `package.xml` を使って別デプロイで適用する: `sf project deploy start --manifest <package.xml のパス> --post-destructive-changes <destructiveChanges.xml のパス> --target-org <本番エイリアス>`（デプロイ実行〔3.〕の後に実施。削除対象が新規/変更コンポーネントから参照されたまま消えることを避けるため）
 4. **デプロイ順序**: 一括不可の場合は Phase 1 の依存順序（構造 → ロジック → UI → 自動化 → 権限 → レイアウト）で分割実行
 5. **結果確認**: `sf project deploy report --target-org <本番エイリアス>` で成功を確認
 6. **管理画面手動操作**: ソースデプロイ対象外の資材（Phase 1 で分離したもの）があれば、手順書の管理画面操作セクションに従って実施（各操作の直前に変更前の値・設定状態を記録する。ロールバック手順 1c で使う）
