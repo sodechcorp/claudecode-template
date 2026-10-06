@@ -95,7 +95,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 - **根拠**: 実装バグ修正は「実装方針の変更」ではなく「確定済み方針の正しい実装への収束」であり、Phase 2 で担当者が決定した方針と Phase 3.5 で検証済みの実装計画が依然有効。
 - `investigation.md` および `implementation-plan.md` の方針変更は禁止（期待値ドリフト禁止・test.md「NG があった場合の差し戻し」節の原則を継承）。
 - 実装中に**経路2/3（実装方針の問題・検証漏れ）**が判明した場合は例外を無効化し、通常の停止・ユーザー確認フローに入る（/test 側に「自動修正を中断しました」と報告する）。
-- **非対話の対話確認停止点（Step 3 の API 名不一致・Step 4 の設計書欠落）**: auto_fix_mode 時はユーザー確認を行わず、経路2/3 と同様に自動修正を中断し /test に「自動修正を中断しました（理由: API名不一致 / 設計書欠落）」と報告する（非対話 Task 実行で入力待ちにならないようにする）。
+- **非対話の対話確認停止点（Step 3 の API 名不一致・describe の失敗・Step 4 の設計書欠落）**: auto_fix_mode 時はユーザー確認を行わず、経路2/3 と同様に自動修正を中断し /test に「自動修正を中断しました（理由: API名不一致 / describe の失敗 / 設計書欠落）」と報告する（非対話 Task 実行で入力待ちにならないようにする）。
 - `auto_fix_mode` なしの通常 /backlog フローは上記 1・2 のガードをそのまま適用する（一切緩めない）。
 - **例外条件が不成立の場合**（`auto_fix_mode: true` は指定されているが `ng_type` が全て空文字ではない / `ng_source` 読込不能等）: 通常のガードには進まない。経路2/3 と同様に実装を中断し、/test に「自動修正を中断しました（理由: 承認ガード例外の条件不成立）」と報告する（非対話 Task 実行のためユーザー応答待ちのまま停止させない）。
 
@@ -125,9 +125,9 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 - **force-app のファイルを変更・削除する前に（ファイルごと）**: そのファイル（`-meta.xml` があればそれも。LWC・Aura はバンドルのフォルダごと）が `docs/logs/{issueID}/before-snapshot/` に無ければ、同じ相対パス（`force-app/...`）でコピーする（`/release` が本番との差のうち今回の課題が消した部分を見分けるのに使う。既にあれば上書きしない）
 - FLS / CRUD / `with sharing` / ガバナ制限 / バルク処理を意識する
 - **新規メタデータ作成時（項目・オブジェクト・レコードタイプ・タブ・Apex・フロー）**: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md) の該当種別セクションに従い、FLS・CRUD・ページレイアウト配置・タブ設定を**付与する（付与方針の詳細はchecklist参照）**。**権限セットの新規作成・恒久的な役割設計は方針を一言ユーザーに伝えてから進める**（Sandbox内での試作・ラベル変更等の軽微な調整は確認不要）。チェック漏れを黙殺しない（「確認したが不要と判断した」場合もその旨を明示する）
-- **実装前に**: implementation-plan.md の API 名を `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` で再照合し、一致することを確認してから使用する
-  - 不一致の場合は実装を止め、計画書の API 名と field-meta.xml のどちらが正しいかユーザに確認する
-- APIフィールド名は計画書記載の API 名を起点とし、field-meta.xml で存在を確認した上で使用する
+- **実装前に**: implementation-plan.md の API 名を `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` で再照合し、一致することを確認してから使用する。field-meta.xml が無い項目と、計画書で `[要確認: sf sobject describe は tools 未所持のため未実施]` の項目は、既定の接続先に `sf sobject describe --sobject {Object} --json` して確かめる
+  - 不一致（describe の結果に無い場合を含む）の場合は実装を止め、計画書の API 名と field-meta.xml（describe の結果）のどちらが正しいかユーザに確認する。describe が失敗した場合は項目が無いとは判断せず、実装を止めてエラー内容を報告する
+- APIフィールド名は計画書記載の API 名を起点とし、上の再照合で存在を確認した上で使用する
 - エラーハンドリングを含める
 - APIキー・パスワードをハードコードしない
 
@@ -209,7 +209,7 @@ implementation-plan.md の「関連コンポーネント一覧（変更対象フ
 - [ ] 実装計画の全判断ポイントが実装に反映されているか（対応表で確認）
 - [ ] 計画外の変更が含まれていないか
 - [ ] ガバナ制限・バルク処理・FLS の考慮漏れがないか
-- [ ] API名・フィールド名が計画書通りか（誤字を含む）
+- [ ] API名・フィールド名が計画書通りか（計画書で `[要確認]` の項目は describe で確かめた名前か。誤字を含む）
 - [ ] ドキュメント更新（catalog/design/changelog.md）が完了しているか
 - [ ] Step 0b で採用したオプションを全て実行し、判定結果を implementation-plan.md の末尾に記録したか
 
