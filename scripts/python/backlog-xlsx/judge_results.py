@@ -392,6 +392,19 @@ def _expects_no_error(kiki: str, judge_method: str) -> bool:
     return any(w in text for w in ("例外なし", "エラーなし", "正常終了", "例外が発生しない", "エラーが発生しない"))
 
 
+def _split_apex_evidence(content: str) -> tuple:
+    """anon_apex_runner.py の証跡を（実行コード, System.debug 出力）に分ける（auto-evidence-runner 3-3b で
+    末尾に足した2回目の分も含む）。観点・実行コードに書かれた文字列を debug 出力と取り違えないため。
+    この形式でなければ（"", content）を返す。"""
+    content = content.replace("\r\n", "\n")  # Windows で書かれた証跡は CRLF
+    debug = re.findall(r"^--- System\.debug 出力 ---$(.*?)(?=^=+\n匿名 Apex 実行証跡|\Z)",
+                       content, re.MULTILINE | re.DOTALL)
+    if not debug:
+        return "", content
+    code = re.findall(r"^--- 実行コード ---$(.*?)^実際の値\s*[:：]", content, re.MULTILINE | re.DOTALL)
+    return "\n".join(code), "\n".join(debug)
+
+
 # auto-evidence-runner 3-3b が手で書き足す「判定: 未確認 — {理由}」行（コロン・ダッシュの表記ゆれを許す）
 _UNCONFIRMED_RE = re.compile(r"^判定\s*[:：]\s*未確認(.*)$", re.MULTILINE)
 
@@ -546,23 +559,37 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         return {"ok": ok, "actual": actual_str, "reason": reason}
 
     # 期待結果が「例外なく完了すること」そのものの匿名 Apex 証跡は、値照合より先に例外の有無で判定する
-    # （値照合に回すと「例外なし」という文言自体が証跡に無いため偽 NG になる）
+    # （値照合に回すと「例外なし」という文言自体が証跡に無いため偽 NG になる）。未処理の例外は anon_apex_runner.py が
+    # 「判定: NG」の証跡にするため、ここで見るのは TC が catch して debug に出した例外と、catch で握りつぶしうるか
     if _expects_no_error(kiki, judge_method) and re.search(
             r"^成功\s*:\s*True|Executed successfully\.", content, re.MULTILINE | re.IGNORECASE):
-        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", content)
+        code, debug = _split_apex_evidence(content)
+        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", debug)
         if m_err:
             return {"ok": False, "actual": "AnonApex 実行エラー", "reason": m_err.group(1)[:80]}
+        if re.search(r"\bcatch\s*\(", code, re.IGNORECASE):
+            return _ai_pending("期待結果は例外なしだが、実行コードが例外を catch しているため、匿名 Apex の成功だけでは"
+                               "例外が起きなかったと言えません。catch した例外が debug 出力に出ていないかを見て判定してください",
+                               "AI判定待ち（例外なし・catch あり）")
         return {"ok": True, "actual": "AnonApex 実行成功（例外なし）", "reason": ""}
 
     # 匿名 Apex の自己検証出力（auto-evidence-runner Step 3-1: 結果を取り直して比較した結果）は
-    # 値照合より先に判定する（期待結果の文言そのものは証跡に出ないため、値照合に回すと偽 NG になる）
+    # 値照合より先に判定する（期待結果の文言そのものは証跡に出ないため、値照合に回すと偽 NG になる）。
+    # 例外の文字列では NG にしない（未処理の例外は anon_apex_runner.py が「判定: NG」の証跡にし、catch した例外が
+    # 期待どおりかは CHECK が比べる。例外を確かめる TC はコードや debug に例外の型名が出る）。全項目一致でも catch が
+    # あれば、期待しない例外を catch して確認項目が途中で止まった可能性があるため AI 判定に回す
     m_self = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)", content)
     if m_self:
-        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", content)
-        if m_err:
-            return {"ok": False, "actual": "AnonApex 実行エラー", "reason": m_err.group(1)[:80]}
         ng_c, total_c = int(m_self.group(1)), int(m_self.group(2))
         if ng_c == 0 and total_c > 0:
+            code, debug = _split_apex_evidence(content)
+            m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", debug)
+            if m_err or re.search(r"\bcatch\s*\(", code, re.IGNORECASE):
+                caught = f"debug 出力に例外（{m_err.group(1)[:60]}）が出ています" if m_err else "実行コードが例外を catch しています"
+                return _ai_pending(f"自己検証は全{total_c}項目一致だが、{caught}。期待結果どおりの例外を確かめたものか、"
+                                   "期待しない例外を catch して確認項目が途中で止まっていないかを判定してください"
+                                   "（CHECK が try の外にあり、実行コードの CHECK の数と確認数が一致すれば止まっていない）",
+                                   "AI判定待ち（自己検証一致・例外/catch あり）")
             return {"ok": True, "actual": f"AnonApex 自己検証 全{total_c}項目一致", "reason": ""}
         if total_c == 0:
             return _ai_pending("匿名 Apex の自己検証が0項目でした。期待結果に照らして実行ログを判定してください",
@@ -635,10 +662,6 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
 
     # auto-evidence-runner 独自フォーマット（成功: True + NG項目数=0 形式）
     if re.search(r"^成功\s*:\s*True", content, re.MULTILINE):
-        if re.search(r"(FATAL_ERROR|System\.\w+Exception)", content):
-            m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", content)
-            reason = m_err.group(1)[:80] if m_err else "AnonApex 実行エラー"
-            return {"ok": False, "actual": "AnonApex 実行エラー", "reason": reason}
         m_ng_zero = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)\s*\(PASS\)", content)
         m_ng_fail = re.search(r"NG項目数=([1-9]\d*)\s*/\s*(\d+)", content)
         if m_ng_zero:
