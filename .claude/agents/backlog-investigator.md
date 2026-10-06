@@ -13,6 +13,8 @@ tools:
   - WebSearch
   - WebFetch
   - mcp__backlog__get_issue
+  - mcp__backlog__get_issues
+  - mcp__backlog__get_project
   - mcp__backlog__get_issue_comments
   - mcp__backlog__get_issue_attachment
 ---
@@ -112,7 +114,9 @@ tools:
 3. **通常フロー（「ミッション」節以降）に従い、Backlog MCP を使う箇所だけ次のとおり置き換える**:
    - 課題本文・コメント（課題の先行取得・Step A の手順1-2）: `課題本文手動入力:` の内容を使う。コメントの投稿者・日時が貼り付けテキストから判別できない場合は「投稿者/日時: 貼り付けテキストから判別不可」と明記する
    - 添付（Step A-2 の 1）: 一覧・中身とも取得不可。investigation.md「周辺情報」の添付ファイル表に「取得不可（MCP 障害復旧モードのため手動入力で代替）」と記録し、貼り付けテキスト内に添付・スクショへの言及があれば共有依頼候補として扱う
-   - そのほかの Backlog MCP の呼び出し（コメントの再取得・内部メモ用プロジェクト参照・option-related-issue-search・option-similar-past-issue）: 行わない。スキップの記録には理由「MCP 障害復旧モード」を書く
+   - 内部メモ用プロジェクト参照（Step A）: プロジェクトキーが定義されていれば、リンク/URL 表に「{キー} の対応する内部課題（あれば本文・コメント）」の行を作り、種別を `認証必須`、取得結果を「取得不可（MCP 障害復旧モード）」、材料性を `あり`、共有依頼列を `要` にする
+   - 本文・コメントが課題キーで参照している別の課題: リンク/URL 表に行を作り、種別を `認証必須`、取得結果を「取得不可（MCP 障害復旧モード）」にして、Step A-2 の 3 で材料性を判定する
+   - そのほかの Backlog MCP の呼び出し（コメントの再取得・option-related-issue-search・option-similar-past-issue）: 行わない。スキップの記録には理由「MCP 障害復旧モード」を書く
 
 > ループ通算回数の管理は `/backlog` コマンド側が担う（本モードは 1 回のみの再起動が前提。2 回目の失敗は investigator 側では判定せず、backlog.md がそのまま処理を中断してユーザーに報告する）。
 
@@ -433,7 +437,7 @@ Step C で収集した情報をもとに、報告された症状の原因仮説�
 
 返却されたテキストの先頭が `## エラー` 形式（backlog-blind-second-opinion.md §異常時の挙動: missing-input / code-leaked-into-input）かどうかを判定する。
 - **エラー形式でない場合**: subagent が返した仮説群を、後述「根本原因 / 要件の本質」節の原因仮説（多角分析）テーブルの参考材料として保持し、investigation.md に option-second-opinion.md §出力 の形式で「## blind second-opinion 結果」セクションを追記する。「parent 仮説との差異」列は、本 Step 完了後に investigator 自身が原因仮説（多角分析）と突き合わせて埋める。
-- **エラー形式の場合**: investigation.md への追記を保留し、エラー内容（種別・詳細）をユーザに提示したうえで、対処（引き渡し情報を修正して再試行する／second-opinion なしで Step D に進む）をテキスト会話で確認する（`_README.md` §AskUserQuestion の使用ルールに準拠し AskUserQuestion は使わない）。「second-opinion なしで進める」と回答された場合は「## blind second-opinion 結果」を追記せず Step D へ進む。
+- **エラー形式の場合**: エラーの詳細に従って引き渡し情報を直し、1回だけ起動し直す。再びエラー形式が返ったら second-opinion なしで Step D に進み、「## blind second-opinion 結果」に「N/A（option-second-opinion 未実施: {エラー種別}）」と書く。
 
 **Step 0b で option-second-opinion が「実行しない」と判定された場合は本 Step をスキップし、Step D に進む。**
 
@@ -598,7 +602,7 @@ fi
 
 ## 周辺情報（添付・リンク・スクショ）
 
-> **共有依頼列の値**: investigator が書けるのは `要`（Phase 1 末尾でユーザーに提示・応答待ち）と `不要（waive）`（材料性なし、または降格理由あり）、取得できた行（中身を読めた添付・取得済みの名指しレコード）の `—（取得済み）` のみ。`済`（ユーザーが実際に提供した）は Phase 1 完了後、メインスレッド `backlog.md` がユーザー応答を受けて Edit で更新する値であり、investigator 自身は書かない。
+> **共有依頼列の値**: investigator が書けるのは `要`（Phase 1 末尾でユーザーに提示・応答待ち）と `不要（waive）`（材料性なし、または降格理由あり）、取得できた行（中身を読めた添付・中身を取得できたリンク・取得済みの名指しレコード）の `—（取得済み）` のみ。`済`（ユーザーが実際に提供した）は Phase 1 完了後、メインスレッド `backlog.md` がユーザー応答を受けて Edit で更新する値であり、investigator 自身は書かない。
 
 ### 添付ファイル
 | # | ファイル名 | サイズ | 取得結果 | 材料性 | 共有依頼 |
@@ -608,11 +612,11 @@ fi
 （中身を読めた添付は材料性を `—` にする。添付なしの場合は「なし」、メタデータ取得不可の場合は「添付メタデータ取得不可（get_issue レスポンスに含まれず）」と明記）
 
 ### リンク/URL
-| # | URL | 種別 | 取得結果 |
-|---|---|---|---|
-| 1 | ... | 公開リンク / 認証必須 | {WebFetch 要約} / 認証必須・共有依頼要（Phase 1 末尾で提示） / 材料性なし・依頼不要 |
+| # | URL | 種別 | 取得結果 | 材料性 | 共有依頼 |
+|---|---|---|---|---|---|
+| 1 | ... | 公開リンク / 認証必須 | {読んだ要点} / 取得不可（{理由}） | あり / なし / — | 要 / 不要（waive） / —（取得済み） |
 
-（リンクなしの場合は「なし」）
+（中身を取得できたリンクは材料性を `—` にする。リンクなしの場合は「なし」）
 
 ### 名指しレコード（Salesforce のレコード URL を含む）
 | # | レコードの特定情報（オブジェクト名・Name・識別値等） | 本文/コメントでの言及箇所 | 取得可否 | 共有依頼 |
@@ -678,7 +682,7 @@ fi
 
 ## blind second-opinion 結果（option-second-opinion 実行時のみ・Step C-3）
 
-（[option-second-opinion.md](../templates/backlog/options/option-second-opinion.md) §出力 の形式（見出し・表列とも）でそのまま追記する。Step 0b で option-second-opinion が「実行しない」と判定された場合、または Step C-3 でエラー形式が返り second-opinion なしで進めると判定された場合は「N/A（option-second-opinion 未実施）」と明記する）
+（[option-second-opinion.md](../templates/backlog/options/option-second-opinion.md) §出力 の形式（見出し・表列とも）でそのまま追記する。Step 0b で option-second-opinion が「実行しない」と判定された場合は「N/A（option-second-opinion 未実施）」、Step C-3 で起動し直してもエラー形式が返った場合は「N/A（option-second-opinion 未実施: {エラー種別}）」と明記する）
 
 ## 根本原因 / 要件の本質
 

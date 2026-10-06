@@ -22,7 +22,7 @@ Backlog で関連する過去課題の履歴を検索し、同じ機能領域で
    - **後のコメントで覆った決定・最新の確定方針**（特に顧客が後から「不要」「変更」と回答しているケース）
 5. **内部メモ用プロジェクトの参照（プロジェクト固有設定がある場合）**:
    - `{project_dir}/CLAUDE.md` を Read し、内部メモ用 Backlog プロジェクトキー（例: `internalProjectKey: INTERNALTASK` 等の設定）が定義されているか確認する
-   - 定義がある場合: `mcp__backlog__get_issues` でそのプロジェクトを検索し、本課題の ID または件名で対応する内部課題を特定する。見つかれば `get_issue`（本文）＋ `get_issue_comments`（全件・最後まで）を読み、背景・確定スコープを補強する
+   - 定義がある場合: `mcp__backlog__get_project`（`projectKey`）で projectId を得て、`mcp__backlog__get_issues` でそのプロジェクトを検索し、本課題の ID または件名で対応する内部課題を特定する。見つかれば `get_issue`（本文）＋ `get_issue_comments`（全件・最後まで）を読み、背景・確定スコープを補強する
    - 定義がない場合: スキップし、`investigation.md` に「内部メモプロジェクト未定義のためスキップ」と1行記録する
 6. 発見した場合は再発防止の観点を investigation.md に追記する
 
