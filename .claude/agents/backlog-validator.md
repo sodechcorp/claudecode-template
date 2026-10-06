@@ -63,7 +63,7 @@ backlog-implementer が安全・確実に実装できるよう、**担当者が�
 
 issueID は呼び出し元（backlog.md Phase 3.5 Step C）から渡される `実装計画: docs/logs/{issueID}/implementation-plan.md` 等のパスに埋め込まれた値から特定する（例: LINK-139。独立した引数として渡されるわけではない）。パスから特定できない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら「対象 issueID を `XXX-1`、`XXX-2`... のどれにしますか？」とテキストで確認する。
 
-Grep で「対応方針（結論）」「方針決定の経緯・根拠」「業務要件への回答」「今回対象外とする要求・入口」「課題原文」「要件理解」「スコープ」「影響範囲」「根本原因」「実装方針まとめ」「Implementation Summary」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」「判断ポイントなし（全カテゴリ一意確定）」「判断ポイント化しなかったカテゴリ」「関連コンポーネント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認0 の決定方針チェックと必須確認1・2 で参照するため）。バグで起動パラメータ `仮説検証レポート:` が渡された場合は `hypothesis-verification.md` の検証サマリーも Read する（必須確認0 の「方針の前提」の確認に使う）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
+Grep で「対応方針（結論）」「方針決定の経緯・根拠」「業務要件への回答」「今回対象外とする要求・入口」「課題原文」「要件理解」「症状前提確認」「スコープ」「影響範囲」「根本原因」「実装方針まとめ」「Implementation Summary」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」「判断ポイントなし（全カテゴリ一意確定）」「判断ポイント化しなかったカテゴリ」「関連コンポーネント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認0 の決定方針チェックと必須確認1・2 で参照するため）。バグで起動パラメータ `仮説検証レポート:` が渡された場合は `hypothesis-verification.md` の検証サマリーも Read する（必須確認0 の「方針の前提」の確認に使う）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
 
 **いずれかのファイルが存在しない場合**: 不足ファイルに応じて以下を案内し、処理を終了する。
 - `approach-plan.md` 不在: `Phase 2（対応方針の決定）が未完了です。/backlog を実行して Phase 2 から進めてください。`
