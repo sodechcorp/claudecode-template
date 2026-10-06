@@ -24,24 +24,38 @@ Apex デバッグログを取得・解析し、バグの発生箇所・例外内
 
 ### Step 2: TraceFlag 設定（ログ有効化）
 
-Step 3 の匿名 Apex を実行する接続ユーザー（Step 1 の `sf org display` の `username`）に TraceFlag を設定する:
+Step 3 の匿名 Apex を実行する接続ユーザー（Step 1 の `sf org display` の `username`）に TraceFlag を設定する。TraceFlag・DebugLevel は Tooling API のオブジェクトのため `--use-tooling-api` を付ける:
 
 ```bash
 # 接続ユーザーのIDを取得
 sf data query --query "SELECT Id, Name, Username FROM User WHERE Username = '<接続ユーザーの username>' LIMIT 1" \
   --target-org <sandbox-alias> --json
 
-# TraceFlag を設定（30分）
-sf data create record --sobject DebugLevel \
+# 有効な TraceFlag があれば作らずにそれを使い、StartDate を今にする（期間の重なるものは作れない。期間は StartDate から24時間まで）
+sf data query --use-tooling-api --query "SELECT Id, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '<UserId>' AND LogType = 'USER_DEBUG' AND ExpirationDate > $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --target-org <sandbox-alias> --json
+# ExpirationDate が30分後以降なら StartDate だけ
+sf data update record --use-tooling-api --sobject TraceFlag --record-id <既存の TraceFlagId> \
+  --values "StartDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --target-org <sandbox-alias> --json
+# ExpirationDate が30分後より前なら ExpirationDate も30分後に
+sf data update record --use-tooling-api --sobject TraceFlag --record-id <既存の TraceFlagId> \
+  --values "StartDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) ExpirationDate=$(date -u -d '+30 minutes' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+30M +%Y-%m-%dT%H:%M:%SZ)" \
+  --target-org <sandbox-alias> --json
+
+# 無ければ TraceFlag を作る（30分）。DebugLevel は BugInvestigation があればその Id を使う（DeveloperName は重複できない）
+sf data query --use-tooling-api --query "SELECT Id FROM DebugLevel WHERE DeveloperName = 'BugInvestigation'" \
+  --target-org <sandbox-alias> --json
+sf data create record --use-tooling-api --sobject DebugLevel \
   --values "DeveloperName=BugInvestigation MasterLabel=BugInvestigation ApexCode=FINEST ApexProfiling=INFO Callout=INFO Database=FINEST System=DEBUG Validation=INFO Visualforce=INFO Workflow=INFO" \
   --target-org <sandbox-alias> --json
 
-sf data create record --sobject TraceFlag \
+sf data create record --use-tooling-api --sobject TraceFlag \
   --values "LogType=USER_DEBUG TracedEntityId=<UserId> DebugLevelId=<DebugLevelId> StartDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) ExpirationDate=$(date -u -d '+30 minutes' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+30M +%Y-%m-%dT%H:%M:%SZ)" \
   --target-org <sandbox-alias> --json
 ```
 
-> 設定が困難な場合は `ApexCode=DEBUG` に下げて再試行。`date` コマンドは OS によって異なる（Mac/Linux 共用の場合は代替手順を検討）。
+> `date` コマンドは OS によって異なる（Mac/Linux 共用の場合は代替手順を検討）。
 
 ### Step 3: 症状を再現する
 
@@ -78,9 +92,10 @@ grep -E "(FATAL_ERROR|EXCEPTION_THROWN|SOQL_EXECUTE_BEGIN|CODE_UNIT_STARTED|USER
 
 ### Step 5: TraceFlag の後片付け
 
+Step 2 で作った TraceFlag を削除する（期限が切れても組織に残る）。Step 2 で既存の TraceFlag を使った場合は行わない:
+
 ```bash
-# TraceFlag を削除（期限が来れば自動削除されるが明示的に消す）
-sf data delete record --sobject TraceFlag --record-id <TraceFlagId> --target-org <sandbox-alias> --json
+sf data delete record --use-tooling-api --sobject TraceFlag --record-id <作成した TraceFlagId> --target-org <sandbox-alias> --json
 ```
 
 ## 出力
@@ -116,7 +131,7 @@ investigation.md「根本原因」セクションに追記:
 
 ## 禁止事項
 
-- **本番組織での TraceFlag 設定は禁止**（TraceFlag・DebugLevel のレコード作成＝本番への書き込みのため）。本番に既に存在するデバッグログの一覧・内容の読み取り（`sf apex list log` / `sf apex get log`）は読み取りのため許可不要で行ってよい
+- **本番組織での TraceFlag 設定は禁止**（TraceFlag・DebugLevel のレコードの作成・更新・削除＝本番への書き込みのため）。本番に既に存在するデバッグログの一覧・内容の読み取り（`sf apex list log` / `sf apex get log`）は読み取りのため許可不要で行ってよい
 - 本番に対する INSERT / UPDATE / DELETE / UPSERT / DML 実行は絶対禁止
 - context 肥大を防ぐため、ログ全文を investigation.md に貼り付けない。抽出した重要行のみを記録する
 
