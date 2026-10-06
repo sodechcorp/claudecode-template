@@ -85,7 +85,7 @@ echo "INSTANCE_URL=$INSTANCE_URL"
 
 確認では「どの処理が・どのアドレスに・なぜ回避できないか」と推奨（例: その TC だけ送信処理の手前までで確認する／配信性（Email Deliverability）を「システムメールのみ」に変更する〔組織設定の変更は Claude が行わず担当者が実施〕）を示す。担当者の判断は `{log_dir}/.email-safety.json` に記録し、同じ課題で送信処理・送信先が変わらない再実行では再確認しない。
 
-> このチェックを実施するエージェント: `auto-evidence-runner.md`（Step 1.5）/ `backlog-repro-runner.md`（Step 4.5・Step 5 の Sandbox 検証直前）
+> このチェックを実施するエージェント: `auto-evidence-runner.md`（Step 1.5）/ `backlog-repro-runner.md`（Step 4.5・Step 5 の Sandbox 検証直前）/ `backlog-investigator.md`（調査原則「Sandbox のデータは変えずに確かめる」）
 
 ---
 
@@ -121,9 +121,9 @@ sf org login web --alias <alias> --instance-url https://<instance>.salesforce.co
 
 Sandbox 操作（sf apex run test / sf project deploy / SOQL 等）の直前に本テンプレートを参照してチェックを実施する。チェックが失敗した場合は操作を中断してユーザーに確認を取る。
 
-> このテンプレートを参照するエージェント: `backlog-tester.md` / `backlog-releaser.md` / `backlog-validator.md`（SOQL dryrun 時）/ `backlog-repro-runner.md`（バグ再現・仮説検証）/ `auto-evidence-runner.md`（テスト証跡採取）
+> このテンプレートを参照するエージェント: `backlog-tester.md` / `backlog-releaser.md` / `backlog-validator.md`（SOQL dryrun 時）/ `backlog-repro-runner.md`（バグ再現・仮説検証）/ `auto-evidence-runner.md`（テスト証跡採取）/ `backlog-investigator.md`（Phase 1 の匿名 Apex。メール到達安全確認のみ・回避できなければ確認せず未試行）
 >
-> 上記のうち実データへの DML・匿名Apex 実行・UI 上での書き込み操作を行う `backlog-repro-runner.md` と `auto-evidence-runner.md` は、当該操作の直前に「メール到達安全確認」も追加で実施する（上記セクション参照）。
+> 上記のうち実データへの DML・匿名Apex 実行・UI 上での書き込み操作を行うエージェントは、当該操作の直前に「メール到達安全確認」も実施する（実施するエージェントは「メール到達安全確認」セクション末尾の一覧）。
 >
 > **例外（インライン複製）**: `test.md` の Phase A は「エイリアス取得」「Sandbox 判定」のロジックを Read 参照ではなく意図的にインライン複製している（Phase A 全体が単一 bash フェンスのハーネス直接実行で、後続ステップと `SF_ALIAS` 等の変数を共有する構成のため）。判定条件に `instanceUrl` による OR 条件を独自に追加している点も含め、本テンプレートを改修する際は `test.md` 側との整合を確認すること。
 

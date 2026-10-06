@@ -20,7 +20,7 @@ Apex デバッグログを取得・解析し、バグの発生箇所・例外内
    sf apex log list --target-org <症状が出た組織の alias> --json
    ```
    - 課題の発生時刻に近いログがあれば `sf apex log get --log-id <logId> --target-org <同じ alias> > /tmp/apex_debug.log` で取得 → Step 4 の「重要箇所を抽出」から解析する
-   - 関係するログがなければ Step 2 へ。Step 3 の匿名 Apex で再現できない症状なら Step 2 以降は行わない（バグは Phase 1.6 が画面で再現する）
+   - 関係するログがなければ Step 2 へ。Step 3 の匿名 Apex で再現できない症状・Step 3 の参照先で実行しないもの（未試行とするもの）なら Step 2 以降は行わない（バグは Phase 1.6 が画面で再現する）
 
 ### Step 2: TraceFlag 設定（ログ有効化）
 
@@ -45,7 +45,7 @@ sf data create record --sobject TraceFlag \
 
 ### Step 3: 症状を再現する
 
-課題の操作（investigation.md の「再現条件」）がサーバー側で呼ぶ処理（同じ DML・同じ Apex メソッド）を、Sandbox で匿名 Apex から実行する。匿名 Apex は接続ユーザーで動くため、画面側の処理や操作ユーザーの権限で決まる症状は再現できない:
+課題の操作（investigation.md の「再現条件」）がサーバー側で呼ぶ処理（同じ DML・同じ Apex メソッド）を、Sandbox で匿名 Apex から実行する（実行前の確認と rollback は [backlog-investigator.md](../../../agents/backlog-investigator.md)「調査原則」の「Sandbox のデータは変えずに確かめる」のとおり）。匿名 Apex は接続ユーザーで動くため、画面側の処理や操作ユーザーの権限で決まる症状は再現できない:
 ```bash
 sf apex run --file /tmp/reproduce_bug.apex --target-org <sandbox-alias> --json
 ```
