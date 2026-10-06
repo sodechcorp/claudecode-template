@@ -79,7 +79,7 @@
 | 対応履歴・判断記録 | `docs/decisions.md` | 自動 | `/backlog` 完了時に自動追記 | 保守・開発の判断根拠。`/backlog` 完了時に自動追記 |
 | Salesforceメタデータ | `force-app/main/default/` | SFDX | `/sf-retrieve` 実行後（初回・定期同期） | Apexクラス・LWC・フロー等（`/sf-retrieve` 実行後に生成） |
 | package.xml | `manifest/package.xml` | `/sf-retrieve` | `/sf-retrieve` 実行後 | 全量（推奨） / 個別指定の2モード（旧 standard は all に統合済み） |
-| エビデンス.xlsx / test-report.md | `docs/logs/{issueID}/` ほか | `/test` | 実装後テスト実行時（`/backlog` Phase 5 PASS 後） | テスト証跡・スクショ・OK/NG 判定・テスト結果サマリー |
+| エビデンス.xlsx / test-report.md | `docs/logs/{issueID}/` ほか（エビデンス.xlsx と `evidence/before/` は `/test` Phase G が共有フォルダにもコピー） | `/test` | 実装後テスト実行時（`/backlog` Phase 5 PASS 後） | テスト証跡・スクショ・OK/NG 判定・テスト結果サマリー |
 
 ---
 

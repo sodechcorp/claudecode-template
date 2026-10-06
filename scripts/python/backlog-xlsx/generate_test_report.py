@@ -130,7 +130,8 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
         reason = _extract_paren_reason(row.get("自動化可否", ""), "要手動")
         lines.append(f"| {no} | {label} | {reason} |")
     lines.append("")
-    lines.append("エビデンス.xlsx「証跡」シートの該当ケース枠にスクリーンショットを貼り付けてください。"
+    lines.append("エビデンス.xlsx（/test Phase G で共有フォルダに保存した場合はそちら）の「証跡」シートの該当ケース枠に"
+                 "スクリーンショットを貼り付けてください（/test を再実行すると上書きされるため、最後の /test の後に貼る）。"
                  "操作手順は test-spec.md の該当 No「テスト手順」列（無ければ「前提・データ準備」＋「実行アクション」）"
                  "を参照。要手動ケースは Claude がレコードを作成していない"
                  "（外部サービス通信・本番限定データ・実時刻起動が理由のため）ので、"

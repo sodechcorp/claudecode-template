@@ -397,7 +397,7 @@ deploy_route: normal
 
 ---
 
-> **対応記録.xlsx は廃止済み（2026-09-18）**: investigation.md / approach-plan.md 等の内容を xlsx 形式に転記しているだけの二重表現だったため廃止した（`§シート構成と意味性` `§対応記録 xlsx 責務分担表` は削除済み）。証跡は `/test {issueID}` が生成するエビデンス.xlsx（別ファイル）に一元化されている。
+> **対応記録.xlsx は廃止済み（2026-09-18）**: investigation.md / approach-plan.md 等の内容を xlsx 形式に転記しているだけの二重表現だったため廃止した（`§シート構成と意味性` `§対応記録 xlsx 責務分担表` は削除済み）。証跡は `/test {issueID}` が生成するエビデンス.xlsx（別ファイル）に一元化されている。エビデンス.xlsx と `evidence/before/`（xlsx に入らない実装前・操作前の証跡）は `/test` Phase G が共有フォルダ（`docs/.backlog_config.yml` の `report_dir` 配下の課題フォルダ）へコピーする（2026-10-06。廃止時に共有フォルダへの保存も一緒に無くなっていたため戻した）。
 
 ## § 人が読む欄の日本語・表示ラベル規約
 
@@ -437,4 +437,4 @@ xlsx・MD 成果物の **人が読む欄**（概要・メリット・デメリ�
 
 > `{issueID}` は Backlog の課題キー（`[A-Z]{2,}-\d+`、例 `GF-341`）。`docs/knowledge/cases/{issueKey}.md` のファイル名で使う `{issueKey}` と**同一値**で、作業フォルダ・中間成果物系では `{issueID}`、cases ナレッジファイル名では `{issueKey}` と表記を使い分ける。
 
-> `{report_dir}` / `{xlsx_create}` / `{xlsx_folder}` / `{evidence_dir}`（固定パス `docs/logs/{issueID}/evidence` に統一）・`.backlog_config.yml` の `xlsx_default` キーは対応記録.xlsx 廃止（2026-09-18）に伴い削除済み。
+> `{report_dir}` / `{xlsx_create}` / `{xlsx_folder}` / `{evidence_dir}`（固定パス `docs/logs/{issueID}/evidence` に統一）・`.backlog_config.yml` の `xlsx_default` キーは対応記録.xlsx 廃止（2026-09-18）に伴い削除済み。`.backlog_config.yml` の `report_dir` キーは `/test` Phase G（証跡の共有フォルダ保存）が `share_evidence.py` 経由で使う（プレースホルダーとしては使わない）。

@@ -40,7 +40,7 @@ argument-hint: "[課題ID]"
 - `approach-plan.md` — 対応方針
 - `implementation-plan.md` — 実装方針（全判断ポイント確定版）
 
-**エビデンス保存先**: `docs/logs/{issueID}/evidence/{before,after}/`（固定。対応記録 xlsx は廃止済み・証跡は `/test` が生成するエビデンス.xlsx に一元化）
+**エビデンス保存先**: `docs/logs/{issueID}/evidence/{before,after}/`（固定。対応記録 xlsx は廃止済み・after の証跡は `/test` が生成するエビデンス.xlsx に埋め込む。エビデンス.xlsx と `evidence/before/` は `/test` Phase G が共有フォルダ〔`docs/.backlog_config.yml` の `report_dir` 配下の課題フォルダ〕へコピーする）
 
 ---
 
