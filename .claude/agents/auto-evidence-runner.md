@@ -195,8 +195,8 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 **生成指針**:
 - **各 TC のコードは独立生成する**（TC 間でロジックを混ぜない。1 ファイル = 1 TC に完結させる）。
 - テストデータ insert には必ず `Name` 列に `AUTOTEST_{issueID}_{TC_No}_` プレフィックスを付ける（Sandbox 上での識別・目視確認用。削除はしない）。
-- **永続化するか rollback するかの判定基準**: 当該 TC の「期待結果」「証跡取得」「確認ポイント（着眼点）」列に画面確認・目視確認を示す記載がある、後続の UI TC の「前提・データ準備」列が当該 TC のデータを参照している、または起動する処理（前提・データ準備の DML を含む。保存時に連動する処理は `{log_dir}/investigation.md`「## スコープ」と force-app で確かめ、判定できなければ永続化する）が非同期処理（future・Queueable・Batch・プラットフォームイベントの購読側）を投入するか同じ匿名 Apex の中でコールアウトする場合は**永続化**する（Savepoint の rollback で投入済みの非同期処理が取り消されるとは限らず、Savepoint があるとコールアウトは失敗する）。それ以外（AnonApex 内の SOQL・debug 出力だけで検証が完結する TC）は `Database.setSavepoint()` → ロジック/Flow 起動 → 結果確認 → `Database.rollback()` のパターンを優先する（並列安全）。
-- **2回に分けて実行する TC**: 非同期処理を投入する TC は、結果が匿名 Apex の終了後に出るため、自己検証を確認用の `{No}_check.apex` に分け、3-3b で完了を待ってから実行する。同じ匿名 Apex の中でコールアウトする TC は、DML の後のコールアウトも失敗するため、データ準備の DML があれば `{No}_anon.apex` に、コールアウトする処理の起動と自己検証を `{No}_check.apex` に分ける（DML が無ければ分けない）。2回目は1回目が作ったレコードを、1回目の証跡の `CREATED_RECORD` 行の Id で取り直す（差分再実行では同じ TC の前回のレコードも残っているため。Id は 3-3b で埋める）。
+- **永続化するか rollback するかの判定基準**: 当該 TC の「期待結果」「証跡取得」「確認ポイント（着眼点）」列に画面確認・目視確認を示す記載がある、後続の UI TC の「前提・データ準備」列が当該 TC のデータを参照している、起動する処理（前提・データ準備の DML を含む。保存時に連動する処理は `{log_dir}/investigation.md`「## スコープ」と force-app で確かめ、判定できなければ永続化する）が非同期処理（future・Queueable・Batch・プラットフォームイベントの購読側）を投入するか同じ匿名 Apex の中でコールアウトする、または期待結果がレコードトリガーフローの非同期パス・スケジュール済みパス（flow-meta.xml の `<start>` の `<scheduledPaths>`）の結果を含む場合は**永続化**する（Savepoint の rollback で投入済みの非同期処理が取り消されるとは限らず、Savepoint があるとコールアウトは失敗し、非同期パス・スケジュール済みパスは rollback すると動かない）。それ以外（AnonApex 内の SOQL・debug 出力だけで検証が完結する TC）は `Database.setSavepoint()` → ロジック/Flow 起動 → 結果確認 → `Database.rollback()` のパターンを優先する（並列安全）。
+- **2回に分けて実行する TC**: 非同期処理を投入する TC と、期待結果が非同期パス・スケジュール済みパスの結果を含む TC は、結果が匿名 Apex の終了後に出るため、自己検証を確認用の `{No}_check.apex` に分け、3-3b で完了を待ってから実行する。同じ匿名 Apex の中でコールアウトする TC は、DML の後のコールアウトも失敗するため、データ準備の DML があれば `{No}_anon.apex` に、コールアウトする処理の起動と自己検証を `{No}_check.apex` に分ける（DML が無ければ分けない）。2回目は1回目が作ったレコードを、1回目の証跡の `CREATED_RECORD` 行の Id で取り直す（差分再実行では同じ TC の前回のレコードも残っているため。Id は 3-3b で埋める）。
 - **永続化するレコード（rollback しないもの）は必ず `System.debug('CREATED_RECORD|' + record.getSObjectType() + '|' + record.Id + '|' + {識別値} + '|{No}');` 形式で1レコード1行 debug する**（末尾の `{No}` は生成中の当該 TC 番号をリテラルとして埋め込む。[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 の統一フォーマットに合わせるためのマーカー。3-4 で集約する。`rollback` する一時データは目視不可のため出力しない＝正しい挙動）。**`{識別値}` は対象 SObject に `Name` 項目がある場合のみ `record.Name` を使う。`Name` 項目を持たない標準オブジェクト（例: `Case` は `record.CaseNumber`、`Task`/`Event` は `record.Subject`）はその代替識別項目を使い、適切な代替が無い場合はリテラル文字列（例: SObject 名）を使う（`record.Name` は当該 SObject に存在しない場合コンパイルエラーになるため、TC ごとに実際の SObject 型を確認して個別に選ぶ）**。
 - `System.debug()` で結果・件数・フィールド値を出力し証跡に残す。**必ず「入力値→処理経路→結果値」を全て debug する**。
 - **自己検証の出力（必須）**: 処理を起動した後（rollback する TC は rollback の前に、2回に分けて実行する TC は `{No}_check.apex` で）、期待結果に書かれた確認対象を SOQL で取り直し、期待値と1項目ずつ比較して `System.debug('CHECK|' + {確認項目} + '|期待=' + {期待値} + '|実際=' + {実際値} + '|' + (一致 ? 'OK' : 'NG'));` を出力し、最後に `System.debug('NG項目数=' + ng + '/' + total + (ng == 0 ? ' (PASS)' : ''));` を1行出力する（`judge_results.py` はこの行で OK/NG を機械判定する。無いと AI 判定に回り遅くなる）。期待結果が `例外なし` の TC のみ比較出力は不要
@@ -224,7 +224,7 @@ mkdir -p "{log_dir}/tmp"
 ]
 ```
 
-2回に分けて実行する TC の `{No}_check.apex` は、同じ形式で `{log_dir}/tmp/anon_check_cases.json`（プラットフォームイベントの購読側を待つ TC は `{log_dir}/tmp/anon_check_pe_cases.json`）に Write する（`out` は `{log_dir}/tmp/{No}_check.txt`）。
+2回に分けて実行する TC の `{No}_check.apex` は、同じ形式で `{log_dir}/tmp/anon_check_cases.json`（AsyncApexJob に出ない処理〔プラットフォームイベントの購読側・非同期パス・スケジュール済みパス〕を待つ TC は `{log_dir}/tmp/anon_check_pe_cases.json`）に Write する（`out` は `{log_dir}/tmp/{No}_check.txt`）。
 
 #### 3-3: 一括並列実行 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
@@ -274,7 +274,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 cat "{log_dir}/tmp/{No}_check.txt" >> "{1回目の out}"
 ```
 
-3. プラットフォームイベントの購読側を待つ TC（AsyncApexJob に出ない）は、`{No}_check.apex` に購読側が処理したことを示す項目も CHECK に含め、全件 PASS になるまで再実行してから（5分で打ち切り）、最後の出力を 2. と同じく足す（打ち切ったときに購読側が処理したことを示す項目がまだ NG の TC は、出力の代わりに `判定: 未確認 — 購読側の処理を時間内に確かめられなかった` を足す）:
+3. AsyncApexJob に出ない処理（プラットフォームイベントの購読側・レコードトリガーフローの非同期パスとスケジュール済みパス）を待つ TC は、`{No}_check.apex` にその処理が終わったことを示す項目も CHECK に含め、全件 PASS になるまで再実行してから（5分で打ち切り）、最後の出力を 2. と同じく足す（打ち切ったときにその処理が終わったことを示す項目がまだ NG の TC は、出力の代わりに `判定: 未確認 — 購読側・非同期パス・スケジュール済みパスの処理を時間内に確かめられなかった` を足す）:
 
 ```bash
 SECONDS=0
@@ -290,7 +290,7 @@ while :; do
 done
 ```
 
-   示す項目が無い場合（否定側の期待で購読側が何も変えない等）は、2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 購読側の完了を確かめる手段が無く、結果を確認していない` と1行足す。
+   示す項目が無い場合（否定側の期待で何も変えない等）は、2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 購読側・非同期パス・スケジュール済みパスの完了を確かめる手段が無く、結果を確認していない` と1行足す。
 
 #### 3-4: 作成レコードの目視URL集約 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 

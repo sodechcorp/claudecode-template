@@ -59,7 +59,7 @@ sf data create record --use-tooling-api --sobject TraceFlag \
 
 ### Step 3: 症状を再現する
 
-課題の操作（investigation.md の「再現条件」）がサーバー側で呼ぶ処理（同じ DML・同じ Apex メソッド）を、Sandbox で匿名 Apex から実行する（実行前の確認と rollback は [backlog-investigator.md](../../../agents/backlog-investigator.md)「調査原則」の「Sandbox のデータは変えずに確かめる」のとおり）。匿名 Apex は接続ユーザーで動くため、画面側の処理や操作ユーザーの権限で決まる症状は再現できない:
+課題の操作（investigation.md の「再現条件」）がサーバー側で呼ぶ処理（同じ DML・同じ Apex メソッド）を、Sandbox で匿名 Apex から実行する（実行前の確認と rollback は [backlog-investigator.md](../../../agents/backlog-investigator.md)「調査原則」の「Sandbox のデータは変えずに確かめる」のとおり）。匿名 Apex は接続ユーザーで動き、処理を rollback するため、画面側の処理や操作ユーザーの権限で決まる症状と、レコードトリガーフローの非同期パス・スケジュール済みパスで起きる症状は再現できない:
 ```bash
 sf apex run --file /tmp/reproduce_bug.apex --target-org <sandbox-alias> --json
 ```

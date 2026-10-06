@@ -125,7 +125,7 @@ Sandbox の接続先（URL・認証情報）は本番からコピーされたま
 
 確認では「どの処理が・どの接続先へ・何を送るか」と推奨（例: その TC だけ呼び出しの手前までで確認する／Sandbox の接続先を試験用に付け替える〔組織設定の変更は Claude が行わず担当者が実施〕／いつも呼んでよい接続先ならプロジェクトの `CLAUDE.md` に書く）を示す。担当者の判断はメール到達安全確認の Step 4 と同じく `{log_dir}/.email-safety.json` に記録し（書く主体も同じ）、同じ課題で呼び出し・接続先が変わらない再実行では再確認しない。
 
-> このチェックを実施するエージェント: メール到達安全確認の一覧と同じ。ただし `backlog-investigator.md` は Step 1 だけ行い、該当するものは実行しない
+> このチェックを実施するエージェント: メール到達安全確認の一覧と同じ。ただし `backlog-investigator.md` は Step 1 だけ行う（該当したものの扱いは同ファイルの調査原則「Sandbox のデータは変えずに確かめる」）
 
 ---
 
@@ -161,7 +161,7 @@ sf org login web --alias <alias> --instance-url https://<instance>.salesforce.co
 
 Sandbox 操作（sf apex run test / sf project deploy / SOQL 等）の直前に本テンプレートを参照してチェックを実施する。チェックが失敗した場合は操作を中断してユーザーに確認を取る。
 
-> このテンプレートを参照するエージェント: `backlog-tester.md` / `backlog-releaser.md` / `backlog-validator.md`（SOQL dryrun 時）/ `backlog-repro-runner.md`（バグ再現・仮説検証）/ `auto-evidence-runner.md`（テスト証跡採取）/ `backlog-investigator.md`（Phase 1 の匿名 Apex。メール到達安全確認と「外部システム呼び出しの確認」の Step 1 のみ・回避できない／該当するものは確認せず未試行）
+> このテンプレートを参照するエージェント: `backlog-tester.md` / `backlog-releaser.md` / `backlog-validator.md`（SOQL dryrun 時）/ `backlog-repro-runner.md`（バグ再現・仮説検証）/ `auto-evidence-runner.md`（テスト証跡採取）/ `backlog-investigator.md`（Phase 1 の匿名 Apex。メール到達安全確認と「外部システム呼び出しの確認」の Step 1 のみ。回避できない・該当したものの扱いは同ファイルの調査原則「Sandbox のデータは変えずに確かめる」）
 >
 > 上記のうち実データへの DML・匿名Apex 実行・UI 上での書き込み操作を行うエージェントは、当該操作の直前に「メール到達安全確認」「外部システム呼び出しの確認」も実施する（実施するエージェントは各セクション末尾の一覧）。
 >
