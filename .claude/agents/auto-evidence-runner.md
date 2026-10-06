@@ -154,11 +154,11 @@ mkdir -p "{evidence_dir}/before"
 
 ---
 
-## Step 1.5: メール到達安全確認（AnonApex または UI ケースがある場合のみ）
+## Step 1.5: メール到達安全確認・外部システム呼び出しの確認（AnonApex または UI ケースがある場合のみ）
 
 種別 = AnonApex または UI のケースが1件以上ある場合（＝ Step 3/4 で実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作が発生しうる場合）に実施する。SOQL のみの場合はスキップする。**判定母集団は今回実際に Step 3/4 で実行する TC（`{target_tc_list}` による差分絞込後の集合。差分再実行モードでない場合は spec 全体）とする**（差分再実行で SOQL の TC のみが対象の回は、spec 全体に AnonApex/UI の TC が存在しても本ステップは不要）。
 
-> [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「メール到達安全確認」を Read して実施する（メール送信処理の有無 → 送信先の判定 → 自動回避 の順。お客様に届く可能性があり、かつ回避できない場合だけ担当者に確認し、判断を得るまで Step 3/4 に進まない）。自動回避でテストデータ・通知先ユーザーを差し替えた場合は、差し替えた内容を該当 TC の証跡と test-report に記録する。
+> [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「メール到達安全確認」「外部システム呼び出しの確認」を Read して実施する（メールは送信処理の有無 → 送信先の判定 → 自動回避 の順で、お客様に届く可能性があり、かつ回避できない場合だけ担当者に確認する。外部システム呼び出しは、接続先が本番と同じ（または特定できない）で、許可された接続先でない場合だけ担当者に確認する。判断を得るまで Step 3/4 に進まない）。自動回避でテストデータ・通知先ユーザーを差し替えた場合は、差し替えた内容を該当 TC の証跡と test-report に記録する。
 
 ---
 

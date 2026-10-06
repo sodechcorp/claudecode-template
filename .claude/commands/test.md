@@ -127,7 +127,7 @@ python -c "import json; json.dump({'issue_id':'$ISSUE_ID','project_dir':r'$PROJE
 
 `{log_dir}/test-report.md` に `## テスト結果:` 見出しがあれば、その見出しより後の最初の `### 総合判定` の次の行を `再テスト待ち — テストの完了で確定します` に Edit で書き換える（今回の /test が途中で止まったとき、前回の判定が完了扱いされないようにするため。test-report.md は Phase F で作り直される）。
 
-**実行内容の提示**（提示のみ・停止しない。ユーザーは `/test {issueID}` を明示入力済みで課題ID・Sandbox は確定済みのため。実データへの書き込みを伴う操作の承認は auto-evidence-runner.md Step 1.5（メール到達安全確認）に集約する）:
+**実行内容の提示**（提示のみ・停止しない。ユーザーは `/test {issueID}` を明示入力済みで課題ID・Sandbox は確定済みのため。実データへの書き込みを伴う操作の承認は auto-evidence-runner.md Step 1.5（メール到達安全確認・外部システム呼び出しの確認）に集約する）:
 
 ```
 === /test 実行内容 ===

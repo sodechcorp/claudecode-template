@@ -45,7 +45,7 @@ tools:
 直接の呼び出しはサポートしていません。
 ```
 
-**Write・Edit ツールは `{出力先}`・`{証跡保存先}/` 配下・`docs/logs/{issueID}/.email-safety.json`（Step 4.5 のメール到達安全確認の記録）・`{プロジェクトルート}/docs/knowledge/test-prerequisites.md`（Step 6-3 の前提知見還流専用）への出力のみに使用する。`force-app/` 等その他のファイルへの書き込みは禁止。**
+**Write・Edit ツールは `{出力先}`・`{証跡保存先}/` 配下・`docs/logs/{issueID}/.email-safety.json`（Step 4.5 の確認の記録）・`{プロジェクトルート}/docs/knowledge/test-prerequisites.md`（Step 6-3 の前提知見還流専用）への出力のみに使用する。`force-app/` 等その他のファイルへの書き込みは禁止。**
 
 ---
 
@@ -116,11 +116,11 @@ mkdir -p "{証跡保存先}/logs"
 
 ---
 
-## Step 4.5: メール到達安全確認（必須）
+## Step 4.5: メール到達安全確認・外部システム呼び出しの確認（必須）
 
 Step 5 の検証（実データへの DML・匿名Apex 実行、および UI 上での登録/更新/削除/承認操作）に入る直前に実施する。
 
-> [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「メール到達安全確認」を Read して実施する（メール送信処理の有無 → 送信先の判定 → 自動回避 の順。お客様に届く可能性があり、かつ回避できない場合だけ担当者に確認し、判断を得るまで Step 5 に進まない）。自動回避でテストデータ・通知先ユーザーを差し替えた場合は、差し替えた内容を `{出力先}` の「対象環境」に記録する（Step 5-0 参照）。
+> [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「メール到達安全確認」「外部システム呼び出しの確認」を Read して実施する（メールは送信処理の有無 → 送信先の判定 → 自動回避 の順で、お客様に届く可能性があり、かつ回避できない場合だけ担当者に確認する。外部システム呼び出しは、接続先が本番と同じ（または特定できない）で、許可された接続先でない場合だけ担当者に確認する。判断を得るまで Step 5 に進まない）。自動回避でテストデータ・通知先ユーザーを差し替えた場合は、差し替えた内容を `{出力先}` の「対象環境」に記録する（Step 5-0 参照）。
 
 ---
 
