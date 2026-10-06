@@ -19,11 +19,11 @@ investigation.md と課題本文から以下を把握する:
 ```bash
 # 症状ありレコード（課題で名指しされた条件）
 sf data query --query "SELECT {調査対象フィールドリスト} FROM {Object} WHERE {症状発生条件} LIMIT 5" \
-  --target-org <sandbox-alias> --json
+  --target-org <症状が出た組織の alias> --json
 
 # 症状なしレコード（正常動作する同種レコード）
 sf data query --query "SELECT {調査対象フィールドリスト} FROM {Object} WHERE {正常条件} LIMIT 5" \
-  --target-org <sandbox-alias> --json
+  --target-org <症状が出た組織の alias> --json
 ```
 
 **調査対象フィールドリスト の選び方**:
@@ -31,8 +31,6 @@ sf data query --query "SELECT {調査対象フィールドリスト} FROM {Objec
 2. investigation.md の「使用中のフィールドAPI名」セクションにあるフィールド
 3. Step C で読んだコードで条件分岐に使われているフィールド
 4. 不明な場合は `FIELDS(ALL)` を使うが LIMIT 5 以下にする
-
-> Sandbox にデータが存在しない場合は本番で SELECT する（`option-prod-select-reference` 準拠・許可不要）。
 
 ### Step 3: フィールド差分の比較
 

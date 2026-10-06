@@ -31,7 +31,7 @@ options:
       - Sandbox データで十分確認可能
       - データ変更を含まない純粋な UI 変更
       - 権限上の問題で本番 SELECT 不可
-    estimated-cost: 重
+    estimated-cost: 軽
     default-when-uncertain: skip
 
   - name: option-unit-test-creation

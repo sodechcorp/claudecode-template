@@ -260,7 +260,7 @@ options:
     estimated-cost: 中
 
   - name: option-apex-debug-log
-    description: Sandbox で Apex デバッグログを取得・解析し、バグの発生箇所・例外内容・実行時変数値を特定
+    description: Apex デバッグログを取得・解析し、バグの発生箇所・例外内容・実行時変数値を特定
     category: A
     auto-execute-when:
       - 種別がバグ（自明バグを除く）で Apex / Trigger / Flow が関与する処理

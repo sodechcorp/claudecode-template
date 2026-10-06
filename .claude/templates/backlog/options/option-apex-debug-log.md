@@ -12,14 +12,14 @@ Apex デバッグログを取得・解析し、バグの発生箇所・例外内
    ```bash
    sf org display --target-org <sandbox-alias> --json
    ```
-   - `isSandbox: true` であること。本番（false）ではこのオプションを実行しない
+   - `isSandbox: true` であること。本番（false）では Step 2 以降（TraceFlag 設定・再現）を実行しない
    - alias が不明な場合: `sf config list --json` で `target-org` を確認する
    
-2. 既存ログの確認（直近ログがあれば再現前に取得を試みる）:
+2. 既存ログの確認（直近ログがあれば再現前に取得を試みる）。症状が出た組織で見る:
    ```bash
-   sf apex log list --target-org <sandbox-alias> --json
+   sf apex log list --target-org <症状が出た組織の alias> --json
    ```
-   - 課題の発生時刻に近いログがあれば `sf apex log get` で取得 → Step 4 へ
+   - 課題の発生時刻に近いログがあれば `sf apex log get --log-id <logId> --target-org <同じ alias> > /tmp/apex_debug.log` で取得 → Step 4 の「重要箇所を抽出」から解析する
    - 関係するログがなければ Step 2 へ
 
 ### Step 2: TraceFlag 設定（ログ有効化）

@@ -2,8 +2,6 @@
 
 本番組織に対して **read-only 操作のみ**を行う前に接続先を確認する。`sandbox-alias-check.md` は Sandbox 強制（`isSandbox:false` で `exit 1`）のため本番を読むこと自体ができない。本テンプレートはその逆で「本番であることを確認した上で read-only のみ許可する」ガード。
 
-> 参照元: `release-preparer.md`（Phase 1-1a の Tier 0 前倒し実行、Phase 4 の本番確認・バックアップ・差分の帰属確認、Phase 7 のリリース後確認、バックアップ再取得モード）と `release.md`（Step 2b の手順書の再生成前の確認、Step 4 のバックアップ最新確認）、および `prod-ui-verifier.md`（`release.md` Step 5 の画面確認）と、`playwright-sf-screen-ops.md`「本番ガード」の本番 UI 確認モード（下記「本番 UI 確認」）のみ。他エージェントは `sandbox-alias-check.md`（Sandbox 強制）を使うこと。
-
 ## 前提
 
 **このガードを通過しても許可されるのは以下のみ**:
