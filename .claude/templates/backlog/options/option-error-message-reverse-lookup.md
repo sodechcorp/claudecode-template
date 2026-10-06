@@ -56,7 +56,7 @@ grep -r --include="*.cls" -n -A 10 -B 10 "<エラー文言>" force-app/
 
 ### Step 4: Sandbox での条件再現
 
-Step 3 で特定した条件を使って、Sandbox で故意にエラーを再現できるか確認する（`option-apex-debug-log` と組み合わせると効果的）。
+Step 3 で特定した条件を使って、Sandbox で故意にエラーを再現できるか sf CLI（データの作成・更新・匿名 Apex）で確認する（`option-apex-debug-log` と組み合わせると効果的）。LWC の表示や操作ユーザーの権限で決まる条件は sf CLI では再現できないため、再現しなくても発生源から外さない（バグは Phase 1.6 が画面で再現する）。
 
 ## 出力
 

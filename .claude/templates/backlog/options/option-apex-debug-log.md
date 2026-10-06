@@ -20,15 +20,15 @@ Apex デバッグログを取得・解析し、バグの発生箇所・例外内
    sf apex log list --target-org <症状が出た組織の alias> --json
    ```
    - 課題の発生時刻に近いログがあれば `sf apex log get --log-id <logId> --target-org <同じ alias> > /tmp/apex_debug.log` で取得 → Step 4 の「重要箇所を抽出」から解析する
-   - 関係するログがなければ Step 2 へ
+   - 関係するログがなければ Step 2 へ。Step 3 の匿名 Apex で再現できない症状なら Step 2 以降は行わない（バグは Phase 1.6 が画面で再現する）
 
 ### Step 2: TraceFlag 設定（ログ有効化）
 
-課題で報告された操作ユーザーに合わせて TraceFlag を設定する:
+Step 3 の匿名 Apex を実行する接続ユーザー（Step 1 の `sf org display` の `username`）に TraceFlag を設定する:
 
 ```bash
-# 操作ユーザーのIDを取得
-sf data query --query "SELECT Id, Name, Username FROM User WHERE Username = '<username>' LIMIT 1" \
+# 接続ユーザーのIDを取得
+sf data query --query "SELECT Id, Name, Username FROM User WHERE Username = '<接続ユーザーの username>' LIMIT 1" \
   --target-org <sandbox-alias> --json
 
 # TraceFlag を設定（30分）
@@ -45,12 +45,10 @@ sf data create record --sobject TraceFlag \
 
 ### Step 3: 症状を再現する
 
-investigation.md の「再現条件」セクション（Step A.5 で作成済み）に従い、Sandbox で操作を再現する:
-- Playwright MCP で UI 操作を行う（`mcp__playwright__browser_*`）
-- または「再現コマンドを実行する形式」であれば Anonymous Apex を使用する:
-  ```bash
-  sf apex run --file /tmp/reproduce_bug.apex --target-org <sandbox-alias> --json
-  ```
+課題の操作（investigation.md の「再現条件」）がサーバー側で呼ぶ処理（同じ DML・同じ Apex メソッド）を、Sandbox で匿名 Apex から実行する。匿名 Apex は接続ユーザーで動くため、画面側の処理や操作ユーザーの権限で決まる症状は再現できない:
+```bash
+sf apex run --file /tmp/reproduce_bug.apex --target-org <sandbox-alias> --json
+```
 
 再現後、すぐに Step 4 へ進む（TraceFlag の有効期限内に取得）。
 
@@ -94,7 +92,7 @@ investigation.md「根本原因」セクションに追記:
 
 - ログ取得日時: {YYYY-MM-DD HH:MM}
 - 再現操作: {何を行ったか}
-- 対象ユーザー: {Username / Profile}
+- 対象ユーザー: {Username / Profile}（匿名 Apex で再現した場合は接続ユーザー）
 
 ### 重要ログ抜粋
 
