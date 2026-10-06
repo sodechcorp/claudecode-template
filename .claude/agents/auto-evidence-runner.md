@@ -195,14 +195,15 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 **生成指針**:
 - **各 TC のコードは独立生成する**（TC 間でロジックを混ぜない。1 ファイル = 1 TC に完結させる）。
 - テストデータ insert には必ず `Name` 列に `AUTOTEST_{issueID}_{TC_No}_` プレフィックスを付ける（Sandbox 上での識別・目視確認用。削除はしない）。
-- **永続化するか rollback するかの判定基準**: 当該 TC の「期待結果」「証跡取得」「確認ポイント（着眼点）」列に画面確認・目視確認を示す記載がある、または後続の UI TC の「前提・データ準備」列が当該 TC のデータを参照している場合は**永続化**する。それ以外（AnonApex 内の SOQL・debug 出力だけで検証が完結する TC）は `Database.setSavepoint()` → ロジック/Flow 起動 → 結果確認 → `Database.rollback()` のパターンを優先する（並列安全）。
+- **永続化するか rollback するかの判定基準**: 当該 TC の「期待結果」「証跡取得」「確認ポイント（着眼点）」列に画面確認・目視確認を示す記載がある、後続の UI TC の「前提・データ準備」列が当該 TC のデータを参照している、または起動する処理（前提・データ準備の DML を含む。保存時に連動する処理は `{log_dir}/investigation.md`「## スコープ」と force-app で確かめ、判定できなければ永続化する）が非同期処理（future・Queueable・Batch・プラットフォームイベントの購読側）を投入するか同じ匿名 Apex の中でコールアウトする場合は**永続化**する（Savepoint の rollback で投入済みの非同期処理が取り消されるとは限らず、Savepoint があるとコールアウトは失敗する）。それ以外（AnonApex 内の SOQL・debug 出力だけで検証が完結する TC）は `Database.setSavepoint()` → ロジック/Flow 起動 → 結果確認 → `Database.rollback()` のパターンを優先する（並列安全）。
+- **2回に分けて実行する TC**: 非同期処理を投入する TC は、結果が匿名 Apex の終了後に出るため、自己検証を確認用の `{No}_check.apex` に分け、3-3b で完了を待ってから実行する。同じ匿名 Apex の中でコールアウトする TC は、DML の後のコールアウトも失敗するため、データ準備の DML があれば `{No}_anon.apex` に、コールアウトする処理の起動と自己検証を `{No}_check.apex` に分ける（DML が無ければ分けない）。2回目は1回目が作ったレコードを、1回目の証跡の `CREATED_RECORD` 行の Id で取り直す（差分再実行では同じ TC の前回のレコードも残っているため。Id は 3-3b で埋める）。
 - **永続化するレコード（rollback しないもの）は必ず `System.debug('CREATED_RECORD|' + record.getSObjectType() + '|' + record.Id + '|' + {識別値} + '|{No}');` 形式で1レコード1行 debug する**（末尾の `{No}` は生成中の当該 TC 番号をリテラルとして埋め込む。[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 の統一フォーマットに合わせるためのマーカー。3-4 で集約する。`rollback` する一時データは目視不可のため出力しない＝正しい挙動）。**`{識別値}` は対象 SObject に `Name` 項目がある場合のみ `record.Name` を使う。`Name` 項目を持たない標準オブジェクト（例: `Case` は `record.CaseNumber`、`Task`/`Event` は `record.Subject`）はその代替識別項目を使い、適切な代替が無い場合はリテラル文字列（例: SObject 名）を使う（`record.Name` は当該 SObject に存在しない場合コンパイルエラーになるため、TC ごとに実際の SObject 型を確認して個別に選ぶ）**。
 - `System.debug()` で結果・件数・フィールド値を出力し証跡に残す。**必ず「入力値→処理経路→結果値」を全て debug する**。
-- **自己検証の出力（必須）**: 処理を起動した後（rollback する TC は rollback の前に）、期待結果に書かれた確認対象を SOQL で取り直し、期待値と1項目ずつ比較して `System.debug('CHECK|' + {確認項目} + '|期待=' + {期待値} + '|実際=' + {実際値} + '|' + (一致 ? 'OK' : 'NG'));` を出力し、最後に `System.debug('NG項目数=' + ng + '/' + total + (ng == 0 ? ' (PASS)' : ''));` を1行出力する（`judge_results.py` はこの行で OK/NG を機械判定する。無いと AI 判定に回り遅くなる）。期待結果が `例外なし` の TC のみ比較出力は不要
+- **自己検証の出力（必須）**: 処理を起動した後（rollback する TC は rollback の前に、2回に分けて実行する TC は `{No}_check.apex` で）、期待結果に書かれた確認対象を SOQL で取り直し、期待値と1項目ずつ比較して `System.debug('CHECK|' + {確認項目} + '|期待=' + {期待値} + '|実際=' + {実際値} + '|' + (一致 ? 'OK' : 'NG'));` を出力し、最後に `System.debug('NG項目数=' + ng + '/' + total + (ng == 0 ? ' (PASS)' : ''));` を1行出力する（`judge_results.py` はこの行で OK/NG を機械判定する。無いと AI 判定に回り遅くなる）。期待結果が `例外なし` の TC のみ比較出力は不要
 - Flow 起動は `Flow.Interview.{Flow_API名}` または `Database.executeBatch` を使う。
 - **条件分岐の網羅（責務は spec 側に一本化・省略禁止）**: 分岐展開の要否は test-spec.md の「証跡取得」列（`分岐ラベル` フィールド）で判定する。当該 TC に `分岐ラベル` が列挙されている場合のみ、**各分岐ごとに別の入力データで実行し、それぞれ `System.debug` で経路・結果を出力する**（1 ファイル内で全分岐をカバー）。**`分岐ラベル` がない TC（= spec 側で分岐ごとに別 TC 行として分割済み）は当該 TC の実行アクションのみを実行し、他分岐を追加展開しない**（test-spec-builder.md §「観点」展開の注意 参照）。**`分岐ラベル` は 2026-08-18 以降の test-spec-builder.md（条件分岐は必ず別 TC 行）が生成する spec には出現しない旧仕様の名残りであり、手動で追加してはならない**（judge_results.py は分岐ラベル単位で期待結果を分割する機構を持たず、複数分岐の証跡に同一の期待結果文字列がそのまま逐語適用され誤 NG になる）。
 
-出力先ディレクトリを作成してから、生成した各 TC の Apex を `{log_dir}/tmp/{No}_anon.apex` に Write する:
+出力先ディレクトリを作成してから、生成した各 TC の Apex を `{log_dir}/tmp/{No}_anon.apex`（2回に分けて実行する TC の確認用は `{log_dir}/tmp/{No}_check.apex`）に Write する:
 ```bash
 mkdir -p "{log_dir}/tmp"
 ```
@@ -223,6 +224,8 @@ mkdir -p "{log_dir}/tmp"
 ]
 ```
 
+2回に分けて実行する TC の `{No}_check.apex` は、同じ形式で `{log_dir}/tmp/anon_check_cases.json`（プラットフォームイベントの購読側を待つ TC は `{log_dir}/tmp/anon_check_pe_cases.json`）に Write する（`out` は `{log_dir}/tmp/{No}_check.txt`）。
+
 #### 3-3: 一括並列実行 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 ```bash
@@ -240,7 +243,54 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 
 `{serial}` が true の場合は `--serial` を追加する。
 
-**exit code 1 は想定内（異常終了ではない）**: `run-batch` は対象 TC に 1 件でも失敗（コンパイルエラー・Apex 実行時例外・NG）があると exit code 1 を返す仕様。これは「1件以上 NG があった」ことを表すだけで、コマンド自体の失敗ではない。**exit code を理由に処理を中断せず、そのまま 3-4 に進む**（NG の内容は標準出力の `[NG] {No} ({観点}): {error}` 行で確認できる。コンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した証跡 txt が生成されるため、`judge_results.py` が自動で NG 判定する）。
+**exit code 1 は想定内（異常終了ではない）**: `run-batch` は対象 TC に 1 件でも失敗（コンパイルエラー・Apex 実行時例外・NG）があると exit code 1 を返す仕様。これは「1件以上 NG があった」ことを表すだけで、コマンド自体の失敗ではない。**exit code を理由に処理を中断せず、そのまま次に進む**（NG の内容は標準出力の `[NG] {No} ({観点}): {error}` 行で確認できる。コンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した証跡 txt が生成されるため、`judge_results.py` が自動で NG 判定する）。
+
+#### 3-3b: 2回目の実行（2回に分けて実行する TC がある場合のみ）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
+
+3-3 で1回目が失敗した TC（`[NG]` 行）は cases ファイルから外し、1回目がレコードを作った TC は `{No}_check.apex` に1回目の証跡の `CREATED_RECORD` 行の Id を埋める。2回目の出力は TC ごとに1回目の証跡（`anon_cases.json` のその TC の `out`）の末尾に1回だけ足す（`judge_results.py` は TC の証跡ファイルを全て判定し、`NG項目数=` は最初の1行を読むため、別ファイルにしたり重ねて足したりすると判定を誤る）。以下のコードは Bash の timeout に 600000 を指定して実行する。
+
+1. 非同期処理を投入する TC がある場合は、先に完了を待つ（future・Queueable・Batch は次の件数が 0 になるまで。8分で打ち切る）。0 件にならなければ、その TC は2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 非同期処理が時間内に完了せず、結果を確認していない` と1行足す（`judge_results.py` が NG〔未実行〕にする）:
+
+```bash
+SF_USER=$(sf org display --target-org "{alias}" --json | python -c "import json,sys; print(json.load(sys.stdin)['result']['username'])")
+SECONDS=0
+while [ $SECONDS -lt 480 ]; do
+  N=$(sf data query --target-org "{alias}" --json --query "SELECT COUNT() FROM AsyncApexJob WHERE CreatedBy.Username = '$SF_USER' AND JobType IN ('Future','Queueable','BatchApex') AND Status IN ('Holding','Queued','Preparing','Processing')" | python -c "import json,sys; print(json.load(sys.stdin)['result']['totalSize'])")
+  [ "$N" = "0" ] && break
+  sleep 10
+done
+echo "未完了の非同期処理: ${N} 件"
+```
+
+2. 2回目を実行して足す（`{serial_nos}`・`{serial}` の扱いは 3-3 と同じ）:
+
+```bash
+python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch \
+  --alias "{alias}" \
+  --cases-file "{log_dir}/tmp/anon_check_cases.json" \
+  --max-workers {max_workers_anon} \
+  --serial-nos "{serial_nos}" \
+  --sandbox-cache "{project_dir}/.sf/sandbox_check_cache.json"
+cat "{log_dir}/tmp/{No}_check.txt" >> "{1回目の out}"
+```
+
+3. プラットフォームイベントの購読側を待つ TC（AsyncApexJob に出ない）は、`{No}_check.apex` に購読側が処理したことを示す項目も CHECK に含め、全件 PASS になるまで再実行してから（5分で打ち切り）、最後の出力を 2. と同じく足す（打ち切ったときに購読側が処理したことを示す項目がまだ NG の TC は、出力の代わりに `判定: 未確認 — 購読側の処理を時間内に確かめられなかった` を足す）:
+
+```bash
+SECONDS=0
+while :; do
+  python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch \
+    --alias "{alias}" \
+    --cases-file "{log_dir}/tmp/anon_check_pe_cases.json" \
+    --max-workers {max_workers_anon} \
+    --sandbox-cache "{project_dir}/.sf/sandbox_check_cache.json"
+  [ -z "$(grep -L -E "^NG項目数=0/[1-9]" {その TC の {log_dir}/tmp/{No}_check.txt を空白区切りで})" ] && break
+  [ $SECONDS -ge 300 ] && break
+  sleep 30
+done
+```
+
+   示す項目が無い場合（否定側の期待で購読側が何も変えない等）は、2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 購読側の完了を確かめる手段が無く、結果を確認していない` と1行足す。
 
 #### 3-4: 作成レコードの目視URL集約 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
@@ -389,7 +439,7 @@ find "{evidence_dir}/after/screen" -name "*.png" -size -1k 2>/dev/null
 （`find ... -size -1k` は 1KB 未満の PNG のみを列挙する。出力が空なら全 PNG が 1KB 以上。`ls` はファイル一覧の存在確認用でサイズ検証はできないため、PNG サイズは `find` の結果で判定する。）
 
 - [ ] SOQL ケース: 全件 txt 出力あり（Step 2 の `[WARN]` で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する）
-- [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む。Step 3-3 のコンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する）
+- [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む。Step 3-3 のコンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する。2回に分けた TC は、1回目が成功していれば 3-3b の2回目の出力か `判定: 未確認` の1行が末尾に足されている）
 - [ ] UI ケース: ui-evidence-runner の返却で対象 TC 全件について結果行（OK / NG / 要手動）が返っている（PNG 各 1KB 以上・DOM スナップショット txt ありは `ok: true` 分のみ対象。**正当な NG（画面エラー検知等）・要手動（Login As 降格）は証跡採取の試行自体は完了しているため、この項目の未充足とはしない**。SOQL/AnonApex 項目と同様「証跡取得を試行し結果が出ているか」を基準とし、OK/NG 自体の最終判定は Phase D `judge_results.py` に委ねる）
 - [ ] （Phase F のみ）`{log_dir}/test-report.md` が存在すること（`generate_test_report.py` の実行漏れがないこと）
 - [ ] （Phase F のみ）Step 7 の追記（還流内容 or スキップ記録）が test-report.md に反映されていること

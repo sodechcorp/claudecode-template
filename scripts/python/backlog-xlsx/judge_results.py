@@ -392,6 +392,10 @@ def _expects_no_error(kiki: str, judge_method: str) -> bool:
     return any(w in text for w in ("例外なし", "エラーなし", "正常終了", "例外が発生しない", "エラーが発生しない"))
 
 
+# auto-evidence-runner 3-3b が手で書き足す「判定: 未確認 — {理由}」行（コロン・ダッシュの表記ゆれを許す）
+_UNCONFIRMED_RE = re.compile(r"^判定\s*[:：]\s*未確認(.*)$", re.MULTILINE)
+
+
 def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: str) -> dict:
     """1証跡ファイルを判定し {"ok": bool|None, "actual": str, "reason": str} を返す。"""
 
@@ -550,7 +554,7 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
             return {"ok": False, "actual": "AnonApex 実行エラー", "reason": m_err.group(1)[:80]}
         return {"ok": True, "actual": "AnonApex 実行成功（例外なし）", "reason": ""}
 
-    # 匿名 Apex の自己検証出力（auto-evidence-runner Step 3-1: 同じ匿名 Apex 内で結果を取り直して比較した結果）は
+    # 匿名 Apex の自己検証出力（auto-evidence-runner Step 3-1: 結果を取り直して比較した結果）は
     # 値照合より先に判定する（期待結果の文言そのものは証跡に出ないため、値照合に回すと偽 NG になる）
     m_self = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)", content)
     if m_self:
@@ -803,6 +807,15 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
                                "証跡採取エージェントの命名規約（{No}_接頭辞、TC- を剥がしたり付け足したりしない）を確認してください",
                     "ng_type": "命名不一致"}
         return {"ok": False, "actual": "", "reason": f"証跡ファイルが見つかりません (No: {no})", "ng_type": "未実行"}
+
+    # auto-evidence-runner 3-3b: 非同期処理の完了を確かめられず2回目を実行しなかった証跡は、
+    # 期待との不一致（実装バグ）ではないため、判定方法によらず未実行に倒す（自動修正ループに入れない）
+    for fpath in all_files:
+        if fpath.lower().endswith(".txt"):
+            m_unconfirmed = _UNCONFIRMED_RE.search(_read_text_evidence(fpath))
+            if m_unconfirmed:
+                return {"ok": False, "actual": "未確認", "reason": m_unconfirmed.group(1).strip().strip(" -—–（）()"),
+                        "ng_type": "未実行"}
 
     # F-7: 状態遷移前後比較（before/after DOM テキストを突き合わせる）
     if "前後比較" in judge_method and evidence_dir:
