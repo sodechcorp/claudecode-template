@@ -39,7 +39,7 @@
 Sandbox は本番であっても DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作が承認プロセス・ワークフロー/Process Builder のメールアラートを経由して**実際の顧客メールアドレスへメールを送信しうる**（Sandbox ユーザーの Email から `.invalid` が外れているケースがあり、事前の見分けは付かない）。上記の操作を行う直前は SOQL SELECT 同様に「安全」と即断せず、[sandbox-alias-check.md](.claude/templates/common/sandbox-alias-check.md) の「メール到達安全確認」を必ず実施する（送信処理・送信先を機械的に判定し、お客様に届く場合はテストデータ・通知先ユーザーの差し替えで自動回避する。人に確認するのは回避できない場合だけ）。同じ操作やボタン操作で動く外部システムへの呼び出し（コールアウト・送信メッセージ）は、同ファイルの「外部システム呼び出しの確認」で接続先が本番と同じかを確かめる（Sandbox の接続先は本番のままのことがあり、送ったデータは rollback でも取り消せない。人に確認するのは本番と同じ〔または特定できない〕で、許可された接続先でない場合だけ）。
 
 ### 共有フォルダ
-`G:\共有ドライブ` 削除: hook ハードブロック（bypass 不可）。書き込み: 実行前に日本語警告を地の文で出し、ユーザー明示承認後のみ実行。詳細: [shared-folder-protection.md](.claude/templates/common/shared-folder-protection.md)
+`G:\共有ドライブ` 削除: hook ハードブロック（bypass 不可）。書き込み: 確認不要（自由に書き込んでよい）。詳細: [shared-folder-protection.md](.claude/templates/common/shared-folder-protection.md)
 
 ### ファイル変更ルール
 `.claude/` 配下は読み取りのみ。`CLAUDE.md`（ルート）/ `docs/` / `force-app/` は編集可。`.mcp.json` は .gitignore 対象。

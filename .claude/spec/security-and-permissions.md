@@ -48,9 +48,9 @@ Claude Code の自動モードは、ツール呼び出しを分類器で判定�
 ## 共有フォルダ保護
 
 - `G:\共有ドライブ` 削除: hook ハードブロック（bypass 不可）
-- `G:\共有ドライブ` 書き込み: 実行前に日本語警告を地の文で出し、ユーザー明示承認後のみ実行（AskUserQuestion 禁止・回避経由禁止）
+- `G:\共有ドライブ` 書き込み: 確認不要（自由に書き込んでよい）
 - Backlog 書き込み（コメント投稿・課題更新・PR操作等）: hook ハードブロック（bypass 不可）。文面案はチャットで提示のみ。投稿・更新は人間が Backlog UI から手動で実施。`mcp__backlog__add_*` / `update_*` / `delete_*` / `mark_*` / `reset_*` が対象。読み取り（`get_*` / `count_*` / `list_*`）は許可。
-- 警告文体・例外パターン詳細: `.claude/templates/common/shared-folder-protection.md` 参照
+- 対象と削除の扱いの詳細: `.claude/templates/common/shared-folder-protection.md` 参照
 
 ## ファイル変更ルール
 
@@ -61,4 +61,4 @@ Claude Code の自動モードは、ツール呼び出しを分類器で判定�
 以下は必ずユーザー確認を取る:
 - Slack / メール / 外部サービスへのメッセージ送信
 - 機密情報（トークン・パスワード・個人情報・組織ID）の出力・ログへの記録
-- 既存ファイルの削除・上書き（読み取り確認なしに）
+- 既存ファイルの削除・上書き（読み取り確認なしに）。上書きは共有フォルダでも同じ扱いで、共有フォルダであることを理由にした確認はしない。共有フォルダの削除は確認しても行わない（[shared-folder-protection.md](../templates/common/shared-folder-protection.md)）

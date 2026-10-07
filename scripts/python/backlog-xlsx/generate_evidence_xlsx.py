@@ -1112,6 +1112,16 @@ def main():
     if n_patched:
         print(f"[INFO] xml:space=\"preserve\" 補正: {n_patched} 箇所")
 
+    # share_evidence.py（/test Phase G）が、共有する xlsx に手が加わっていない（スクショの手貼り等が無い）かを
+    # 見分けるために、生成したままの版のハッシュを残す。書けなくても生成は止めない（共有時に上書き前の版を退避する側に倒れる）
+    try:
+        with open(out_path, "rb") as f:
+            digest = hashlib.sha256(f.read()).hexdigest()
+        with open(os.path.join(args.folder, ".evidence-generated.json"), "w", encoding="utf-8") as f:
+            json.dump({"file": os.path.basename(out_path), "sha256": digest}, f, ensure_ascii=False)
+    except OSError as e:
+        print(f"[WARN] 生成した xlsx のハッシュを記録できませんでした（共有フォルダへの保存時は上書き前の版を BK/ に残します）: {e}")
+
     ok_count   = sum(1 for r in latest_judgment.values() if r.get("status") == "OK")
     ng_count   = sum(1 for r in latest_judgment.values() if r.get("status") == "NG")
     skip_count = sum(1 for r in latest_judgment.values() if r.get("status") == "SKIP")

@@ -12,7 +12,7 @@
 //
 // (2) G:\共有ドライブ（Google Drive マウント）への削除操作: ハードブロック
 //     Bash・PowerShell: rm / rmdir / del / mv（移動も実質削除）/ Remove-Item 等 / robocopy /MIR 等 / Python・Node の削除・移動を検出
-//     Write / Edit / MultiEdit は通過（書き込みはエージェントが日本語警告を出してから実行）
+//     Write / Edit / MultiEdit は通過（書き込みは確認不要。shared-folder-protection.md）
 //
 // (3) Backlog 書き込み系 MCP: ハードブロック（permissionDecision: deny）
 //     add / update / delete / mark / reset で始まるツール名をブロック。

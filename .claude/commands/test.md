@@ -147,7 +147,7 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
   Phase D: OK/NG 判定（機械判定できない TC は Phase D-2 で AI が証跡を読んで判定）
   Phase E: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
   Phase F: test-report.md 生成・一時ファイル後始末（テストデータは削除せず Sandbox に保持）
-  Phase G: 証跡（エビデンス.xlsx・evidence/before/）を共有フォルダへコピー（共有ドライブは完了報告の後に書き込みを確認）
+  Phase G: 証跡（エビデンス.xlsx・evidence/before/）を共有フォルダへコピー
 ```
 上記を表示したうえで確認を待たずそのまま Phase A-2（環境準備）に進む。
 
@@ -621,7 +621,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 - `{xlsx_folder}/{issueID}_エビデンス.xlsx`（after の証跡と過去回次は埋め込み済み）
 - `{evidence_dir}/before/` の中身（実装前・操作前の画面と DOM・データ。`generate_evidence_xlsx.py` は before を xlsx に入れない）→ 課題フォルダの `evidence/before/`
 
-`{evidence_dir}` のそれ以外（after/・after_R*・before_R*）はローカルに残す（回次の退避・`cleanup_evidence.py` の削除はローカルで行う）。共有フォルダへは上書きのみで、共有フォルダにしか無いファイルは消さない。総合判定（PASS / FAIL）に関わらず、Phase F-2 と NG の差し戻し案内の後に毎回実行する。共有フォルダと内容が同じなら確認も書き込みもしないため、何度やり直してもよい。
+`{evidence_dir}` のそれ以外（after/・after_R*・before_R*）はローカルに残す（回次の退避・`cleanup_evidence.py` の削除はローカルで行う）。共有フォルダへは上書きのみで、共有フォルダにしか無いファイルは消さない。共有フォルダのエビデンス.xlsx に手が加わっている可能性があるとき（前回この PC から保存した後の変更・手を加えた版の保存・記録が無い）は、上書き前のものを課題フォルダの `BK/` に日時付きで残す。ローカルが前回保存した版のまま（F-1・Phase G だけのやり直し等）で共有フォルダだけが変わっていれば、共有フォルダの版を残して上書きしない。/test の再実行だけでは `BK/` を増やさない（判定は `share_evidence.py` の先頭コメントを参照）。共有ドライブ・ネットワークフォルダへの書き込みも確認は取らない（[shared-folder-protection.md](../templates/common/shared-folder-protection.md)）。総合判定（PASS / FAIL）に関わらず、Phase F-2 と NG の差し戻し案内の後に毎回実行する。共有フォルダと内容が同じなら書き込まないため、何度やり直してもよい。
 
 保存先は `docs/.backlog_config.yml` の `report_dir`（課題フォルダの親。対応記録.xlsx のころと同じキー）配下の `{issueID}_` で始まる既存フォルダ、無ければ `{issueID}_{件名}`（件名は investigation.md の「件名」行）。決め方の詳細は `share_evidence.py` の先頭コメントを参照。
 
@@ -632,9 +632,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 | resolve の出力 | 対応 |
 |---|---|
 | exit 1（設定ファイルが読めない等）または `SOURCE_EXISTS=false` | コピーしない。完了報告の共有フォルダ行に理由を書く |
-| `SHARE_STATUS=ok` かつ `SHARE_UP_TO_DATE=true` | 書き込むものが無い。完了報告の共有フォルダ行は「保存済み（変更なし）」 |
-| `SHARE_STATUS=ok` かつ `SHARE_NEEDS_CONFIRM=false`（ローカルのフォルダ） | 確認せずに下記の copy を実行してから完了報告を出す |
-| `SHARE_STATUS=ok` かつ `SHARE_NEEDS_CONFIRM=true`（共有ドライブ・ネットワークフォルダ等） | 完了報告の後に [shared-folder-protection.md](../templates/common/shared-folder-protection.md) の確認文を地の文で出し、承認を得てから copy を実行する。確認文の `{パス}` は `SHARE_FILE` にし、`BEFORE_TO_WRITE` が 1 以上なら「（ほかに evidence/before/ へ {BEFORE_TO_WRITE} 件）」、`SHARE_FILE_EXISTS=true` なら「既存のエビデンス.xlsx を上書きします（手で貼り付けたスクショがあれば消えます）」を添える。共有先が `G:\共有ドライブ` でない場合（ネットワークフォルダ・OneDrive 等）は確認文の「`G:\共有ドライブ` 配下の」を共有先に合わせて読み替える |
+| `SHARE_STATUS=ok` かつ `SOURCE_EXISTS=true` | 確認せずに下記の copy を実行してから完了報告を出す（共有フォルダと同じ内容なら copy は書き込まずに `保存済み:` を出す） |
 | `SHARE_STATUS=unset`（`report_dir` 未設定）/ `missing`（`report_dir` のフォルダが無い。共有ドライブの再編等） | 完了報告の後に下記の文で保存先をチャットで聞く |
 
 保存先を聞く文（`missing` の場合は先頭に「設定されていた保存先 `{REPORT_DIR}` が見つかりませんでした。」を付ける）:
@@ -643,11 +641,11 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 証跡（エビデンス.xlsx と実装前の画面）を保存する共有フォルダ（課題フォルダの親。例: G:/共有ドライブ/…/04_保守課題）を入力してください。その下の {SHARE_FOLDER_NAME} フォルダ（同じ課題IDで始まるフォルダが既にあればそちら）に保存します。保存しない場合は「保存しない」と返してください。
 ```
 
-- フォルダが入力された場合: バックスラッシュはスラッシュに直して以下で `report_dir` に保存し、resolve からやり直す（書き込みの承認は上の表のとおり、決まった書き込み先と上書きの有無を確認文で示して取る）。exit 1 の場合は出力の理由（課題フォルダそのものを指定した等）を伝えて聞き直す
+- フォルダが入力された場合: バックスラッシュはスラッシュに直して以下で `report_dir` に保存し、resolve からやり直す（`ok` になれば確認せずに copy を実行し、結果を下記の copy の説明のとおり1行で伝える）。exit 1 の場合は出力の理由（課題フォルダそのものを指定した等）を伝えて聞き直す
   ```bash
   python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "{project_dir}" --issue-id "{issueID}" set-report-dir --path "{入力されたフォルダ}"
   ```
-- 「保存しない」・確認文に承認が無い場合: コピーしない（`docs/logs/{issueID}/` にだけ残る）
+- 「保存しない」と返された場合: コピーしない（`docs/logs/{issueID}/` にだけ残る）
 
 copy:
 
@@ -655,9 +653,13 @@ copy:
 python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "{project_dir}" --issue-id "{issueID}" copy
 ```
 
-stdout の `保存完了: {パス}（…）` または `保存済み: {パス}（…書き込みなし）` を完了根拠とする（書き込んだファイルごとにローカルと内容が一致することまでスクリプトが確かめる）。表示されたパスが確認文で示した `SHARE_FILE` と違う場合（承認を待つ間にフォルダ構成が変わった等）はそのことを伝える。exit 1 の場合は出力の理由（共有フォルダのエビデンス.xlsx を Excel で開いている等）を伝え、同じ会話で「閉じた」等の返答があれば承認を取り直さず copy だけを実行し直す。
+- 完了根拠: stdout の `保存完了: {パス}（…）` または `保存済み: {パス}（…）`（書き込んだファイルごとにローカルと内容が一致することまでスクリプトが確かめる）
+- `上書き前のエビデンス.xlsx を退避: {パス}` も出た場合（失敗した回にも出る）: 退避先と「手で貼ったスクショはそこから貼り直してください」を添える
+- 括弧内に「エビデンス.xlsx は共有フォルダの版を残しました」が出た場合: 共有フォルダのエビデンス.xlsx は上書きしていない（手で貼ったスクショ・別の PC から保存した版等を残した）ことと、「ローカルの版を共有したい場合は /test を再実行してください（共有フォルダの版は BK/ に残ります）」を添える
+- 伝える場所: 完了報告の前の copy は完了報告の共有フォルダ行に、完了報告の後の copy（保存先を聞いた後・失敗後のやり直し）は保存先のパスと上の2点を1行で伝える
+- exit 1 の場合: 出力の理由（共有フォルダのエビデンス.xlsx を Excel で開いている等）を伝え、同じ会話で「閉じた」等の返答があれば copy だけを実行し直す
 
-保存しないまま会話を終えた場合（確認待ち・入力待ち・保存失敗）は、後から本 Phase G だけを実行すれば保存できる（/test 全体の再実行は不要。別セッションでは「{issueID} の /test Phase G だけ実施して」等で依頼する）。
+保存しないまま会話を終えた場合（入力待ち・保存失敗）は、後から本 Phase G だけを実行すれば保存できる（/test 全体の再実行は不要。別セッションでは「{issueID} の /test Phase G だけ実施して」等で依頼する）。
 
 ---
 
@@ -666,7 +668,7 @@ stdout の `保存完了: {パス}（…）` または `保存済み: {パス}�
 | 確認項目 | 確認コマンド |
 |---|---|
 | エビデンス.xlsx の存在 | `ls -lh "{xlsx_folder}/{issueID}_エビデンス.xlsx"` |
-| 共有フォルダへの保存 | Phase G の copy の stdout `保存完了:` / `保存済み:`（共有ドライブは承認後の copy で確認。「保存しない」を選んだ場合は対象外） |
+| 共有フォルダへの保存 | Phase G の copy の stdout `保存完了:` / `保存済み:`（「保存しない」を選んだ場合は対象外） |
 | test-report.md の存在 | `ls -lh "{log_dir}/test-report.md"` |
 | 証跡ファイルの件数 | `find "{evidence_dir}/after" -type f \| wc -l` |
 | tmp/ 削除済み | `ls "{log_dir}/tmp/" 2>/dev/null \| wc -l` が 0 |
@@ -685,7 +687,7 @@ stdout の `保存完了: {パス}（…）` または `保存済み: {パス}�
 
 成果物:
   エビデンス.xlsx : {xlsx_folder}/{issueID}_エビデンス.xlsx
-  共有フォルダ    : {Phase G の結果: 保存済み（{SHARE_FILE}・evidence/before/ {N} 件） / 保存済み（変更なし） / 書き込み確認待ち（{SHARE_FILE}） / 保存先の入力待ち / 保存しない（{理由}） / 保存失敗（{理由}）。確認待ち・入力待ち・保存失敗のときは「後から /test の Phase G だけを実行すれば保存できます」を添える}
+  共有フォルダ    : {Phase G の結果: 保存済み（{SHARE_FILE}・evidence/before/ {N} 件。退避した場合は「上書き前のものは {退避先} に退避。手で貼ったスクショはそこから貼り直してください」） / 保存済み（変更なし） / 保存済み（evidence/before/ {N} 件。エビデンス.xlsx は共有フォルダで変更があったため上書きせず残した） / 保存先の入力待ち / 保存しない（{理由}） / 保存失敗（{理由}。退避した場合は退避先も）。入力待ち・保存失敗のときは「後から /test の Phase G だけを実行すれば保存できます」を添える}
   test-report.md  : {log_dir}/test-report.md
   証跡ファイル    : {evidence_dir}/ 配下 {N} ファイル
 
@@ -735,7 +737,7 @@ NG 一覧:
 
 {要手動がある場合}
 要手動確認:
-  - TC-00X: {観点} — エビデンス.xlsx（Phase G で共有フォルダに保存した場合はそちら）の「証跡」シートに手動でスクショを貼り付けてください（/test を再実行すると上書きされるため、最後の /test の後に貼る）。
+  - TC-00X: {観点} — エビデンス.xlsx（Phase G で共有フォルダに保存した場合はそちら）の「証跡」シートに手動でスクショを貼り付けてください（/test を再実行すると上書きされるため、最後の /test の後に貼る。共有フォルダで貼ったものは、上書きの前に課題フォルダの BK/ へ残る）。
     確認対象: {ラベル（日本語表示名）} / URL: {instance_url}/lightning/r/{SObject}/{Id}/view または {画面URL（クエリ除去済み）} / 操作手順: {test-spec.mdの「テスト手順」列 or 要約}
     ※ 対象レコード・URLが特定できない TC は URL 行を省略する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）
 
