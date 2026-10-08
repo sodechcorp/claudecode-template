@@ -253,6 +253,26 @@ async (page) => {
 - アニメーション考慮: `await page.waitForTimeout(500)`（最終手段のみ）
 - ❌ `page.waitForLoadState('networkidle')` — Salesforce Lightning では成立しないため使用禁止（→「高速待機」セクション参照）
 
+### 後から動く処理の結果を待つ
+
+保存の後にトランザクションの外で動く処理（future・Queueable・Batch・プラットフォームイベントの購読側・レコードトリガーフローの非同期パスとスケジュール済みパス）の結果は、保存の直後の画面にはまだ出ていないことがある。観察・撮影する対象がその結果に依る場合は、操作の後でコードブロックを区切り（コードブロックの中からは sf CLI を呼べない）、Bash で次のとおり待ってから、次のコードブロックで `await page.reload(); await waitSfReady(page);` の後に観察・撮影する。Bash の timeout には 600000 を指定する（1. と 2. は別々の呼び出しにする）。
+
+1. future・Queueable・Batch は、`{T}` 以降に作られた未完了の AsyncApexJob が 0 件になるまで待つ（8分で打ち切り）。`{T}` は呼び出し元の手順が決める時点に `date -u -d '-1 min' +%Y-%m-%dT%H:%M:%SZ` で控えた時刻（端末と組織の時計のずれを見込んで1分前）で、それより前からある他の作業のジョブを数えないため。作成者では絞らない（Login As したユーザーや購読側〔Automated Process〕が投入したものも待つため）:
+
+```bash
+SECONDS=0
+while [ $SECONDS -lt 480 ]; do
+  N=$(sf data query --target-org "$SF_ALIAS" --json --query "SELECT COUNT() FROM AsyncApexJob WHERE CreatedDate >= {T} AND JobType IN ('Future','Queueable','BatchApex') AND Status IN ('Holding','Queued','Preparing','Processing')" | python -c "import json,sys; print(json.load(sys.stdin)['result']['totalSize'])")
+  [ "$N" = "0" ] && break
+  sleep 10
+done
+echo "未完了の非同期処理: ${N} 件"
+```
+
+2. AsyncApexJob に出ないもの（購読側・非同期パス・スケジュール済みパス）は、その処理が書き込む項目を SOQL で 30 秒おきに取り直し、その保存を含むコードブロックの前に SOQL で控えた値（前提データの作成なら作成時の値）から変わったら終わったとする（期待した値かどうかでは決めない。その保存自体が書き換える項目は保存だけで変わるため目印にしない。5分で打ち切り。1. と同じく条件付きのループの中で `sleep` する）。
+
+待ちを打ち切った（1. で 0 件にならない・2. で5分たっても変わらない）、または 2. の処理で書き込む項目が無い・変わりようがない（何も書き込まない処理・否定側の期待・書き込む値が前と同じ）場合は、見ている状態がその処理の前のものでありうる。観察した結果では判定せず、呼び出し元の手順に従って「確かめられなかった」として扱う。
+
 ---
 
 ## 先読み snapshot（ロケータ確定の事前確認）
