@@ -77,7 +77,7 @@ Phase 1 資材マニフェストに含まれる種別だけを release-plan.md �
 - **注意点**: **本番デプロイのデフォルトは Inactive**。Salesforce の仕様上、Sandbox で Active な Flow でも、本番デプロイ時は「Deploy processes and flows as active」設定が無効な限りデプロイ後は Draft のまま＝Metadata API が自動で有効バージョンに切り替えることはない（Sandbox/Dev org にはこの設定自体が存在せず常にソースの status 通りデプロイされるため、Sandbox テストでは気づけない）。
   - **有効バージョン確認**: `sf data query -q "SELECT ApiName, ActiveVersionId, VersionNumber, IsActive FROM FlowDefinitionView WHERE ApiName='{Flow API名}'" --target-org {本番エイリアス}`
   - **Draft のままだった場合の手動有効化手順**: Setup → クイック検索「フロー」→ 対象フロー名をクリック →「バージョン履歴」で対象バージョンを開く → 右上「有効にする」をクリック
-  - スケジュール実時刻起動は即時検証困難＝別途フォロー
+  - スケジュール実時刻起動、プロセスビルダーのスケジュール済みアクション、予定時刻（基準の日時＋オフセット）が保存の数分以上後になるスケジュール済みパスは即時検証困難＝別途フォロー
 
 ### LWC / Aura
 - **原則（親子コンポーネント。必ず最初に確認）**: LWC の親子は `@api` プロパティ名だけで疎結合に繋がっている。片方だけデプロイすると**無言で機能が死ぬ**（未定義の `@api` プロパティへ値を渡してもコンパイルエラーにならず値が黙って破棄される。Apex 側の動的 upsert も `if (recordInfo.get(fieldName) != null)` 等のガードでキー欠落を黙って許容しがちなため、この失敗は dry-run・Apex テストのどちらでも検知できない）。親（`modal.open({...})` 呼び出し・`<c-child prop=…>` 属性）と子（`@api` 受け口）は**必ずセットで**資材マニフェスト・リリース対象に含めること。片方のみが資材化されていないか目視で相互参照を確認する（機械的検出は [option-org-drift-check.md](options/option-org-drift-check.md) Tier 0 を参照）
