@@ -236,12 +236,14 @@ fi
 # どちらも「まだ退避されていなければ」実行する冪等な自己防衛のため、経路によらず必ず履歴が残る。
 TARGET_TC_LIST=""
 if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
-  echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（前回 OK の TC は再実行しません）。"
+  echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（期待結果・判定方法を書き換えていない前回 OK の TC は再実行しません）。"
   echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
 
-  # 差分対象 = 前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない TC（test-spec.md に後から追加した TC）。
-  # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は証跡を撮り直さず、Phase D・D-2 で判定だけやり直す。
-  # 前回 OK・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
+  # 差分対象 = 前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない TC（test-spec.md に後から追加した TC）
+  #   ∪ 前回の判定後に期待結果・判定方法・種別を書き換えた TC（証跡が書き換え前の期待結果で撮られているため。匿名 Apex の自己検証は期待結果から作る。
+  #     書き換えを確かめられない旧版の判定結果〔spec_sig なし〕は全 TC）。
+  # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は書き換えていなければ証跡を撮り直さず、Phase D・D-2 で判定だけやり直す。
+  # 書き換えていない前回 OK・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
   # 証跡未採取のまま judge_results.py で「証跡ファイルが見つかりません」の偽 NG になるため）。
   # ng_type=要確認（証跡は正常採取済み・判定方法が機械可読パターンに一致しないだけ）の NG は、
   # test-spec.md の判定方法を修正すれば既存証跡のまま Phase D が正しく再判定できるため、証跡の
@@ -251,9 +253,9 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   # リストにロールバックする（=除外前と同じ挙動に留め、退化させない）。
   TARGET_TC_LIST=$(python "$(pwd -W)/scripts/python/backlog-xlsx/resolve_target_tcs.py" --judgment "$JUDGMENT_PATH" --spec "$SPEC_PATH" 2>/dev/null || echo "")
   if [ -z "$TARGET_TC_LIST" ]; then
-    echo "[INFO] 前回 NG・SKIP・新規 TC なし（前回全件 OK）。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
+    echo "[INFO] 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC なし（前回全件 OK）。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
   else
-    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC。判定パターン未一致=要確認のみだった NG は証跡再採取から除外済み）: $TARGET_TC_LIST"
+    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC。判定パターン未一致=要確認のみだった NG は証跡再採取から除外済み）: $TARGET_TC_LIST"
     echo "[INFO] 影響範囲の TC は今回の実行対象には含まれません（Phase F で NG があった場合のみ、次回再テストの判断材料として提示されます）。"
   fi
 else
@@ -557,7 +559,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 再デプロイ  : Sandbox ({alias}) に再デプロイ完了
 
 次のステップ（別セッションで実施）:
-  /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC のみ再テスト）。
+  /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC を再テスト）。
   次回 /test 起動時に今回の judgment-result.json と証跡が自動的に次の回次として退避されます。
   ⚠ 差分モードは今回の修正が前回 OK だった他 TC に影響していないか（回帰）までは検出しません。
     修正がバグ再現 TC 以外のコンポーネントにも及ぶ場合は --full での全件再テストを検討してください。
@@ -606,7 +608,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    修正手順（この順番で実施してください）:
      1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run 確認）
      2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
-     3. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用・取り直しなし）
+     3. /test {issueID} を再実行（差分モード: 期待結果・判定方法を書き換えていない前回OK分は証跡を流用・取り直しなし）
         次回 /test 起動時に judgment-result.json と証跡が自動的に次の回次として退避されます
    ```
 
@@ -713,7 +715,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 {実装バグ NG が Phase F-2 で自動修正・再デプロイされた場合}
 自動修正: 完了（Phase F-2）
   修正 TC: {auto_fix_tcs}
-  次のステップ: 別セッションで /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC のみ再テスト）。
+  次のステップ: 別セッションで /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC を再テスト）。
                次回 /test 起動時に今回の証跡が自動的に次の回次として退避されます。
                ⚠ 差分モードは今回の修正が前回 OK だった他 TC に影響していないか（回帰）までは検出しません。
                  修正がバグ再現 TC 以外のコンポーネントにも及ぶ場合は --full での全件再テストを検討してください。
@@ -733,7 +735,7 @@ NG 一覧:
 修正手順（この順番で実施してください。NG原因・修正方針の記録は上記「NG があった場合の差し戻し」手順5〜6で記録済みです）:
   1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run）
   2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
-  3. /test {issueID} を再実行（差分モード: 前回OK分は証跡を流用・前回結果は自動退避）
+  3. /test {issueID} を再実行（差分モード: 期待結果・判定方法を書き換えていない前回OK分は証跡を流用・前回結果は自動退避）
 
 {要手動がある場合}
 要手動確認:

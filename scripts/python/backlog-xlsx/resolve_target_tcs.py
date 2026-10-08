@@ -5,8 +5,9 @@ inline-script-hygiene.md のルール（`python -c` は単一物理行限定・�
 従い、if/try-except を含む多行ロジックを本スクリプトへ切り出した。
 
 前回の judgment-result.json と test-spec.md を突き合わせ、今回再実行すべき TC 番号
-（前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない新規 TC。ただし ng_type=要確認 のみだった
-NG は証跡再採取対象から除外）をカンマ区切りで標準出力に返す。
+（前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない新規 TC ∪ 前回の判定後に期待結果・判定方法・種別を
+書き換えた TC〔spec_sig の無い旧版の判定結果は全 TC〕。ただし ng_type=要確認 のみだった NG は
+証跡再採取対象から除外）をカンマ区切りで標準出力に返す。
 
 Usage:
     python resolve_target_tcs.py \
@@ -17,18 +18,24 @@ Usage:
 import argparse
 import json
 
-from _common import parse_test_spec
+from _common import parse_test_spec, spec_signature
 
 
 def resolve_target_tcs(judgment_path: str, spec_path: str) -> str:
     d = json.load(open(judgment_path, encoding="utf-8"))
     prev = {r["no"]: r.get("status") for r in d.get("results", [])}
     prev_ng_type = {r["no"]: r.get("ng_type", "") for r in d.get("results", [])}
+    prev_sig = {r["no"]: r.get("spec_sig") for r in d.get("results", [])}
     try:
-        spec_nos = [tc.get("No", "") for tc in parse_test_spec(spec_path)]
+        spec_tcs = parse_test_spec(spec_path)
+        spec_nos = [tc.get("No", "") for tc in spec_tcs]
+        # 前回の証跡は書き換え前の期待結果で撮られている（匿名 Apex の自己検証は期待結果から作る）。
+        # spec_sig の無い旧版の判定結果は書き換えを確かめられないため撮り直す（judge_results.py も再判定する）
+        changed = {tc.get("No", "") for tc in spec_tcs if prev_sig.get(tc.get("No", "")) != spec_signature(tc)}
     except Exception:
         spec_nos = list(prev.keys())
-    raw_target = [no for no in spec_nos if prev.get(no, "NEW") in ("NG", "SKIP", "NEW")]
+        changed = set()
+    raw_target = [no for no in spec_nos if prev.get(no, "NEW") in ("NG", "SKIP", "NEW") or no in changed]
     capture_target = [
         no for no in raw_target
         if not (prev.get(no) == "NG" and prev_ng_type.get(no, "") == "要確認")

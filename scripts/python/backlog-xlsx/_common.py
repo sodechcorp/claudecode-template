@@ -212,3 +212,11 @@ def parse_test_spec(spec_path: str) -> list:
     if "No" in candidate_headers:
         return candidate_rows
     return []
+
+
+def spec_signature(tc: dict) -> str:
+    """差分再実行で前回の証跡・判定を流用してよいかの判定用。期待結果・判定方法・種別が変わったら
+    証跡を撮り直し（resolve_target_tcs.py）、再判定する（judge_results.py）。"""
+    import hashlib
+    raw = "\x1f".join(tc.get(k, "").strip() for k in ("期待結果", "判定方法", "種別"))
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()

@@ -20,7 +20,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from _common import parse_test_spec
+from _common import parse_test_spec, spec_signature
 
 
 def _next_archive_round(out_path: str) -> int:
@@ -780,13 +780,6 @@ def _allows_before(tc: dict) -> bool:
     return "前後比較" in tc.get("判定方法", "") or "Before参照" in tc.get("証跡取得", "")
 
 
-def _spec_signature(tc: dict) -> str:
-    """差分再実行で前回 OK を流用してよいかの判定用。期待結果・判定方法・種別が変わったら再判定する。"""
-    import hashlib
-    raw = "\x1f".join(tc.get(k, "").strip() for k in ("期待結果", "判定方法", "種別"))
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
-
-
 def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     """1テストケースを判定し {"ok": bool, "actual": str, "reason": str} を返す。
     複数証跡（分岐ラベル付き）がある場合は全証跡を AND 評価する。"""
@@ -945,7 +938,7 @@ def main():
         no = tc.get("No", "")
         shubetsu = tc.get("種別", tc.get("実行種別", "")).strip()
         current_fp = evidence_fingerprint(args.evidence_dir, no, shubetsu, _allows_before(tc))
-        spec_sig = _spec_signature(tc)
+        spec_sig = spec_signature(tc)
 
         # 差分再実行: 前回 OK の TC は流用。ただし証跡ファイルが前回判定後に更新されている場合は
         # NG → OK の化け（stale reuse）を防ぐため流用せず再判定する。
