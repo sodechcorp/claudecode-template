@@ -240,6 +240,8 @@ mkdir -p "{log_dir}/tmp"
 
 #### 3-3: 一括並列実行 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
+非同期処理を投入する TC がある場合は、最初の実行の前に `date -u -d '-1 min' +%Y-%m-%dT%H:%M:%SZ` の出力を `{T}` として控える（3-3b 1. で使う。端末と組織の時計のずれを見込んで1分前にする）。
+
 ```bash
 python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch \
   --alias "{alias}" \
@@ -261,13 +263,12 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 
 3-3 で1回目が失敗した TC（Step 2「実行できなかった TC の扱い」を済ませた後も `[NG]` の TC）は cases ファイルから外し、1回目がレコードを作った TC は `{No}_check.apex` に1回目の証跡の `CREATED_RECORD` 行の Id を埋める。2回目の出力は TC ごとに1回目の証跡（`anon_cases.json` のその TC の `out`）の末尾に1回だけ足す（`judge_results.py` は TC の証跡ファイルを全て判定し、`NG項目数=` は最初の1行を読むため、別ファイルにしたり重ねて足したりすると判定を誤る）。以下のコードは Bash の timeout に 600000 を指定して実行する。
 
-1. 非同期処理を投入する TC がある場合は、先に完了を待つ（future・Queueable・Batch は次の件数が 0 になるまで。8分で打ち切る）。0 件にならなければ、その TC は2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 非同期処理が時間内に完了せず、結果を確認していない` と1行足す（`judge_results.py` が NG〔未実行〕にする）:
+1. 非同期処理を投入する TC がある場合は、先に完了を待つ（future・Queueable・Batch は、3-3 の前に控えた `{T}` 以降に作られた未完了のものが 0 件になるまで。8分で打ち切る。`{T}` より前からある他の作業のジョブは数えず、作成者では絞らない〔購読側（Automated Process）が投入したものも数えるため〕）。0 件にならなければ、その TC は2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 非同期処理が時間内に完了せず、結果を確認していない` と1行足す（`judge_results.py` が NG〔未実行〕にする）:
 
 ```bash
-SF_USER=$(sf org display --target-org "{alias}" --json | python -c "import json,sys; print(json.load(sys.stdin)['result']['username'])")
 SECONDS=0
 while [ $SECONDS -lt 480 ]; do
-  N=$(sf data query --target-org "{alias}" --json --query "SELECT COUNT() FROM AsyncApexJob WHERE CreatedBy.Username = '$SF_USER' AND JobType IN ('Future','Queueable','BatchApex') AND Status IN ('Holding','Queued','Preparing','Processing')" | python -c "import json,sys; print(json.load(sys.stdin)['result']['totalSize'])")
+  N=$(sf data query --target-org "{alias}" --json --query "SELECT COUNT() FROM AsyncApexJob WHERE CreatedDate >= {T} AND JobType IN ('Future','Queueable','BatchApex') AND Status IN ('Holding','Queued','Preparing','Processing')" | python -c "import json,sys; print(json.load(sys.stdin)['result']['totalSize'])")
   [ "$N" = "0" ] && break
   sleep 10
 done
