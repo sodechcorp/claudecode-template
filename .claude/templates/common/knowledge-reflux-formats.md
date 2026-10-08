@@ -125,8 +125,10 @@
 ### § 2. テストデータ作成レシピ 追記行
 
 ```
-| {オブジェクトAPI名} | {必須項目の概要（例: Name, Status__c='未申請', 参照先Id）} | {AnonApex スニペット要点（例: insert new BusinessTraveler__c(...)）} | AUTOTEST_{issueID}_{TC_No}_ | {クリーンアップ SOQL 要点（例: SELECT Id FROM X__c WHERE Name LIKE 'AUTOTEST_%'）} | {YYYY-MM-DD} | {issueID} |
+| {オブジェクトAPI名} | {必須項目の概要（例: Name, Status__c='未申請', 参照先Id）} | {AnonApex スニペット要点（例: insert new BusinessTraveler__c(...)）} | AUTOTEST_{issueID}_{TC_No}_ | {YYYY-MM-DD} | {issueID} |
 ```
+
+既存の表に「クリーンアップ SOQL」列が残っている場合は、その列に `-` を書いて表の列数に合わせる（テストデータは削除しないため書かない）。
 
 ### § 4. 前提的落とし穴 追記行
 

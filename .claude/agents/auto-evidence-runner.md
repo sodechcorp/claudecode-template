@@ -73,7 +73,7 @@ mkdir -p "{project_dir}/.sf" && python -c "import json,time; json.dump({'alias':
 
 > **test-report.md 本体の生成・tmp/ 削除（旧 Step 5・Step 6）はスクリプト化済み**: `/test` Phase F は本エージェントを委譲する**前**に `scripts/python/backlog-xlsx/generate_test_report.py` を直接実行し、`{judgment_path}` から test-report.md を決定論的に生成・tmp/ を削除する（判定列・NG一覧・サマリーの組み立てに LLM 判断を要しないため）。本エージェントが Phase F で委譲されるのは、判断を要する Step 7（知見還流）のみ。Step 7 は `{log_dir}/test-report.md` が**既に存在する前提**で動作する。
 
-> **テストデータは削除しない**: AnonApex で永続化したテストデータ（`AUTOTEST_{issueID}_` プレフィックス）は Sandbox に蓄積させる方針。Sandbox は積み上げてよく、ユーザーが目視で確認する用途にも使うため、自動 cleanup は行わない（旧 Step 3-2.5・3-4 は廃止）。
+> **テストデータは削除しない**: AnonApex で永続化したテストデータ（`AUTOTEST_{issueID}_` プレフィックス）は Sandbox に蓄積させる方針。Sandbox は積み上げてよく、ユーザーが目視で確認する用途にも使うため、自動 cleanup は行わない。
 
 **OK/NG の権威判定は `/test` Phase D の `judge_results.py` が担当**する（`judgment-result.json` に保存）。test-report.md への反映（判定列・NG 一覧・サマリー）は `generate_test_report.py` が行う。
 

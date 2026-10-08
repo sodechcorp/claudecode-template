@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """backlog-xlsx / anon_apex_runner.py
 匿名 Apex を Sandbox で実行し、debug ログから結果を抽出する。
-テストデータの作成・Flow 起動・後始末（削除）にも使用する。
+テストデータの作成・Flow 起動にも使用する。
 
 Usage（実行）:
     python anon_apex_runner.py run \\
@@ -9,12 +9,6 @@ Usage（実行）:
       --apex-file /path/to/anon.apex \\
       --out /path/to/evidence/after/apex/TC-002_apex.txt \\
       --no TC-002 --label "Flow 起動確認"
-
-Usage（テストデータ削除・後始末）:
-    python anon_apex_runner.py cleanup \\
-      --alias <sandbox-alias> \\
-      --sobject Account \\
-      --external-id-prefix "AUTOTEST_GF-350_"
 """
 
 import argparse
@@ -25,7 +19,6 @@ import re
 import subprocess
 import shutil
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -258,94 +251,6 @@ def write_failure_evidence(out_path: str, label: str = "", no: str = "", error: 
     print(f"[NG] Apex 実行失敗証跡を保存: {out_path}")
 
 
-# ── テストデータ後始末 ────────────────────────────────────────────────────────
-
-def collect_created_ids(alias: str, sobject: str, external_id_prefix: str) -> list:
-    """ExternalId__c または Name に external_id_prefix を持つレコードの Id を取得。"""
-    # 汎用的に Name 列で一致確認（ExternalId__c がないオブジェクトでも動く）
-    query = (
-        f"SELECT Id FROM {sobject} WHERE Name LIKE '{external_id_prefix}%' LIMIT 200"
-    )
-    result = subprocess.run(
-        [SF_BIN, "data", "query", "--target-org", alias, "--query", query,
-         "--result-format", "json"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace"
-    )
-    try:
-        data = json.loads(result.stdout)
-        records = data.get("result", {}).get("records", [])
-        return [r["Id"] for r in records]
-    except (json.JSONDecodeError, KeyError):
-        return []
-
-
-def cleanup_records(alias: str, sobject: str, ids: list) -> dict:
-    """指定 Id リストのレコードを匿名 Apex 1 回で一括削除する。
-
-    旧実装は 10 件以下を sf data delete record で 1 件ずつ起動していたが、
-    sf プロセス起動コスト（数秒/件）が件数倍になるため廃止。
-    Database.delete() 匿名 Apex を使えば sf 起動は 1 回・ポーリング待ちなし。
-    collect_created_ids の LIMIT 200 以内であれば Apex 知事制限に抵触しない。
-    """
-    if not ids:
-        return {"deleted": 0, "failed": []}
-
-    # 匿名 Apex: Database.delete で一括削除（sf 起動 1 回）
-    ids_apex = ", ".join(f"'{id_}'" for id_ in ids)
-    apex_code = (
-        f"List<Id> toDelete = new List<Id>{{{ids_apex}}};\n"
-        f"Database.DeleteResult[] rs = Database.delete(toDelete, false);\n"
-        f"Integer deleted = 0, failed = 0;\n"
-        f"for (Integer i = 0; i < rs.size(); i++) {{\n"
-        f"    if (rs[i].isSuccess()) {{ deleted++; }}\n"
-        f"    else {{ failed++; System.debug('CLEANUP_FAIL_ID:' + toDelete[i]); }}\n"
-        f"}}\n"
-        f"System.debug('CLEANUP_RESULT:' + deleted + ':' + failed);\n"
-    )
-
-    apex_path = None
-    try:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".apex",
-                                         delete=False, encoding="utf-8") as f:
-            f.write(apex_code)
-            apex_path = f.name
-
-        result = subprocess.run(
-            [SF_BIN, "apex", "run", "--target-org", alias, "--file", apex_path, "--json"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace"
-        )
-        data = json.loads(result.stdout)
-        apex_result = data.get("result", {})
-
-        if not apex_result.get("success", False):
-            exc = apex_result.get("exceptionMessage", "") or apex_result.get("compileProblem", "")
-            print(f"[WARN] cleanup Apex 実行失敗: {exc}")
-            return {"deleted": 0, "failed": ids}
-
-        # debug ログから削除件数・失敗 Id を抽出
-        logs = apex_result.get("logs", "") or ""
-        m = re.search(r"CLEANUP_RESULT:(\d+):(\d+)", logs)
-        if m:
-            deleted_count = int(m.group(1))
-            failed_ids    = re.findall(r"CLEANUP_FAIL_ID:(\w+)", logs)
-        else:
-            # ログが取れなかった場合は楽観的に全件成功とみなす
-            deleted_count = len(ids)
-            failed_ids    = []
-
-        return {"deleted": deleted_count, "failed": failed_ids}
-
-    except (json.JSONDecodeError, Exception) as e:
-        print(f"[WARN] cleanup Apex 実行エラー: {e}")
-        return {"deleted": 0, "failed": ids}
-    finally:
-        if apex_path:
-            try:
-                os.unlink(apex_path)
-            except OSError:
-                pass
-
-
 # ── 一括並列実行（run-batch サブコマンド） ───────────────────────────────────
 
 def run_one_anon_case(alias: str, case: dict) -> dict:
@@ -426,7 +331,7 @@ def run_batch_parallel(alias: str, cases: list, max_workers: int = 3,
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="匿名 Apex の実行と後始末")
+    parser = argparse.ArgumentParser(description="匿名 Apex の実行")
     sub = parser.add_subparsers(dest="subcommand", required=True)
 
     # run サブコマンド
@@ -437,15 +342,6 @@ def main():
     p_run.add_argument("--out", required=True, help="証跡ファイルの出力パス")
     p_run.add_argument("--no", default="", dest="tc_no", help="テストケース番号（TC-001 等）")
     p_run.add_argument("--label", default="", help="テスト観点ラベル")
-
-    # cleanup サブコマンド
-    p_clean = sub.add_parser("cleanup", help="テストデータ（Name プレフィックス一致）を削除する")
-    p_clean.add_argument("--alias", default="", help="Sandbox org alias")
-    p_clean.add_argument("--sobject", required=True, help="削除対象の SObject API 名")
-    p_clean.add_argument("--external-id-prefix", required=True, dest="prefix",
-                         help="Name 列で一致する AUTOTEST_{issueID}_ 等のプレフィックス")
-    p_clean.add_argument("--dry-run", action="store_true", dest="dry_run",
-                         help="実際には削除せず件数のみ確認する")
 
     # run-batch サブコマンド（並列一括実行）
     p_batch = sub.add_parser("run-batch", help="複数の匿名 Apex を一括実行する（並列対応）")
@@ -463,7 +359,7 @@ def main():
                               "/test の auto-evidence-runner から run-batch 実行時のみ渡される")
 
     args = parser.parse_args()
-    # run/cleanup サブコマンドには --sandbox-cache が無いため getattr で安全にデフォルト化
+    # run サブコマンドには --sandbox-cache が無いため getattr で安全にデフォルト化
     alias = assert_sandbox(args.alias, getattr(args, "sandbox_cache", ""))  # Sandbox 確認はループ前に1回だけ実施
 
     if args.subcommand == "run":
@@ -486,37 +382,6 @@ def main():
             for r in results:
                 if not r["ok"]:
                     print(f"  [NG] {r['no']} ({r['label']}): {r['error']}")
-            sys.exit(1)
-
-    elif args.subcommand == "cleanup":
-        ids = collect_created_ids(alias, args.sobject, args.prefix)
-        if not ids:
-            print(f"[INFO] 削除対象レコードなし (SObject: {args.sobject}, prefix: {args.prefix})")
-            return
-        print(f"[INFO] 削除対象（初回取得）: {len(ids)} 件 (SObject: {args.sobject})")
-        if args.dry_run:
-            if len(ids) >= 200:
-                print("[WARN] LIMIT 200 到達 — 実削除時はループ回収されます。")
-            print("[DRY-RUN] 削除をスキップします。")
-            for rid in ids:
-                print(f"  - {rid}")
-            return
-        total_deleted = 0
-        all_failed: list = []
-        while ids:
-            result = cleanup_records(alias, args.sobject, ids)
-            total_deleted += result["deleted"]
-            all_failed.extend(result["failed"])
-            # ループ終了条件: 最終ページ（<200件）または全件失敗（無限ループ防止ガード）
-            if len(ids) < 200 or result["deleted"] == 0:
-                break
-            ids = collect_created_ids(alias, args.sobject, args.prefix)
-        all_failed = list(dict.fromkeys(all_failed))  # 重複排除・順序維持
-        print(f"[OK] 削除完了: {total_deleted} 件")
-        if all_failed:
-            print(f"[NG] 削除失敗: {len(all_failed)} 件 — 手動削除してください:")
-            for rid in all_failed:
-                print(f"  - {rid}")
             sys.exit(1)
 
 
