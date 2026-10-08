@@ -224,7 +224,9 @@ def write_failure_evidence(out_path: str, label: str = "", no: str = "", error: 
     証跡 txt 自体は必ず生成し、judge_results.py が「証跡ファイルが見つかりません」
     （ng_type: 未実行 = 再テストのみで対応可）と誤判定しないようにする。
     「判定: NG — ...」行は judge_results.py の構造化証跡パースで最優先参照され、
-    ng_type なし（= test.md 側で実装バグ扱い）で確実に NG 判定される。
+    ng_type なし（= test.md 側で実装バグ扱い）で確実に NG 判定される。実装起因でない
+    失敗（テスト側のコードの誤り・通信エラー等）は auto-evidence-runner の「実行できなかった
+    TC の扱い」が直して再実行するか「判定: 未確認」を足し、実装の自動修正に回さない。
     """
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     reason = re.sub(r"\s+", " ", error).strip()[:200]
