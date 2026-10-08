@@ -146,7 +146,7 @@ Step 5-5 の判定直後に仮説ごと随時記録していくため、ルー�
 1. **既存レコードは read-only 優先**: 名指しレコード（ID付き）があれば SOQL で存在確認してから使う。**状態変更を伴う再現はできる限り REPRO_ 新規レコードで行う**。やむを得ず既存レコードを更新する場合は、まず 5-0・5-6 で戻せずに残っている `restore_H*.json` を確認し、この H の分か、この H が更新するレコードと同じ Id のものがあれば、この H は前提データ準備困難として ⚠️ 検証不可とする（原値を取り直すと変更後の値を原値として記録・上書きしてしまうため）。無ければ更新前に対象フィールドの原値を SOQL で取得し `{証跡保存先}/logs/restore_H{N}.json` に JSON で記録する（Key=Value のテキスト形式は原値に `=` や改行を含む場合に壊れるため使わない。書式は Step 6-2 参照。5-6 で原値に戻す）。**既存レコードを確認・使用した場合（更新の有無を問わず）も、Step 5-5 の目視確認ハンドオフ対象にするため `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名}|{Id}|{Name}|H{仮説番号}` を Bash の `>>` で追記する**（新規作成分と同一フォーマット。[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 参照）。
 2. **新規作成が必要な場合**:
    - Sandbox 限定
-   - 名称に `REPRO_{issueID}_H{仮説番号}_` プレフィックスを付与する
+   - `REPRO_{issueID}_H{仮説番号}_` プレフィックスを付与する（付ける先は `Name`、`Name` が無いか書けない〔自動採番・取引先責任者等の複合名〕オブジェクトは件名〔`Subject`〕・姓〔`LastName`〕等の文字列項目）
    - **作成手段は `sf data create record` を既定とする**（Id は `--json` 出力から取得する）:
      ```bash
      CREATE_RESULT=$(sf data create record --sobject {SObjectAPI名} \
@@ -155,7 +155,7 @@ Step 5-5 の判定直後に仮説ごと随時記録していくため、ルー�
      NEW_ID=$(echo "$CREATE_RESULT" | python -c "import sys, json; print(json.load(sys.stdin)['result']['id'])")
      ```
      複雑な入力規則・Flow 経由必須等で `sf data create record` では作成できない場合のみ、UI 操作または匿名Apexでの作成に切り替える。
-   - `Name` 項目が存在しない・自動採番のみのオブジェクト（`CaseNumber` のみを持つ Case、Task/Event 等）の場合は、`created_records.txt` の `{Name}` 欄に代表識別値（`CaseNumber` の値等。無ければ `NEW_ID` そのもの）を使う（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 の「Name または識別値」に該当）。
+   - `created_records.txt` の `{Name}` 欄には、プレフィックスを付けた項目の値を使う（作成結果に自動採番の `Name`・`CaseNumber` 等は含まれない。[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 の「Name または識別値」に該当）。
    - 作成直後に `{証跡保存先}/logs/created_records.txt` に `{SObjectAPI名}|{Id}|{Name}|H{仮説番号}` を追記する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 のフォーマット。作成物の記録用・削除はしない。目視確認ハンドオフのレコードURL組み立てに使う）。**Write ツールでの上書きは前の H 番号の記録を消すため使わず、Bash の `>>` で追記する**:
      ```bash
      echo "{SObjectAPI名}|{Id}|{Name}|H{仮説番号}" >> "{証跡保存先}/logs/created_records.txt"
