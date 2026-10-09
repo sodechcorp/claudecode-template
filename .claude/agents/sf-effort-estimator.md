@@ -51,7 +51,6 @@ tools: Read, Glob, Grep, Bash, mcp__backlog__get_issue, mcp__backlog__get_issues
 **calibration が存在しない場合**:
 - `mode=quick` または必要データが確認できない場合も、以降のステップを省略せず継続する（信頼度は Step 5 の決定リストに従って一意に定まる）
 - 最終出力に「実績データ不足（`/sf-memory` で `保守履歴・工数温度感` カテゴリを実行してください）」と明示する
-- global-calibration.md も存在しない場合は「横断実績データも不足（`/sf-memory` cat6 実行後に「横断ナレッジも更新する」を選択することを推奨）」と明示する。
 
 ---
 

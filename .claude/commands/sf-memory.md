@@ -228,7 +228,7 @@ Phase 4: 2周目（横断補完）＋ cat7（情報所在マップ）
 | 設計書生成（cat4） | `sf-analyst-cat4-apex` / `sf-analyst-cat4-flow` / `sf-analyst-cat4-lwc`（並列） | cat1 + cat2（catalog/ 必須）+ cat3（automation-config.md 推奨） |
 | 機能グループ定義（cat5） | `sf-analyst-cat5` | cat4（docs/design/ 必須。cat4 と同時選択時は cat4 完了後に自動起動） |
 | 保守履歴・工数温度感（cat6） | `sf-analyst-cat6` | なし（Backlog MCP 必須 — `.mcp.json` に `backlog` キーが必要） |
-| 保守履歴・横断ナレッジ更新（cat6-global） | `sf-analyst-cat6-global` | cat6 完了後（cat6 が選択されている場合のみ起動可） |
+| 保守履歴・横断ナレッジ更新（cat6-global） | `sf-analyst-cat6-global` | cat6（cat6 完了後に自動起動） |
 | 情報所在マップ更新（cat7） | `sf-org-analyst`（mode: readme-only） | cat1（org-profile.md 必須） |
 | SF 標準仕様記録（cat8） | `sf-analyst-cat8` | なし（WebFetch 必須 — インターネット接続が必要） |
 
@@ -317,7 +317,7 @@ Agent ツールを使用し、以下を self-contained なプロンプトで渡�
 ✅ カテゴリ6 完了 — effort-calibration.md / case-index.md / pitfalls.md を生成しました
 （Backlog MCP 未設定の場合: ⏭️ カテゴリ6 スキップ — Backlog MCP 未設定。/setup-mcp で設定後に再実行してください）
 ✅ 横断ナレッジ 完了 — global-calibration.md, global-pitfalls.md を生成しました（cat6-global）
-（cat6-global を実行した場合のみ表示。cat6 未選択またはユーザーが「いいえ」と回答した場合は出力なし）
+（cat6-global を実行した場合のみ表示）
 ✅ カテゴリ8 完了 — sf-standard.md を生成しました（Salesforce 公式ドキュメント参照）
 （cat8 未選択の場合: 出力なし）
 🔄 2周目（横断補完）を実行中...
