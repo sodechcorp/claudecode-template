@@ -72,11 +72,11 @@ Phase 1 資材マニフェストに含まれる種別だけを release-plan.md �
 - **注意点**: DML 競合・無限ループ。他トリガー/Flow との連鎖実行に注意
 
 ### Flow（画面フロー / レコードトリガー / スケジュール）
-- **リリース前**: 起動条件/参照先/API名確認・分岐各経路のテスト済み・Setup →「Automation」検索 → Process Automation Settings の「Deploy processes and flows as active」が本番組織で有効かを確認（無効な場合、デプロイ後は Draft のまま＝手動有効化が必須になる旨をリリース実施者に事前共有する）
+- **リリース前**: 起動条件/参照先/API名確認・分岐各経路のテスト済み・Setup →「Automation」検索 → Process Automation Settings の「Deploy processes and flows as active」が本番組織で有効かを確認（無効な場合、`<status>` が `Active` のフローはデプロイ後は Draft のまま＝手動有効化が必須になる旨をリリース実施者に事前共有する）
 - **リリース後検証**: 本番で起動条件を満たす操作を行い、レコード作成/更新結果を SOQL で確認。画面フローは実画面で操作確認
 - **注意点**: **本番デプロイのデフォルトは Inactive**。Salesforce の仕様上、Sandbox で Active な Flow でも、本番デプロイ時は「Deploy processes and flows as active」設定が無効な限りデプロイ後は Draft のまま＝Metadata API が自動で有効バージョンに切り替えることはない（Sandbox/Dev org にはこの設定自体が存在せず常にソースの status 通りデプロイされるため、Sandbox テストでは気づけない）。
-  - **有効バージョン確認**: `sf data query -q "SELECT ApiName, ActiveVersionId, VersionNumber, IsActive FROM FlowDefinitionView WHERE ApiName='{Flow API名}'" --target-org {本番エイリアス}`
-  - **Draft のままだった場合の手動有効化手順**: Setup → クイック検索「フロー」→ 対象フロー名をクリック →「バージョン履歴」で対象バージョンを開く → 右上「有効にする」をクリック
+  - **有効バージョン確認**: `sf data query -q "SELECT ApiName, ActiveVersionId, LatestVersionId FROM FlowDefinitionView WHERE ApiName='{Flow API名}'" --target-org {本番エイリアス}`（リリースする資材の `<status>` が `Active` なら `ActiveVersionId` が `LatestVersionId` と同じ〔リリースした版が有効〕、それ以外なら `ActiveVersionId` が null であることを確かめる）
+  - **`<status>` が `Active` なのに有効になっていなかった場合の手動有効化手順**: Setup → クイック検索「フロー」→ 対象フロー名をクリック →「バージョン履歴」で対象バージョンを開く → 右上「有効にする」をクリック
   - スケジュール実時刻起動、プロセスビルダーのスケジュール済みアクション、予定時刻（基準の日時＋オフセット）が保存の数分以上後になるスケジュール済みパスは即時検証困難＝別途フォロー
 
 ### LWC / Aura
