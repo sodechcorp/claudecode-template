@@ -360,7 +360,7 @@ fi
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
 - `max_workers_ui`: `{serial}` が true の場合は `1`、それ以外は `{max_workers_ui}`（デフォルト 3）
-- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・期待結果・判定方法・証跡取得・分岐ラベル・**確認ポイント（着眼点）**・**対象画面**〔任意列。詳細は [test-spec-builder.md](test-spec-builder.md) 参照〕）。Step 2 の「後の TC がデータを変える前に取る SOQL」で委譲を2回に分けるときは、その回の TC だけを渡す
+- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・テスト手順・期待結果・判定方法・証跡取得・分岐ラベル・**確認ポイント（着眼点）**・**対象画面**〔任意列。詳細は [test-spec-builder.md](test-spec-builder.md) 参照〕）。Step 2 の「後の TC がデータを変える前に取る SOQL」で委譲を2回に分けるときは、その回の TC だけを渡す
 
 `ui-evidence-runner` の返却（各 TC の証跡ファイル名・**画面URL**・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。**画面URL 列（`ok: true` の行のみ）は `{log_dir}/ui_screen_urls.txt` に `{No}|{観点}|{画面URL}` 形式で追記する**（Phase F で `generate_test_report.py` が目視ハンドオフブロック生成に使う）。**追記は Bash の `>>` で行う（Write ツールでの新規保存は使わない）**。差分再実行モードで一部 TC のみ処理する場合、Write で上書きすると前回 OK 分の画面URLが失われるため、`created_records.txt`（Step 3-4）と同様に既存内容を保持したまま追記する。**ただし単純追記のみだと同一 TC を再実行するたび行が重複するため、追記前に今回処理した TC（`{ui_cases}` の No 一覧）の既存行を除去してから追記する**（TC 単位の dedup）:
 
