@@ -224,7 +224,7 @@ Step 5-1 で作成した REPRO_ プレフィックスの新規レコードは削
 
 ### 6-2. 既存レコードの原値復元（restore_H*.json がある場合のみ）
 
-`{証跡保存先}/logs/restore_H{N}.json` の原値を `sf data update record` で元の値に戻し、**復元後に同じ Id を SOQL で再取得して `fields` の各値と一致するか検証する**。Step 5-0 では前回実行の残り全件を、5-6 ではその H の分を、本 Step と Step 7（中断時）では残っている `restore_H*.json` 全件を対象にする。ファイルが存在しない場合はこのステップをスキップする。
+`{証跡保存先}/logs/restore_H{N}.json` の `fields` を同じ Id の今の値と SOQL で照合し、一致しなければ原値を `sf data update record` で戻して、**戻した後に同じ Id を SOQL で再取得して `fields` の各値と一致するか検証する**。Step 5-0 では前回実行の残り全件を、5-6 ではその H の分を、本 Step と Step 7（中断時）では残っている `restore_H*.json` 全件を対象にする。ファイルが存在しない場合はこのステップをスキップする。
 
 `restore_H{N}.json` の形式:
 ```json
@@ -232,10 +232,27 @@ Step 5-1 で作成した REPRO_ プレフィックスの新規レコードは削
 ```
 
 ```bash
-# この H の操作で動いた後から動く処理が fields の項目を書き込む場合は、update の前に playwright-sf-screen-ops.md「後から動く処理の結果を待つ」で待つ（終わる前に戻すと、その処理が戻した値を書き換えるため。5-0 の前回の残りは待たない）
-# restore_H{N}.json の fields を sf CLI --values 形式に変換する
-# （値をダブルクォートで囲みスペース混入に対応、null は空文字列に変換して誤って文字列"None"をセットしないようにする）
-RESTORE_VALUES=$(python -c "
+# この H の保存（5-1 の前提データの更新と操作。Step 6-2・Step 7 で残ったファイルを戻し直すときは、その前に戻した保存も）で動いた後から動く処理が fields の項目を書き込む場合は、最初の照合の前に、このブロックとは別の Bash 呼び出しで playwright-sf-screen-ops.md「後から動く処理の結果を待つ」で待つ（終わる前に照合・update すると、その処理が後から値を書き換えるため。5-0 の前回の残りは待たない）。このブロックは1回の Bash 呼び出し（timeout 600000）で実行する
+# WAIT_OK: 上の待ちで完了を確かめられなかった（打ち切り・確かめる手段が無い・Step 6-2・Step 7 の戻し直しで、前に戻した保存が動かす 2. の処理が fields を書き込む）ら 0、それ以外（待つ処理が無い・5-0 の前回の残り）は 1
+WAIT_OK={0 または 1}
+# 同じ Id を SOQL で取得し、fields の各値と一致するか照合する（update の前と、update した場合はその後）
+export RESTORE_FILE="{証跡保存先}/logs/restore_H{N}.json"
+FIELDS=$(python -c "import json, os; print(', '.join(json.load(open(os.environ['RESTORE_FILE'], encoding='utf-8'))['fields']))")
+check_restored() {
+  sf data query --query "SELECT $FIELDS FROM {SObjectAPI名} WHERE Id = '{RecordId}'" --target-org "$SF_ALIAS" --json | python -c "
+import sys, json, os
+d = json.load(open(os.environ['RESTORE_FILE'], encoding='utf-8'))
+r = {k.lower(): v for k, v in json.load(sys.stdin)['result']['records'][0].items()}
+n = lambda v: '' if v is None else str(v)
+print('OK' if all(n(r.get(k.lower())) == n(v) for k, v in d['fields'].items()) else 'NG')
+"
+}
+MATCH=$(check_restored)
+# 既に原値のまま（操作が保存されなかった等）なら update しない（値の変わらない update でもトリガー・フロー・後から動く処理が動くため）
+if [ "$MATCH" != "OK" ]; then
+  # restore_H{N}.json の fields を sf CLI --values 形式に変換する
+  # （値をダブルクォートで囲みスペース混入に対応、null は空文字列に変換して誤って文字列"None"をセットしないようにする）
+  RESTORE_VALUES=$(python -c "
 import json
 d = json.load(open(r'{証跡保存先}/logs/restore_H{N}.json', encoding='utf-8'))
 def esc(v):
@@ -245,22 +262,16 @@ def esc(v):
     return v
 print(' '.join(f'{k}=\"{esc(v)}\"' for k, v in d['fields'].items()))
 ")
-sf data update record --sobject {SObjectAPI名} --record-id {RecordId} \
-  --values "$RESTORE_VALUES" --target-org "$SF_ALIAS" --json
-
-# 戻した保存で動く後から動く処理が fields の項目を書き込む場合は、同節 1. の処理ならここでも待つ（2. の処理は、戻した保存そのものが fields を変えるため完了を確かめられない）
-# WAIT_OK: 上の待ちで完了を確かめられなかった（打ち切り・確かめる手段が無い・戻した保存で 2. の処理が fields を書き込む）ら 0、それ以外（待つ処理が無い・5-0 の前回の残り）は 1
-WAIT_OK={0 または 1}
-# 復元後、同じ Id を SOQL で再取得し、fields の各値と一致するか照合する
-export RESTORE_FILE="{証跡保存先}/logs/restore_H{N}.json"
-FIELDS=$(python -c "import json, os; print(', '.join(json.load(open(os.environ['RESTORE_FILE'], encoding='utf-8'))['fields']))")
-MATCH=$(sf data query --query "SELECT $FIELDS FROM {SObjectAPI名} WHERE Id = '{RecordId}'" --target-org "$SF_ALIAS" --json | python -c "
-import sys, json, os
-d = json.load(open(os.environ['RESTORE_FILE'], encoding='utf-8'))
-r = {k.lower(): v for k, v in json.load(sys.stdin)['result']['records'][0].items()}
-n = lambda v: '' if v is None else str(v)
-print('OK' if all(n(r.get(k.lower())) == n(v) for k, v in d['fields'].items()) else 'NG')
-")
+  sf data update record --sobject {SObjectAPI名} --record-id {RecordId} \
+    --values "$RESTORE_VALUES" --target-org "$SF_ALIAS" --json
+  N=0
+  # 戻した保存で同節 1. の処理が動いて fields の項目を書き込む場合は、ここに同節 1. の待ちのループを入れる（0 件にならない・数えられない〔問い合わせに失敗して N が空〕ときは次の行で WAIT_OK=0 になる）
+  [ "$N" = "0" ] || WAIT_OK=0
+  # NO_ASYNC2: 戻した保存で同節 2. の処理が fields の項目を書き込まないと確かめたら 1、それ以外は 0（2. の処理は、戻した保存そのものが fields を変えるため完了を確かめられない）
+  NO_ASYNC2={1 または 0}
+  [ "$NO_ASYNC2" = "1" ] || WAIT_OK=0
+  MATCH=$(check_restored)
+fi
 # 一致し、待ちを打ち切っていなければ restore_H{N}.json を削除し、消えたことまで確認する（残っているファイル＝未復元として Step 5-0・5-1・6-2・7 が扱うため）
 # 不一致・待ちを打ち切ったときは削除しない（照合の後に後から動く処理が値を書き換えうるため。Step 6-2 の終了時点で残っているファイルは、Step 8 の hypothesis-verification.md「テストデータ」に [WARN] 原値未復元 として明記する）
 if [ "$MATCH" = "OK" ] && [ "$WAIT_OK" = "1" ]; then
