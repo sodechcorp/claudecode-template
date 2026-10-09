@@ -122,9 +122,9 @@ mkdir -p "{evidence_dir}/after/screen"
 mkdir -p "{evidence_dir}/before"
 ```
 
-今回の `{ui_cases}` の TC について、前の回に書いた「判定: 未確認」の行だけのファイル（Step 1.5・Step 1「続きの TC」）を消す（Login As のユーザ名付きの証跡など名前が違うと残り続け、撮れても NG〔未実行〕のままになるため。前の回の after/ は auto-evidence-runner が退避済み）:
+今回の `{ui_cases}` の TC の前の回の証跡（`after/screen/` と `before/` の `{No}_` で始まるファイル）を消す（名前が今回と違うと残って今回の証跡と一緒に判定され、今回撮れなかった TC は前の回の証跡で判定されるため。前の回の分は auto-evidence-runner が退避済み）:
 ```bash
-python -c "import glob,os,pathlib,re,sys; [os.remove(f) for no in sys.argv[2].split(',') for f in glob.glob(os.path.join(sys.argv[1], no.strip() + '_*.txt')) if re.fullmatch(r'(判定\s*[:：]\s*未確認[^\n]*\n?)+', pathlib.Path(f).read_text(encoding='utf-8', errors='replace'))]" "{evidence_dir}/after/screen" "{ui_cases の No をカンマ区切り}"
+python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if no.strip() for d in sys.argv[1:3] for f in glob.glob(os.path.join(d, no.strip() + '_*'))]" "{evidence_dir}/after/screen" "{evidence_dir}/before" "{ui_cases の No をカンマ区切り}"
 ```
 
 `playwright-sf-screen-ops.md`「後から動く処理の結果を待つ」の `{T}` もここで控える（Step 1 の後から動く処理を待つ TC で使う）。
@@ -509,6 +509,8 @@ find "{evidence_dir}/after/screen" -name "*.txt" -size +0c
 
 1. **PNG**: 1KB 以上の `.png` が存在すること。0 バイト・不存在の場合は NG
 2. **after DOM テキスト（判定の主役）**: `after/screen/` 配下に各 TC 対応の `.txt` が存在し、非空（1バイト以上）であること。`find` の結果が 0 件、または特定 TC 分の `.txt` が欠落・0 バイトの場合は NG
+
+`ok: false` で NG にした TC（Step 1・Step 1.5 で書いた TC を除く）と、コードブロックごと失敗して結果が返らず `after/screen/` にその TC の `.txt` が無い TC は、`printf '%s\n' '判定: 未確認 — 実行中に失敗し（{error の要約}）、結果を確認していない' > "{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt"` で書く（Step 1.5 で途中で返すときも。`{error の要約}` は1行にし、`'` は「」に置き換える。撮れた分の証跡があっても `judge_results.py` が理由付きの NG〔未実行〕にする）。
 
 ---
 

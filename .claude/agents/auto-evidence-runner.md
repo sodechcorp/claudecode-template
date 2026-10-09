@@ -152,6 +152,11 @@ mkdir -p "{evidence_dir}/after/screen"
 mkdir -p "{evidence_dir}/before"
 ```
 
+今回 Step 2〜4 で実行する TC（上の依存で足した TC を含む）の前の回の証跡を消す（証跡の名前は観点やエージェントが付ける名前から作るため回ごとに変わりうる。残すと今回の証跡と一緒に判定され、今回撮れなかった TC は前の回の証跡で判定される。前の回の分は Step 0.5 で退避済み）:
+```bash
+python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[2].split(',') if no.strip() for d in ('after/soql','after/apex','after/screen','before') for f in glob.glob(os.path.join(sys.argv[1], d, no.strip() + '_*'))]" "{evidence_dir}" "{その TC の No をカンマ区切り。{target_tc_list} が空のときも全件を並べる}"
+```
+
 ---
 
 ## Step 1.5: メール到達安全確認・外部システム呼び出しの確認（AnonApex または UI ケースがある場合のみ）
