@@ -71,7 +71,7 @@ Step 2 で取得した**全完了課題**を LLM で構造化抽出し、`docs/k
 **差分マージ手順**:
 
 1. `docs/knowledge/case-index.md` が存在する場合:
-   - Read して issueID（`XXX-NN` 形式）の Set を作成する
+   - Read して issueID（`XXX-NN` 形式）の Set を作成する（`docs/knowledge/archive/case-index-archive.md` があればその行の issueID も含める。手動アーカイブした課題を作り直さないため）
    - 今回取得した完了課題のうち、**Set に含まれない issueID のみを処理対象とする**（Set 内の issueID は LLM 構造化抽出をスキップする）
    - 既存行は原則変更しない。**例外**: 既存行の「工数(h)」列が `-` または空の場合、当該 issueID の Backlog `actualHours` を取得して工数列のみ上書きする（backlog-releaser が `-` で先行追記した行を cat6 が actualHours で補完する設計）
    - 新規行をヘッダー直下に先頭挿入し、Write で全体を上書き保存する
@@ -108,7 +108,7 @@ Step 2 で取得した**全完了課題**を LLM で構造化抽出し、`docs/k
 
 > **既存行（旧8列形式）の扱い**: 差分マージ時、既存行を変更しない。旧フォーマット行と新フォーマット行が混在するが、検索・閲覧用途では実用上問題ない。次回 cat6 再実行時も同様に既存行は保持する。
 
-> **差分マージの重複判定**: 「課題ID」列を一意キーとし、既存テーブルに存在する issueID の行は追記しない。既存テーブル全行から正規表現 `\b([A-Za-z][A-Za-z0-9]*-\d+)\b` で issueID Set を作成し、今回の完了課題のうち Set に含まれていないもののみ新規行として末尾に追記する（上書き・更新はしない）。
+> **差分マージの重複判定**: 「課題ID」列を一意キーとし、既存テーブルに存在する issueID の行は追記しない。既存テーブル全行（と `docs/knowledge/archive/case-index-archive.md` の行）から正規表現 `\b([A-Za-z][A-Za-z0-9]*-\d+)\b` で issueID Set を作成し、今回の完了課題のうち Set に含まれていないもののみ新規行として末尾に追記する（上書き・更新はしない）。
 
 `docs/knowledge/` フォルダが存在しない場合は作成してからファイルを書き出す。
 
@@ -123,7 +123,7 @@ Step 2 で取得した完了課題から「再発防止すべきハマりポイ�
 **差分マージ手順**:
 
 1. `docs/knowledge/pitfalls.md` が存在する場合:
-   - Read して「issueID + カテゴリ」の複合 Set を作成する
+   - Read して「issueID + カテゴリ」の複合 Set を作成する（`docs/knowledge/archive/pitfalls-archive.md` があればその行も含める）
    - 重複判定は Jaccard 類似度: `(カテゴリ一致 ? 0.4 : 0) + (対象語彙 Jaccard × 0.4) + (対処方針語彙 Jaccard × 0.2) >= 0.8` でスキップ（同オブジェクト・同操作パターンは類似と見なしてよい）
    - 新規エントリをヘッダー直下に先頭挿入し、Write で全体を上書き保存する
 2. 存在しない場合: 全抽出結果で新規作成する

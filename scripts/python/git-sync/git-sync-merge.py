@@ -41,25 +41,68 @@ def write(path, content):
         f.write(content)
 
 
-# ---- decisions.md ----
-def merge_decisions(local, remote):
-    def split(text):
-        parts = re.split(r'(?=^## \d{4}-\d{2}-\d{2})', text or "", flags=re.MULTILINE)
-        pre = parts[0] if parts and not re.match(r'^## \d{4}', parts[0]) else ""
-        entries = {}
-        for p in parts:
-            m = re.match(r'^## (\d{4}-\d{2}-\d{2})', p)
-            if m:
-                entries[m.group(1)] = p
-        return pre, entries
+# ---- 見出しの塊の和集合（decisions / global-calibration 共通） ----
+def _blocks(text, split_re, key_re):
+    """split_re の見出し行の前で区切り、[(key_re で始まる塊はその見出し行・それ以外は None, 塊)] を返す"""
+    parts = [p for p in re.split(split_re, text or "", flags=re.MULTILINE) if p]
+    return [(p.split("\n", 1)[0].rstrip() if re.match(key_re, p) else None, p) for p in parts]
 
-    local_pre, local_e = split(local)
-    remote_pre, remote_e = split(remote)
-    merged = {**remote_e, **local_e}  # local 優先
-    pre = local_pre or remote_pre
-    body = "\n".join(merged[k] for k in sorted(merged.keys(), reverse=True))
-    print(f"  decisions.md: remote {len(remote_e)} 件 + local {len(local_e)} 件 → {len(merged)} 件")
-    return pre + body
+
+def _join_blocks(blocks, inserts):
+    """blocks の n 番目の後ろに inserts[n]（-1 は先頭）を足して連結する。足した塊の前後は空行で区切る"""
+    def pad(b):
+        return b if b.endswith("\n\n") else b + ("\n" if b.endswith("\n") else "\n\n")
+    out = [pad(a) for a in inserts.get(-1, [])]
+    for n, block in enumerate(blocks):
+        add = inserts.get(n, [])
+        out += [pad(block) if add else block] + [pad(a) for a in add]
+    text = "".join(out)
+    return text.rstrip("\n") + "\n" if inserts.get(len(blocks) - 1) else text
+
+
+# ---- decisions.md ----
+# `## ` の見出し行ごとのエントリ（同じ見出しは local 優先）。local のエントリは位置も順序もそのまま残し、remote にだけある
+# エントリを remote でその直前にある共通のエントリの後ろ（無ければ local の最初のエントリの前。最新を先頭に挿入する運用）に足す。
+# local に `## ` のエントリが無く、空でない行が全て remote にあれば（雛形のみ）remote のまま。
+def merge_decisions(local, remote, archived=None):
+    def split(text):
+        """[(見出し行 or None, 塊)]。ファイル末尾の HTML コメント（雛形の書式の注記）は最後の塊と分ける"""
+        blocks = _blocks(text, r'(?=^## )', r'## ')
+        m = re.search(r'\n<!--(?:(?!-->).)*-->\s*\Z', blocks[-1][1], re.DOTALL) if blocks else None
+        if m:
+            blocks[-1:] = [(blocks[-1][0], blocks[-1][1][:m.start() + 1]), (None, blocks[-1][1][m.start() + 1:])]
+        return blocks
+
+    l_blocks, r_blocks = split(local), split(remote)
+    l_pos = {}
+    for n, (key, _) in enumerate(l_blocks):
+        if key:
+            l_pos.setdefault(key, n)
+    l_n, r_n = (sum(1 for key, _ in b if key) for b in (l_blocks, r_blocks))
+    if l_pos:
+        top = min(l_pos.values()) - 1
+    else:
+        if {line.rstrip() for line in local.split("\n") if line.strip()} <= {line.rstrip() for line in remote.split("\n")}:
+            print(f"  decisions.md: local の行は全て remote にあるため remote のまま（{r_n} 件）")
+            return remote
+        # 雛形の旧書式（`### `）で書いた記録等は残し、最初の `### ` 行（無ければ末尾のコメント）の前に足す
+        head = l_blocks[0][1]
+        comments = [c.span() for c in re.finditer(r'<!--.*?-->', head, re.DOTALL)]
+        m = next((h for h in re.finditer(r'^### ', head, re.MULTILINE)
+                  if not any(s <= h.start() < e for s, e in comments)), None)
+        if m and m.start():
+            l_blocks[:1] = [(None, head[:m.start()]), (None, head[m.start():])]
+        top = -1 if m and not m.start() else 0
+    skip = {key for key, _ in split(archived) if key}  # 手動アーカイブ先にあるエントリも足さない
+    inserts, anchor = {}, top
+    for key, block in r_blocks:
+        if key in l_pos:
+            anchor = l_pos[key]
+        elif key and key not in skip:
+            inserts.setdefault(anchor, []).append(block)
+    new_n = sum(len(v) for v in inserts.values())
+    print(f"  decisions.md: remote {r_n} 件 + local {l_n} 件 → {l_n + new_n} 件（新規 {new_n} 件）")
+    return _join_blocks([block for _, block in l_blocks], inserts)
 
 
 # ---- 表の行の和集合（case-index / pitfalls / global-pitfalls / test-prerequisites 共通） ----
@@ -132,8 +175,8 @@ def _parse_rows(lines, key_of):
     return rows, seps
 
 
-def merge_table_rows(local, remote, key_of):
-    """(本文, local 行数, remote 行数, 新規行数) を返す。同キーは local 優先"""
+def merge_table_rows(local, remote, key_of, archived=None):
+    """(本文, local 行数, remote 行数, 新規行数) を返す。同キーは local 優先。archived（手動アーカイブ先）にあるキーの行は足さない"""
     r_lines = _restore_tables(_lines(remote))
     r_rows, r_seps = _parse_rows(r_lines, key_of)
     if not (local or "").strip():
@@ -145,6 +188,7 @@ def merge_table_rows(local, remote, key_of):
         l_pos.setdefault(key, i)
         l_top.setdefault(key, top)
     skip = set(l_pos) | set(l_seps) | set(r_seps)  # 崩れた remote に残る見出し行も足さない
+    skip |= {key for _, key, _, _ in _parse_rows(_lines(archived), key_of)[0]}
     # 同じ表に共通の行が無い行の位置: 同じ見出しの local の表の区切り行の直後。無ければ local の最初のデータ行の前、
     # 最初の表の区切り行の直後、末尾の順
     if l_rows:
@@ -172,99 +216,104 @@ def merge_table_rows(local, remote, key_of):
 
 
 # ---- case-index.md ----
-def merge_table(local, remote):
-    text, l_n, r_n, new_n = merge_table_rows(local, remote, lambda c: c[1] if len(c) > 1 and c[1] else None)
+def merge_table(local, remote, archived=None):
+    text, l_n, r_n, new_n = merge_table_rows(local, remote, lambda c: c[1] if len(c) > 1 and c[1] else None, archived)
     print(f"  case-index.md: remote {r_n} 行 + local {l_n} 行 → {l_n + new_n} 行")
     return text
 
 
 # ---- pitfalls.md ----
 # 第2列（issueID）＋第3列（カテゴリ）の複合キー。表の外の行（旧セクション形式等）は local のまま残す。
-def merge_pitfalls(local, remote, name="pitfalls.md"):
-    text, l_n, r_n, new_n = merge_table_rows(local, remote, lambda c: f"{c[1]}::{c[2]}" if len(c) >= 3 else None)
+def merge_pitfalls(local, remote, name="pitfalls.md", archived=None):
+    text, l_n, r_n, new_n = merge_table_rows(local, remote, lambda c: f"{c[1]}::{c[2]}" if len(c) >= 3 else None, archived)
     print(f"  {name}: remote {r_n} 行 + local {l_n} 行 → {l_n + new_n} 行（新規 {new_n} 件）")
     return text
 
 
 # ---- effort-calibration.md ----
+# アンカー行（例: "- GF-123「...」= 2h"）の課題ID単位で和集合（同キーは local 優先）。アンカー以外（全体傾向等）と local のアンカーは
+# 位置も順序もそのまま残し、remote にだけあるアンカーを、remote の同じ ### 帯（次の見出しまで）でその直前にある共通のアンカーの後ろ
+# （無ければ同じ帯の次の共通のアンカーの前、同じ見出しの local の帯の最後のアンカー〔アンカーが無ければ帯の最後の行〕の後ろ、
+# local の最後のアンカーの後ろの順）に足す。
 def merge_calibration(local, remote):
     if not local:
         return remote
     if not remote:
         return local
-
-    # アンカー行を課題IDで抽出（例: "- GF-123「...」= 2h"）
     anchor_re = re.compile(r'^- ([A-Za-z]+-\d+)「')
 
-    def extract_anchors(text):
-        anchors = {}
-        for line in (text or "").splitlines(keepends=True):
-            m = anchor_re.match(line)
-            if m:
-                anchors[m.group(1)] = line
-        return anchors
+    def parse(lines):
+        """[(位置, 課題ID, 帯の見出し)] と {帯の見出し: 帯の最後の空でない行の位置} を返す"""
+        anchors, band_end, band = [], {}, None
+        for i, line in enumerate(lines):
+            if re.match(r'#{1,6} ', line):
+                band = line.rstrip() if line.startswith("### ") else None
+            elif anchor_re.match(line):
+                anchors.append((i, anchor_re.match(line).group(1), band))
+            if band and line.strip():
+                band_end[band] = i
+        return anchors, band_end
 
-    local_anchors = extract_anchors(local)
-    remote_anchors = extract_anchors(remote)
-
-    # 和集合（同キーは local 優先）
-    merged_anchors = {**remote_anchors, **local_anchors}
-    new_count = len(set(remote_anchors) - set(local_anchors))
-
-    # local のテキストをベースに処理
-    # 「全体傾向」統計セクション（先頭ブロック）は local をそのまま保持
-    result_lines = []
-    seen_keys = set()
-    for line in local.splitlines(keepends=True):
-        m = anchor_re.match(line)
-        if m:
-            key = m.group(1)
-            seen_keys.add(key)
-            result_lines.append(merged_anchors.get(key, line))
+    l_lines, r_lines = _lines(local), _lines(remote)
+    (l_anchors, l_band_end), (r_anchors, _) = parse(l_lines), parse(r_lines)
+    l_pos, l_band_last = {}, {}
+    for i, key, band in l_anchors:
+        l_pos.setdefault(key, i)
+        l_band_last[band] = i
+    last = l_anchors[-1][0] if l_anchors else len(l_lines) - 1
+    inserts, anchor, cur = {}, None, None
+    for n, (i, key, band) in enumerate(r_anchors):
+        if band != cur:
+            anchor, cur = None, band
+        if key in l_pos:
+            anchor = l_pos[key]
+            continue
+        if anchor is not None:
+            pos = anchor
         else:
-            result_lines.append(line)
-
-    # remote にのみ存在するアンカーを末尾に追加
-    for key, line in merged_anchors.items():
-        if key not in seen_keys:
-            result_lines.append(line)
-
-    print(f"  effort-calibration.md: remote {len(remote_anchors)} 件 + local {len(local_anchors)} 件 → {len(extract_anchors(''.join(result_lines)))} 件（新規 {new_count} 件追加）")
-    return "".join(result_lines)
+            nxt = next((k for _, k, b in r_anchors[n + 1:] if b == band and k in l_pos), None)
+            pos = l_pos[nxt] - 1 if nxt is not None else l_band_last.get(band, l_band_end.get(band, last))
+        inserts.setdefault(pos, []).append(r_lines[i])
+    out = list(inserts.get(-1, []))
+    for i, line in enumerate(l_lines):
+        out += [line] + inserts.get(i, [])
+    new_n = sum(len(v) for v in inserts.values())
+    print(f"  effort-calibration.md: remote {len(r_anchors)} 件 + local {len(l_anchors)} 件 → {len(l_anchors) + new_n} 件（新規 {new_n} 件追加）")
+    return "".join(out)
 
 
 # ---- global-calibration.md ----
+# ### 見出しの帯（次の #〜### 見出しまで）単位で和集合（同じ見出しは local 優先）。帯の外（全体傾向・LLM 観察等）と local の帯は
+# 位置も順序もそのまま残し、remote にだけある帯を、remote でその直前にある共通の帯の後ろ（無ければ次の共通の帯の前、
+# local の最後の帯の後ろの順）に足す。local に帯が無ければ（未生成の雛形）remote のまま。
 def merge_global_calibration(local, remote):
     if not local:
         return remote
     if not remote:
         return local
-
-    # 「全体傾向」セクション（先頭から最初の `## コンポーネント種別別` まで）は local 優先
-    # 各 `### ` 見出しセクションは内容を remote で補完（local 優先）
-    local_sections = re.split(r'(?=^### )', local, flags=re.MULTILINE)
-    remote_sections = re.split(r'(?=^### )', remote, flags=re.MULTILINE)
-
-    local_map = {}
-    local_pre = ""
-    for i, s in enumerate(local_sections):
-        m = re.match(r'^### (.+)', s)
-        if m:
-            local_map[m.group(1).strip()] = s
+    l_blocks, r_blocks = _blocks(local, r'(?=^#{1,3} )', r'### '), _blocks(remote, r'(?=^#{1,3} )', r'### ')
+    l_pos = {}
+    for n, (key, _) in enumerate(l_blocks):
+        if key:
+            l_pos.setdefault(key, n)
+    r_bands = [(key, block) for key, block in r_blocks if key]
+    if not l_pos:
+        print(f"  global-calibration.md: local に帯が無いため remote のまま（{len(r_bands)} 帯）")
+        return remote
+    inserts, anchor = {}, None
+    for n, (key, block) in enumerate(r_bands):
+        if key in l_pos:
+            anchor = l_pos[key]
+            continue
+        if anchor is not None:
+            pos = anchor
         else:
-            local_pre += s
-
-    remote_map = {}
-    for s in remote_sections:
-        m = re.match(r'^### (.+)', s)
-        if m:
-            remote_map[m.group(1).strip()] = s
-
-    # remote にある新規セクションを追加（local 優先で既存は上書きしない）
-    merged = {**remote_map, **local_map}
-    new_count = len(set(remote_map) - set(local_map))
-    print(f"  global-calibration.md: {len(local_map)} 既存帯 + {new_count} 新規帯 → {len(merged)} 帯")
-    return local_pre + "".join(merged.values())
+            nxt = next((k for k, _ in r_bands[n + 1:] if k in l_pos), None)
+            pos = l_pos[nxt] - 1 if nxt is not None else max(l_pos.values())
+        inserts.setdefault(pos, []).append(block)
+    new_n = sum(len(v) for v in inserts.values())
+    print(f"  global-calibration.md: {len(l_pos)} 既存帯 + {new_n} 新規帯 → {len(l_pos) + new_n} 帯")
+    return _join_blocks([block for _, block in l_blocks], inserts)
 
 
 # ---- global-pitfalls.md ----
@@ -346,7 +395,7 @@ def main():
     elif local is None:
         write(path, remote); print(f"  {path}: 新規作成（remote 版）")
     else:
-        write(path, merge_decisions(local, remote))
+        write(path, merge_decisions(local, remote, read_local("docs/decisions-archive.md")))
 
     # ---- case-index.md ----
     path = "docs/knowledge/case-index.md"
@@ -357,7 +406,7 @@ def main():
     elif local is None:
         write(path, remote); print(f"  {path}: 新規作成（remote 版）")
     else:
-        write(path, merge_table(local, remote))
+        write(path, merge_table(local, remote, read_local("docs/knowledge/archive/case-index-archive.md")))
 
     # ---- pitfalls.md ----
     path = "docs/knowledge/pitfalls.md"
@@ -368,7 +417,7 @@ def main():
     elif local is None:
         write(path, remote); print(f"  {path}: 新規作成（remote 版）")
     else:
-        write(path, merge_pitfalls(local, remote))
+        write(path, merge_pitfalls(local, remote, archived=read_local("docs/knowledge/archive/pitfalls-archive.md")))
 
     # ---- cases/*.md ----
     cases_dir = "docs/knowledge/cases"

@@ -23,14 +23,16 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 
 | パス | マージキー |
 |---|---|
-| `docs/decisions.md` | `## YYYY-MM-DD` で始まる各エントリ（同キーは local 優先） |
+| `docs/decisions.md` | `## ` の見出し行ごとのエントリ（同じ見出しは local 優先。local が雛形のみ〔行が全て remote にある〕なら remote のまま） |
 | `docs/knowledge/case-index.md` | テーブル行の第2列（課題ID）（同キーは local 優先） |
 | `docs/knowledge/pitfalls.md` | テーブル行の由来issueID＋カテゴリ複合キー（第2列・第3列）（同キーは local 優先） |
 | `docs/knowledge/cases/` | ファイル名（issueKey）単位で新規のみ追加（既存は上書きしない） |
 | `docs/knowledge/effort-calibration.md` | アンカー行（`^- [ID]「` 形式）の課題ID単位で和集合。「全体傾向」統計セクションは local 優先で保持 |
-| `docs/knowledge/global-calibration.md` | `^### ` 見出し（コンポーネント種別帯）単位でマージ。「全体傾向」セクションは local 優先で保持 |
+| `docs/knowledge/global-calibration.md` | `^### ` 見出し（コンポーネント種別帯）単位でマージ。「全体傾向」セクションは local 優先で保持（local に帯が無い雛形なら remote のまま） |
 | `docs/knowledge/global-pitfalls.md` | テーブル行の issueID+カテゴリ単位で和集合（第2列・第3列の複合キー）。同キーは local 優先 |
 | `docs/knowledge/test-prerequisites.md` | §見出し内の各表 第1列キーで和集合（同キーは local 優先）。§ 3（散文）は local 優先で保持 |
+
+decisions.md・case-index.md・pitfalls.md は、手動アーカイブ先（[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用）にあるキーを remote から足さない。
 
 ### 同期対象外（担当者ごとに独立蓄積）
 

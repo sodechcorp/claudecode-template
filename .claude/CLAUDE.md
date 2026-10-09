@@ -124,11 +124,11 @@ Slack / メール / 外部サービスへのメッセージ送信・機密情報
 
 指示パターン別の詳細手順: [docs-driven-behavior.md](.claude/spec/docs-driven-behavior.md) 参照
 
-**実装後**: `docs/catalog/` / `docs/design/` の該当ファイルを更新（存在する場合のみ・提案でなく実行）。`docs/logs/changelog.md` に変更サマリ 1 行追記。保守課題で方針確定したら `docs/decisions.md` に最上部追記（降順）。docs が存在しない場合: 「命名は SF 慣例に従います」と伝え、作業後に `/sf-memory` を提案。
+**実装後**: `docs/catalog/` / `docs/design/` の該当ファイルを更新（存在する場合のみ・提案でなく実行）。`docs/logs/changelog.md` に変更サマリ 1 行追記。保守課題で方針確定したら `docs/decisions.md` に最上部追記（降順・書式は [knowledge-reflux-formats.md](.claude/templates/common/knowledge-reflux-formats.md) §decisions.md エントリ）。docs が存在しない場合: 「命名は SF 慣例に従います」と伝え、作業後に `/sf-memory` を提案。
 
 **`[要確認]` 解消**: 作業中に読んだ docs ファイルに `[要確認]` マーカーがあり、会話・実装・調査で答えが判明した場合は、その場でマーカーを解消して実値に書き換える。後回しにしない。
 
-**コード変更なしの知見**: `/backlog` 外・コード変更を伴わない会話/調査で判明した案件固有の新事実・落とし穴・判断も、`docs/knowledge/pitfalls.md`（落とし穴）または `docs/decisions.md`（方針判断）に追記する。実装を伴わないことを記録しない理由にしない。
+**コード変更なしの知見**: `/backlog` 外・コード変更を伴わない会話/調査で判明した案件固有の新事実・落とし穴・判断も、`docs/knowledge/pitfalls.md`（落とし穴）または `docs/decisions.md`（方針判断。書式は「実装後」と同じ）に追記する。実装を伴わないことを記録しない理由にしない。
 
 ---
 
