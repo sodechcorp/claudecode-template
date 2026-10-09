@@ -159,5 +159,5 @@ manual_rows: {担当者作業待ちの作業に依存する行の V 番号と作
 
 - **本番デプロイは本コマンドの範囲外**。`release-plan.md` に記載された CLI コマンド（`deploy_route: manual-operation` の場合は管理画面操作ステップ）は人間が手動で実行する
 - 課題間の並行対応でチケット競合が検出された場合、または本番環境ドリフトで「競合・要人間判断」が検出された場合は、release-preparer の完了報告で明示的に警告される。警告を無視してデプロイしないこと
-- 本番組織への接続は read-only に限る。`release-preparer` 内部（Phase 1・Phase 4・Phase 7・バックアップ再取得モード）と `prod-ui-verifier`（Step 5 の画面確認。閲覧・Login As のみ）のほか、本コマンドも Step 2b（手順書の再生成前の確認）と Step 4 の4.（バックアップの最新確認）の `sf org list metadata`、ロールバック手順 1b の照合・作られたレコードの件数の `sf data query`（SELECT）だけを `prod-readonly-check.md` を通して実行する
+- 本番組織への接続は read-only に限る。`release-preparer` 内部（Phase 1・Phase 4・Phase 7・バックアップ再取得モード）と `prod-ui-verifier`（Step 5 の画面確認。閲覧・Login As のみ）のほか、本コマンドも Step 2b（手順書の再生成前の確認）と Step 4 の4.（バックアップの最新確認）の `sf org list metadata`、ロールバック手順 1b の照合・作られたレコードの件数・取り込み直すと動くフローの今有効な版の `sf data query`（SELECT）だけを `prod-readonly-check.md` を通して実行する
 - `docs/logs/` は `.gitignore` 対象のため、`release-plan.md` / `release-note.md` / `release-log.md` / Step 2/3・Phase 7 が読むファイル（`destructive-changes/`・`release-deploy/`・`profile-delta/`）/ バックアップ（`rollback-backup/`・`rollback-deploy/`・`backup/data/`）は生成した本人のローカル環境にのみ存在する。他メンバーと共有する場合は手動でファイルを渡す必要がある。データのバックアップ（CSV）は個人情報を含みうるため、③ の担当者確認が全て終わった後に Step 5 で削除する
