@@ -284,9 +284,9 @@ echo "TARGET_TC_LIST=$TARGET_TC_LIST"
 
 **実行の流れ**（`auto-evidence-runner` 内部・証跡採取モード）:
 1. 種別仕分け＋差分対象 TC の絞り込み
-2. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列）
-3. AnonApex → コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列）
-4. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）。読み取り専用ケースは複数コンテキスト並列（max_workers_ui=3）、データ更新/Login As ケースは逐次
+2. AnonApex → コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列）
+3. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）。読み取り専用ケースは複数コンテキスト並列（max_workers_ui=3）、データ更新/Login As ケースは逐次
+4. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列。匿名 Apex・UI の操作の後に取る。後の TC がデータを変える前に取るものは 2・3 の前か途中で取る）
 5. 証跡存在確認（後始末・test-report.md 生成は Phase F が担当）
 
 auto-evidence-runner が完了報告を返したら、証跡ファイルの存在を確認する（0件ゲート・早期検知）:

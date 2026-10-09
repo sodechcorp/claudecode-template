@@ -46,7 +46,7 @@ def _write_sandbox_cache(cache_path: str, alias: str, instance_url: str = ""):
     """Sandbox確認済みの結果をキャッシュする（is_sandbox=True の場合のみ呼ぶ）。
     本関数はこのスクリプト自身の sf org display 呼び出しを省略するためではない
     （access_token の取得に毎回この呼び出しが必要なため省略不可・accessTokenは
-    キャッシュしない）。/test 1回の実行内で後続実行される anon_apex_runner.py の
+    キャッシュしない）。/test 1回の実行内で anon_apex_runner.py の
     Sandbox判定を省略させるための書き込み専用キャッシュ（実測11～20秒重複の一部を解消）。
     書き込み失敗は本処理を止めない。
     """
@@ -71,7 +71,7 @@ def assert_sandbox(alias: str, cache_path: str = "") -> tuple:
     経由の REST API 呼び出しに切り替える）。
 
     `cache_path` 指定時: access_token 取得のため `sf org display` は毎回実施するが
-    （キャッシュ省略不可）、成功後に is_sandbox=True の結果を書き込み、後続の
+    （キャッシュ省略不可）、成功後に is_sandbox=True の結果を書き込み、
     anon_apex_runner.py がこの呼び出しを省略できるようにする。
     """
     if not alias:

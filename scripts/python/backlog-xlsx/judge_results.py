@@ -77,7 +77,8 @@ def _tc_prefix_match(fname: str, tc_no: str) -> bool:
 
 def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, allow_before: bool = False) -> list:
     """証跡ディレクトリから TC-001 に対応する全ファイルを返す（複数証跡・分岐ラベル対応）。
-    allow_before=True（前後比較・Phase3 Before 参照の TC）の場合のみ、after/ に無ければ before/ を探す。
+    allow_before=True（前後比較・Phase3 Before 参照の TC）の場合のみ、after/ に無ければ before/ を探す
+    （SOQL の before は after の代わりにしない）。
     それ以外で before/ に代替すると、操作途中で失敗し after 証跡が無い TC が操作前の画面で判定され偽 OK になる。"""
     # " + " で分割して各サブディレクトリを収集（重複なし・順序維持）
     subdirs_ordered = []
@@ -115,6 +116,9 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, allow_befo
                     continue
                 if _tc_prefix_match(fname, tc_no):
                     fpath = os.path.join(before_dir, fname)
+                    # SOQL の before（soql_evidence.py の証跡）は after の代わりにしない
+                    if fname.lower().endswith(".txt") and _read_text_evidence(fpath).lstrip("= \r\n").startswith("SOQL 証跡"):
+                        continue
                     if fpath not in seen:
                         seen.add(fpath)
                         found.append(fpath)
@@ -755,7 +759,9 @@ def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
         before_ok = False
         for fpath in before_txts:
             content = _read_text_evidence(fpath)
-            if exp_before.lower() in content.lower():
+            m_sec = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
+            scope = m_sec.group(1) if m_sec else content
+            if exp_before.lower() in scope.lower():
                 before_ok = True
                 before_actual = f"before:「{exp_before[:20]}」確認済"
                 break
