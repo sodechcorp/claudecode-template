@@ -439,12 +439,12 @@ def get_flow_info(path: Path) -> tuple[str, str, str]:
         content = path.read_bytes()
         tree = ET.fromstring(content)
         ns = {"sf": FLOW_NS}
-        label = tree.findtext("sf:label", namespaces=ns) or path.stem
+        label = tree.findtext("sf:label", namespaces=ns) or path.name.replace(".flow-meta.xml", "")
         ptype = tree.findtext("sf:processType", namespaces=ns) or "Flow"
         desc  = tree.findtext("sf:description", namespaces=ns) or ""
         return label, ptype, desc
     except Exception:
-        return path.stem, "Flow", ""
+        return path.name.replace(".flow-meta.xml", ""), "Flow", ""
 
 
 # 種別 → docs/design/ 配下のサブフォルダ名マッピング（cat4 の出力先と一致）

@@ -56,7 +56,7 @@ for f in sorted(flows_dir.glob('*.flow-meta.xml')):
     objects = sorted(set(re.findall(r'<object>([^<]+)</object>', text)))
     refs = sorted(set(re.findall(r'<targetReference>([^<]+)</targetReference>', text)))
     proc_type = (re.findall(r'<processType>([^<]+)</processType>', text) or [''])[0]
-    index[f.stem] = {'processType': proc_type, 'objects': objects, 'targetReferences': refs}
+    index[f.name.removesuffix('.flow-meta.xml')] = {'processType': proc_type, 'objects': objects, 'targetReferences': refs}
 index['cached_at'] = datetime.datetime.utcnow().isoformat() + 'Z'
 cache_path.parent.mkdir(parents=True, exist_ok=True)
 cache_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding='utf-8')
