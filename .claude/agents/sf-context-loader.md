@@ -85,7 +85,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / assista
 | キーワード（マスタ系） | マスタ, ピックリスト, 選択リスト, 商品 | `docs/data/master-data.md` |
 | キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md`（下記の常時読込ルールで別途対応済みのためこのマッチでは重複追加しない） + `docs/knowledge/pitfalls.md`（先頭150行 Read） |
 | キーワード（工数系） | 工数, effort, 見積, 何時間, calibration | `docs/knowledge/effort-calibration.md`（先頭150行 Read） + `docs/knowledge/global-calibration.md`（先頭100行 Read・存在する場合のみ） + `docs/knowledge/case-index.md`（工数列 Grep） |
-| `[A-Z][A-Z0-9_]+-\d+`（issueID。1文字のキーは手順番号〔`B-1` 等〕と区別できないため拾わない。ただし `UC-` / `CMP-` / `BR-` で始まるものは既存の他パターン専用のため除外） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（`^## 課題サマリー` セクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（`^## 対応方針（結論）` セクションのみ Grep）。**自課題 ID は読込対象から除外**（→ 下記の自課題除外ルール参照） |
+| `[A-Z][A-Z0-9_]+-\d+`（issueID。1文字のキーは手順番号〔`B-1` 等〕と区別できないため拾わない。`docs/logs/*/investigation.md` の Glob で出るフォルダ名・`docs/knowledge/case-index.md` の課題ID列・`docs/decisions.md` の `^## ` の直後（`###` の行は含めない）のどれかにある課題IDと、プロジェクトキー〔`-` より前〕が同じものだけを課題IDとして扱う。課題ID以外の採番〔`FR-036`・`TC-005`・`SA-004` 等〕や `UC-`・`CMP-`・`BR-` は形では区別できないため） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（`^## 課題サマリー` セクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（`^## 対応方針（結論）` セクションのみ Grep）。**自課題 ID は読込対象から除外**（→ 下記の自課題除外ルール参照） |
 | キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件: 先頭200行を Read・降順管理のため最新が先頭） + `docs/knowledge/case-index.md`（症状列を Grep）→ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md`（存在すれば最大2件 Read・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出） |
 | キーワード（変更履歴系） | 変更履歴, changelog, 最近の変更, デプロイ, リリース | `docs/logs/changelog.md`（先頭30行 Read。先頭挿入運用のため直近分が先頭） |
 | キーワード（落とし穴・注意） | 落とし穴, ハマる, ハマった, 気を付ける, 気をつけて, 注意, 地雷, 壊れる, 想定外, 罠 | `docs/knowledge/pitfalls.md`（先頭150行 Read）+ `docs/knowledge/global-pitfalls.md`（先頭100行 Read・存在する場合のみ） |
@@ -105,7 +105,7 @@ backlog-implementer / backlog-tester / backlog-releaser / sf-architect / assista
 
 > **自課題除外ルール（issueID マッチ適用時）**: `task_description` の中心テーマとして扱われている issueID（現在処理中の自課題）は、issueID マッチの「類似過去課題」対象から **除外する**。自課題の `investigation.md` / `approach-plan.md` は呼び出し元エージェントが直接参照する現タスクの作業コンテキストであり、loader 経由で再注入すると循環参照・重複になるため。
 > - **除外判定**: `task_description` 冒頭や `「{issueID} の対応をする/実装する/調査する」` のように、処理主体として言及されている ID が自課題。
-> - **除外しない**: `focus_hints` で明示された別 ID、または `task_description` 中で「過去に GF-xxx で同様の問題が…」のように明確に過去事例として言及されている別 ID は従来どおり過去課題として読む。
+> - **除外しない**: `focus_hints` で明示された別の課題ID、または `task_description` 中で「過去に GF-xxx で同様の問題が…」のように明確に過去事例として言及されている別の課題ID は従来どおり過去課題として読む。
 
 **マッチが全くない場合**: `org-profile.md` または `sf-standard.md`（常時読込対象）が存在する場合は、それらのみを読込対象として Phase 3 へ進み要約を返す。**いずれも存在しない場合のみ** Phase 2.5 へ進む。
 
