@@ -28,6 +28,6 @@ Python インラインコード内、および AskUserQuestion の label / descr
 | `{issueID}` | 文字列 | `/backlog` Phase 0 |
 | `{件名}` / `{件名_sanitized}` | 文字列 | `/backlog` Phase 0（investigation.md 生成時） |
 
-> `{issueID}` は Backlog の課題キー（`[A-Z]{2,}-\d+`、例 `GF-341`）。`docs/knowledge/cases/{issueKey}.md` のファイル名で使う `{issueKey}` と**同一値**で、作業フォルダ・中間成果物系では `{issueID}`、cases ナレッジファイル名では `{issueKey}` と表記を使い分ける。
+> `{issueID}` は Backlog の課題キー（`[A-Z][A-Z0-9_]*-\d+`、例 `GF-341`）。`docs/knowledge/cases/{issueKey}.md` のファイル名で使う `{issueKey}` と**同一値**で、作業フォルダ・中間成果物系では `{issueID}`、cases ナレッジファイル名では `{issueKey}` と表記を使い分ける。
 >
 > `{report_dir}` / `{xlsx_create}` / `{xlsx_folder}` / `{evidence_dir}`（固定パス `docs/logs/{issueID}/evidence` に統一）は対応記録.xlsx 廃止（2026-09-18）に伴い削除済み。`.backlog_config.yml` の `report_dir` キーは `/test` Phase G（証跡の共有フォルダ保存）が `share_evidence.py` 経由で使う（プレースホルダーとしては使わない）。

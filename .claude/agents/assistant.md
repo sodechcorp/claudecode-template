@@ -75,7 +75,7 @@ tools:
 - **SF標準仕様系**: ガバナ制限 / API制限 / SOQL上限 / トリガ順序 / sharing / FLS評価 / governor / 制限値 / 何件まで
 - **ドメイン固有知識系**: RevenueCloud / SBQQ / CPQ / Billing / Pardot / サブスクリプション / 請求 / インボイス
 - **テスト/動作確認系**: テスト / 動作確認 / ログイン手順 / Login As / テストデータ / エビデンス
-- **課題 ID 系**: `GF-\d+` / `LINK-\d+` / `ASNO-\d+` / `SNM-\d+` / `INTERNALTASK-\d+`（課題対応・過去経緯の質問。docs 化された過去経緯は sf-context-loader 経由で取得し、最新の Backlog 本文・コメントを直接確認したい場合は `mcp__backlog__get_issue` / `mcp__backlog__get_issue_comments` を使う）
+- **課題 ID 系**: `[A-Z][A-Z0-9_]+-\d+`（例: `GF-341`。課題対応・過去経緯の質問。docs 化された過去経緯は sf-context-loader 経由で取得し、最新の Backlog 本文・コメントを直接確認したい場合は `mcp__backlog__get_issue` / `mcp__backlog__get_issue_comments` を使う）
 - **業務理解系**: 「〜って何？」「〜の流れは？」「〜の経緯は？」「〜さんって誰？」「なぜ〜なの？」／断定調「〜の仕様は」「〜の挙動は」「〜を教えて」「〜を確認したい」（業務理解 0 モード）
 
 > **セーフガード**: 上記に完全一致しなくても、業務固有名詞・プロジェクト用語・人名・画面名を含む質問は SF 関連の可能性が高い。判定に迷う場合は Phase 0 を実行する（loader が「該当コンテキストなし」を返せば即スキップするため、過剰実行のコストは低い）。

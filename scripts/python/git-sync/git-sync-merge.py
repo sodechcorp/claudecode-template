@@ -436,7 +436,7 @@ def merge_archive(local, remote, name):
 
 
 # ---- effort-calibration.md ----
-# アンカー行（例: "- GF-123「...」= 2h"）の課題ID単位で和集合（同キーは local 優先）。アンカー以外（全体傾向等）と local のアンカーは
+# アンカー行（例: "- GF-123「...」= 2h"。正規表現は sf-analyst-cat6.md Step 8 と同じ）の課題ID単位で和集合（同キーは local 優先）。アンカー以外（全体傾向等）と local のアンカーは
 # 位置も順序もそのまま残し、remote にだけあるアンカーを、remote の同じ ### 帯（次の見出しまで）でその直前にある共通のアンカーの後ろ
 # （無ければ同じ帯の次の共通のアンカーの前、local の同じ帯の最後のアンカー〔アンカーが無ければ帯の最後の行〕の後ろ、
 # local の最後のアンカーの後ろの順）に足す。帯は見出しの「（」より前で突き合わせる（括弧内の閾値は cat6 が再計算で変える。
@@ -450,7 +450,7 @@ def merge_calibration(local, remote, past=()):
     if _norm(local) in {_norm(text) for text in past}:
         print("  effort-calibration.md: local は remote の過去の版と同じため remote のまま")
         return remote
-    anchor_re = re.compile(r'^- ([A-Za-z][A-Za-z0-9]*-\d+)「')
+    anchor_re = re.compile(r'^- ([A-Z][A-Z0-9_]*-\d+)「')
 
     def label(line):
         return re.split(r'[（(]', line)[0].rstrip()
