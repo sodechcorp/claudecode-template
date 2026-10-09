@@ -122,6 +122,11 @@ mkdir -p "{evidence_dir}/after/screen"
 mkdir -p "{evidence_dir}/before"
 ```
 
+今回の `{ui_cases}` の TC について、前の回に書いた「判定: 未確認」の行だけのファイル（Step 1.5・Step 1「続きの TC」）を消す（Login As のユーザ名付きの証跡など名前が違うと残り続け、撮れても NG〔未実行〕のままになるため。前の回の after/ は auto-evidence-runner が退避済み）:
+```bash
+python -c "import glob,os,pathlib,re,sys; [os.remove(f) for no in sys.argv[2].split(',') for f in glob.glob(os.path.join(sys.argv[1], no.strip() + '_*.txt')) if re.fullmatch(r'(判定\s*[:：]\s*未確認[^\n]*\n?)+', pathlib.Path(f).read_text(encoding='utf-8', errors='replace'))]" "{evidence_dir}/after/screen" "{ui_cases の No をカンマ区切り}"
+```
+
 `playwright-sf-screen-ops.md`「後から動く処理の結果を待つ」の `{T}` もここで控える（Step 1 の後から動く処理を待つ TC で使う）。
 
 ---
@@ -144,6 +149,8 @@ mkdir -p "{evidence_dir}/before"
 **後から動く処理の結果を撮る TC**: 期待結果（前後比較は after:）が、その TC の操作か前提データの保存で動く、トランザクションの外の処理（`{log_dir}/investigation.md`「## スコープ」と force-app で確かめる）の結果を含む TC は、グループによらず `playwright-sf-screen-ops.md`「後から動く処理の結果を待つ」で待ってから（`$SF_ALIAS` は `{alias}`）after を撮る（グループ②③は操作の後でコードブロックを区切り、次のコードブロックで再読込してから撮る。グループ①は撮るコードブロックの前に待つ。同節 2. の比べる元の値は、操作の保存で動く処理ならその保存を含むコードブロックの前に SOQL で控え、前提データの保存で動く処理なら作成時の値にする）。待ちを打ち切った・終わったことを確かめる手段が無い TC（同節の最後の段落）は、撮影したうえで after DOM の `.txt`（保存失敗で Write した場合はその後）の末尾に `printf '\n判定: 未確認 — 後から動く処理の完了を確かめられず、結果を確認していない\n' >> "{その .txt}"` で1行足し（`judge_results.py` が行頭の `判定: 未確認` で NG〔未実行〕にする。DOM の最後の行に続けないよう改行から足す）、備考欄に `[後から動く処理の完了を確認できず]` を付記する。
 
 **前の保存で動く処理の結果に依る TC**: 前の UI の TC の操作の保存で動く、トランザクションの外の処理（確かめ方は上と同じ）の結果に操作・期待結果（前後比較の before: を含む）が依る TC と、同じ TC の操作の途中の保存で動くその処理の結果に操作の残りが依る TC は、その保存の後でコードブロックを区切って `playwright-sf-screen-ops.md`「後から動く処理の結果を待つ」で待ち（同節 2. の比べる元の値はその保存を含むコードブロックの前に SOQL で控える）、次のコードブロックで再読込してから続ける。待ちを打ち切った・終わったことを確かめる手段が無い TC は、上と同じく after DOM の `.txt` に1行足し、備考欄に付記する。
+
+**続きの TC**: 前提・実行アクションに、別の UI の TC（続き元）の操作の後の画面のまま続けると書かれた TC（「TC-xxx の続き」「TC-xxx と同一画面」「TC-xxx 実行時の完了画面」等。同じレコード・データを使うだけの TC・続き元の操作の途中の画面〔「TC-xxx 実行時の入力画面」等〕を撮る TC は含めない）は、続き元と同じグループ（③なら同じユーザ。続き元が①なら両方を②）で続き元の直後に実行する（同じ続き元の TC が複数あれば No 順に続ける。ほかの TC は No 順のまま）。続き元が失敗した（`ok: false`）・飛ばされた（前のコードブロックのものを含む）・`ui_cases` に無い続きの TC は実行せず（`tcs` に入れない）、`printf '%s\n' '判定: 未確認 — 続き元 {続き元の No} の操作の後の画面が無く、結果を確認していない' > "{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt"` で書き（前回の証跡が残っていても `judge_results.py` が理由付きの NG〔未実行〕にする）、NG（備考に `[続き元 {続き元の No} の画面が無く未実行]`）にする。
 
 ---
 
@@ -204,7 +211,7 @@ mkdir -p "{evidence_dir}/before"
 
 各 TC はブロック内で以下 1〜4 を行い、結果を配列 `results` へ push する。TC ごとに `try/catch` で囲み、失敗した TC が後続 TC の証跡採取を止めないようにする:
 
-0.5. **画面遷移**: 当該 TC の操作を始める画面（前提のレコードの、実行アクションの最初の操作〔ボタン・入力等〕を行う画面。遷移そのものを確かめる TC は遷移元の画面で、遷移は `action` で行う）を開いてから（コード例の `preNav`。URL が決まる画面は `page.goto` で開く）手順1（before 撮影）に進む。前の TC と同じ画面でも開き直す（前の TC の操作で画面の状態が変わっている・別のレコードを開く TC があるため）。`preNav` を書かないのは、ログイン直後にその画面〔同じレコード〕に着地した1件目（上記の `--path`、コード例の TC-001 のホーム）と、前の TC の画面のまま続けると書かれた TC。TC の実行順序（No 順）は変更しない。
+0.5. **画面遷移**: 当該 TC の操作を始める画面（前提のレコードの、実行アクションの最初の操作〔ボタン・入力等〕を行う画面。遷移そのものを確かめる TC は遷移元の画面で、遷移は `action` で行う）を開いてから（コード例の `preNav`。URL が決まる画面は `page.goto` で開く）手順1（before 撮影）に進む。前の TC と同じ画面でも開き直す（前の TC の操作で画面の状態が変わっている・別のレコードを開く TC があるため）。`preNav` を書かないのは、ログイン直後にその画面〔同じレコード〕に着地した1件目（上記の `--path`、コード例の TC-001 のホーム）と、続きの TC（Step 1。続き元の直後に置き、`from` に続き元の No を書く）。
 1. **before 撮影 + DOM取得（F-6/F-7）**（**手順0.5の遷移の後に行う。操作を始める画面を撮影する**）:
    - **例外（Phase3 Before参照）**: `ui_cases` の「証跡取得」列に `[Phase3 Before参照: ...]` の記載がある TC（`test-spec-builder.md` §展開の注意「タイミング=実装前のTC」参照）は、この手順のスクショ・DOM取得を**実行せず**、`{evidence_dir}/before/{issueID}_{対象画面サニタイズ}_before.png` と `.txt` を Read し、内容をそのまま `{evidence_dir}/before/{No}_{観点サニタイズ}_before.png` / `.txt` としてコピー保存する（Phase 3.5 `option-evidence-check.md` が採取済みの実装前状態が正本のため、`/test` 実行時点で新規撮影しない）。コピー元ファイルが存在しない場合はスクショ・DOM取得ともスキップし、当該 No を返却テーブルに「Phase3 Before証跡が見つかりません」と記録する（この場合の可否判定は Phase D `judge_results.py` 側で `対象外` 記載に従う）。
    - **通常ケース**: スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true, animations: 'disabled', scale: 'css'})`
@@ -392,6 +399,9 @@ async (page) => {
     // { no: 'TC-003', label: '追加確認', targetLabel: null,
     //   preNav: async (page) => { await page.goto('{TC-003 が開く画面の URL}'); await waitSfReady(page); },
     //   action: async (page) => { await page.getByText('追加ボタン').click(); await waitSfReady(page); } },
+    // 続きの TC（Step 1）は続き元の直後に置き、preNav を書かず from に続き元の No を書く（撮るだけなら action も書かない）:
+    // { no: 'TC-005', label: '続き確認', targetLabel: null, from: 'TC-003',
+    //   action: async (page) => { await page.getByText('次へ').click(); await waitSfReady(page); } },
   ];
 
   async function runTC(page, tc) {
@@ -403,7 +413,7 @@ async (page) => {
       const beforeText = await getPageText(page);
       const beforeSaved = await saveText(page, beforeText, `C:/path/evidence/before/${tc.no}_${tc.label}_before.txt`);
       // 2. 操作
-      await tc.action(page);
+      if (tc.action) await tc.action(page);
       // 3. after 撮影 + 確認対象に赤枠を注入（targetLabel がある場合のみ）
       const highlightEl = tc.targetLabel ? await highlightTarget(page, tc.targetLabel) : null;
       await page.screenshot({path: `C:/path/evidence/after/screen/${tc.no}_${tc.label}.png`, fullPage: true, animations: 'disabled', scale: 'css'});
@@ -428,6 +438,8 @@ async (page) => {
   if (fdFail) return JSON.stringify(tcs.map(tc => ({ no: tc.no, ok: false, error: fdFail }))); // ログインできていない: どの TC も撮らずに返す（Step 1.5）
   await waitSfReady(page);
   for (const tc of tcs) {
+    // 続き元が失敗した続きの TC は実行しない（Step 1。エージェントが after の .txt に「判定: 未確認」を書く）
+    if (tc.from && results.some(r => r.no === tc.from && !r.ok)) { results.push({ no: tc.no, ok: false, error: `続き元 ${tc.from} の画面が無く未実行` }); continue; }
     await runTC(page, tc);
   }
 
@@ -460,7 +472,7 @@ Login As 前提チェック・実ユーザ名の解決・Login As バッチ操�
 ### グルーピングの手順
 
 1. `ui_cases` から対象ユーザ（プロファイル/ユーザ名）を一覧化し重複を排除する
-2. ユーザごとに「そのユーザが必要な TC リスト」をまとめる
+2. ユーザごとに「そのユーザが必要な TC リスト」をまとめる（続きの TC は Step 1 のとおり続き元の直後に置き、対象画面への goto を書かず、続き元が失敗したら実行しない）
 3. ユーザ数だけコードブロックを実行する（1ユーザ = 1コードブロック。後から動く処理を待つ TC は Step 1 のとおり区切り、Login As のまま次のブロックに続けて logout はその後のブロックで行う）
 
 ### 証跡の命名（TC 固有）
