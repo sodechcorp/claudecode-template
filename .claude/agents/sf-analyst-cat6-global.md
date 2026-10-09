@@ -38,17 +38,15 @@ tools:
 
 ---
 
-## Step 1.5: 処理済み issueID Set の構築（2回目以降のみ）
+## Step 1.5: 処理済み issueID Set の構築
 
-`{project_dir}/docs/knowledge/global-calibration.md` と `{project_dir}/docs/knowledge/global-pitfalls.md` の存在を確認する。
+`{project_dir}/docs/knowledge/global-calibration.md` の「## 集計済み課題」を Read する。
 
-**両ファイルが存在する場合（2回目以降）**:
-- global-calibration.md を Read して代表アンカー行（`^- ([A-Za-z][A-Za-z0-9]*-\d+)「` 形式）から処理済み issueID を抽出する（`GF2-123` 等の数字混じりキーも対応）
-- global-pitfalls.md を Read してテーブル行の第2列（「由来 issueID」）から処理済み issueID を抽出する
-- 2ファイルの issueID を合算して `processed_ids` Set を作成する
+**issueID が書かれていて、`{project_dir}/docs/knowledge/global-pitfalls.md` もある場合（2回目以降）**:
+- その issueID で `processed_ids` Set を作成する
 - `is_first_run = false` として以降の処理に使用する
 
-**いずれかのファイルが存在しない場合（初回）**:
+**それ以外（初回）**:
 - `processed_ids` = 空 Set
 - `is_first_run = true` として以降の処理に使用する
 
@@ -65,15 +63,14 @@ Step 1 で取得した各 projectId に対して `mcp__backlog__get_issues` を�
 
 **2回目以降（`is_first_run = false`）**:
 - `statusId`: `[4]`、`count`: 20、`order`: desc で取得（最新20件のみ）
-- 取得した20件の issueID が全て `processed_ids` に含まれる場合: 「このプロジェクトは最新20件が全て処理済み → スキップ」とログに記録して次プロジェクトへ
-- 1件以上 `processed_ids` に含まれない新規課題がある場合: 新規課題（`actualHours > 0`）のみを処理対象として保持する
+- `actualHours > 0` かつ `processed_ids` に含まれない課題（新規課題）のみを処理対象として保持する。新規課題が無いプロジェクトは「新規課題なし → スキップ」とログに記録して次プロジェクトへ
 - 全プロジェクト合計上限: 200 件
 
 **全プロジェクトで新規課題がゼロの場合（2回目以降のみ）**:
 - 「全プロジェクトで新規課題なし — 更新不要」と報告して終了する（ファイル書き込みなし）
 
 各課題から以下を保持する:
-- issueID（キー）
+- issueID（課題キー。`GF-123` 形式）
 - 件名（summary）
 - description（概要）
 - actualHours
@@ -106,14 +103,16 @@ Step 2 の全課題を件名・description から以下の技術種別に分類�
 ### 差分マージ
 
 **初回（`is_first_run = true`）**:
-- 全課題のデータで各種別帯の中央値・件数を計算し、新規作成する
+- 全課題のデータで各種別帯の中央値・件数を計算する
 
 **2回目以降（`is_first_run = false`）**:
 - 既存ファイルを Read して各種別帯の件数・中央値を取得する
 - 今回の新規課題を既存の件数に加算し、全データの中央値を再計算して更新する（新規課題の増分を反映）
 - 各種別帯の中央値が前回値から 20% 以上変化した帯に `[要確認: 前回 {prev}h → 今回 {new}h]` マーカーを付与する
 - 「全体傾向」セクション（中央値・平均・件数）も新規課題分を加味して更新する
-- Write ツールで全体を上書き保存する
+- 「## 集計済み課題」は既存の課題キーを残し、今回の新規課題を足す
+
+どちらも Write（全体の上書き）は Step 4 の最後に行う（「## 集計済み課題」に載せた課題は次回から Step 4 の対象にもならないため）。
 
 ### 出力フォーマット（global-calibration.md）
 
@@ -158,11 +157,16 @@ Step 2 の全課題を件名・description から以下の技術種別に分類�
 
 ## このデータの傾向（LLM 観察）
 - {全体傾向を 3〜5 点で観察。Salesforce 技術ドメインの傾向のみ記述。プロジェクト固有の業務内容は書かない}
+
+## 集計済み課題
+{全体傾向・工数帯の件数に入っている課題の issueID をカンマ区切りで全て}
 ```
 
 ---
 
 ## Step 4: global-pitfalls.md の生成（差分マージ）
+
+`{project_dir}/docs/knowledge/global-pitfalls.md` があれば Read し、由来 issueID 列にある課題（抽出済み）は Pass A・Pass B の対象にしない。
 
 ### Pass A（キーワードマッチ）
 
@@ -190,10 +194,11 @@ Pass A でヒットしなかった課題のうち `actualHours >= 3` のもの�
 ### 差分マージ
 
 `{project_dir}/docs/knowledge/global-pitfalls.md` が存在する場合:
-- Read して「issueID + カテゴリ」の複合 Set を作成する
 - 重複判定: `(カテゴリ一致 ? 0.4 : 0) + (対象語彙 Jaccard × 0.4) + (対処方針語彙 Jaccard × 0.2) >= 0.8` でスキップ
 - 新規エントリをヘッダー直下に先頭挿入し、Write で全体を上書き保存する
-存在しない場合は新規作成。
+存在しない場合は新規作成する（Pass A・Pass B ともに 0 件でもヘッダーだけで作る）。
+
+最後に、Step 3 で計算した global-calibration.md を Write する。
 
 ### 出力フォーマット（global-pitfalls.md）
 

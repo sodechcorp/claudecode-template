@@ -28,7 +28,7 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 | `docs/knowledge/pitfalls.md` | テーブル行の由来issueID＋カテゴリ複合キー（第2列・第3列）（同キーは local 優先） |
 | `docs/knowledge/cases/` | ファイル名（issueKey）単位で新規のみ追加（既存は上書きしない） |
 | `docs/knowledge/effort-calibration.md` | アンカー行（`^- [ID]「` 形式）の課題ID単位で和集合。「全体傾向」統計セクションは local 優先で保持 |
-| `docs/knowledge/global-calibration.md` | `^### ` 見出し（コンポーネント種別帯）単位でマージ。「全体傾向」セクションは local 優先で保持（local に帯が無い雛形なら remote のまま） |
+| `docs/knowledge/global-calibration.md` | `^### ` 見出し（コンポーネント種別帯）単位でマージ。帯の外（全体傾向・集計済み課題等）は local 優先で保持（local に帯が無い雛形なら remote のまま） |
 | `docs/knowledge/global-pitfalls.md` | テーブル行の issueID+カテゴリ単位で和集合（第2列・第3列の複合キー）。同キーは local 優先 |
 | `docs/knowledge/test-prerequisites.md` | §見出し内の各表 第1列キーで和集合（同キーは local 優先）。§ 3（散文）は local 優先で保持 |
 
