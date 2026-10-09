@@ -26,14 +26,16 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 | `docs/decisions.md` | `## ` の見出し行ごとのエントリ（同じ見出しは local 優先。local が雛形のみ〔行が全て remote にある〕なら remote のまま） |
 | `docs/knowledge/case-index.md` | テーブル行の第2列（課題ID）（同キーは local 優先） |
 | `docs/knowledge/pitfalls.md` | テーブル行の由来issueID＋カテゴリ複合キー（第2列・第3列）（同キーは local 優先） |
-| `docs/knowledge/cases/` | ファイル名（issueKey）単位で新規のみ追加（既存は上書きしない） |
+| `docs/knowledge/cases/` | ファイル名（issueKey）単位で新規を追加（既存は local 優先） |
 | `docs/knowledge/effort-calibration.md` | アンカー行（`^- [ID]「` 形式）の課題ID単位で和集合。「全体傾向」統計セクションは local 優先で保持 |
 | `docs/knowledge/global-calibration.md` | `^### ` 見出し（コンポーネント種別帯）単位でマージ。帯の外（全体傾向・集計済み課題等）は local 優先で保持（local に帯が無い雛形なら remote のまま） |
 | `docs/knowledge/global-pitfalls.md` | テーブル行の issueID+カテゴリ単位で和集合（第2列・第3列の複合キー）。同キーは local 優先 |
 | `docs/knowledge/test-prerequisites.md` | §見出し内の各表 第1列キーで和集合（同キーは local 優先）。§ 3（散文）は local 優先で保持 |
 | `docs/knowledge/archive/` | 手動アーカイブ先（decisions-archive.md・case-index-archive.md・pitfalls-archive.md）。内容（エントリの本文・行全体）で和集合（同じ見出し・課題IDでも内容が違えば両方残す） |
 
-decisions.md・case-index.md・pitfalls.md は、手動アーカイブ先（[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用）と同じ内容の行・エントリを remote から足さず、local からも除く（他の担当者がアーカイブしたもの）。
+local 優先の塊（同じキーのエントリ・行・節、cases/ のファイル、effort-calibration.md・global-calibration.md はファイル全体）のうち、local の内容が remote の過去の版（origin の履歴にある版）のどれかと同じもの（local が手を加えていないもの）は remote の今の内容を採る。decisions.md のエントリと表の行で両方が手を加えたものは、過去の版のうち local に最も近い版を元に 3-way でまとめる（同じ行を両方が変えたエントリは両方の行を残し、同じセルを両方が変えた行は local）。同じキーが local か remote に複数あるものは local のまま。
+
+decisions.md・case-index.md・pitfalls.md は、手動アーカイブ先（[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用）の同じキーのエントリ・行に内容が全て含まれるものと、local が手を加えていないアーカイブ済みのキーの古い版（remote の今の版に無い・アーカイブ先の版より前に remote にあった。remote に同じキーが複数あるものは除く）を remote から足さず、local からも除く（他の担当者がアーカイブしたもの）。
 
 ### 同期対象外（担当者ごとに独立蓄積）
 
