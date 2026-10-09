@@ -563,6 +563,10 @@ def scan(project_dir: Path) -> list[dict]:
             "api_name": api_name,
             **extra,
         }
+        # feature_list.json は git で追跡され他のクローンでも読まれるため、パスは案件のルートからの相対で書く
+        for key in ("source_file", "design_doc"):
+            if entry[key]:
+                entry[key] = Path(entry[key]).relative_to(project_dir).as_posix()
         features.append(entry)
 
     # --- Apex / Batch ---

@@ -14,6 +14,7 @@ python -c "import pathlib; feat_id = '{feat_id}'; out = pathlib.Path(r'{output_d
 ```bash
 # ハッシュチェック（source_file は feature_list の source_file フィールド）
 python "{project_dir}/scripts/python/sf-doc-mcp/source_hash_checker.py" \
+  --project-dir "{project_dir}" \
   --source-paths "{source_file}" \
   --existing-excel "{detected_excel_or_empty}"
 ```

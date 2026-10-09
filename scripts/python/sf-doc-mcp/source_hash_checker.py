@@ -3,6 +3,7 @@
 
 Usage:
   python source_hash_checker.py \
+    --project-dir "path/to/project" \
     --source-paths "file1.cls,file2.cls" \
     --existing-excel "path/to/design.xlsx"
 
@@ -23,13 +24,15 @@ from meta_store import compute_source_hash, get_stored_hash
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--project-dir", default="",
+                        help="相対パスの基準（feature_list.json の source_file は案件のルートからの相対パス）")
     parser.add_argument("--source-paths", required=True,
                         help="カンマ区切りのソースファイル／ディレクトリパス")
     parser.add_argument("--existing-excel", default="",
                         help="既存 Excel ファイルパス（省略時は新規扱い）")
     args = parser.parse_args()
 
-    paths = [p.strip() for p in args.source_paths.split(",") if p.strip()]
+    paths = [str(Path(args.project_dir) / p.strip()) for p in args.source_paths.split(",") if p.strip()]
     current_hash = compute_source_hash(paths)
     print(f"hash:{current_hash}")
 
