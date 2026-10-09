@@ -62,69 +62,128 @@ def merge_decisions(local, remote):
     return pre + body
 
 
+# ---- 表の行の和集合（case-index / pitfalls / global-pitfalls / test-prerequisites 共通） ----
+# local の行は位置も順序もそのまま残し、remote にだけあるキーの行を、remote の同じ表でその行の直前にある共通の行の後ろ
+# （無ければ同じ表の共通の行がある local の表の先頭＝区切り行の直後。どのファイルも最新行をヘッダー直下に先頭挿入する運用）に足す。
+# 見出し行は区切り行の直前の、日付を持たない行（位置で判定）。
+def _lines(text):
+    parts = (text or "").split("\n")
+    return [p + "\n" for p in parts[:-1]] + ([parts[-1] + "\n"] if parts[-1] else [])
+
+
+def _cells(line):
+    return [c.strip() for c in line.split("|")[1:-1]]
+
+
+def _is_separator(line):
+    return line.startswith("|") and "-" in line and re.fullmatch(r'[|:\-\s]+', line) is not None
+
+
+def _has_date(line):
+    return any(re.fullmatch(r'\d{4}-\d{2}-\d{2}', c) for c in _cells(line))
+
+
+def _restore_tables(lines):
+    """以前のマージで見出し行が区切り行の後ろへ動いた表を戻す。
+    直前が表の行でない区切り行の後ろ（# 見出しを挟まない）の最初の表の行の塊が区切り行を持たず、
+    日付の列を持たない最初の行（各ファイルのデータ行は日付・確認日の列を持つ）までが区切り行と同じ列数なら、
+    その行を見出し行として「見出し行・区切り行・データ行・間にあった行」の順に並べ直す。"""
+    i = 0
+    while i < len(lines):
+        sep = lines[i]
+        if _is_separator(sep) and (i == 0 or not lines[i - 1].startswith("|")):
+            j = i + 1
+            while j < len(lines) and not lines[j].startswith("|"):
+                j += 1
+            k = j
+            while k < len(lines) and lines[k].startswith("|"):
+                k += 1
+            block, between = lines[j:k], lines[i + 1:j]
+            h = next((n for n, line in enumerate(block) if not _has_date(line)), None)
+            if (h is not None and not any(_is_separator(line) for line in block)
+                    and all(len(_cells(line)) == len(_cells(sep)) for line in block[:h + 1])
+                    and not any(line.startswith("#") for line in between)):
+                lines[i:k] = [block[h], sep] + block[:h] + block[h + 1:] + between
+                i += len(block)
+        i += 1
+    return lines
+
+
+def _parse_rows(lines, key_of):
+    """データ行 [(位置, キー, 表の見出しのキー, 表の先頭に足す位置)] と {表の見出しのキー: 区切り行の位置} を返す。
+    表の先頭に足す位置は区切り行（見出しの無い行の塊はその直前の行）で、表を区別する"""
+    rows, seps = [], {}
+    head_key, top = None, None
+    for i, line in enumerate(lines):
+        if not line.startswith("|"):
+            head_key, top = None, None
+        elif _is_separator(line):
+            continue
+        elif i + 1 < len(lines) and _is_separator(lines[i + 1]) and not _has_date(line):
+            head_key, top = key_of(_cells(line)), i + 1
+            if head_key is not None:
+                seps.setdefault(head_key, i + 1)
+        else:
+            if top is None:
+                top = i - 1
+            key = key_of(_cells(line))
+            if key is not None:
+                rows.append((i, key, head_key, top))
+    return rows, seps
+
+
+def merge_table_rows(local, remote, key_of):
+    """(本文, local 行数, remote 行数, 新規行数) を返す。同キーは local 優先"""
+    r_lines = _restore_tables(_lines(remote))
+    r_rows, r_seps = _parse_rows(r_lines, key_of)
+    if not (local or "").strip():
+        return "".join(r_lines), 0, len(r_rows), len(r_rows)
+    l_lines = _restore_tables(_lines(local))
+    l_rows, l_seps = _parse_rows(l_lines, key_of)
+    l_pos, l_top = {}, {}
+    for i, key, _, top in l_rows:
+        l_pos.setdefault(key, i)
+        l_top.setdefault(key, top)
+    skip = set(l_pos) | set(l_seps) | set(r_seps)  # 崩れた remote に残る見出し行も足さない
+    # 同じ表に共通の行が無い行の位置: 同じ見出しの local の表の区切り行の直後。無ければ local の最初のデータ行の前、
+    # 最初の表の区切り行の直後、末尾の順
+    if l_rows:
+        fallback = l_rows[0][0] - 1
+    else:
+        fallback = min(l_seps.values()) if l_seps else len(l_lines) - 1
+    inserts, anchor, table = {}, None, None
+    for n, (i, key, head_key, top) in enumerate(r_rows):
+        if top != table:
+            anchor, table = None, top
+        if key in l_pos:
+            anchor = l_pos[key]
+        elif key not in skip:
+            if anchor is not None:
+                pos = anchor
+            else:
+                nxt = next((k for _, k, _, t in r_rows[n + 1:] if t == top and k in l_pos), None)
+                pos = l_top[nxt] if nxt is not None else l_seps.get(head_key, fallback)
+            inserts.setdefault(pos, []).append(r_lines[i])
+    out = list(inserts.get(-1, []))
+    for i, line in enumerate(l_lines):
+        out.append(line)
+        out += inserts.get(i, [])
+    return "".join(out), len(l_rows), len(r_rows), sum(len(v) for v in inserts.values())
+
+
 # ---- case-index.md ----
 def merge_table(local, remote):
-    def parse(text):
-        lines = (text or "").splitlines(keepends=True)
-        pre, rows = [], {}
-        in_table = False
-        for line in lines:
-            if line.startswith("|"):
-                cols = [c.strip() for c in line.split("|")[1:-1]]
-                key = cols[1] if len(cols) > 1 else ""
-                if key and not re.match(r'^[-:]+$', key) and key not in ("課題ID", "issueKey"):
-                    rows[key] = line
-                    in_table = True
-                else:
-                    pre.append(line)
-            else:
-                if in_table:
-                    in_table = False
-                pre.append(line)
-        return pre, rows
-
-    local_pre, local_rows = parse(local)
-    remote_pre, remote_rows = parse(remote)
-    merged = {**remote_rows, **local_rows}  # local 優先
-    pre = local_pre or remote_pre
-    print(f"  case-index.md: remote {len(remote_rows)} 行 + local {len(local_rows)} 行 → {len(merged)} 行")
-    return "".join(pre) + "".join(merged.values())
+    text, l_n, r_n, new_n = merge_table_rows(local, remote, lambda c: c[1] if len(c) > 1 and c[1] else None)
+    print(f"  case-index.md: remote {r_n} 行 + local {l_n} 行 → {l_n + new_n} 行")
+    return text
 
 
 # ---- pitfalls.md ----
-# テーブル形式（6列）を前提にした複合キー（issueID::カテゴリ）マージ。
-# cat6 が出力するテーブル行は複合キーで重複排除し、旧セクション形式等の非テーブル行は
-# pre として local を verbatim 保持する（サブ見出しキー衝突による破壊を防ぐ）。
-def merge_pitfalls(local, remote):
-    def parse(text):
-        lines = (text or "").splitlines(keepends=True)
-        pre, rows = [], {}
-        in_table = False
-        for line in lines:
-            if line.startswith("|"):
-                cols = [c.strip() for c in line.split("|")[1:-1]]
-                if len(cols) >= 3:
-                    key = f"{cols[1]}::{cols[2]}"  # issueID::カテゴリ の複合キー
-                    if key and not re.match(r'^[-:]+$', cols[1]) and cols[1] not in ("課題ID",):
-                        rows[key] = line
-                        in_table = True
-                    else:
-                        pre.append(line)
-                else:
-                    pre.append(line)
-            else:
-                if in_table:
-                    in_table = False
-                pre.append(line)
-        return pre, rows
-
-    local_pre, local_rows = parse(local)
-    remote_pre, remote_rows = parse(remote)
-    merged = {**remote_rows, **local_rows}  # local 優先
-    pre = local_pre or remote_pre
-    new_count = len(set(remote_rows) - set(local_rows))
-    print(f"  pitfalls.md: remote {len(remote_rows)} 行 + local {len(local_rows)} 行 → {len(merged)} 行（新規 {new_count} 件）")
-    return "".join(pre) + "".join(merged.values())
+# 第2列（issueID）＋第3列（カテゴリ）の複合キー。表の外の行（旧セクション形式等）は local のまま残す。
+def merge_pitfalls(local, remote, name="pitfalls.md"):
+    text, l_n, r_n, new_n = merge_table_rows(local, remote, lambda c: f"{c[1]}::{c[2]}" if len(c) >= 3 else None)
+    print(f"  {name}: remote {r_n} 行 + local {l_n} 行 → {l_n + new_n} 行（新規 {new_n} 件）")
+    return text
 
 
 # ---- effort-calibration.md ----
@@ -209,38 +268,9 @@ def merge_global_calibration(local, remote):
 
 
 # ---- global-pitfalls.md ----
-# merge_table ロジック（case-index.md と同方式）を流用
-# ただしキーは 第2列（issueID）+ 第3列（カテゴリ）の複合キー
+# pitfalls.md と同じキー（第2列 由来 issueID ＋第3列 カテゴリ）
 def merge_global_pitfalls(local, remote):
-    def parse(text):
-        lines = (text or "").splitlines(keepends=True)
-        pre, rows = [], {}
-        in_table = False
-        for line in lines:
-            if line.startswith("|"):
-                cols = [c.strip() for c in line.split("|")[1:-1]]
-                if len(cols) >= 3:
-                    key = f"{cols[1]}::{cols[2]}"  # issueID::カテゴリ の複合キー
-                    if key and not re.match(r'^[-:]+$', cols[1]) and cols[1] not in ("由来 issueID",):
-                        rows[key] = line
-                        in_table = True
-                    else:
-                        pre.append(line)
-                else:
-                    pre.append(line)
-            else:
-                if in_table:
-                    in_table = False
-                pre.append(line)
-        return pre, rows
-
-    local_pre, local_rows = parse(local)
-    remote_pre, remote_rows = parse(remote)
-    merged = {**remote_rows, **local_rows}  # local 優先
-    pre = local_pre or remote_pre
-    new_count = len(set(remote_rows) - set(local_rows))
-    print(f"  global-pitfalls.md: remote {len(remote_rows)} 行 + local {len(local_rows)} 行 → {len(merged)} 行（新規 {new_count} 件）")
-    return "".join(pre) + "".join(merged.values())
+    return merge_pitfalls(local, remote, name="global-pitfalls.md")
 
 
 # ---- test-prerequisites.md ----
@@ -267,34 +297,6 @@ def merge_test_prerequisites(local, remote):
                     order.append(key)
         return pre, sections, order
 
-    def merge_table_section(local_sec, remote_sec):
-        """テーブル行の第1列をキーに和集合。local 優先"""
-        def parse(sec):
-            lines = sec.splitlines(keepends=True)
-            pre, rows, row_order = [], {}, []
-            for line in lines:
-                if line.startswith("|"):
-                    cols = [c.strip() for c in line.split("|")[1:-1]]
-                    key = cols[0] if cols else ""
-                    if key and not re.match(r'^[-:]+$', key):
-                        if key not in rows:
-                            row_order.append(key)
-                        rows[key] = line
-                    else:
-                        pre.append(line)
-                else:
-                    pre.append(line)
-            return pre, rows, row_order
-
-        l_pre, l_rows, l_order = parse(local_sec)
-        r_pre, r_rows, r_order = parse(remote_sec)
-        merged = {**r_rows, **l_rows}  # local 優先
-        new_keys = [k for k in r_order if k not in l_rows]
-        final_order = l_order + new_keys
-        new_count = len(new_keys)
-        pre = l_pre if l_pre else r_pre
-        return "".join(pre) + "".join(merged[k] for k in final_order if k in merged), new_count
-
     local_pre, local_secs, local_order = split_sections(local)
     remote_pre, remote_secs, remote_order = split_sections(remote)
 
@@ -312,7 +314,7 @@ def merge_test_prerequisites(local, remote):
         elif re.match(r'^## 3\.', key):  # § 3 証跡ディレクトリ規約（散文）は local 優先
             merged[key] = l_sec
         else:
-            merged[key], new_count = merge_table_section(l_sec, r_sec)
+            merged[key], _, _, new_count = merge_table_rows(l_sec, r_sec, lambda c: c[0] if c and c[0] else None)
             total_new += new_count
 
     pre = local_pre or remote_pre
