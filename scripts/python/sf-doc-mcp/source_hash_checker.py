@@ -8,14 +8,15 @@ Usage:
     --existing-excel "path/to/design.xlsx"
 
 Output (stdout):
-  hash:XXXXXXXX...    # 計算した SHA256 ハッシュ
+  hash:XXXXXXXX...    # 計算した SHA256 ハッシュ（ハッシュする中身が無ければ空）
   status:MATCH        # または CHANGED / NEW / NO_HASH
 
 Exit code:
   0: ハッシュ一致 → LLM スキップ可能
-  1: 不一致 / Excel なし / ハッシュ未記録 → LLM 実行が必要
+  1: 不一致 / Excel なし / ハッシュ未記録 / ソースなし → LLM 実行が必要
 """
 import argparse
+import hashlib
 import sys
 from pathlib import Path
 
@@ -34,6 +35,11 @@ def main():
 
     paths = [str(Path(args.project_dir) / p.strip()) for p in args.source_paths.split(",") if p.strip()]
     current_hash = compute_source_hash(paths)
+    # 空の入力のハッシュ（ファイル0件・空フォルダ）を渡すと _meta に残り、次回も MATCH になって再生成がスキップされ続ける
+    if current_hash == hashlib.sha256().hexdigest():
+        print("hash:")
+        print("status:NEW")
+        sys.exit(1)
     print(f"hash:{current_hash}")
 
     excel_path = args.existing_excel.strip()

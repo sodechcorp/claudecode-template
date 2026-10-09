@@ -22,6 +22,6 @@ python "{project_dir}/scripts/python/sf-doc-mcp/source_hash_checker.py" \
 | stdout の status | 終了コード | 対応 |
 |---|---|---|
 | `status:MATCH` | 0 | このコンポーネントをスキップリストに追加（スケルトン生成フェーズ / Phase 1 / Phase 2 全てスキップ） |
-| `status:CHANGED` / `NEW` / `NO_HASH` | 1 | 通常どおり処理する。`hash:XXXX` の値を `{source_hash}` として記録する |
+| `status:CHANGED` / `NEW` / `NO_HASH` | 1 | 通常どおり処理する。`hash:XXXX` の値を `{source_hash}` として記録する（`hash:` が空＝ソースのファイルが見つからないときは、完了報告の要確認に `--source-paths` の値を書く） |
 
 全コンポーネントのチェック完了後、スキップしない対象だけを以降の Phase で処理する。

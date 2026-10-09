@@ -191,7 +191,7 @@ python "{project_dir}/scripts/python/sf-doc-mcp/source_hash_checker.py" \
 | stdout の status | 終了コード | 対応 |
 |---|---|---|
 | `status:MATCH` | 0 | このグループをスキップ（Phase 1〜Phase 4 全てスキップ） |
-| `status:CHANGED` / `NEW` / `NO_HASH` | 1 | 通常どおり処理する。`hash:XXXX` の値を `{source_hash}` として記録する |
+| `status:CHANGED` / `NEW` / `NO_HASH` | 1 | 通常どおり処理する。`hash:XXXX` の値を `{source_hash}` として記録する（`hash:` が空＝グループのソースのファイルが見つからないときは、完了報告の要確認にグループIDを書く） |
 
 > **新規作成（既存 Excel なし）の場合も `status:CHANGED` として扱われる**。`detected_excel_or_empty` が空でも処理を継続し、Phase 4 で新規ファイルとして生成する（`--source-hash ""` で渡す）。
 
