@@ -679,7 +679,7 @@ audit_flow_versions() {
     local target_org="$1"
     local flow_query_json
     flow_query_json=$(sf data query --use-tooling-api \
-        -q "SELECT DeveloperName, ActiveVersionId, ActiveVersion.VersionNumber, LatestVersion.VersionNumber FROM FlowDefinition" \
+        -q "SELECT DeveloperName, ActiveVersionId, ActiveVersion.VersionNumber, LatestVersion.VersionNumber, LatestVersion.Status FROM FlowDefinition" \
         --target-org "$target_org" --json 2>/dev/null) || {
         warn "Flow バージョン監査スキップ（Tooling API クエリ失敗）"
         return
@@ -700,25 +700,26 @@ for r in records:
     active_id = r.get("ActiveVersionId")
     active_ver = (r.get("ActiveVersion") or {}).get("VersionNumber")
     latest_ver = (r.get("LatestVersion") or {}).get("VersionNumber")
+    latest_status = (r.get("LatestVersion") or {}).get("Status")
 
     if not active_id:
-        no_active.append(f"  {name}（Active なし／Draft のみ）")
+        no_active.append(f"  {name}（取得済み=v{latest_ver} {latest_status}）")
     elif active_ver is not None and latest_ver is not None and active_ver != latest_ver:
-        drifted.append(f"  {name}（Active=v{active_ver}、取得済み=v{latest_ver} Draft）")
+        drifted.append(f"  {name}（Active=v{active_ver}、取得済み=v{latest_ver} {latest_status}）")
         drifted_targets.append(f'--metadata "Flow:{name}-{active_ver}"')
 
 total = len(records)
 ok_count = total - len(drifted) - len(no_active)
 
-print(f"\033[36m[INFO]\033[0m Flow バージョン監査: {total} 件（正常={ok_count}、乖離={len(drifted)}、未有効化={len(no_active)}）")
+print(f"\033[36m[INFO]\033[0m Flow バージョン監査: {total} 件（正常={ok_count}、乖離={len(drifted)}、有効な版なし={len(no_active)}）")
 
 if no_active:
-    print("\033[33m[WARN]\033[0m 未有効化 Flow（組織で一度も Active になっていない）:")
+    print("\033[33m[WARN]\033[0m 有効な版が無い Flow:")
     for m in no_active:
         print(m)
 
 if drifted:
-    print("\033[33m[WARN]\033[0m Active 版と乖離あり（取得済みは Active より新しい Draft）:")
+    print("\033[33m[WARN]\033[0m Active 版と乖離あり（取得済みは Active より新しい版）:")
     for m in drifted:
         print(m)
     print("\033[33m[WARN]\033[0m Active 版を読む場合は版番号を付けて、force-app 以外の、パスにドットで始まるフォルダを含まないフォルダに取得する（読むだけに使う）:")

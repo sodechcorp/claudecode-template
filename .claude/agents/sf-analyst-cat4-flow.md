@@ -56,8 +56,7 @@ for f in sorted(flows_dir.glob('*.flow-meta.xml')):
     objects = sorted(set(re.findall(r'<object>([^<]+)</object>', text)))
     refs = sorted(set(re.findall(r'<targetReference>([^<]+)</targetReference>', text)))
     proc_type = (re.findall(r'<processType>([^<]+)</processType>', text) or [''])[0]
-    status = (re.findall(r'<status>([^<]+)</status>', text) or [''])[0]
-    index[f.stem] = {'processType': proc_type, 'status': status, 'objects': objects, 'targetReferences': refs}
+    index[f.stem] = {'processType': proc_type, 'objects': objects, 'targetReferences': refs}
 index['cached_at'] = datetime.datetime.utcnow().isoformat() + 'Z'
 cache_path.parent.mkdir(parents=True, exist_ok=True)
 cache_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -81,7 +80,7 @@ _metadata_cache.json が 5 分以内に存在する場合は `flow_definitions` 
 sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null ORDER BY ApiName" --json
 ```
 
-> **Inactive Flow（Draft/Obsolete）の扱い**: `ActiveVersionId == null` の Flow（Inactive）は本クエリの対象外＝設計書生成対象外とする（「設計書は稼働中の組織を記述する」という意図的な設計）。ただし silent 除外を避けるため、Phase 0 で生成した `_flow_index.json` の各エントリの `status` が `Active` 以外（Draft/Obsolete/InvalidDraft 等）の Flow を抽出し、その API 名と件数を**最終報告の「主な発見・所見」に1行**記載する（例: `Inactive Flow 2 件を設計書生成対象から除外（Draft）: GH_UpdateTaskLastActivityDate, GH_UpdateToDoLastActivityDate`）。物理ファイルは存在するが稼働していないため、文書化要否は人間が個別判断する。
+> **Inactive Flow（Draft/Obsolete）の扱い**: `ActiveVersionId == null` の Flow（Inactive）は本クエリの対象外＝設計書生成対象外とする（「設計書は稼働中の組織を記述する」という意図的な設計）。ただし silent 除外を避けるため、`force-app/main/default/flows/` のフロー（ファイル名から `.flow-meta.xml` を除いた API 名）のうち本クエリの結果に無いものを抽出し、その API 名と件数を**最終報告の「主な発見・所見」に1行**記載する（例: `Inactive Flow 2 件を設計書生成対象から除外: GH_UpdateTaskLastActivityDate, GH_UpdateToDoLastActivityDate`）。物理ファイルは存在するが稼働していないため、文書化要否は人間が個別判断する。
 
 各フローのソースを以下の手順で読み込む。**容量・行数を理由に主要ノード・DML・Apex 呼び出しを `[要確認]` で放置しない**（早期終了禁止）。
 
