@@ -673,7 +673,7 @@ PYEOF
 }
 
 # --- Flow バージョン監査（Tooling API）---
-# Metadata API v44+ は常に Latest バージョンを取得する（Active 版指定不可）。
+# Metadata API v44+ は版番号の無い Flow:{API名} で Latest バージョンを取得する（Active 版は Flow:{API名}-{版番号} で取得できる）。
 # Active 版と Latest 版が乖離している Flow を検知して warn する。取得自体は成功しているため error では止めない。
 audit_flow_versions() {
     local target_org="$1"
@@ -692,6 +692,7 @@ data = json.loads("""${flow_query_json}""")
 records = data.get("result", {}).get("records", [])
 
 drifted = []
+drifted_targets = []
 no_active = []
 
 for r in records:
@@ -704,6 +705,7 @@ for r in records:
         no_active.append(f"  {name}（Active なし／Draft のみ）")
     elif active_ver is not None and latest_ver is not None and active_ver != latest_ver:
         drifted.append(f"  {name}（Active=v{active_ver}、取得済み=v{latest_ver} Draft）")
+        drifted_targets.append(f'--metadata "Flow:{name}-{active_ver}"')
 
 total = len(records)
 ok_count = total - len(drifted) - len(no_active)
@@ -719,8 +721,8 @@ if drifted:
     print("\033[33m[WARN]\033[0m Active 版と乖離あり（取得済みは Active より新しい Draft）:")
     for m in drifted:
         print(m)
-    print("\033[33m[WARN]\033[0m 対処が必要な場合: 組織で Draft を破棄または有効化してから再 retrieve")
-    print("       → bash scripts/sf-retrieve.sh retrieve-manifest manifest/package-Flow.xml")
+    print("\033[33m[WARN]\033[0m Active 版を読む場合は版番号を付けて、force-app 以外の、パスにドットで始まるフォルダを含まないフォルダに取得する（読むだけに使う）:")
+    print("       → sf project retrieve start " + " ".join(drifted_targets) + " --output-dir {取得先} --target-org ${target_org}")
 PYEOF
 }
 

@@ -8,7 +8,7 @@
 - `sf org display`
 - `sf org list metadata` / `sf org list metadata-types`
 - `sf sobject describe`（項目一覧の取得）
-- `sf project retrieve start`（`force-app/` 以外への取得。一時ディレクトリ、および `/release` のバックアップ・リリース資材の控え用の `docs/logs/{issueID}/` 配下。`force-app/` への直接取得は禁止）
+- `sf project retrieve start`（`force-app/` 以外への取得。一時ディレクトリ、および `docs/logs/{issueID}/` 配下〔`/release` のバックアップ・リリース資材の控え等〕。取得先のパスにはドットで始まるフォルダを含めない〔`docs/logs/{issueID}/.tmp` の下を含め、Succeeded のまま1ファイルも書かれない〕。`force-app/` への直接取得は禁止）
 - `sf data query`（SELECT のみ）
 - Playwright による画面の閲覧（frontdoor 認証・Login As を含む。下記「本番 UI 確認」の範囲のみ）
 
