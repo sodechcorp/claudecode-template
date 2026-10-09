@@ -71,7 +71,7 @@ Step 2 で取得した**全完了課題**を LLM で構造化抽出し、`docs/k
 **差分マージ手順**:
 
 1. `docs/knowledge/case-index.md` が存在する場合:
-   - Read して issueID（`XXX-NN` 形式）の Set を作成する（`docs/knowledge/archive/case-index-archive.md` があればその行の issueID も含める。手動アーカイブした課題を作り直さないため）
+   - Read して各行の第2列（課題ID）から issueID の Set を作成する（`docs/knowledge/archive/case-index-archive.md` があればその各行の第2列も含める。手動アーカイブした課題を作り直さないため）
    - 今回取得した完了課題のうち、**Set に含まれない issueID のみを処理対象とする**（Set 内の issueID は LLM 構造化抽出をスキップする）
    - 既存行は原則変更しない。**例外**: 既存行の「工数(h)」列が `-` または空の場合、当該 issueID の Backlog `actualHours` を取得して工数列のみ上書きする（backlog-releaser が `-` で先行追記した行を cat6 が actualHours で補完する設計）
    - 新規行をヘッダー直下に先頭挿入し、Write で全体を上書き保存する
@@ -108,7 +108,7 @@ Step 2 で取得した**全完了課題**を LLM で構造化抽出し、`docs/k
 
 > **既存行（旧8列形式）の扱い**: 差分マージ時、既存行を変更しない。旧フォーマット行と新フォーマット行が混在するが、検索・閲覧用途では実用上問題ない。次回 cat6 再実行時も同様に既存行は保持する。
 
-> **差分マージの重複判定**: 「課題ID」列を一意キーとし、既存テーブルに存在する issueID の行は追記しない。既存テーブル全行（と `docs/knowledge/archive/case-index-archive.md` の行）から正規表現 `\b([A-Z][A-Z0-9_]*-\d+)\b` で issueID Set を作成し、今回の完了課題のうち Set に含まれていないもののみ新規行として末尾に追記する（上書き・更新はしない）。
+> **差分マージの重複判定**: 「課題ID」列を一意キーとし、既存テーブルに存在する issueID の行は追記しない。既存テーブルの各行（と `docs/knowledge/archive/case-index-archive.md` の行）の第2列（課題ID）から正規表現 `\b([A-Z][A-Z0-9_]*-\d+)\b` で issueID Set を作成し、今回の完了課題のうち Set に含まれていないもののみ新規行として末尾に追記する（上書き・更新はしない）。
 
 `docs/knowledge/` フォルダが存在しない場合は作成してからファイルを書き出す。
 
@@ -292,7 +292,8 @@ Pass A・Pass B ともに 0 件の場合は、空ヘッダー行のみで新規�
        text = index_path.read_text(encoding='utf-8')
        cmp_map = {}
        for row in text.splitlines():
-           issue_ids = re.findall(r'\b([A-Z][A-Z0-9_]*-\d+)\b', row)
+           cells = row.split('|')[1:-1]
+           issue_ids = re.findall(r'\b([A-Z][A-Z0-9_]*-\d+)\b', cells[1]) if len(cells) > 1 else []
            cmps = re.findall(r'\b([A-Za-z][A-Za-z0-9_]*(?:__c|\.cls|\.trigger|\.flow))\b', row)
            for cmp in cmps:
                cmp_key = cmp.replace('.cls', '').replace('.trigger', '').replace('.flow', '')
