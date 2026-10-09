@@ -83,7 +83,8 @@ Sandbox 確認は呼び出し元（テスト証跡モード: `auto-evidence-runn
 
    `{target_screens}` が空の場合はこの手順をスキップし、`Before 撮影完了: 0 画面` として返却する（4. でブラウザを終了する）。
 
-   各画面について（`playwright-sf-screen-ops.md`「DOM 本文取得（getPageText）」「DOM テキストの直接保存（saveText）」「高速待機（networkidle 禁止）」「確認対象要素への赤枠注入」で定義済みの `getPageText`/`saveText`/`ERROR_SIGNATURES`/`waitSfReady`/`highlightTarget`/`clearHighlight` をコードブロック内にインラインで定義して使う。テスト証跡モードとは独立した実行なので、この節だけで完結するコードブロックを組む）、**画面ごとに `try/catch` で囲み、1画面の失敗が後続画面の撮影を止めないようにする**:
+   各画面について（`playwright-sf-screen-ops.md`「DOM 本文取得（getPageText）」「DOM テキストの直接保存（saveText）」「高速待機（networkidle 禁止）」「確認対象要素への赤枠注入」「frontdoor 認証」で定義済みの `getPageText`/`saveText`/`ERROR_SIGNATURES`/`waitSfReady`/`highlightTarget`/`clearHighlight`/`frontdoorFailure` をコードブロック内にインラインで定義して使う。テスト証跡モードとは独立した実行なので、この節だけで完結するコードブロックを組む）、**画面ごとに `try/catch` で囲み、1画面の失敗が後続画面の撮影を止めないようにする**:
+   - **着地の確認**: 1件目の `page.goto(FRONTDOOR_URL)` の直後に `frontdoorFailure(page)` を呼ぶ。ログインできていなければどの画面も撮らず、全画面をスキップ（備考 `ログイン未完了（{理由}）`）として返す。
    - **1件目かつ手順2で `--path` を指定した場合**: `page.goto(FRONTDOOR_URL)` の時点で既に対象画面に到達しているため、追加のアプリ内遷移は行わず `waitSfReady(page)` で表示完了を待つのみとする。
    - **上記以外（1件目で `--path` 未指定、または2件目以降）**: `nav_hint` に従って遷移する（1件目のみ `page.goto(FRONTDOOR_URL)` でログイン、以降はアプリ内遷移）。`getByText` / `getByRole` / URL 直指定で遷移し、`waitSfReady(page)` で表示完了を待つ。
    - 遷移パスが特定できない・遷移後に画面が一致しない場合は**スキップ**し「遷移パス特定不可（{name}）」を返却テキストに記録する（ユーザー依頼はしない）。
@@ -146,7 +147,7 @@ mkdir -p "{evidence_dir}/before"
 
 ## Step 1.5: 認証 URL 取得
 
-`playwright-sf-screen-ops.md` の「frontdoor 認証」に従い `FRONTDOOR_URL` を取得する（alias は `{alias}` を使う）。
+`playwright-sf-screen-ops.md` の「frontdoor 認証」に従い `FRONTDOOR_URL` を取得する（alias は `{alias}` を使う）。`FRONTDOOR_URL` を開いたとき（Step 2A の `bootPage`・Step 2B の1件目・Step 3 の初回ログイン）は同節の着地の確認を行う。ログインできていなければ、残りの画面操作（ほかのグループ・Login As を含む）を行わず、まだ撮っていない UI TC ごとに `{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt` を `printf '%s\n' '判定: 未確認 — 画面にログインできず（{理由}）、結果を確認していない' > "{その .txt}"` で書き（前回の証跡が残っていても `judge_results.py` が理由付きの NG〔未実行〕にする）、NG（備考に `[ログイン未完了: {理由}]`）にして返す（Login As 不可の要手動にしない）。
 
 **`--path` 最適化（テスト時短・任意。判定できなければ省略してよい）**: Step 1 の分類結果でグループ②（逐次）に 1 件以上 TC がある場合のみ判定する（グループ①は各 TC が個別 URL へ直接遷移するため対象外。グループ③は Login As 遷移を別途挟むため対象外）。グループ②の 1 件目 TC の `対象画面` 列が空でなく、`docs/knowledge/test-prerequisites.md`（「基盤手順の読込」節の read-before で存在すれば読込済み）§ 1 の「対象画面」列に同名の既知エントリがあり、かつ「URL（コミュニティ/組織）」列が `/` 始まりの相対パスを記載している場合、その値を `--path` に渡す。一致なし・値が空欄・グループ②が 0 件のいずれかに該当する場合は `--path` を省略する（この場合は現状と同じ動作になるだけで、退行にはならない）。
 
@@ -357,6 +358,15 @@ async (page) => {
       return await page.locator('body').innerText();
     }
   }
+  async function frontdoorFailure(p) {
+    // 着地の確認（playwright-sf-screen-ops.md「frontdoor 認証」参照）
+    const landed = await p.waitForURL(u => !/^\/secur\/(frontdoor\.jsp|contentDoor)/.test(u.pathname), { timeout: 15000, waitUntil: 'commit' }).then(() => true, () => false);
+    const u = new URL(p.url());
+    if (!landed) return `frontdoor のリダイレクトが終わらない（${u.pathname}）`;
+    if (u.pathname.startsWith('/_ui/system/security/ChangePassword')) return 'パスワード変更画面に着地（接続ユーザーのパスワードの期限切れ）';
+    if (u.pathname === '/' && u.searchParams.has('ec')) return 'ログイン画面に着地（frontdoor の URL でログインできなかった）';
+    return null;
+  }
   const results = [];
 
   // TC 定義: TC ごとに変わるのはラベル・対象画面・操作（action）だけ。
@@ -412,6 +422,8 @@ async (page) => {
       results.push({no: tc.no, ok: false, error: String(e)});
       prevScreen = null; // 例外時は画面状態不明のため次TCの遷移スキップ判定に使わない
       return;
+  const fdFail = await frontdoorFailure(page);
+  if (fdFail) return JSON.stringify(tcs.map(tc => ({ no: tc.no, ok: false, error: fdFail }))); // ログインできていない: どの TC も撮らずに返す（Step 1.5）
     }
     prevScreen = tc.screen || null;
   }
@@ -438,7 +450,7 @@ async (page) => {
 
 「前提・データ準備」に「対象プロファイル: {プロファイル名}」または「確認ユーザ: {ユーザ名}」が記載されているケースを対象にする（グループ③）。
 
-**グループ②が0件の場合の初回ログイン（必須）**: グループ②のTC数が0件（＝ Step 2B が実行されず、`page` が一度も FRONTDOOR_URL へ遷移していない）の場合は、このバッチの最初のコードブロック冒頭で `await page.goto(FRONTDOOR_URL); await waitSfReady(page);` を実行して認証済みセッションを確立してから、以下の Login As 前提チェック・実ユーザ名の解決に進む（**グループ①のTCが1件以上あっても本ログインは省略しない**: Step 2A の frontdoor 認証は `bootPage` という `page` とは別のブラウザコンテキストで行われるため、グループ①のみ実行済みでも `page` 自体は未認証のまま）。グループ②が1件以上処理済みの場合は `page` が既に認証済みのため、この初回ログインは不要（重複実行しない）。
+**グループ②が0件の場合の初回ログイン（必須）**: グループ②のTC数が0件（＝ Step 2B が実行されず、`page` が一度も FRONTDOOR_URL へ遷移していない）の場合は、このバッチの最初のコードブロック冒頭で `await page.goto(FRONTDOOR_URL);`・着地の確認（Step 1.5）・`await waitSfReady(page);` を実行して認証済みセッションを確立してから、以下の Login As 前提チェック・実ユーザ名の解決に進む（**グループ①のTCが1件以上あっても本ログインは省略しない**: Step 2A の frontdoor 認証は `bootPage` という `page` とは別のブラウザコンテキストで行われるため、グループ①のみ実行済みでも `page` 自体は未認証のまま）。グループ②が1件以上処理済みの場合は `page` が既に認証済みのため、この初回ログインは不要（重複実行しない）。
 
 **バッチ化の原則**: `ui_cases` を対象ユーザ単位でグルーピングし、ユーザごとに `Login As 1回 → 当該ユーザの全 TC を連続撮影 → logout 1回` に収める。TC ごとに Login As/logout を往復しない。
 

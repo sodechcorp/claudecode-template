@@ -64,7 +64,7 @@ python -c "import time; print(int(time.time()))"
 
 ## Step 2: frontdoor 認証
 
-`playwright-sf-screen-ops.md`「frontdoor 認証」に従う（`MSYS_NO_PATHCONV=1 sf org open --target-org "{prod_alias}" --url-only --json [--path ...]`。`MSYS_NO_PATHCONV=1` を付けないと `--path` が Git Bash で壊れて別画面に着地する）。**FRONTDOOR_URL はコードブロック文字列に埋め込まず、`mcp__playwright__browser_navigate` で開く**。accessToken はファイル・返却値・コードブロックに出さない。
+`playwright-sf-screen-ops.md`「frontdoor 認証」に従う（`MSYS_NO_PATHCONV=1 sf org open --target-org "{prod_alias}" --url-only --json [--path ...]`。`MSYS_NO_PATHCONV=1` を付けないと `--path` が Git Bash で壊れて対象画面に着地しない）。**FRONTDOOR_URL はコードブロック文字列に埋め込まず、`mcp__playwright__browser_navigate` で開く**。accessToken はファイル・返却値・コードブロックに出さない。開いたら次のコードブロックの冒頭で同節の着地の確認を行い、ログインできていなければ Step 4 を行ってから `[未実施] 本番の画面にログインできません（{理由}）。` を返して終了する。
 
 ## Step 3: 確認の実行
 

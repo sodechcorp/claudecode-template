@@ -138,7 +138,7 @@ sf org list --json
 ```
 
 `result.nonScratchOrgs` / `result.scratchOrgs` から対象エイリアス・ユーザー名のエントリを探し `connectedStatus` を確認する:
-- `"Connected"` → 認証済み・有効。frontdoor 認証に進んでよい
+- `"Connected"` → CLI の認証は有効。frontdoor 認証に進んでよい（パスワードの期限切れ等で画面にログインできないことはここでは分からない。`playwright-sf-screen-ops.md`「frontdoor 認証」の着地の確認で見る）
 - 一覧に存在しない / `connectedStatus` が `"Connected"` 以外（`"RefreshTokenAuthError"` など）→ **未認証または認証切れ**。下記「未認証時の対処」に従う（frontdoor 取得を試みても失敗するため、ここで止める）
 
 ## 未認証時の対処（必須: ユーザー判断・ユーザー実行）

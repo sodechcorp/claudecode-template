@@ -41,7 +41,7 @@ Salesforce Setup 配下（`/_ui/`・`/lightning/setup/` 等）の URL は、**�
 MSYS_NO_PATHCONV=1 sf org open --target-org "$SF_ALIAS" --url-only --json --path "{1件目の対象画面の相対パス}"
 ```
 
-**`MSYS_NO_PATHCONV=1` は必須（Windows の Git Bash）**: Bash ツールは `.bashrc` を読まないため、付けないと `--path` の先頭 `/` が `C:/Program Files/Git/...` に変換され、`startURL` が壊れて対象画面に着地しない（実績: `/lightning/setup/ManageUsers/home` が `startURL=C:/Program Files/Git/lightning/...` になった）。着地しても別画面のスクリーンショットを対象画面として採取してしまうため、`--path` を渡すコマンドには必ず付ける。
+**`MSYS_NO_PATHCONV=1` は必須（Windows の Git Bash）**: Bash ツールは `.bashrc` を読まないため、付けないと `--path` の先頭 `/` が `C:/Program Files/Git/...` に変換され、`startURL` が壊れて対象画面に着地しない（実績: `/lightning/setup/ManageUsers/home` が `startURL=C:/Program Files/Git/lightning/...` になり、`/secur/frontdoor.jsp` のまま止まって下の着地の確認が「frontdoor のリダイレクトが終わらない」を返した）。`--path` を渡すコマンドには必ず付ける。
 
 **1件目の遷移先が未確定、またはクリック操作でしか到達できない場合**: `--path` を省略する。
 
@@ -50,6 +50,20 @@ sf org open --target-org "$SF_ALIAS" --url-only --json
 ```
 
 JSON の `result.url` を `FRONTDOOR_URL` として取得する。`--path` 指定時は `page.goto(FRONTDOOR_URL)` の1回で1件目の対象画面まで到達するため、直後に続けていた個別ナビゲーションは不要になる。
+
+**着地の確認（必須）**: `FRONTDOOR_URL` を開いたら、最初の撮影・操作の前に `frontdoorFailure(page)` を呼ぶ（`browser_navigate` で開いたときは次のコードブロックの冒頭で呼ぶ）。`page.goto` は frontdoor のリダイレクト（`/secur/frontdoor.jsp` → `/secur/contentDoor`）の途中で戻り、`waitSfReady` の後もまだ着地していないことがあるため、`page.url()` をそのまま見ない。理由が返ったらログインできていない。その画面を対象画面として撮影・判定・入力せず、画面操作をやめて理由を呼び出し元に返す。パスワード変更画面なら「{alias} の接続ユーザーのパスワード変更が要る（担当者が Salesforce にログインして変更する）」と伝える（同じセッションでほかの画面を開いてもパスワード変更画面に戻される。パスワードは Claude が変更しない）。
+
+```javascript
+async function frontdoorFailure(p) {
+  // frontdoor のリダイレクトを抜けるまで待ってから着地先を見る。ログイン後の画面なら null
+  const landed = await p.waitForURL(u => !/^\/secur\/(frontdoor\.jsp|contentDoor)/.test(u.pathname), { timeout: 15000, waitUntil: 'commit' }).then(() => true, () => false);
+  const u = new URL(p.url());
+  if (!landed) return `frontdoor のリダイレクトが終わらない（${u.pathname}）`;
+  if (u.pathname.startsWith('/_ui/system/security/ChangePassword')) return 'パスワード変更画面に着地（接続ユーザーのパスワードの期限切れ）';
+  if (u.pathname === '/' && u.searchParams.has('ec')) return 'ログイン画面に着地（frontdoor の URL でログインできなかった）';
+  return null;
+}
+```
 
 **セキュリティ（必須）**: accessToken（FRONTDOOR_URL に含まれる）は以下に絶対に出力しない:
 - Write するファイル（証跡・ログ・レポート）
@@ -215,8 +229,20 @@ async (page) => {
       return await page.locator('body').innerText();
     }
   }
+  async function frontdoorFailure(p) {
+    // 着地の確認（「frontdoor 認証」節参照）
+    const landed = await p.waitForURL(u => !/^\/secur\/(frontdoor\.jsp|contentDoor)/.test(u.pathname), { timeout: 15000, waitUntil: 'commit' }).then(() => true, () => false);
+    const u = new URL(p.url());
+    if (!landed) return `frontdoor のリダイレクトが終わらない（${u.pathname}）`;
+    if (u.pathname.startsWith('/_ui/system/security/ChangePassword')) return 'パスワード変更画面に着地（接続ユーザーのパスワードの期限切れ）';
+    if (u.pathname === '/' && u.searchParams.has('ec')) return 'ログイン画面に着地（frontdoor の URL でログインできなかった）';
+    return null;
+  }
   // 画面に遷移（1件目かつ --path 指定済みなら FRONTDOOR_URL 自体が対象画面。それ以外は対象URLへ直接遷移）
   await page.goto('{対象URL}');
+  // FRONTDOOR_URL を開いたときは着地を確かめ、ログインできていなければ撮影せずに返す
+  const fdFail = await frontdoorFailure(page);
+  if (fdFail) return JSON.stringify({ ok: false, frontdoorFailure: fdFail });
   await waitSfReady(page);
   // before 撮影（fullPage: true で観点が viewport 外でも写る）+ before DOM 取得
   await page.screenshot({path: '/絶対パス/xxx_before.png', fullPage: true, animations: 'disabled', scale: 'css'});
@@ -762,6 +788,16 @@ async (page) => {
     }
   }
 
+  async function frontdoorFailure(p) {
+    // 着地の確認（「frontdoor 認証」節参照）
+    const landed = await p.waitForURL(u => !/^\/secur\/(frontdoor\.jsp|contentDoor)/.test(u.pathname), { timeout: 15000, waitUntil: 'commit' }).then(() => true, () => false);
+    const u = new URL(p.url());
+    if (!landed) return `frontdoor のリダイレクトが終わらない（${u.pathname}）`;
+    if (u.pathname.startsWith('/_ui/system/security/ChangePassword')) return 'パスワード変更画面に着地（接続ユーザーのパスワードの期限切れ）';
+    if (u.pathname === '/' && u.searchParams.has('ec')) return 'ログイン画面に着地（frontdoor の URL でログインできなかった）';
+    return null;
+  }
+
   // 並列可 TC のリスト（エージェントが TC 分だけ定義する）
   // 【before 採取の設計方針】並列可＝グループ①（読み取り専用）は before≒after（同じ画面）となり
   // 「修正前も同じ内容だった」と誤読させる証跡になるため before は採取しない（after のみ）
@@ -776,6 +812,11 @@ async (page) => {
   const bootPage = await bootCtx.newPage();
   bootPage.setDefaultTimeout(15000);
   await bootPage.goto(FRONTDOOR);
+  const fdFail = await frontdoorFailure(bootPage);
+  if (fdFail) { // ログインできていない: どの TC も撮らずに返す
+    await bootCtx.close();
+    return JSON.stringify(tasks.map(t => ({ no: t.no, ok: false, error: fdFail })));
+  }
   await waitSfReady(bootPage);
   const authState = await bootCtx.storageState();
   await bootCtx.close();
@@ -795,6 +836,8 @@ async (page) => {
         if (/\/(secur\/login|login)/i.test(p.url())) {
           // storageState のセッションが無効だった場合のみ frontdoor で個別ログイン（フォールバック）
           await p.goto(FRONTDOOR);
+          const fdFail2 = await frontdoorFailure(p);
+          if (fdFail2) return { no: t.no, ok: false, error: fdFail2 };
           await waitSfReady(p);
           await p.goto(t.url);
           await waitSfReady(p);
