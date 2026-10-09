@@ -422,13 +422,13 @@ async (page) => {
       results.push({no: tc.no, ok: false, error: String(e)});
       prevScreen = null; // 例外時は画面状態不明のため次TCの遷移スキップ判定に使わない
       return;
-  const fdFail = await frontdoorFailure(page);
-  if (fdFail) return JSON.stringify(tcs.map(tc => ({ no: tc.no, ok: false, error: fdFail }))); // ログインできていない: どの TC も撮らずに返す（Step 1.5）
     }
     prevScreen = tc.screen || null;
   }
 
   await page.goto('FRONTDOOR_URL_HERE'); // 1件目のみ実行。実際は Step 1.5 で取得した FRONTDOOR_URL の値をエージェント変数展開で埋め込む（accessToken を直書きしない。playwright-sf-screen-ops.md「frontdoor 認証」参照）
+  const fdFail = await frontdoorFailure(page);
+  if (fdFail) return JSON.stringify(tcs.map(tc => ({ no: tc.no, ok: false, error: fdFail }))); // ログインできていない: どの TC も撮らずに返す（Step 1.5）
   await waitSfReady(page);
   for (const tc of tcs) {
     await runTC(page, tc);
