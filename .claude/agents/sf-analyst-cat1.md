@@ -118,7 +118,7 @@ tools:
 
 #### 検出パターン
 
-- `[A-Z][a-zA-Z]+__c`（カスタム API 名）
+- `[A-Z][a-zA-Z0-9_]+__c`（カスタム API 名）
 - `（Aura: |（Apex: |（LWC: |（Flow: |（Batch: |（Trigger:`（併記接尾辞）
 - `sdch_(Batch|Trigger|Flow)_[A-Za-z_]+` 等のプロジェクト固有クラス名直書き
 

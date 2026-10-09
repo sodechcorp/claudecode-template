@@ -293,7 +293,7 @@ Pass A・Pass B ともに 0 件の場合は、空ヘッダー行のみで新規�
        cmp_map = {}
        for row in text.splitlines():
            issue_ids = re.findall(r'\b([A-Z][A-Z0-9_]*-\d+)\b', row)
-           cmps = re.findall(r'\b([A-Za-z][A-Za-z0-9]*(?:__c|\.cls|\.trigger|\.flow))\b', row)
+           cmps = re.findall(r'\b([A-Za-z][A-Za-z0-9_]*(?:__c|\.cls|\.trigger|\.flow))\b', row)
            for cmp in cmps:
                cmp_key = cmp.replace('.cls', '').replace('.trigger', '').replace('.flow', '')
                cmp_map.setdefault(cmp_key, [])

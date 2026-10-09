@@ -726,9 +726,9 @@ def _parse_apex_fields(cls_path: Path) -> dict[str, set]:
     # トリガーハンドラー: メソッド引数・ローカル変数の型宣言からプライマリオブジェクトを特定
     # 例: Map<Id, ViewAblePerson__c> や List<ViewAblePerson__c> → ViewAblePerson__c がプライマリ
     trigger_obj = None
-    for pat in [r'Map<Id,\s*([A-Za-z][A-Za-z0-9]*__c)>',
-                r'List<([A-Za-z][A-Za-z0-9]*__c)>',
-                r'([A-Za-z][A-Za-z0-9]*__c)\s+\w+\s*[=;,)]']:
+    for pat in [r'Map<Id,\s*([A-Za-z][A-Za-z0-9_]*__c)>',
+                r'List<([A-Za-z][A-Za-z0-9_]*__c)>',
+                r'(?<![A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*__c)\s+\w+\s*[=;,)]']:
         m = _re.search(pat, content)
         if m:
             trigger_obj = m.group(1)
@@ -736,7 +736,7 @@ def _parse_apex_fields(cls_path: Path) -> dict[str, set]:
     if trigger_obj:
         # そのオブジェクト型変数へのプロパティアクセス (.Field__c) を収集
         prop_fields = set(_re.findall(
-            r'\b\w+\.\s*([A-Za-z][A-Za-z0-9]*__[cr])\b', content
+            r'\b\w+\.\s*([A-Za-z][A-Za-z0-9_]*__[cr])\b', content
         ))
         # Id系・リレーション(__r)は除外
         prop_fields = {f for f in prop_fields if not f.endswith('__r')}
@@ -1264,13 +1264,13 @@ _TECH_REPL_BIZ = [
     (_re.compile(r'のメインコンポーネント'), ''),
     (_re.compile(r'単一責務クラス'), 'クラス'),
     # List<CustomObj__c> → __c削除の前に除去（先に処理しないと List<> が残る）
-    (_re.compile(r'List<[A-Z][A-Za-z0-9]*__[cepr]>'), 'レコードリスト'),
+    (_re.compile(r'List<[A-Z][A-Za-z0-9_]*__[cepr]>'), 'レコードリスト'),
     (_re.compile(r'List<[A-Za-z]+>'), 'リスト'),
     # （trigger xxx） 等のApexトリガー技術的記述を除去
     (_re.compile(r'（trigger\s+\w+）'), ''),
     (_re.compile(r'\(trigger\s+\w+\)'), ''),
     # __c/__e/__r カスタムオブジェクト名（上記 List<> 除去後）
-    (_re.compile(r'\b[A-Z][A-Za-z0-9]*__[cepr]\b'), ''),
+    (_re.compile(r'\b[A-Z][A-Za-z0-9_]*__[cepr]\b'), ''),
     # Apex クラス名（Controller/Service/Handler/Manager/Batch/Trigger で終わるもの）
     (_re.compile(r'\b[A-Z][A-Za-z0-9]{2,}(?:Controller|Service|Handler|Manager|Batch|Trigger)\b'), ''),
     # 残ったCamelCase英語（日本語助詞に挟まれていない単独の英単語）
@@ -2564,7 +2564,7 @@ def _build_related_objects_and_access(data: dict) -> tuple[list[dict], list[dict
             if not text:
                 continue
             is_trigger_new = bool(_re.search(r'trigger\s+new|trigger\.new|newList', text, _re.IGNORECASE))
-            for m in _re.finditer(r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9]*__c)(?![A-Za-z0-9_])', text):
+            for m in _re.finditer(r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9_]*__c)(?![A-Za-z0-9_])', text):
                 _register(m.group(1), name, "INSERT" if is_trigger_new else "R")
             for std_api in _STD_OBJ_LABELS:
                 if _re.search(rf'(?<![A-Za-z0-9_]){_re.escape(std_api)}(?![A-Za-z0-9_])', text):
@@ -2576,11 +2576,11 @@ def _build_related_objects_and_access(data: dict) -> tuple[list[dict], list[dict
                 continue
 
             # "OBJ更新（FIELD1・FIELD2）" → W + フィールド名抽出
-            for m in _re.finditer(r'([A-Z][A-Za-z0-9]*__c)(?:[^\n（]*?)更新[^\n（]*?(?:（([^）]+)）)?', text):
+            for m in _re.finditer(r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9_]*__c)(?:[^\n（]*?)更新[^\n（]*?(?:（([^）]+)）)?', text):
                 obj_api = m.group(1)
                 _register(obj_api, name, "W")
                 if m.group(2):
-                    fnames = _re.findall(r'([A-Za-z][A-Za-z0-9]*__c)', m.group(2))
+                    fnames = _re.findall(r'(?<![A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*__c)', m.group(2))
                     obj_fields.setdefault(obj_api, [])
                     for fn in fnames:
                         if not any(f["api_name"] == fn for f in obj_fields[obj_api]):
@@ -2592,13 +2592,13 @@ def _build_related_objects_and_access(data: dict) -> tuple[list[dict], list[dict
 
             # "OBJ（insert）" や "insert" を含む → INSERT
             if _re.search(r'(?i)\binsert\b|新規作成|新規登録', text):
-                for m in _re.finditer(r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9]*__c)(?![A-Za-z0-9_])', text):
+                for m in _re.finditer(r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9_]*__c)(?![A-Za-z0-9_])', text):
                     _register(m.group(1), name, "INSERT")
                 for std_api in _STD_OBJ_LABELS:
                     if _re.search(rf'(?<![A-Za-z0-9_]){_re.escape(std_api)}(?![A-Za-z0-9_])', text):
                         _register(std_api, name, "INSERT")
             else:
-                for m in _re.finditer(r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9]*__c)(?![A-Za-z0-9_])', text):
+                for m in _re.finditer(r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9_]*__c)(?![A-Za-z0-9_])', text):
                     _register(m.group(1), name, "W")
                 for std_api in _STD_OBJ_LABELS:
                     if _re.search(rf'(?<![A-Za-z0-9_]){_re.escape(std_api)}(?![A-Za-z0-9_])', text):
@@ -2611,7 +2611,7 @@ def _build_related_objects_and_access(data: dict) -> tuple[list[dict], list[dict
         for std_api in _STD_OBJ_LABELS:
             for m in _re.finditer(rf'{std_api}（([^）]{{1,120}})）', dfo):
                 parens = m.group(1)
-                fnames = _re.findall(r'([A-Za-z][A-Za-z0-9]*__c)', parens)
+                fnames = _re.findall(r'(?<![A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*__c)', parens)
                 is_w = bool(_re.search(r'更新|フラグ|設定|保存', parens))
                 op = "W" if is_w else "R"
                 for fn in fnames:
@@ -2621,10 +2621,10 @@ def _build_related_objects_and_access(data: dict) -> tuple[list[dict], list[dict
                         obj_fields[std_api].append(
                             {"api_name": fn, "label": label, "access": op, "note": ""})
         # カスタムオブジェクト: "Quote__c更新（QuoteLinkId__c・...）" → 既存パターンと同様
-        for m in _re.finditer(r'([A-Z][A-Za-z0-9]*__c)（([^）]+)）', dfo):
+        for m in _re.finditer(r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9_]*__c)（([^）]+)）', dfo):
             obj_api = m.group(1)
             parens = m.group(2)
-            fnames = _re.findall(r'([A-Za-z][A-Za-z0-9]*__c)', parens)
+            fnames = _re.findall(r'(?<![A-Za-z0-9_])([A-Za-z][A-Za-z0-9_]*__c)', parens)
             is_w = bool(_re.search(r'更新|フラグ|設定|保存', parens))
             op = "W" if is_w else "R"
             for fn in fnames:

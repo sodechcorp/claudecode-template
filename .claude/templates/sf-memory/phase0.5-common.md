@@ -58,7 +58,7 @@
 ### 検出パターン
 
 ```
-[A-Z][a-zA-Z]+__c              # API 名（DailyReport__c 等）
+[A-Z][a-zA-Z0-9_]+__c          # API 名（DailyReport__c 等）
 （Aura: |（Apex: |（LWC: |（Flow: |（Batch: |（Trigger:   # 併記接尾辞
 sdch_(Batch|Trigger|Flow)_[A-Za-z_]+   # プロジェクト固有クラス名の直書き
 ```

@@ -62,11 +62,11 @@ _AI = _re.ASCII | _re.IGNORECASE
 
 # Object__c.Field__c 形式と単独 Object__c の検出パターン
 _DOT_CUSTOM_PAT = _re.compile(
-    r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9]*)__c\.([A-Z][A-Za-z0-9]*)__c(?![A-Za-z0-9_])',
+    r'(?<![A-Za-z0-9_])([A-Z][A-Za-z0-9_]*)__c\.([A-Z][A-Za-z0-9_]*)__c(?![A-Za-z0-9_])',
     _A,
 )
 _SINGLE_OBJ_PAT = _re.compile(
-    r'(?<![A-Za-z0-9_])[A-Z][A-Za-z0-9]*__c(?![A-Za-z0-9_.])',
+    r'(?<![A-Za-z0-9_])[A-Z][A-Za-z0-9_]*__c(?![A-Za-z0-9_.])',
     _A,
 )
 
@@ -172,11 +172,11 @@ _TECH_REPL_BIZ = [
     (_re.compile(r'のサーバーサイドロジック'), ''),
     (_re.compile(r'のメインコンポーネント'), ''),
     (_re.compile(r'単一責務クラス'), 'クラス'),
-    (_re.compile(r'List<[A-Z][A-Za-z0-9]*__[cepr]>'), 'レコードリスト'),
+    (_re.compile(r'List<[A-Z][A-Za-z0-9_]*__[cepr]>'), 'レコードリスト'),
     (_re.compile(r'List<[A-Za-z]+>'), 'リスト'),
     (_re.compile(r'（trigger\s+\w+）'), ''),
     (_re.compile(r'\(trigger\s+\w+\)'), ''),
-    (_re.compile(r'\b[A-Z][A-Za-z0-9]*__[cepr]\b'), ''),
+    (_re.compile(r'\b[A-Z][A-Za-z0-9_]*__[cepr]\b'), ''),
     (_re.compile(r'\b[A-Z][A-Za-z0-9]{2,}(?:Controller|Service|Handler|Manager|Batch|Trigger)\b'), ''),
     (_re.compile(r'（([A-Z@#][^）]{0,60})）'), _strip_tech_paren),
     (_re.compile(r'\(([A-Z@#][^)]{0,60})\)'), _strip_tech_paren),

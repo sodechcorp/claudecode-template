@@ -34,7 +34,7 @@ def main():
     if usecases.exists():
         text = usecases.read_text(encoding="utf-8")
         cache["uc_ids"] = sorted(set(re.findall(r'\b(UC-\d{3})\b', text)))
-        cache["related_objects"] = sorted(set(re.findall(r'\b([A-Z][A-Za-z0-9]+__c)\b', text)))
+        cache["related_objects"] = sorted(set(re.findall(r'\b([A-Z][A-Za-z0-9_]+__c)\b', text)))
 
     requirements = docs / "requirements" / "requirements.md"
     if requirements.exists():

@@ -78,8 +78,8 @@ _RE_DML_INSERT = re.compile(r"\binsert\s+(\w+)", re.I)
 _RE_DML_UPSERT = re.compile(r"\bupsert\s+(\w+)", re.I)
 _RE_DML_UPDATE = re.compile(r"\bupdate\s+(\w+)", re.I)
 _RE_NEW_OBJ    = re.compile(r"\bnew\s+([A-Za-z][A-Za-z0-9_]*(?:__c)?)\s*\(", re.I)
-_RE_TRG_MAP    = re.compile(r"Map<Id,\s*([A-Za-z][A-Za-z0-9]*__c)>")
-_RE_TRG_LIST   = re.compile(r"List<([A-Za-z][A-Za-z0-9]*__c)>")
+_RE_TRG_MAP    = re.compile(r"Map<Id,\s*([A-Za-z][A-Za-z0-9_]*__c)>")
+_RE_TRG_LIST   = re.compile(r"List<([A-Za-z][A-Za-z0-9_]*__c)>")
 
 
 def _is_sf_object(name: str) -> bool:
