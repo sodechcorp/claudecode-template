@@ -666,7 +666,7 @@ def scan(project_dir: Path) -> list[dict]:
             _add("Visualforce", api_name, {
                 "name":        api_name,
                 "overview":    extract_vf_overview(page_file, doc),
-                "source_file": page_file.as_posix(),
+                "source_file": page_file.with_name(f"{api_name}.page").as_posix(),
                 "design_doc":  doc,
             })
 

@@ -153,6 +153,7 @@ for feat in ids_data.get('features', []):
 type_dir = {
     'Apex': ('classes', '.cls'), 'Batch': ('classes', '.cls'),
     'Integration': ('classes', '.cls'), 'Flow': ('flows', '.flow-meta.xml'),
+    '画面フロー': ('flows', '.flow-meta.xml'), 'Visualforce': ('pages', '.page'),
     'LWC': ('lwc', ''), 'Aura': ('aura', ''), 'Trigger': ('triggers', '.trigger'),
 }
 force_app = proj / 'force-app' / 'main' / 'default'
