@@ -10,7 +10,7 @@ Usage:
 Exit code:
   0 — missing == 0（全件生成済み）
   1 — missing > 0（未生成あり。stderr に一覧）
-  2 — 入力ファイルが見つからない
+  2 — 入力ファイル・_metadata_cache.json の対象キーが無い
 """
 import argparse, json, re, sys
 from pathlib import Path
@@ -67,6 +67,14 @@ def main():
         sys.exit(2)
 
     cache = json.loads(cache_path.read_text(encoding="utf-8"))
+    missing_keys = [meta_key for meta_key, _ in _KIND_META[kind] if meta_key not in cache]
+    if missing_keys:
+        print(
+            f"[verify_cat4] ERROR: _metadata_cache.json に {', '.join(missing_keys)} が無い。"
+            " Phase 1 のクエリを build_metadata_cache.py に通してキャッシュしてから再実行してください。",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
     # 2. kind に対応するメタデータから API 名一覧を収集
     expected_api_names: set[str] = set()
@@ -86,13 +94,6 @@ def main():
                 if is_trivial_vf_page(page_meta):
                     continue
             expected_api_names.add(api_name)
-
-    if not expected_api_names:
-        print(
-            f"[verify_cat4] WARNING: _metadata_cache.json に kind={kind} の対象キーが見つかりません。"
-            " scan_features.py / build_metadata_cache.py を先に実行してください。",
-            file=sys.stderr,
-        )
 
     # 3. feature_ids.yml を読み、API 名 → (cmp_id, deprecated) のマップを作る
     fids_path = proj / "docs" / ".sf" / "feature_ids.yml"

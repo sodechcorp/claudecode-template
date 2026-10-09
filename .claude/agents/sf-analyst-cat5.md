@@ -88,7 +88,7 @@ tools:
 
 ### Phase 1: コンポーネント一覧の収集
 
-**キャッシュ優先**: `docs/.sf/_metadata_cache.json` が 5 分以内に存在する場合、`apex_classes` / `apex_triggers` / `flow_definitions` / `lwc_bundles` のうちキーがあるものはそのキーを読んで再クエリをスキップする（R2 解消）。それ以外（キャッシュがない・5 分を過ぎている・キーがない）は以下のうち該当するクエリを実行:
+**キャッシュ優先**: `docs/.sf/_metadata_cache.json` の `apex_classes` / `apex_triggers` / `flow_definitions` / `lwc_bundles` のうち、`cached_at_by_key` の書き込み時刻が 5 分以内のキーはそのキーを読んで再クエリをスキップする（R2 解消）。それ以外は以下のうち該当するクエリを実行:
 
 ```bash
 sf data query -q "SELECT Name, IsTest FROM ApexClass WHERE NamespacePrefix = null AND IsTest = false ORDER BY Name" --json

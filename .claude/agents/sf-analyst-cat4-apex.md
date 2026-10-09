@@ -87,7 +87,7 @@ Phase 2 の設計書生成では `_apex_skeletons.json` の当該クラスエン
 
 ## Phase 1: 対象コンポーネントの収集（Apex 種別固有）
 
-_metadata_cache.json が 5 分以内に存在する場合、`apex_classes` / `apex_triggers` / `named_credentials` / `cron_triggers` のうちキーがあるものはそのキーを読んで再クエリをスキップ。それ以外（存在しない・期限切れ・キーがない）は以下のうち該当するクエリを実行し `build_metadata_cache.py` でキャッシュする。
+_metadata_cache.json の `apex_classes` / `apex_triggers` / `named_credentials` / `cron_triggers` のうち、`cached_at_by_key` の書き込み時刻が 5 分以内のキーはそのキーを読んで再クエリをスキップ。それ以外は以下のうち該当するクエリを実行して `build_metadata_cache.py` でキャッシュし、そのキーを読む。
 
 > **収集しないメタデータ**: `ApexPage`（Visualforce ページ）は **このエージェントの収集対象外**。VF ページの設計書生成は cat4-lwc が担当する。
 

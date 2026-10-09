@@ -201,7 +201,7 @@ sf data query -q "SELECT EntityDefinition.QualifiedApiName, QualifiedApiName, La
 
 #### Phase 1 末尾: メタデータキャッシュ生成
 
-Phase 1-1 の主要クエリ結果を `docs/.sf/_metadata_cache.json` に保存する。cat4-apex/flow/lwc/cat5 は 5 分以内のキャッシュにキーがあれば再クエリしない（R1 解消）。
+Phase 1-1 の主要クエリ結果を `docs/.sf/_metadata_cache.json` に保存する。cat4-apex/flow/lwc/cat5 は書き込み時刻（`cached_at_by_key`）が 5 分以内のキーは再クエリしない（R1 解消）。
 
 ```bash
 sf data query -q "SELECT Name, IsTest FROM ApexClass WHERE NamespacePrefix = null AND IsTest = false ORDER BY Name" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_classes

@@ -81,7 +81,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 - **コンテキスト枯渇時の挙動**: 途中停止して「完了」と宣言してはならない。1 件処理完了ごとにハッシュキャッシュへ書き込めば、次のイテレーションで未処理分から再開可能
 - **進捗報告**: 概ね 10 件処理ごとに `処理済 X/N 件` を 1 行報告する
-- **完了条件**: Phase 3.5 の `verify_cat4_completeness.py` が exit 0 を返した場合のみ「完了」を宣言する。exit 非 0 の場合は missing 一覧から未処理 API 名を抽出して Phase 1.5/Phase 2 を再実行する
+- **完了条件**: Phase 3.5 の `verify_cat4_completeness.py` が exit 0 を返した場合のみ「完了」を宣言する。exit 1 の場合は missing 一覧から未処理 API 名を抽出して Phase 1.5/Phase 2 を再実行する（exit 2 は Phase 3.5 参照）
 
 ---
 
@@ -180,9 +180,9 @@ python {project_dir}/scripts/python/sf-doc-mcp/mark_design_deprecated.py \
 import json, pathlib, re, sys
 proj = pathlib.Path(r'{project_dir}')
 cache_path = proj / 'docs' / '.sf' / '_metadata_cache.json'
-if not cache_path.exists():
-    print('SKIP: _metadata_cache.json not found'); sys.exit(0)
-cache = json.loads(cache_path.read_text(encoding='utf-8'))
+cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}
+if 'apex_pages' not in cache:
+    print('NO_APEX_PAGES: _metadata_cache.json に apex_pages が無いため、名前では検出していない')
 apex_pages = {r['Name'] for r in cache.get('apex_pages', [])}
 
 def _norm(s):  return re.sub(r'[-_\s]', '', s.lower())
@@ -265,6 +265,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/verify_cat4_completeness.py \
 - stdout 最終 1 行: `[verify_cat4] kind=K expected=N generated=M missing=Z deprecated=D`
 - exit 0（missing == 0）: 全件完了。最終報告へ進む
 - exit 1（missing > 0）: stderr の missing 一覧から未処理 API 名を確認し、そのコンポーネントのみを対象に Phase 1.5/Phase 2 を再実行してから再度 verify を呼ぶ（「完了」を宣言してはならない）
+- exit 2（`_metadata_cache.json` の対象キーが無い）: stderr に出たキーを Phase 1 のクエリで取り直して（`build_metadata_cache.py` に通す）から再度 verify を呼ぶ。クエリ自体が失敗する（`build_metadata_cache.py` が exit 1）場合は、その stderr の1行を最終報告「要確認事項」に書き、件数突合は「未実施（{キー} を取得できず）」とする（「完了」を宣言してはならない）
 - 最終報告の「### 生成/更新ファイル」配下に集計行を転記する
 
 ---

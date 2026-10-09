@@ -89,17 +89,17 @@ Phase 2 の設計書生成では `_lwc_skeletons.json` の当該コンポーネ�
 
 ## Phase 1: 対象コンポーネントの収集（LWC 種別固有）
 
-_metadata_cache.json が 5 分以内に存在する場合、`lwc_bundles` / `apex_pages` / `aura_bundles` のうちキーがあるものはそのキーを読んで再クエリをスキップ。
+_metadata_cache.json の `lwc_bundles` / `apex_pages` / `aura_bundles` のうち、`cached_at_by_key` の書き込み時刻が 5 分以内のキーはそのキーを読んで再クエリをスキップ。それ以外は以下のうち該当するクエリを実行して `build_metadata_cache.py` でキャッシュし、そのキーを読む。
 
 ```bash
 # LWC コンポーネント
-sf data query -q "SELECT DeveloperName FROM LightningComponentBundle WHERE NamespacePrefix = null ORDER BY DeveloperName" --use-tooling-api --json
+sf data query -q "SELECT DeveloperName FROM LightningComponentBundle WHERE NamespacePrefix = null ORDER BY DeveloperName" --use-tooling-api --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key lwc_bundles
 
 # Visualforce ページ
-sf data query -q "SELECT Name, ControllerType, ControllerKey FROM ApexPage WHERE NamespacePrefix = null ORDER BY Name" --use-tooling-api --json 2>/dev/null
+sf data query -q "SELECT Name, ControllerType, ControllerKey FROM ApexPage WHERE NamespacePrefix = null ORDER BY Name" --use-tooling-api --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_pages
 
 # Aura コンポーネント
-sf data query -q "SELECT DeveloperName FROM AuraDefinitionBundle WHERE NamespacePrefix = null ORDER BY DeveloperName" --use-tooling-api --json 2>/dev/null
+sf data query -q "SELECT DeveloperName FROM AuraDefinitionBundle WHERE NamespacePrefix = null ORDER BY DeveloperName" --use-tooling-api --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key aura_bundles
 ```
 
 各コンポーネントのソースを **全文読み込む**（大きいファイルは 200 行ずつ分割）:
@@ -127,10 +127,10 @@ sf data query -q "SELECT DeveloperName FROM AuraDefinitionBundle WHERE Namespace
 import json, pathlib, re, sys
 proj = pathlib.Path(r'{project_dir}')
 cache_path = proj / 'docs' / '.sf' / '_metadata_cache.json'
-if not cache_path.exists():
-    print('SKIP: _metadata_cache.json not found'); sys.exit(0)
-cache = json.loads(cache_path.read_text(encoding='utf-8'))
-apex_pages = {r['Name'] for r in cache.get('apex_pages', [])}
+cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}
+if 'apex_pages' not in cache:
+    print('FAIL: _metadata_cache.json に apex_pages が無い（Phase 1 の ApexPage のクエリ結果をキャッシュしていない）'); sys.exit(1)
+apex_pages = {r['Name'] for r in cache['apex_pages']}
 
 def _norm(s): return re.sub(r'[-_\s]', '', s.lower())
 def _bare(p): return re.sub(r'^【[^】]+】', '', p.stem)
@@ -160,7 +160,7 @@ python {output_dir}/.tmp/check_vf_residual_in_apex.py
 ```
 
 - **exit 0**（`OK`）: 残存なし。Phase 3.5 完了
-- **exit 1**（`FAIL`）: 列挙されたファイルを最終報告「要確認事項」に転記し、**「完了」を宣言しない**（Phase 2.0b の `要確認` 扱いで保留中のため）
+- **exit 1**（`FAIL`）: 列挙されたファイル（`apex_pages` が無い場合はその1行）を最終報告「要確認事項」に転記し、**「完了」を宣言しない**（Phase 2.0b の `要確認` 扱いで保留中のため）
 
 ---
 
