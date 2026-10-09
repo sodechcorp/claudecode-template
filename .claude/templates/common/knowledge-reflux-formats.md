@@ -167,8 +167,8 @@
 ```
 
 **手動アーカイブ時の格納先**（実施は人間判断・本ルールは通知のみで自動実行しない）:
-- `docs/decisions.md` → `docs/decisions-archive.md`
+- `docs/decisions.md` → `docs/knowledge/archive/decisions-archive.md`
 - `docs/knowledge/pitfalls.md` → `docs/knowledge/archive/pitfalls-archive.md`
 - `docs/knowledge/case-index.md` → `docs/knowledge/archive/case-index-archive.md`
 
-閾値を超えた古い（＝ファイル末尾側の）エントリ・行を上記アーカイブ先の**先頭**に移し、元ファイルからは削除する（先頭挿入運用と対称に、アーカイブ側も最新超過分が先頭に来る）。`case-index.md` の行を移しても `cases/{issueKey}.md` 本体は削除しない（インデックス行の格納場所が変わるだけ）。
+閾値を超えた古い（＝ファイル末尾側の）エントリ・行を、書き換えずに上記アーカイブ先の**先頭**に移し、元ファイルからは削除する（先頭挿入運用と対称に、アーカイブ側も最新超過分が先頭に来る。`/git-sync` は同じ内容のエントリ・行を他の担当者の元ファイルからも除く）。`case-index.md` の行を移しても `cases/{issueKey}.md` 本体は削除しない（インデックス行の格納場所が変わるだけ）。

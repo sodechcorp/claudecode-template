@@ -64,7 +64,9 @@ def _join_blocks(blocks, inserts):
 # `## ` の見出し行ごとのエントリ（同じ見出しは local 優先）。local のエントリは位置も順序もそのまま残し、remote にだけある
 # エントリを remote でその直前にある共通のエントリの後ろ（無ければ local の最初のエントリの前。最新を先頭に挿入する運用）に足す。
 # local に `## ` のエントリが無く、空でない行が全て remote にあれば（雛形のみ）remote のまま。
-def merge_decisions(local, remote, archived=None):
+# 手動アーカイブ先と同じ内容のエントリは remote から足さず、local からも除く（他の担当者がアーカイブしたもの）。
+# by_body（手動アーカイブ先どうし）は見出しでなく本文で突き合わせ、同じ見出しでも本文が違えば両方残す。
+def merge_decisions(local, remote, archived=None, name="decisions.md", by_body=False):
     def split(text):
         """[(見出し行 or None, 塊)]。ファイル末尾の HTML コメント（雛形の書式の注記）は最後の塊と分ける"""
         blocks = _blocks(text, r'(?=^## )', r'## ')
@@ -73,7 +75,19 @@ def merge_decisions(local, remote, archived=None):
             blocks[-1:] = [(blocks[-1][0], blocks[-1][1][:m.start() + 1]), (None, blocks[-1][1][m.start() + 1:])]
         return blocks
 
-    l_blocks, r_blocks = split(local), split(remote)
+    def body(block):
+        """比較用の本文（行末の空白・前後の空行・末尾の区切り線を除く）"""
+        return "\n".join(line.rstrip() for line in block.split("\n")).strip().removesuffix("---").rstrip()
+
+    a_blocks = [(key, block) for key, block in split(archived) if key]
+    gone = {body(block) for _, block in a_blocks}
+    l_blocks = split(local)
+    gone_n = len(l_blocks)
+    l_blocks = [(key, block) for key, block in l_blocks if not (key and body(block) in gone)]
+    gone_n -= len(l_blocks)
+    r_blocks = split(remote)
+    if by_body:
+        l_blocks, r_blocks = ([(key and body(block), block) for key, block in b] for b in (l_blocks, r_blocks))
     l_pos = {}
     for n, (key, _) in enumerate(l_blocks):
         if key:
@@ -82,9 +96,10 @@ def merge_decisions(local, remote, archived=None):
     if l_pos:
         top = min(l_pos.values()) - 1
     else:
-        if {line.rstrip() for line in local.split("\n") if line.strip()} <= {line.rstrip() for line in remote.split("\n")}:
-            print(f"  decisions.md: local の行は全て remote にあるため remote のまま（{r_n} 件）")
-            return remote
+        kept = "".join(block for _, block in l_blocks)
+        if {line.rstrip() for line in kept.split("\n") if line.strip()} <= {line.rstrip() for line in remote.split("\n")}:
+            print(f"  {name}: local の行は全て remote にあるため remote のまま（{r_n} 件）")
+            return "".join(block for key, block in r_blocks if not (key and body(block) in gone))
         # 雛形の旧書式（`### `）で書いた記録等は残し、最初の `### ` 行（無ければ末尾のコメント）の前に足す
         head = l_blocks[0][1]
         comments = [c.span() for c in re.finditer(r'<!--.*?-->', head, re.DOTALL)]
@@ -93,15 +108,15 @@ def merge_decisions(local, remote, archived=None):
         if m and m.start():
             l_blocks[:1] = [(None, head[:m.start()]), (None, head[m.start():])]
         top = -1 if m and not m.start() else 0
-    skip = {key for key, _ in split(archived) if key}  # 手動アーカイブ先にあるエントリも足さない
     inserts, anchor = {}, top
     for key, block in r_blocks:
         if key in l_pos:
             anchor = l_pos[key]
-        elif key and key not in skip:
+        elif key and body(block) not in gone:
             inserts.setdefault(anchor, []).append(block)
     new_n = sum(len(v) for v in inserts.values())
-    print(f"  decisions.md: remote {r_n} 件 + local {l_n} 件 → {l_n + new_n} 件（新規 {new_n} 件）")
+    note = f"・アーカイブ済み {gone_n} 件を除外" if gone_n else ""
+    print(f"  {name}: remote {r_n} 件 + local {l_n} 件 → {l_n + new_n} 件（新規 {new_n} 件{note}）")
     return _join_blocks([block for _, block in l_blocks], inserts)
 
 
@@ -176,19 +191,25 @@ def _parse_rows(lines, key_of):
 
 
 def merge_table_rows(local, remote, key_of, archived=None):
-    """(本文, local 行数, remote 行数, 新規行数) を返す。同キーは local 優先。archived（手動アーカイブ先）にあるキーの行は足さない"""
+    """(本文, local 行数, remote 行数, 新規行数, 除いた行数) を返す。同キーは local 優先。archived（手動アーカイブ先）と同じ内容の行は
+    remote から足さず、local からも除く（他の担当者がアーカイブした行）"""
     r_lines = _restore_tables(_lines(remote))
     r_rows, r_seps = _parse_rows(r_lines, key_of)
+    a_lines = _lines(archived)
+    a_rows = _parse_rows(a_lines, key_of)[0]
+    gone = {tuple(_cells(a_lines[i])) for i, _, _, _ in a_rows}
     if not (local or "").strip():
-        return "".join(r_lines), 0, len(r_rows), len(r_rows)
+        drop = {i for i, _, _, _ in r_rows if tuple(_cells(r_lines[i])) in gone}
+        return "".join(line for i, line in enumerate(r_lines) if i not in drop), 0, len(r_rows), len(r_rows) - len(drop), 0
     l_lines = _restore_tables(_lines(local))
+    drop = {i for i, _, _, _ in _parse_rows(l_lines, key_of)[0] if tuple(_cells(l_lines[i])) in gone}
+    l_lines = [line for i, line in enumerate(l_lines) if i not in drop]
     l_rows, l_seps = _parse_rows(l_lines, key_of)
     l_pos, l_top = {}, {}
     for i, key, _, top in l_rows:
         l_pos.setdefault(key, i)
         l_top.setdefault(key, top)
     skip = set(l_pos) | set(l_seps) | set(r_seps)  # 崩れた remote に残る見出し行も足さない
-    skip |= {key for _, key, _, _ in _parse_rows(_lines(archived), key_of)[0]}
     # 同じ表に共通の行が無い行の位置: 同じ見出しの local の表の区切り行の直後。無ければ local の最初のデータ行の前、
     # 最初の表の区切り行の直後、末尾の順
     if l_rows:
@@ -201,7 +222,7 @@ def merge_table_rows(local, remote, key_of, archived=None):
             anchor, table = None, top
         if key in l_pos:
             anchor = l_pos[key]
-        elif key not in skip:
+        elif key not in skip and tuple(_cells(r_lines[i])) not in gone:
             if anchor is not None:
                 pos = anchor
             else:
@@ -212,42 +233,59 @@ def merge_table_rows(local, remote, key_of, archived=None):
     for i, line in enumerate(l_lines):
         out.append(line)
         out += inserts.get(i, [])
-    return "".join(out), len(l_rows), len(r_rows), sum(len(v) for v in inserts.values())
+    return "".join(out), len(l_rows), len(r_rows), sum(len(v) for v in inserts.values()), len(drop)
 
 
 # ---- case-index.md ----
 def merge_table(local, remote, archived=None):
-    text, l_n, r_n, new_n = merge_table_rows(local, remote, lambda c: c[1] if len(c) > 1 and c[1] else None, archived)
-    print(f"  case-index.md: remote {r_n} 行 + local {l_n} 行 → {l_n + new_n} 行")
+    text, l_n, r_n, new_n, gone_n = merge_table_rows(local, remote, lambda c: c[1] if len(c) > 1 and c[1] else None, archived)
+    note = f"（アーカイブ済み {gone_n} 行を除外）" if gone_n else ""
+    print(f"  case-index.md: remote {r_n} 行 + local {l_n} 行 → {l_n + new_n} 行{note}")
     return text
 
 
 # ---- pitfalls.md ----
 # 第2列（issueID）＋第3列（カテゴリ）の複合キー。表の外の行（旧セクション形式等）は local のまま残す。
 def merge_pitfalls(local, remote, name="pitfalls.md", archived=None):
-    text, l_n, r_n, new_n = merge_table_rows(local, remote, lambda c: f"{c[1]}::{c[2]}" if len(c) >= 3 else None, archived)
-    print(f"  {name}: remote {r_n} 行 + local {l_n} 行 → {l_n + new_n} 行（新規 {new_n} 件）")
+    text, l_n, r_n, new_n, gone_n = merge_table_rows(local, remote, lambda c: f"{c[1]}::{c[2]}" if len(c) >= 3 else None, archived)
+    note = f"・アーカイブ済み {gone_n} 行を除外" if gone_n else ""
+    print(f"  {name}: remote {r_n} 行 + local {l_n} 行 → {l_n + new_n} 行（新規 {new_n} 件{note}）")
+    return text
+
+
+# ---- 手動アーカイブ先（knowledge-reflux-formats.md） ----
+# 内容（decisions はエントリの本文、表は行全体）で和集合し、同じ見出し・課題IDでも内容が違えば両方残す（元ファイルは手元の
+# アーカイブ先と同じ内容を除くため、担当者ごとにアーカイブ先の内容が食い違うと、保存のたびに remote が入れ替わる）。
+def merge_archive(local, remote, name):
+    if name == "decisions-archive.md":
+        return merge_decisions(local, remote, name=name, by_body=True)
+    text, l_n, r_n, new_n, _ = merge_table_rows(local, remote, lambda c: tuple(c) if len(c) > 1 else None)
+    print(f"  {name}: remote {r_n} 行 + local {l_n} 行 → {l_n + new_n} 行")
     return text
 
 
 # ---- effort-calibration.md ----
 # アンカー行（例: "- GF-123「...」= 2h"）の課題ID単位で和集合（同キーは local 優先）。アンカー以外（全体傾向等）と local のアンカーは
 # 位置も順序もそのまま残し、remote にだけあるアンカーを、remote の同じ ### 帯（次の見出しまで）でその直前にある共通のアンカーの後ろ
-# （無ければ同じ帯の次の共通のアンカーの前、同じ見出しの local の帯の最後のアンカー〔アンカーが無ければ帯の最後の行〕の後ろ、
-# local の最後のアンカーの後ろの順）に足す。
+# （無ければ同じ帯の次の共通のアンカーの前、local の同じ帯の最後のアンカー〔アンカーが無ければ帯の最後の行〕の後ろ、
+# local の最後のアンカーの後ろの順）に足す。帯は見出しの「（」より前で突き合わせる（括弧内の閾値は cat6 が再計算で変える。
+# 「（」より前が同じ帯が同じファイルに複数あるときは見出しの全文）。
 def merge_calibration(local, remote):
     if not local:
         return remote
     if not remote:
         return local
-    anchor_re = re.compile(r'^- ([A-Za-z]+-\d+)「')
+    anchor_re = re.compile(r'^- ([A-Za-z][A-Za-z0-9]*-\d+)「')
+
+    def label(line):
+        return re.split(r'[（(]', line)[0].rstrip()
 
     def parse(lines):
-        """[(位置, 課題ID, 帯の見出し)] と {帯の見出し: 帯の最後の空でない行の位置} を返す"""
+        """[(位置, 課題ID, 帯)] と {帯: 帯の最後の空でない行の位置} を返す"""
         anchors, band_end, band = [], {}, None
         for i, line in enumerate(lines):
             if re.match(r'#{1,6} ', line):
-                band = line.rstrip() if line.startswith("### ") else None
+                band = (label(line) if by_label else line.rstrip()) if line.startswith("### ") else None
             elif anchor_re.match(line):
                 anchors.append((i, anchor_re.match(line).group(1), band))
             if band and line.strip():
@@ -255,6 +293,8 @@ def merge_calibration(local, remote):
         return anchors, band_end
 
     l_lines, r_lines = _lines(local), _lines(remote)
+    labels = [[label(line) for line in lines if line.startswith("### ")] for lines in (l_lines, r_lines)]
+    by_label = all(len(set(x)) == len(x) for x in labels)
     (l_anchors, l_band_end), (r_anchors, _) = parse(l_lines), parse(r_lines)
     l_pos, l_band_last = {}, {}
     for i, key, band in l_anchors:
@@ -363,7 +403,7 @@ def merge_test_prerequisites(local, remote):
         elif re.match(r'^## 3\.', key):  # § 3 証跡ディレクトリ規約（散文）は local 優先
             merged[key] = l_sec
         else:
-            merged[key], _, _, new_count = merge_table_rows(l_sec, r_sec, lambda c: c[0] if c and c[0] else None)
+            merged[key], _, _, new_count, _ = merge_table_rows(l_sec, r_sec, lambda c: c[0] if c and c[0] else None)
             total_new += new_count
 
     pre = local_pre or remote_pre
@@ -386,6 +426,18 @@ def main():
         print("ERROR: git リポジトリのルートで実行してください。", file=sys.stderr)
         sys.exit(1)
 
+    # ---- 手動アーカイブ先: 元ファイルのマージより先に行い、元ファイルのマージに渡す ----
+    for path in ("docs/knowledge/archive/decisions-archive.md", "docs/knowledge/archive/case-index-archive.md",
+                 "docs/knowledge/archive/pitfalls-archive.md"):
+        remote = git_show(branch, path)
+        local  = read_local(path)
+        if remote is None:
+            continue
+        elif local is None:
+            write(path, remote); print(f"  {path}: 新規作成（remote 版）")
+        else:
+            write(path, merge_archive(local, remote, os.path.basename(path)))
+
     # ---- decisions.md ----
     path = "docs/decisions.md"
     remote = git_show(branch, path)
@@ -395,7 +447,7 @@ def main():
     elif local is None:
         write(path, remote); print(f"  {path}: 新規作成（remote 版）")
     else:
-        write(path, merge_decisions(local, remote, read_local("docs/decisions-archive.md")))
+        write(path, merge_decisions(local, remote, read_local("docs/knowledge/archive/decisions-archive.md")))
 
     # ---- case-index.md ----
     path = "docs/knowledge/case-index.md"

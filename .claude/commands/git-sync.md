@@ -31,8 +31,9 @@ description: "プロジェクトGitリポジトリとの同期コマンド。引
 | `docs/knowledge/global-calibration.md` | `^### ` 見出し（コンポーネント種別帯）単位でマージ。帯の外（全体傾向・集計済み課題等）は local 優先で保持（local に帯が無い雛形なら remote のまま） |
 | `docs/knowledge/global-pitfalls.md` | テーブル行の issueID+カテゴリ単位で和集合（第2列・第3列の複合キー）。同キーは local 優先 |
 | `docs/knowledge/test-prerequisites.md` | §見出し内の各表 第1列キーで和集合（同キーは local 優先）。§ 3（散文）は local 優先で保持 |
+| `docs/knowledge/archive/` | 手動アーカイブ先（decisions-archive.md・case-index-archive.md・pitfalls-archive.md）。内容（エントリの本文・行全体）で和集合（同じ見出し・課題IDでも内容が違えば両方残す） |
 
-decisions.md・case-index.md・pitfalls.md は、手動アーカイブ先（[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用）にあるキーを remote から足さない。
+decisions.md・case-index.md・pitfalls.md は、手動アーカイブ先（[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用）と同じ内容の行・エントリを remote から足さず、local からも除く（他の担当者がアーカイブしたもの）。
 
 ### 同期対象外（担当者ごとに独立蓄積）
 
@@ -104,7 +105,7 @@ done
 
 ### Step 2: 積み上げ同期型ファイルのマージ取得
 
-対象: decisions.md / case-index.md / pitfalls.md / cases/ / effort-calibration.md / global-calibration.md / global-pitfalls.md
+対象: decisions.md / case-index.md / pitfalls.md / cases/ / effort-calibration.md / global-calibration.md / global-pitfalls.md / archive/
 
 ```bash
 python scripts/python/git-sync/git-sync-merge.py --branch {Step 0 で取得したブランチ名}
