@@ -8,6 +8,7 @@ tools:
   - Edit
   - Glob
   - Grep
+  - Bash
   - mcp__backlog__get_project_list
   - mcp__backlog__get_issues
   - mcp__backlog__get_issue_types
@@ -280,35 +281,8 @@ Pass A・Pass B ともに 0 件の場合は、空ヘッダー行のみで新規�
 
 3. **`docs/.sf/_cmp_case_index.json` の生成（E-3）**: cat4* が設計書の「過去の不具合」セクションに転記するための CMP → 課題 ID マップを生成する。
 
-   以下の内容で `{output_dir}/.tmp/build_cmp_case_index.py` を Write する:
-
-   ```python
-   import json, re, pathlib
-   proj = pathlib.Path(r'{project_dir}')
-   index_path = proj / 'docs' / 'knowledge' / 'case-index.md'
-   if not index_path.exists():
-       print('[_cmp_case_index] case-index.md not found, skip')
-   else:
-       text = index_path.read_text(encoding='utf-8')
-       cmp_map = {}
-       for row in text.splitlines():
-           cells = row.split('|')[1:-1]
-           issue_ids = re.findall(r'\b([A-Z][A-Z0-9_]*-\d+)\b', cells[1]) if len(cells) > 1 else []
-           cmps = re.findall(r'\b([A-Za-z][A-Za-z0-9_]*(?:__c|\.cls|\.trigger|\.flow))\b', row)
-           for cmp in cmps:
-               cmp_key = cmp.replace('.cls', '').replace('.trigger', '').replace('.flow', '')
-               cmp_map.setdefault(cmp_key, [])
-               for issue_id in issue_ids:
-                   if issue_id not in cmp_map[cmp_key]:
-                       cmp_map[cmp_key].append(issue_id)
-       out = proj / 'docs' / '.sf' / '_cmp_case_index.json'
-       out.parent.mkdir(parents=True, exist_ok=True)
-       out.write_text(json.dumps(cmp_map, ensure_ascii=False, indent=2), encoding='utf-8')
-       print(f'[_cmp_case_index] {len(cmp_map)} CMPs → {out}')
-   ```
-
    ```bash
-   python {output_dir}/.tmp/build_cmp_case_index.py
+   python "{project_dir}/scripts/python/sf-doc-mcp/build_cmp_case_index.py" "{project_dir}"
    ```
 
 4. `docs/logs/changelog.md` への追記は sf-org-analyst Phase 7.5 で 1 セッション 1 行に集約するためここでは行わない（F-4）。完了報告を出力して終了する。
