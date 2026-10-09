@@ -672,11 +672,16 @@ PYEOF
     error "Flow が1件も取得されていません（force-app/main/default/flows/ が空）。\n  スキップログを確認: manifest/.retrieve-skipped.log\n  対処: bash scripts/sf-retrieve.sh retrieve-manifest manifest/package-Flow.xml"
 }
 
-# --- Flow バージョン監査（Tooling API）---
+# --- Flow バージョン監査と Active 版への置き換え（Tooling API）---
 # Metadata API v44+ は版番号の無い Flow:{API名} で Latest バージョンを取得する（Active 版は Flow:{API名}-{版番号} で取得できる）。
-# Active 版と Latest 版が乖離している Flow を検知して warn する。取得自体は成功しているため error では止めない。
+# Active 版と Latest 版が乖離している Flow は、force-app のファイルを Active 版（組織で動いている版）に置き換える。
+# 第2引数の package.xml があれば、その Flow のメンバーだけを対象にする（手元で直しているほかのフローを上書きしない）。
+# 監査・置き換えに失敗しても取得自体は成功しているため error では止めない。
 audit_flow_versions() {
     local target_org="$1"
+    local manifest="${2:-}"
+    local targets_file="manifest/.flow-active-targets"
+    local active_dir="manifest/flow-active"
     local flow_query_json
     flow_query_json=$(sf data query --use-tooling-api \
         -q "SELECT DeveloperName, ActiveVersionId, ActiveVersion.VersionNumber, LatestVersion.VersionNumber, LatestVersion.Status FROM FlowDefinition" \
@@ -684,15 +689,28 @@ audit_flow_versions() {
         warn "Flow バージョン監査スキップ（Tooling API クエリ失敗）"
         return
     }
+    rm -f "$targets_file"
 
-    python - << PYEOF
-import json, sys
+    python - "$manifest" "$targets_file" << PYEOF
+import json, os, re, sys
 
+manifest, targets_file = sys.argv[1], sys.argv[2]
 data = json.loads("""${flow_query_json}""")
 records = data.get("result", {}).get("records", [])
 
+if manifest:
+    members = set()
+    for block in re.findall(r"<types>(.*?)</types>", open(manifest, encoding="utf-8").read(), re.S):
+        if re.search(r"<name>\s*Flow\s*</name>", block):
+            members.update(m.strip() for m in re.findall(r"<members>([^<]+)</members>", block))
+    if not members:
+        sys.exit(0)
+    if "*" not in members:
+        records = [r for r in records if r.get("DeveloperName") in members]
+
 drifted = []
-drifted_targets = []
+latest_targets = []
+active_targets = []
 no_active = []
 
 for r in records:
@@ -705,8 +723,13 @@ for r in records:
     if not active_id:
         no_active.append(f"  {name}（取得済み=v{latest_ver} {latest_status}）")
     elif active_ver is not None and latest_ver is not None and active_ver != latest_ver:
-        drifted.append(f"  {name}（Active=v{active_ver}、取得済み=v{latest_ver} {latest_status}）")
-        drifted_targets.append(f'--metadata "Flow:{name}-{active_ver}"')
+        drifted.append(f"  {name}（Active=v{active_ver}、最新=v{latest_ver} {latest_status}）")
+        latest_targets.append(f'--metadata "Flow:{name}"')
+        if os.path.isfile(f"force-app/main/default/flows/{name}.flow-meta.xml"):
+            active_targets.append(f"{name} {active_ver} {latest_ver} {latest_status}\n")
+
+with open(targets_file, "w", encoding="utf-8", newline="\n") as f:
+    f.write("".join(active_targets))
 
 total = len(records)
 ok_count = total - len(drifted) - len(no_active)
@@ -719,12 +742,37 @@ if no_active:
         print(m)
 
 if drifted:
-    print("\033[33m[WARN]\033[0m Active 版と乖離あり（取得済みは Active より新しい版）:")
+    print("\033[33m[WARN]\033[0m Active 版と乖離あり（force-app は Active 版に置き換える）:")
     for m in drifted:
         print(m)
-    print("\033[33m[WARN]\033[0m Active 版を読む場合は版番号を付けて、force-app 以外の、パスにドットで始まるフォルダを含まないフォルダに取得する（読むだけに使う）:")
-    print("       → sf project retrieve start " + " ".join(drifted_targets) + " --output-dir {取得先} --target-org ${target_org}")
+    print("\033[33m[WARN]\033[0m 最新の版を読む場合は版番号を付けずに、force-app 以外の、パスにドットで始まるフォルダを含まないフォルダに取得する:")
+    print("       → sf project retrieve start " + " ".join(latest_targets) + " --output-dir {取得先} --target-org ${target_org}")
 PYEOF
+
+    [ -s "$targets_file" ] || { rm -f "$targets_file"; return 0; }
+    local args=() name ver latest_ver latest_status replaced=0 failed=() drafts=()
+    while read -r name ver latest_ver latest_status; do args+=(--metadata "Flow:${name}-${ver}"); done < "$targets_file"
+    rm -rf "$active_dir"
+    if sf project retrieve start "${args[@]}" --output-dir "$active_dir" --target-org "$target_org" --wait "$SF_WAIT" > manifest/.flow-active.log 2>&1; then
+        mkdir -p manifest/flow-latest
+        while read -r name ver latest_ver latest_status; do
+            if [ -f "${active_dir}/flows/${name}-${ver}.flow-meta.xml" ]; then
+                grep -q "<status>Active</status>" "force-app/main/default/flows/${name}.flow-meta.xml" ||
+                    cp -f "force-app/main/default/flows/${name}.flow-meta.xml" "manifest/flow-latest/${name}.flow-meta.xml"
+                mv -f "${active_dir}/flows/${name}-${ver}.flow-meta.xml" "force-app/main/default/flows/${name}.flow-meta.xml"
+                replaced=$((replaced + 1))
+                case "$latest_status" in *Draft) drafts+=("${name}(v${latest_ver})") ;; esac
+            else
+                failed+=("$name")
+            fi
+        done < "$targets_file"
+        ok "Flow を Active 版に置き換え: ${replaced} 件（置き換える前の最新の版は manifest/flow-latest/ に残した）"
+        [ ${#failed[@]} -eq 0 ] || warn "Active 版に置き換えられなかった Flow（force-app は最新の版のまま）: ${failed[*]}"
+        [ ${#drafts[@]} -eq 0 ] || warn "最新の版が Draft の Flow: ${drafts[*]}。デプロイすると組織のその Draft は上書きされる（中身は manifest/flow-latest/ に残した）"
+    else
+        warn "Active 版の取得に失敗（force-app は最新の版のまま）。ログ: manifest/.flow-active.log"
+    fi
+    rm -rf "$active_dir" "$targets_file"
 }
 
 # --- 未コミット変更の確認（情報提供のみ・中断しない）---
@@ -1245,6 +1293,7 @@ retrieve() {
 
     info "メタデータを取得中..."
     sf project retrieve start --manifest manifest/package.xml --target-org "$target_org" --wait "$SF_WAIT" --ignore-conflicts
+    audit_flow_versions "$target_org" "manifest/package.xml"
     ok "メタデータ取得完了 → force-app/"
 }
 
@@ -1316,6 +1365,7 @@ retrieve_select() {
 
     info "指定コンポーネントを取得中..."
     if retrieve_manifest "manifest/package.xml" "$target_org" "select"; then
+        audit_flow_versions "$target_org" "manifest/package.xml"
         ok "メタデータ取得完了 → force-app/"
     else
         error "メタデータ取得に失敗しました。ログ: manifest/.retrieve-select.log / スキップ一覧: manifest/.retrieve-status/select.skipped"
@@ -1378,6 +1428,7 @@ case "$MODE" in
         LABEL=$(basename "$MANIFEST" .xml | sed 's/package-//')
         info "[manifest] ${LABEL} を取得中..."
         if retrieve_manifest "$MANIFEST" "$TARGET_ORG" "$LABEL"; then
+            audit_flow_versions "$TARGET_ORG" "$MANIFEST"
             ok "完了"
         else
             error "取得失敗: ${MANIFEST}"

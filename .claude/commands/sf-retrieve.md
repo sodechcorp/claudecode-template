@@ -194,14 +194,14 @@ git diff --name-only force-app/
 
 `sf project retrieve start`（Metadata API v44+）は、版番号の無い `Flow:{API名}` では **Flow の Latest バージョンを取得する**。Active バージョンは版番号を付けた `Flow:{API名}-{版番号}` で取得できる。
 
-スクリプトが `audit_flow_versions` で Tooling API を使って Active/Latest を照合し、乖離があれば WARN を出す。
+スクリプトが `audit_flow_versions` で Tooling API を使って Active/Latest を照合し、乖離がある Flow は Active 版を取得して force-app のファイルを置き換える（select・retrieve・retrieve-manifest では取得したフローだけ。置き換える前の最新の版は `manifest/flow-latest/` に残す）。
 
 | 表示 | 意味 |
 |---|---|
 | `正常=N` | Active 版 = Latest 版（一致。問題なし） |
-| `乖離あり（Active=vX、取得済み=vY {状態}）` | 組織で Active より新しい版がある。取得したファイルは組織で動いている Active 版と異なる |
+| `乖離あり（Active=vX、最新=vY {状態}）` | 組織で Active より新しい版がある。force-app は Active 版に置き換える（置き換えられなかった Flow は WARN に出て、最新の版のまま） |
 | `有効な版なし（取得済み=vY {状態}）` | 組織で有効な版が無い Flow。取得したファイルは組織で動いていない |
 
-`{状態}` は取得した最新の版の状態。Obsolete は一度有効にした版（前の版に戻した・無効にした）、Draft・InvalidDraft は有効にしたことのない版。
+`{状態}` は最新の版の状態。Obsolete は一度有効にした版（前の版に戻した・無効にした）、Draft・InvalidDraft は有効にしたことのない版。
 
-**乖離がある Flow の Active 版を読む場合**: スクリプトが WARN の後に出すコマンド（`Flow:{API名}-{Active の版番号}`）で、force-app 以外の、パスにドットで始まるフォルダを含まないフォルダに取得する（ドットで始まるフォルダの下には Succeeded のまま1ファイルも書かれない）。ファイル名・メンバー名に版番号が付くので、force-app・デプロイ元には入れず読むだけに使う。
+**乖離がある Flow の最新の版を読む場合**: スクリプトが WARN の後に出すコマンド（版番号の無い `Flow:{API名}`）で、force-app 以外の、パスにドットで始まるフォルダを含まないフォルダに取得する（ドットで始まるフォルダの下には Succeeded のまま1ファイルも書かれない）。最新の版をリリースする場合は、組織で有効にして（テストして）から取り直す。最新の版が Draft の Flow をデプロイすると、その Draft は上書きされる（スクリプトが WARN に出す。中身は `manifest/flow-latest/` に残る）。

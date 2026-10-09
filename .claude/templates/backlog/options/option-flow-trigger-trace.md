@@ -17,7 +17,7 @@
    sf data query -q "SELECT ApiName, ActiveVersionId, LatestVersionId, VersionNumber, ProcessType FROM FlowDefinitionView WHERE ApiName IN ('{Flow名1}', '{Flow名2}')" --target-org <alias> --json
    sf data query -q "SELECT Name, Status FROM ApexTrigger WHERE Name IN ('{Trigger名1}', '{Trigger名2}')" --target-org <alias> --json
    ```
-   `ActiveVersionId` が null（Flow）/ `Status` が `Inactive`（Trigger）の場合のみ「無効」と扱ってよい。`ActiveVersionId` が null でなく `LatestVersionId` と違うフローは、force-app のファイル（最新の版）が組織で動いている版ではないため、`sf project retrieve start --metadata "Flow:{API名}-{VersionNumber}" --output-dir docs/logs/{issueID}/active-flow/<alias> --target-org <alias>` で有効な版を取得し、手順3ではそのファイルを読む（ドットで始まるフォルダの下には取得されない。版番号の付いたファイルは force-app に入れない）。組織に問い合わせられない場合（alias 未指定・対象組織不明等）は「無効」と断定せず `**[要確認: 稼働状態未確認（組織問い合わせ不可）]**` を付ける。
+   `ActiveVersionId` が null（Flow）/ `Status` が `Inactive`（Trigger）の場合のみ「無効」と扱ってよい。`ActiveVersionId` が null でなく `LatestVersionId` と違うフローは、force-app のファイルがその組織で動いている版とは限らないため、`sf project retrieve start --metadata "Flow:{API名}-{VersionNumber}" --output-dir docs/logs/{issueID}/active-flow/<alias> --target-org <alias>` で有効な版を取得し、手順3ではそのファイルを読む（ドットで始まるフォルダの下には取得されない。版番号の付いたファイルは force-app に入れない）。組織に問い合わせられない場合（alias 未指定・対象組織不明等）は「無効」と断定せず `**[要確認: 稼働状態未確認（組織問い合わせ不可）]**` を付ける。
 3. 各フロー・トリガーを Read して以下を確認する（稼働中と確認できたもの、および稼働状態未確認のもの全てが対象。手順2で「無効」と組織確認済みのものは連鎖評価を省略してよい）:
    - **起動条件**: オブジェクト・フィールド・タイミング（Before / After）
    - **処理内容**: DML / Callout / 別フロー起動 / Platform Event 送信
