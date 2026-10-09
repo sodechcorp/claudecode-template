@@ -15,5 +15,9 @@
 | `docs/knowledge/sf-standard.md` | Salesforce 標準仕様（ガバナ制限・API制限・トリガ順序等） | `/sf-memory`（Q3でcat8選択） |
 | `docs/knowledge/case-index.md` | 過去不具合・対応実績のインデックス | `/sf-memory`（Q2でcat6選択） |
 | `docs/knowledge/pitfalls.md` | ハマりポイント（Backlog実績から生成） | `/sf-memory`（Q2でcat6選択） |
+| `docs/knowledge/cases/` | 重要案件の詳細記録（`{issueKey}.md`） | `/sf-memory`（Q2でcat6選択）・`/backlog`（知見還流で生成） |
+| `docs/knowledge/global-calibration.md` | 全プロジェクト横断の工数温度感（Backlog 全プロジェクトの実績から生成） | `/sf-memory`（Q2でcat6選択。cat6-global が自動生成） |
+| `docs/knowledge/global-pitfalls.md` | 全プロジェクト横断の汎用ハマりポイント | `/sf-memory`（Q2でcat6選択。cat6-global が自動生成） |
+| `docs/knowledge/test-prerequisites.md` | 組織固有のテスト前提（ログイン手順・テストデータ・証跡の置き場・テストで踏む落とし穴） | `/upgrade`（雛形を配置）・`/test`・`/backlog`（Sandbox での証跡取得・再現確認の後に追記） |
 | `force-app/main/default/` | Salesforceメタデータ（初回は `sf project retrieve` 実行後に生成） | SFDX |
 | `manifest/` | package.xml（`/sf-retrieve` 実行後に生成） | `/sf-retrieve` |

@@ -95,6 +95,7 @@ Phase 0 で完了確認したカテゴリのファイルのみ読む（未完了
 - `docs/knowledge/pitfalls.md`: 再発ハマりポイント
 - `docs/knowledge/cases/` 配下: 重要案件の詳細記録（Glob で列挙し、存在すれば全件 Read）
 - `docs/knowledge/effort-calibration.md`: 工数温度感（存在時のみ）
+- `docs/knowledge/global-calibration.md`・`docs/knowledge/global-pitfalls.md`（cat6-global）は全プロジェクト横断のナレッジのため読まず、書き換えない
 
 **cat8 出力（SF公式仕様）**（cat8 完了済みの場合のみ）:
 - `docs/knowledge/sf-standard.md`: Salesforce 標準機能仕様抽出
@@ -385,10 +386,8 @@ FGに紐づくコンポーネントが swimlanes のステップとして現れ�
 以下のルールで内容を動的に更新する:
 
 0. **`最終更新` 日付を実行当日に更新する**: `> 最終更新:` 行を `> 最終更新: YYYY-MM-DD`（実行当日）に設定する（新規生成時・更新時ともに必須）
-1. Phase 0 で確認した「完了済みカテゴリのファイル」のみ「主ファイル」として記載する
-   - cat6 完了: `knowledge/case-index.md`・`knowledge/pitfalls.md`・`knowledge/cases/{issueKey}.md` をマップに含める
-   - cat8 完了: `knowledge/sf-standard.md` をマップに含める
-2. 未完了カテゴリに対応するファイル（設計書・catalog 等）は `—（未生成）` と記載
+1. テンプレート定義の各行のファイル（主ファイル・補助ファイル）は、`docs/` に実在するもの（Glob で確認）を記載する
+2. 実在しないファイルは `—（未生成）` と記載
 3. 既存の `docs/_README.md` に手動追記された行は保護する（行・コメントの削除禁止）。ただし保護対象は行・構造・コメントであり、行内の件数・数値はキー数値テーブル/「既知の残課題」等のナラティブ節を問わず[件数・数値の一貫性原則](../spec/sf-memory-quality.md#件数数値の一貫性原則差分更新横断補完共通)に従い正本値へ同期する（数値のみ差し替え・コメント保持）
 4. **cat6 完了時のみ — cases/ 実数突合（必須）**:
    1. `Glob docs/knowledge/cases/*.md` で実ファイル一覧と件数を取得する
@@ -480,6 +479,7 @@ python -c "import os; print('削除成功' if not os.path.exists(r'<作成した
 - docs/knowledge/pitfalls.md（ハマりポイント XX件）
 - docs/knowledge/cases/: XX件（生成対象件数）
 - docs/knowledge/effort-calibration.md（存在する場合のみ）
+- docs/knowledge/global-calibration.md / docs/knowledge/global-pitfalls.md（cat6-global・存在する場合のみ）
 
 **cat8（SF公式仕様）**（cat8 完了済みの場合のみ）:
 - docs/knowledge/sf-standard.md

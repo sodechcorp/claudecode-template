@@ -18,7 +18,9 @@ sf-org-analyst の Phase 7.5 で生成する（cat1 完了後・横断補完時�
 | ステークホルダー・キーパーソン・問い合わせ先 | overview/org-profile.md（## ステークホルダーマップ / ## キーパーソン一覧） | — |
 | 要件・ビジネスルール（FR-XXX, BR-XXX） | requirements/requirements.md | — |
 | 業務フロー・ユースケース | flow/usecases.md | flow/swimlanes.json |
+| システム構成・外部連携 | architecture/system.json | — |
 | オブジェクト・項目定義 | catalog/{standard\|custom}/{オブジェクト名}.md | catalog/_index.md |
+| データモデル全体図（ER図・リレーション一覧） | catalog/_data-model.md | catalog/_index.md |
 | 機能別設計書 | design/{種別}/{名前}.md | — |
 | 機能一覧キャッシュ（コンポーネント一覧 JSON） | .sf/feature_list.json | — |
 | 機能ID台帳（コンポーネント↔ID 対応） | .sf/feature_ids.yml | — |
@@ -30,15 +32,16 @@ sf-org-analyst の Phase 7.5 で生成する（cat1 完了後・横断補完時�
 | データ統計（件数・分布） | data/data-statistics.md | — |
 | データ品質（空欄率・重複兆候） | data/data-quality.md | — |
 | 過去の判断・採用方針（why） | decisions.md | — |
-| 案件履歴・症状×対策の索引 | knowledge/case-index.md | logs/{issueID}/ |
+| 案件履歴・症状×対策の索引 | knowledge/case-index.md | knowledge/cases/{issueKey}.md / logs/{issueID}/ |
 | Salesforce 標準仕様の照合表 | knowledge/sf-standard.md | — |
-| プロジェクト固有のハマりポイント | knowledge/pitfalls.md | — |
+| プロジェクト固有のハマりポイント | knowledge/pitfalls.md | knowledge/global-pitfalls.md（全プロジェクト横断） |
+| テスト前提（ログイン手順・テストデータ・証跡の置き場・テストで踏む落とし穴） | knowledge/test-prerequisites.md | — |
 | 変更履歴 | logs/changelog.md | logs/{issueID}/ |
-| 工数温度感（Backlog実績から生成） | knowledge/effort-calibration.md | `/sf-memory` cat6 |
+| 工数温度感（Backlog実績から生成） | knowledge/effort-calibration.md | knowledge/global-calibration.md（全プロジェクト横断） |
 
 ---
 *このファイルは sf-org-analyst により自動生成・更新される。手動追記した行は保護される（行・コメントの削除禁止）。ただし行内の件数・数値は横断補完時に正本値へ同期される（数値のみ差し替え・コメント保持）。*
 ```
 
 **生成条件**: cat1 完了（`docs/overview/org-profile.md` 存在）後の横断補完（sf-org-analyst Phase 7.5）で生成。
-**更新タイミング**: sf-memory 実行・カテゴリ追加完了後の横断補完時に内容を動的更新。未完了カテゴリのファイルは `—（未生成）` と表示。
+**更新タイミング**: sf-memory 実行・カテゴリ追加完了後の横断補完時に内容を動的更新。実在しないファイルは `—（未生成）` と表示。

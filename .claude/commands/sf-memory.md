@@ -196,7 +196,7 @@ Phase 3: カテゴリ4・6・8 を並列でエージェントへ委譲
       - cat4-apex: docs/design/apex/ / docs/design/batch/ / docs/design/integration/ を生成
       - cat4-flow: docs/design/flow/ を生成
       - cat4-lwc: docs/design/lwc/ / docs/design/vf/ / docs/design/aura/ を生成
-      - cat6: docs/knowledge/effort-calibration.md / docs/knowledge/case-index.md / docs/knowledge/pitfalls.md / docs/.sf/_cmp_case_index.json を生成
+      - cat6: docs/knowledge/effort-calibration.md / docs/knowledge/case-index.md / docs/knowledge/pitfalls.md / docs/knowledge/cases/{issueKey}.md / docs/.sf/_cmp_case_index.json を生成
       - cat6-global: docs/knowledge/global-calibration.md / docs/knowledge/global-pitfalls.md を生成
       - cat8: docs/knowledge/sf-standard.md を生成
     → 完了サマリを返す
@@ -316,7 +316,7 @@ Agent ツールを使用し、以下を self-contained なプロンプトで渡�
 ✅ カテゴリ4 完了 — 設計書 X件 を生成しました（docs/design/）
 🔄 カテゴリ5（機能グループ定義）を実行中...
 ✅ カテゴリ5 完了 — feature_groups.yml（FG-XXX 件）
-✅ カテゴリ6 完了 — effort-calibration.md / case-index.md / pitfalls.md を生成しました
+✅ カテゴリ6 完了 — effort-calibration.md / case-index.md / pitfalls.md / cases/ を生成しました
 （Backlog MCP 未設定の場合: ⏭️ カテゴリ6 スキップ — Backlog MCP 未設定。/setup-mcp で設定後に再実行してください）
 ✅ 横断ナレッジ 完了 — global-calibration.md, global-pitfalls.md を生成しました（cat6-global）
 （cat6-global を実行した場合のみ表示）
