@@ -40,7 +40,7 @@ tools:
 - `{max_workers_ui}` — UI 並列コンテキスト数（デフォルト 3。`serial`=true 時は 1）
 - `{ui_cases}` — 実行対象 TC のリスト（差分再実行モードの絞り込み済み）
   ```
-  各 TC: No / 観点 / 前提・データ準備 / 実行アクション / 期待結果 / 判定方法 / 証跡取得 / 分岐ラベル（あれば） / 確認ポイント（着眼点）（あれば） / 対象画面（あれば。任意列。Step 1.5 の `--path` 最適化・Step 2B の画面遷移スキップ判定に使用）
+  各 TC: No / 観点 / 前提・データ準備 / 実行アクション / 期待結果 / 判定方法 / 証跡取得 / 分岐ラベル（あれば） / 確認ポイント（着眼点）（あれば） / 対象画面（あれば。任意列。Step 1.5 の `--path` 最適化に使用）
   ```
 
 **Before-only モード（mode: before-capture）追加パラメータ**:
@@ -194,29 +194,29 @@ mkdir -p "{evidence_dir}/before"
 
 書き込み動詞（登録/更新/削除等）を伴う TC はレコード状態が操作前後で変化する。**before（操作直前状態）** は **after（操作後状態）** との差分を示す有意な証跡になるため、このグループのみ before/after を両方採取する。
 
-1件目の TC のみ `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用しアプリ内遷移のみ。Step 1.5 で `--path` 最適化を適用済みの場合、この1回の goto で1件目の対象画面まで直接到達しているため、1件目自身の画面遷移（`実行アクション`のうち遷移部分）も省略する（後述の `prevScreen` 初期化を参照）。
+1件目の TC のみ `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用する（再ログインしない）。Step 1.5 で `--path` に渡した画面が1件目の TC の操作を始める画面（同じレコード。手順0.5）と同じ場合は、この1回の goto でその画面に着地するため、1件目の TC には `preNav` を書かない。
 
 コードブロック構成（同一セッションの連続 TC を1コードブロックにまとめる）:
 
-**バッチ化の原則**: 同一セッションのグループ② TC は可能な限り1コードブロックにまとめて実行する（1件目のみ goto ログイン、以降はブロック内でアプリ内遷移を続ける）。TC が増えても同じブロックに追記するだけにし、TC ごとに `browser_run_code_unsafe` を往復しない。ロケータの事前 snapshot 確認が必要な TC や、フォーム状態を戻せない TC のみ別ブロックに分割する（後から動く処理の結果を撮る TC は Step 1 のとおり操作の後で区切る。区切るブロックはその TC の手順2までを行い、それまでの `results` とその TC の `navSkipped`・before の保存失敗分を返す〔保存失敗分は受け取った時点で Write する〕。次のブロックは再ログインせず `prevScreen` をその TC の対象画面にして、再読込 → その TC の手順3・4〔push に before のフィールドは含めない〕→ 残りの TC と続ける。その TC が手順2までに失敗した〔`ok: false`〕ときは待たず、次のブロックはその TC を飛ばして `prevScreen` を null から始める）。**撮影・DOM取得・保存・push の共通処理は1つの関数（`runTC`）にまとめ、TC 固有の操作部分のみを配列（`tcs`）でループさせる（Step 2A の `tasks`/`Promise.all` 骨格と同じ考え方）。TC ごとにブロック全体（撮影〜push の一連の記述）を複製しない**（生成トークンが TC 数に比例して線形増加するのを防ぐため。後述のコードブロック例を参照）。
+**バッチ化の原則**: 同一セッションのグループ② TC は可能な限り1コードブロックにまとめて実行する（1件目のみ goto ログイン、以降はブロック内でアプリ内遷移を続ける）。TC が増えても同じブロックに追記するだけにし、TC ごとに `browser_run_code_unsafe` を往復しない。ロケータの事前 snapshot 確認が必要な TC や、フォーム状態を戻せない TC のみ別ブロックに分割する（後から動く処理の結果を撮る TC は Step 1 のとおり操作の後で区切る。区切るブロックはその TC の手順2までを行い、それまでの `results` とその TC の before の保存失敗分を返す〔保存失敗分は受け取った時点で Write する〕。次のブロックは再ログインせず、再読込 → その TC の手順3・4〔push に before のフィールドは含めない〕→ 残りの TC と続ける。その TC が手順2までに失敗した〔`ok: false`〕ときは待たず、次のブロックはその TC を飛ばして残りの TC と続ける）。**撮影・DOM取得・保存・push の共通処理は1つの関数（`runTC`）にまとめ、TC 固有の操作部分のみを配列（`tcs`）でループさせる（Step 2A の `tasks`/`Promise.all` 骨格と同じ考え方）。TC ごとにブロック全体（撮影〜push の一連の記述）を複製しない**（生成トークンが TC 数に比例して線形増加するのを防ぐため。後述のコードブロック例を参照）。
 
 各 TC はブロック内で以下 1〜4 を行い、結果を配列 `results` へ push する。TC ごとに `try/catch` で囲み、失敗した TC が後続 TC の証跡採取を止めないようにする:
 
-0.5. **画面遷移要否の判定（テスト時短・任意最適化）**: `const navSkipped = (前TCの対象画面 && 前TCの対象画面 === 当該TCの対象画面);` を判定する（`ui_cases` の `対象画面` 列が双方とも入力されており値が一致する場合のみ `true`）。`navSkipped` が `true` の場合、直前 TC 完了時点で既に対象画面にいるとみなし、当該 TC の「実行アクション」のうち画面遷移部分（画面を開く／メニューから遷移する等）を省略する。`navSkipped` が `false` の場合は**この時点で**画面遷移部分を実行し、対象画面に到達してから手順1（before 撮影）に進む（**遷移を済ませてから before を撮る** — 手順1のスクショ・DOM取得は必ず遷移後の対象画面に対して行う）。`対象画面` が空欄・前 TC と不一致の場合も同様に省略せず遷移を実行する。**当該 TC が1件目の場合**: Step 1.5 で `--path` 最適化を適用済みなら「直前 TC」を「`--path` で直接着地した対象画面」とみなして判定する（`prevScreen` の初期値が `tcs[0].screen` のため通常どおり比較式が成立し、一致すれば `navSkipped: true` になる）。`--path` 未適用の1件目は `prevScreen` が `null` のため必ず `navSkipped: false` となり、従来どおり画面遷移を実行する。**TC の実行順序（No 順）は変更しない**（`対象画面` は隣接 TC 間の遷移省略判定にのみ使う軸であり、TC を並べ替える軸ではない）。
-1. **before 撮影 + DOM取得（F-6/F-7）**（**手順0.5の遷移判定・遷移実行の後に行う。対象画面に到達済みの状態を撮影する**。遷移が必要な TC の before を前 TC の画面のまま撮ってしまわないよう、必ず手順0.5の後に実行すること）:
+0.5. **画面遷移**: 当該 TC の操作を始める画面（前提のレコードの、実行アクションの最初の操作〔ボタン・入力等〕を行う画面。遷移そのものを確かめる TC は遷移元の画面で、遷移は `action` で行う）を開いてから（コード例の `preNav`。URL が決まる画面は `page.goto` で開く）手順1（before 撮影）に進む。前の TC と同じ画面でも開き直す（前の TC の操作で画面の状態が変わっている・別のレコードを開く TC があるため）。`preNav` を書かないのは、ログイン直後にその画面〔同じレコード〕に着地した1件目（上記の `--path`、コード例の TC-001 のホーム）と、前の TC の画面のまま続けると書かれた TC。TC の実行順序（No 順）は変更しない。
+1. **before 撮影 + DOM取得（F-6/F-7）**（**手順0.5の遷移の後に行う。操作を始める画面を撮影する**）:
    - **例外（Phase3 Before参照）**: `ui_cases` の「証跡取得」列に `[Phase3 Before参照: ...]` の記載がある TC（`test-spec-builder.md` §展開の注意「タイミング=実装前のTC」参照）は、この手順のスクショ・DOM取得を**実行せず**、`{evidence_dir}/before/{issueID}_{対象画面サニタイズ}_before.png` と `.txt` を Read し、内容をそのまま `{evidence_dir}/before/{No}_{観点サニタイズ}_before.png` / `.txt` としてコピー保存する（Phase 3.5 `option-evidence-check.md` が採取済みの実装前状態が正本のため、`/test` 実行時点で新規撮影しない）。コピー元ファイルが存在しない場合はスクショ・DOM取得ともスキップし、当該 No を返却テーブルに「Phase3 Before証跡が見つかりません」と記録する（この場合の可否判定は Phase D `judge_results.py` 側で `対象外` 記載に従う）。
    - **通常ケース**: スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true, animations: 'disabled', scale: 'css'})`
    - before DOM: `const beforeText = await getPageText(page)`（`playwright-sf-screen-ops.md`「DOM 本文取得」節。グローバルヘッダーのノイズを除去して取得する）を取得し、`saveText(page, beforeText, '/絶対パス/before/{No}_{観点サニタイズ}_before.txt')` で直接保存する（後述）。
-2. **操作**（**画面内の操作のみ**。遷移部分は手順0.5で完了済み）: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で表示を待つ。
+2. **操作**（**画面内の操作のみ**。遷移部分は手順0.5で完了済み。遷移そのものを確かめる TC の遷移はここで行う）: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で表示を待つ。
 3. **after 撮影（分岐ごと）＋ 確認対象の赤枠ハイライト**:
    - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。`target` 未記載の TC は `const highlightEl = null;` として明示する（ハイライトを試みない）。
    - スクショ: `fullPage: true` で全ページ撮影。分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`
    - after DOM: `await getPageText(page)` を取得（判定の主役）し、`saveText(page, afterText, '/絶対パス/after/screen/{ファイル名}.txt')` で直接保存する（`{ファイル名}` は PNG と同じ命名: 分岐なしは `{No}_{観点サニタイズ}`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}`。PNG と `.txt` が同じベース名でペアになるようにする）。
-4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), highlighted: !!highlightEl, navSkipped, textLen: afterText.length, thinDom: afterText.length < 200, errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || (/\/(secur\/login|login)/i.test(page.url()) ? 'セッション失効(ログイン画面へ遷移)' : null), ...(beforeSaved ? {} : {beforeText}), ...(afterSaved ? {} : {text: afterText})})`（`navSkipped` は手順0.5で判定した変数をそのまま渡す。ログイン画面 URL への遷移は DOM 文言に現れずグループ①の並列コンテキスト用フォールバックと違い再ログインもされないため、`errorSignature` の URL チェックでセッション失効を検知し既存の NG 扱い・備考欄付記に乗せる）。`beforeSaved`/`afterSaved` は `saveText` の戻り値（`true`=保存済み・`false`=download 不発火でフォールバック要）。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
+4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), highlighted: !!highlightEl, textLen: afterText.length, thinDom: afterText.length < 200, errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || (/\/(secur\/login|login)/i.test(page.url()) ? 'セッション失効(ログイン画面へ遷移)' : null), ...(beforeSaved ? {} : {beforeText}), ...(afterSaved ? {} : {text: afterText})})`（ログイン画面 URL への遷移は DOM 文言に現れずグループ①の並列コンテキスト用フォールバックと違い再ログインもされないため、`errorSignature` の URL チェックでセッション失効を検知し既存の NG 扱い・備考欄付記に乗せる）。`beforeSaved`/`afterSaved` は `saveText` の戻り値（`true`=保存済み・`false`=download 不発火でフォールバック要）。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
    - `highlighted`: `target=` 指定ありかつ要素解決に成功した場合のみ `true`。`target=` 未記載、または解決失敗で枠なし撮影した場合は `false`。この実績値は下流の証跡シート生成（`generate_evidence_xlsx.py`）が「赤枠あり/なし」の説明文を実態に合わせて出し分けるために使う（種別だけを見て機械的に「赤枠あり」と書いてしまう不整合を防ぐ）。
    - `target` 未記載・ロケータ解決失敗の場合は枠なしで**必ず撮影**（スキップしない。これはロケータ失敗ではなく catch 対象外）。
 
-全 TC 処理後、`return JSON.stringify(results)` で配列を返す。`saveText` が `true` を返したファイルはコードブロック内で保存済みのため Write 不要。エージェントは return 受け取り後に配列を反復し、`beforeText`/`text` フィールドが**存在する要素のみ**（保存失敗フォールバック）該当パス（`before/{No}_{観点サニタイズ}_before.txt` / `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt`）に Write する。`url` は全 `ok: true` 要素について `.split('?')[0]` でクエリを除去して返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。`ok: false` の要素は当該 No を NG として返却テーブルに記録し、`error` の内容を備考欄に記載する。`thinDom: true` の要素は返却テーブル備考欄に `[空撮り疑い: DOM {textLen}文字]` を、`errorSignature` が非 null の要素は `[画面エラー検出: {errorSignature}]` を付記する（採取時点の検知。最終判定は Phase D `judge_results.py` の再検知が防波堤）。`navSkipped: true` の要素は備考欄に `[画面遷移スキップ: 前TCと同一画面]` を付記する（手順0.5の省略実績を黙って消さず出力に残す）。`確認ポイント（着眼点）` に `target=` 指定がある TC のうち `highlighted: false`（解決失敗で枠なし撮影）の要素は備考欄に `[赤枠なし: ハイライト対象未解決]` を付記する（`target=` 未記載の TC には付記しない。ハイライト実績自体の正本は `_highlight_status.json` だが、この 備考欄の付記はレビュアーが返却テーブル単体で気づけるようにするための要約であり、実績データの重複記録ではない）。
+全 TC 処理後、`return JSON.stringify(results)` で配列を返す。`saveText` が `true` を返したファイルはコードブロック内で保存済みのため Write 不要。エージェントは return 受け取り後に配列を反復し、`beforeText`/`text` フィールドが**存在する要素のみ**（保存失敗フォールバック）該当パス（`before/{No}_{観点サニタイズ}_before.txt` / `after/screen/{No}_{観点サニタイズ}_{分岐ラベル}.txt`）に Write する。`url` は全 `ok: true` 要素について `.split('?')[0]` でクエリを除去して返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。`ok: false` の要素は当該 No を NG として返却テーブルに記録し、`error` の内容を備考欄に記載する。`thinDom: true` の要素は返却テーブル備考欄に `[空撮り疑い: DOM {textLen}文字]` を、`errorSignature` が非 null の要素は `[画面エラー検出: {errorSignature}]` を付記する（採取時点の検知。最終判定は Phase D `judge_results.py` の再検知が防波堤）。`確認ポイント（着眼点）` に `target=` 指定がある TC のうち `highlighted: false`（解決失敗で枠なし撮影）の要素は備考欄に `[赤枠なし: ハイライト対象未解決]` を付記する（`target=` 未記載の TC には付記しない。ハイライト実績自体の正本は `_highlight_status.json` だが、この 備考欄の付記はレビュアーが返却テーブル単体で気づけるようにするための要約であり、実績データの重複記録ではない）。
 
 **ハイライト実績の記録（マージ方式・Step 2A/2B/3 のいずれの処理後もこの手順に従う）**: `results` を反復し `{no: highlighted}` のマッピング（`ok: false` の TC は含めない）を組み立てる。`{evidence_dir}/after/screen/_highlight_status.json` が既に存在する場合は **Read して既存マッピングとマージ**（同一 `no` は今回の値で上書き、それ以外の既存キーは保持）してから Write する。存在しない場合はそのまま新規 Write する（**既存内容を確認せず Write で全上書きすることは禁止** — Step 2A・2B・3 は別々のコードブロックで実行されるため、単純な上書きだと先に処理したグループの実績が後続グループの書き込みで消える。差分再実行時に前回実績を消さないためにも必須）。ファイル名が `_` で始まるため証跡ファイルの TC 番号索引（`fname.split("_")[0]`）とは衝突しない。
 
@@ -369,36 +369,34 @@ async (page) => {
   }
   const results = [];
 
-  // TC 定義: TC ごとに変わるのはラベル・対象画面・操作（action）だけ。
+  // TC 定義: TC ごとに変わるのはラベル・遷移（preNav）・操作（action）だけ。
   // 撮影・DOM取得・保存・push の共通処理は runTC に集約しているため、
   // TC が増えてもここに1エントリ追記するだけでよい（ブロック全体を複製しない）。
   const tcs = [
     {
-      // TC-001: プリチェック画面のラベル確認（このTCでは遷移自体が確認対象のため preNav は使わず action で遷移+操作を行う）
-      no: 'TC-001', label: 'ラベル確認', screen: 'プリチェック画面', targetLabel: 'プリチェック',
+      // TC-001: プリチェック画面のラベル確認（遷移自体が確認対象。遷移元はログイン直後のホームのため preNav は書かず、action で遷移+操作を行う）
+      no: 'TC-001', label: 'ラベル確認', targetLabel: 'プリチェック',
       action: async (page) => { await page.getByText('プリチェック').click(); await waitSfReady(page); },
     },
     {
-      // TC-002: 次の画面での確認（同セッションの次 TC は再ログイン不要でそのまま続ける）
-      // preNav: TC 対象画面へ到達するための前提遷移（before 採取より前に実行。対象画面が前TCと同じ場合は navSkipped によりスキップされる）
+      // TC-002: 次の画面での確認（再ログインせず同じセッションで続ける）
+      // preNav: この TC の操作を始める画面（前提のレコード）を開く遷移（before 採取より前に実行）
       // action: このTCで確認対象となる操作（before/after の間で実行）
-      no: 'TC-002', label: '別画面確認', screen: '別画面', targetLabel: '対象ボタン',
+      no: 'TC-002', label: '別画面確認', targetLabel: '対象ボタン',
       preNav: async (page) => { await page.getByText('別画面').click(); await waitSfReady(page); },
       action: async (page) => { await page.getByText('対象ボタン').click(); await waitSfReady(page); },
     },
-    // TC が増えたらここに1エントリ追加するだけでよい。例（対象画面が直前 TC と同じ＝手順0.5の画面遷移スキップ対象）:
-    // { no: 'TC-003', label: '追加確認', screen: '別画面', targetLabel: null,
+    // TC が増えたらここに1エントリ追加するだけでよい。例（TC-002 と同じ画面でも preNav で開き直す）:
+    // { no: 'TC-003', label: '追加確認', targetLabel: null,
+    //   preNav: async (page) => { await page.goto('{TC-003 が開く画面の URL}'); await waitSfReady(page); },
     //   action: async (page) => { await page.getByText('追加ボタン').click(); await waitSfReady(page); } },
   ];
 
-  let prevScreen = null; // 0.5 画面遷移要否の判定（テスト時短・任意最適化）に使う直前 TC の対象画面。Step 1.5 で --path 最適化を適用した場合はここを tcs[0].screen で初期化する（1件目 TC 自身も既存の navSkipped 判定に乗せて遷移を自動スキップさせるため。適用していない場合は null のまま）
-
   async function runTC(page, tc) {
-    const navSkipped = !!(tc.screen && prevScreen && tc.screen === prevScreen);
     try {
-      // 0.5 画面遷移要否の判定+遷移実行: navSkipped でなければここで preNav（遷移部分）を実行し、対象画面に到達してから before 撮影に進む
-      if (tc.preNav && !navSkipped) await tc.preNav(page);
-      // 1. before 撮影（fullPage: true）+ before DOM 取得（F-6/F-7・状態遷移観点で使用。手順0.5の遷移実行後＝対象画面に到達済みの状態で撮る）
+      // 0.5 画面遷移: preNav で操作を始める画面を開いてから before 撮影に進む
+      if (tc.preNav) await tc.preNav(page);
+      // 1. before 撮影（fullPage: true）+ before DOM 取得（F-6/F-7・状態遷移観点で使用。手順0.5の遷移の後＝操作を始める画面で撮る）
       await page.screenshot({path: `C:/path/evidence/before/${tc.no}_${tc.label}_before.png`, fullPage: true, animations: 'disabled', scale: 'css'});
       const beforeText = await getPageText(page);
       const beforeSaved = await saveText(page, beforeText, `C:/path/evidence/before/${tc.no}_${tc.label}_before.txt`);
@@ -412,7 +410,7 @@ async (page) => {
       const afterSaved = await saveText(page, afterText, `C:/path/evidence/after/screen/${tc.no}_${tc.label}.txt`);
       // 4. push
       results.push({
-        no: tc.no, ok: true, url: page.url(), highlighted: !!highlightEl, navSkipped,
+        no: tc.no, ok: true, url: page.url(), highlighted: !!highlightEl,
         textLen: afterText.length, thinDom: afterText.length < 200,
         errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || (/\/(secur\/login|login)/i.test(page.url()) ? 'セッション失効(ログイン画面へ遷移)' : null),
         ...(beforeSaved ? {} : { beforeText }),
@@ -420,10 +418,7 @@ async (page) => {
       });
     } catch (e) {
       results.push({no: tc.no, ok: false, error: String(e)});
-      prevScreen = null; // 例外時は画面状態不明のため次TCの遷移スキップ判定に使わない
-      return;
     }
-    prevScreen = tc.screen || null;
   }
 
   await page.goto('FRONTDOOR_URL_HERE'); // 1件目のみ実行。実際は Step 1.5 で取得した FRONTDOOR_URL の値をエージェント変数展開で埋め込む（accessToken を直書きしない。playwright-sf-screen-ops.md「frontdoor 認証」参照）
@@ -568,7 +563,7 @@ OK: {ok} 件 / NG: {ng} 件 / 降格（要手動）: {降格} 件
 2. Step 4（証跡存在確認）で PNG・after DOM テキストの欠落・0 バイトを検出した TC → `NG`
 3. JS の `ok: false`（コードブロック実行中に例外発生）→ `NG`
 4. JS の `ok: true` かつ `errorSignature` が非 null（画面エラー検出。セッション失効含む）→ `NG`（`ok: true` でも上書きする）
-5. 上記のいずれにも該当しない → `OK`（`thinDom: true`・`highlighted: false`・`navSkipped: true` は備考欄への付記のみで、結果列を `NG` にはしない）
+5. 上記のいずれにも該当しない → `OK`（`thinDom: true`・`highlighted: false` は備考欄への付記のみで、結果列を `NG` にはしない）
 
 accessToken は返却テキストに一切含めない。「画面URL」列は `page.url()` から `.split('?')[0]` でクエリを除去した値のみ（accessToken を含む FRONTDOOR_URL とは別物・出力可）。オーケストレータ（auto-evidence-runner）はこの列を [visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) の標準ハンドオフブロック生成に使う。
 
