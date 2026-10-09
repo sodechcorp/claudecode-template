@@ -89,7 +89,7 @@ Phase 2 の設計書生成では `_lwc_skeletons.json` の当該コンポーネ�
 
 ## Phase 1: 対象コンポーネントの収集（LWC 種別固有）
 
-_metadata_cache.json が 5 分以内に存在する場合は `lwc_bundles` / `apex_pages` / `aura_bundles` キーを読んで再クエリをスキップ。
+_metadata_cache.json が 5 分以内に存在する場合、`lwc_bundles` / `apex_pages` / `aura_bundles` のうちキーがあるものはそのキーを読んで再クエリをスキップ。
 
 ```bash
 # LWC コンポーネント

@@ -88,7 +88,7 @@ tools:
 
 ### Phase 1: コンポーネント一覧の収集
 
-**キャッシュ優先**: `docs/.sf/_metadata_cache.json` が 5 分以内に存在する場合は `apex_classes` / `apex_triggers` / `flow_definitions` / `lwc_bundles` キーを読んで再クエリをスキップする（R2 解消）。キャッシュがない場合のみ以下を実行:
+**キャッシュ優先**: `docs/.sf/_metadata_cache.json` が 5 分以内に存在する場合、`apex_classes` / `apex_triggers` / `flow_definitions` / `lwc_bundles` のうちキーがあるものはそのキーを読んで再クエリをスキップする（R2 解消）。それ以外（キャッシュがない・5 分を過ぎている・キーがない）は以下のうち該当するクエリを実行:
 
 ```bash
 sf data query -q "SELECT Name, IsTest FROM ApexClass WHERE NamespacePrefix = null AND IsTest = false ORDER BY Name" --json
@@ -133,15 +133,13 @@ ls force-app/main/default/triggers/ 2>/dev/null
 各コンポーネントについて `operated_objects` を調査する:
 
 **Apexトリガー**:
-- Phase 1 で取得した `TableEnumOrId` = 直接対象オブジェクト（最も信頼性が高い）
+- Phase 1 で取得した `TableEnumOrId` = 直接対象オブジェクト（最も信頼性が高い）。Phase 1 の組織の一覧にないトリガー（force-app にだけあるもの）は、`.trigger` の宣言 `trigger {Name} on {オブジェクト}` の {オブジェクト} を `TableEnumOrId` として使う
 
 **ソース再 grep を撤廃し、cat4-apex/flow/lwc が Phase 0 で生成したスケルトン JSON を参照する（R2・Q9 解消）**:
 
-- **Apexクラス**: `docs/.sf/_apex_skeletons.json` の該当クラスエントリ（キー=クラス名）の `steps[]` を走査し、`steps[].object_ref.text`（対象オブジェクト名）および `steps[].sub_steps[]`（`title='SOQL'` または `'DML'`）の `detail`（SOQL/DML 内容）から operated_objects を抽出する。キャッシュがない場合のみ `.cls` ファイルを直接 Read する
-- **Flow**: `docs/.sf/_flow_index.json` の該当フローエントリから `objects` を読む。キャッシュがない場合のみ `flow-meta.xml` を Read する
-- **LWC**: `docs/.sf/_lwc_skeletons.json` の該当コンポーネントエントリの `_parser_meta.apex_imports`（呼び出す Apex クラス.メソッド名）から、その Apex の operated_objects を辿る。`@salesforce/schema` のような直接 SObject 参照はスケルトンに含まれないため、必要時のみ `.js` を直接 Read する
-
-**Apexトリガー**: Phase 1 で取得した `TableEnumOrId` = 直接対象オブジェクト（最も信頼性が高い）
+- **Apexクラス**: `docs/.sf/_apex_skeletons.json` の該当クラスエントリ（キー=クラス名）の `steps[]` を走査し、`steps[].object_ref.text`（対象オブジェクト名）および `steps[].sub_steps[]`（`title='SOQL'` または `'DML'`）の `detail`（SOQL/DML 内容）から operated_objects を抽出する。キャッシュまたは該当エントリがない場合のみ `.cls` ファイルを直接 Read する
+- **Flow**: `docs/.sf/_flow_index.json` の該当フローエントリから `objects` を読む。キャッシュまたは該当エントリがない場合のみ `flow-meta.xml` を Read する
+- **LWC**: `docs/.sf/_lwc_skeletons.json` の該当コンポーネントエントリの `_parser_meta.apex_imports`（呼び出す Apex クラス.メソッド名）から、その Apex の operated_objects を辿る。キャッシュまたは該当エントリがない場合と、スケルトンに含まれない `@salesforce/schema` のような直接 SObject 参照が必要な場合は `.js` を直接 Read する
 
 結果として各コンポーネントの `operated_objects: [SobjectAPI名, ...]` マップを作成する。
 
@@ -209,7 +207,7 @@ FG確定後、以下の観点で割り当てを検証する:
 | 4（主要オブジェクト優先・部分マッチ） | medium |
 | 5（対応なし → FG-CMN） | low |
 
-スケルトン JSON 不在でフォールバックした場合も `low` とする。
+スケルトン JSON のファイル自体がなくフォールバックした場合も `low` とする（該当エントリだけがない場合は上の表どおり）。
 
 #### generated_at の扱い（厳守）
 

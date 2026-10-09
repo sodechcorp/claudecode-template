@@ -73,7 +73,7 @@ Phase 2 の設計書生成では `_flow_index.json` の `objects` を「担当�
 
 ## Phase 1: 対象コンポーネントの収集（Flow 種別固有）
 
-_metadata_cache.json が 5 分以内に存在する場合は `flow_definitions` キーを読んで再クエリをスキップ。
+_metadata_cache.json が 5 分以内に存在し `flow_definitions` キーがある場合は、そのキーを読んで再クエリをスキップ。
 
 ```bash
 # フロー（アクティブバージョンのみ）

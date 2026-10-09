@@ -2,7 +2,7 @@
 build_metadata_cache.py — cat1 が sf CLI クエリを実行した直後に呼ぶ。
 sf data query ... --json の stdout を stdin 経由で受け取り、
 docs/.sf/_metadata_cache.json にキー別に蓄積する。
-cat4-apex/cat4-flow/cat4-lwc/cat5 は 5分以内のキャッシュがあれば再クエリしない。
+cat4-apex/cat4-flow/cat4-lwc/cat5 は 5分以内のキャッシュにキーがあれば再クエリしない。
 Usage: sf data query "SELECT ..." --json | python build_metadata_cache.py {project_dir} --key apex_classes
 """
 import argparse, datetime, json, sys
