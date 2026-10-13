@@ -93,16 +93,16 @@ _metadata_cache.json の `apex_classes` / `apex_triggers` / `named_credentials` 
 
 ```bash
 # Apex クラス（テストクラス除外）
-sf data query -q "SELECT Name, IsTest FROM ApexClass WHERE NamespacePrefix = null AND IsTest = false ORDER BY Name" --json
+sf data query -q "SELECT Name, IsTest FROM ApexClass WHERE NamespacePrefix = null AND IsTest = false ORDER BY Name" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_classes
 
 # Apex トリガー
-sf data query -q "SELECT Name, TableEnumOrId FROM ApexTrigger WHERE NamespacePrefix = null" --json
+sf data query -q "SELECT Name, TableEnumOrId FROM ApexTrigger WHERE NamespacePrefix = null" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_triggers
 
 # Named Credential（外部連携の存在確認）
-sf data query -q "SELECT DeveloperName, Endpoint FROM NamedCredential" --json 2>/dev/null
+sf data query -q "SELECT DeveloperName, Endpoint FROM NamedCredential" --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key named_credentials
 
 # バッチ・スケジュール（実行中ジョブ確認）
-sf data query -q "SELECT Name, JobType, CronExpression FROM CronTrigger WHERE State = 'WAITING' OR State = 'ACQUIRED'" --json 2>/dev/null
+sf data query -q "SELECT Name, JobType, CronExpression FROM CronTrigger WHERE State = 'WAITING' OR State = 'ACQUIRED'" --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key cron_triggers
 ```
 
 各コンポーネントのソースを **全文読み込む**（500 行超は 200 行ずつ分割）:
