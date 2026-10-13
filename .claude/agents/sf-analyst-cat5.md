@@ -91,7 +91,7 @@ tools:
 **キャッシュ優先**: `docs/.sf/_metadata_cache.json` の `apex_classes` / `apex_triggers` / `flow_definitions` / `lwc_bundles` のうち、`cached_at_by_key` の書き込み時刻が 5 分以内のキーはそのキーを読んで再クエリをスキップする（R2 解消）。それ以外は以下のうち該当するクエリを実行:
 
 ```bash
-sf data query -q "SELECT Name, IsTest FROM ApexClass WHERE NamespacePrefix = null AND IsTest = false ORDER BY Name" --json
+sf data query -q "SELECT Name FROM ApexClass WHERE NamespacePrefix = null ORDER BY Name" --json
 sf data query -q "SELECT Name, TableEnumOrId FROM ApexTrigger WHERE NamespacePrefix = null" --json
 sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null ORDER BY ApiName" --json
 sf data query -q "SELECT DeveloperName FROM LightningComponentBundle WHERE NamespacePrefix = null ORDER BY DeveloperName" --use-tooling-api --json
@@ -106,7 +106,7 @@ ls force-app/main/default/lwc/ 2>/dev/null
 ls force-app/main/default/triggers/ 2>/dev/null
 ```
 
-全コンポーネントの API名リスト（種別付き）を作成する。
+全コンポーネントの API名リスト（種別付き。テストクラスは feature_ids.yml に無いので除く）を作成する。
 
 ### Phase 2: 業務機能グループの推論（UC-anchor方式）
 

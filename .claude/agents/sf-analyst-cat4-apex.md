@@ -92,8 +92,8 @@ _metadata_cache.json の `apex_classes` / `apex_triggers` / `named_credentials` 
 > **収集しないメタデータ**: `ApexPage`（Visualforce ページ）は **このエージェントの収集対象外**。VF ページの設計書生成は cat4-lwc が担当する。
 
 ```bash
-# Apex クラス（テストクラス除外）
-sf data query -q "SELECT Name, IsTest FROM ApexClass WHERE NamespacePrefix = null AND IsTest = false ORDER BY Name" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_classes
+# Apex クラス（テストクラスは feature_ids.yml に無いので対象外）
+sf data query -q "SELECT Name FROM ApexClass WHERE NamespacePrefix = null ORDER BY Name" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_classes
 
 # Apex トリガー
 sf data query -q "SELECT Name, TableEnumOrId FROM ApexTrigger WHERE NamespacePrefix = null" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_triggers
@@ -102,7 +102,7 @@ sf data query -q "SELECT Name, TableEnumOrId FROM ApexTrigger WHERE NamespacePre
 sf data query -q "SELECT DeveloperName, Endpoint FROM NamedCredential" --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key named_credentials
 
 # バッチ・スケジュール（実行中ジョブ確認）
-sf data query -q "SELECT Name, JobType, CronExpression FROM CronTrigger WHERE State = 'WAITING' OR State = 'ACQUIRED'" --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key cron_triggers
+sf data query -q "SELECT CronJobDetail.Name, CronJobDetail.JobType, CronExpression FROM CronTrigger WHERE State = 'WAITING' OR State = 'ACQUIRED'" --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key cron_triggers
 ```
 
 各コンポーネントのソースを **全文読み込む**（500 行超は 200 行ずつ分割）:

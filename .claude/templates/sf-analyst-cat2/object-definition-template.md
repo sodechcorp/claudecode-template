@@ -154,7 +154,7 @@ ParentApiName ||--o{ ChildApiName : "fieldLabel"
 - ラベル部分（`:` の右）は **FK項目の API名 または日本語ラベルを必ずダブルクォートで囲む**（空文字列は不可）
 - **標準オブジェクトも含める**: Account / Contact / Opportunity / Case / Lead 等、カスタムから参照されているものは必ずノードに含める
 - **空ブロック禁止**: 描画すべき業務リレーションが無い（参照が Owner / CreatedBy / LastModifiedBy 等の標準監査項目のみ）場合は、`erDiagram` だけの空ブロックを出力しない。`（業務リレーションなし。標準監査項目のみ）` の 1 行に置換する
-- **親子方向は describe で確定する（推測しない）**: Lookup/Master-Detail 項目を**持つ側**が子（`||--o{` の右）、その項目の `ReferenceTo`（参照先）が親（左）。Phase 2 で取得した `FieldDefinition`（`ReferenceTo` / `RelationshipName`）の実測で向きを決め、オブジェクト名や業務上の上下関係から推測しない。同一リレーションを複数の定義書に描く場合も全ファイルで親子方向を一致させる（個別 ER 図と `_data-model.md` の矢印が食い違わないように）
+- **親子方向は describe で確定する（推測しない）**: Lookup/Master-Detail 項目を**持つ側**が子（`||--o{` の右）、その項目の `referenceTo`（参照先）が親（左）。Phase 2 の describe の `fields[]`（`referenceTo` / `relationshipName`）で向きを決め、オブジェクト名や業務上の上下関係から推測しない。同一リレーションを複数の定義書に描く場合も全ファイルで親子方向を一致させる（個別 ER 図と `_data-model.md` の矢印が食い違わないように）
 
 **悪い例**（関係線がマッチしない）:
 ```

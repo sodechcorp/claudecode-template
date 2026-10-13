@@ -153,7 +153,8 @@ sf data query -q "SELECT Name, Label, Description, IsCustom FROM PermissionSet W
 
 #### 1-3. オブジェクト・設定情報（エラーが出ても続行）
 ```bash
-sf data query -q "SELECT QualifiedApiName, DeveloperName FROM CustomObject WHERE QualifiedApiName LIKE '%__mdt'" --json
+# 管理パッケージの行（NamespacePrefix がある）は除く（EntityDefinition は WHERE の NamespacePrefix = null で0件になる）
+sf data query -q "SELECT QualifiedApiName, DeveloperName, NamespacePrefix FROM EntityDefinition WHERE QualifiedApiName LIKE '%__mdt'" --use-tooling-api --json
 sf data query -q "SELECT SobjectType, Name, DeveloperName, IsActive, Description FROM RecordType ORDER BY SobjectType" --json
 sf data query -q "SELECT EntityDefinition.QualifiedApiName, ValidationName, Active, Description, ErrorMessage FROM ValidationRule WHERE Active = true" --use-tooling-api --json
 ```
@@ -161,14 +162,15 @@ sf data query -q "SELECT EntityDefinition.QualifiedApiName, ValidationName, Acti
 #### 1-4. 外部連携・接続情報・導入パッケージ（エラーが出ても続行）
 ```bash
 sf data query -q "SELECT DeveloperName, Endpoint, PrincipalType FROM NamedCredential" --json
-sf data query -q "SELECT Name, Description, StartUrl FROM ConnectedApplication" --json
+sf data query -q "SELECT Name, StartUrl FROM ConnectedApplication" --json
 sf data query --use-tooling-api -q "SELECT SubscriberPackage.Name, SubscriberPackage.NamespacePrefix, SubscriberPackageVersion.MajorVersion, SubscriberPackageVersion.MinorVersion FROM InstalledSubscriberPackage" --json
 ```
 
 #### 1-5. Platform Event・カスタム設定（エラーが出ても続行）
 ```bash
 sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__e'" --use-tooling-api --json
-sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__c' AND IsHierarchyNestingSupported = false" --use-tooling-api --json
+# 管理パッケージの行（NamespacePrefix がある）は除く（EntityDefinition は WHERE の NamespacePrefix = null で0件になる）
+sf data query -q "SELECT QualifiedApiName, Label, NamespacePrefix FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__c' AND IsCustomSetting = true" --use-tooling-api --json
 ```
 
 #### Phase 1-6. ピックリスト値分布サンプリング（best-effort）
@@ -178,24 +180,21 @@ sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsC
 **手順**:
 
 ```bash
-# 1. 対象オブジェクトのピックリスト項目一覧を取得
-sf data query -q "SELECT EntityDefinition.QualifiedApiName, QualifiedApiName, Label FROM FieldDefinition WHERE (EntityDefinition.QualifiedApiName IN ('Account', 'Opportunity', 'Lead', 'Contact', 'Case') OR EntityDefinition.IsCustom = true) AND DataType = 'Picklist' AND EntityDefinition.IsQueryable = true ORDER BY EntityDefinition.QualifiedApiName, QualifiedApiName" --use-tooling-api --json 2>/dev/null
+# 1. 対象オブジェクトごとに、GROUP BY できるピックリスト項目の名前を取る
+sf sobject describe -s <ObjectApiName> --json 2>/dev/null | python -c "import sys,json; d=json.load(sys.stdin).get('result') or {}; print(' '.join(f['name'] for f in d.get('fields',[]) if f.get('type')=='picklist' and f.get('groupable')))"
 
 # 2. 取得した各（オブジェクト, 項目）ペアに対して値分布クエリを実行:
 #    sf data query -q "SELECT <ApiName>, COUNT(Id) cnt FROM <ObjectApiName> WHERE <ApiName> != null GROUP BY <ApiName> ORDER BY COUNT(Id) DESC LIMIT 20" --json 2>/dev/null
 #    ※ クエリ失敗（権限不足・サポート外）はスキップして次へ（best-effort）
 #    ※ 全ピックリスト項目ではなく、1オブジェクトあたり最大 10項目・全体で最大 100クエリに抑える
 
-# 3. 結果を _picklist_samples.json に蓄積（build_metadata_cache.py を流用）
+# 3. 結果を docs/.sf/_picklist_samples.json に Write する
 #    フォーマット例: { "Account.Type": [{"value":"Customer","count":150},{"value":"Partner","count":30},...], ... }
 #    ※ 取得した values・count を配列形式で格納する（value:ラベル, count:件数）
-#    ※ build_metadata_cache.py の汎用キー機能を活用:
-#       echo '{"result":{"records":<分布データ>}}' | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key picklist_samples
 ```
 
 - 失敗した場合は完了報告に「picklist_samples 取得失敗: {対象オブジェクト名}」として記録する（空欄・無記載禁止）
 - 取得成功した場合のみキャッシュに書き込む（失敗分は従来通り cat2 が `**[推定]**` で記述）
-- キャッシュ有効期限は `_metadata_cache.json` と同じ 300 秒（同一スクリプト経由）
 
 > **自動判定基準**（cat2 / sf-org-analyst で共通参照）: [sf-memory-quality.md の「[推定] マーカー自動解消基準」](../spec/sf-memory-quality.md#推定マーカー自動解消基準) を参照。
 
@@ -204,7 +203,7 @@ sf data query -q "SELECT EntityDefinition.QualifiedApiName, QualifiedApiName, La
 Phase 1-1 の主要クエリ結果を `docs/.sf/_metadata_cache.json` に保存する。cat4-apex/flow/lwc/cat5 は書き込み時刻（`cached_at_by_key`）が 5 分以内のキーは再クエリしない（R1 解消）。
 
 ```bash
-sf data query -q "SELECT Name, IsTest FROM ApexClass WHERE NamespacePrefix = null AND IsTest = false ORDER BY Name" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_classes
+sf data query -q "SELECT Name FROM ApexClass WHERE NamespacePrefix = null ORDER BY Name" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_classes
 sf data query -q "SELECT Name, TableEnumOrId FROM ApexTrigger WHERE NamespacePrefix = null" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_triggers
 sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null ORDER BY ApiName" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key flow_definitions
 sf data query -q "SELECT DeveloperName, Endpoint FROM NamedCredential" --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key named_credentials

@@ -127,7 +127,8 @@ sf data query -q "SELECT Pricebook2.Name, Product2.Name, UnitPrice, IsActive FRO
 カスタムメタデータ（`__mdt`）は設定値マスタとして全レコードを記録する:
 
 ```bash
-sf data query -q "SELECT QualifiedApiName FROM CustomObject WHERE QualifiedApiName LIKE '%__mdt'" --json
+# 管理パッケージの行（NamespacePrefix がある）は除く（EntityDefinition は WHERE の NamespacePrefix = null で0件になる）
+sf data query -q "SELECT QualifiedApiName, NamespacePrefix FROM EntityDefinition WHERE QualifiedApiName LIKE '%__mdt'" --use-tooling-api --json
 ```
 
 各 `__mdt` オブジェクトに対して全フィールド・全レコードを取得する。**値の意味・用途を推定して `**[推定]**` 付きで注釈する**。
@@ -135,10 +136,11 @@ sf data query -q "SELECT QualifiedApiName FROM CustomObject WHERE QualifiedApiNa
 #### Step 5: カスタム設定（Custom Settings）の取得
 
 ```bash
-sf data query -q "SELECT QualifiedApiName, Label, SetupOwnerId FROM CustomObject WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__c' AND IsHierarchyNestingSupported = true" --json 2>/dev/null
+# 管理パッケージの行（NamespacePrefix がある）は除く（EntityDefinition は WHERE の NamespacePrefix = null で0件になる）
+sf data query -q "SELECT QualifiedApiName, Label, NamespacePrefix FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__c' AND IsCustomSetting = true" --use-tooling-api --json 2>/dev/null
 ```
 
-Hierarchy Custom Settings は組織値・プロファイル値・ユーザー値の3層構造を記録する。
+Hierarchy Custom Settings（object-meta.xml の `<customSettingsType>Hierarchy`）は組織値・プロファイル値・ユーザー値の3層構造を記録する。
 
 ### Phase 2: メールテンプレートの収集（email-templates.md）
 
@@ -169,7 +171,7 @@ sf data query -q "SELECT Title, DeveloperName, FolderName, Description, LastView
 sf data query -q "SELECT Id, Name, DeveloperName FROM Group WHERE Type = 'Queue'" --json
 sf data query -q "SELECT Queue.Name, SobjectType FROM QueueSobject ORDER BY Queue.Name" --json
 # 承認プロセス
-sf data query -q "SELECT Id, EntityDefinitionId, DeveloperName, Description, IsActive FROM ProcessDefinition WHERE State = 'Active'" --json
+sf data query -q "SELECT Id, TableEnumOrId, DeveloperName, Description FROM ProcessDefinition WHERE State = 'Active'" --json
 # 割り当てルール
 sf data query -q "SELECT Name, SobjectType FROM AssignmentRule WHERE Active = true" --json
 ```

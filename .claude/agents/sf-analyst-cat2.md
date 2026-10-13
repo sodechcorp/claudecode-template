@@ -93,8 +93,8 @@ docs/catalog/
 # カスタムオブジェクト一覧
 sf sobject list -s custom
 
-# 標準オブジェクトにカスタム項目が追加されているものを検出
-sf data query -q "SELECT EntityDefinition.QualifiedApiName, COUNT(Id) cnt FROM CustomField WHERE EntityDefinition.IsCustom = false AND NamespacePrefix = null GROUP BY EntityDefinition.QualifiedApiName ORDER BY COUNT(Id) DESC" --json
+# 標準オブジェクトにカスタム項目が追加されているものを検出（TableEnumOrId が Account 等の名前の行。Activity は Task と Event。01I で始まる Id の行はカスタムオブジェクト）
+sf data query -q "SELECT TableEnumOrId, COUNT(Id) cnt FROM CustomField WHERE NamespacePrefix = null GROUP BY TableEnumOrId ORDER BY COUNT(Id) DESC" --use-tooling-api --json
 ```
 
 force-app/ 配下のApex・Flow・LWCを読み込み、SOQL FROM句・DML操作・`@wire` アダプターから**実際に利用されている標準オブジェクト**を抽出する:
@@ -183,14 +183,7 @@ sf data query -q "SELECT COUNT() FROM <オブジェクト名>" --json
 >
 > 本番 alias の describe が失敗した場合（接続不可・権限不足など）: 「⚠️ 本番 ({_prod_alias}) への describe に失敗しました。そのオブジェクトは注記なしで生成します。」と警告出力し、処理を継続する（中断しない）。
 
-さらに以下も取得する（精度向上のため）:
-```bash
-# FK関係の実態を確認
-sf data query -q "SELECT Field, RelationshipName, ReferenceTo FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '<オブジェクト名>' AND (DataType = 'Lookup' OR DataType = 'MasterDetail')" --use-tooling-api --json
-
-# このオブジェクトに参照している他オブジェクトを確認
-sf data query -q "SELECT EntityDefinition.QualifiedApiName, Field FROM FieldDefinition WHERE ReferenceTo = '<オブジェクト名>'" --use-tooling-api --json
-```
+リレーション（参照先・Lookup と MasterDetail の別・このオブジェクトを参照している他オブジェクト）は describe の `fields[]` の `referenceTo`・`relationshipName`・`relationshipOrder`（MasterDetail のときだけ null でない）と `childRelationships` から取る。
 
 > コマンドが失敗した場合は「取得失敗：権限またはAPI制限を確認」と警告ログを出力し、該当項目を `**[要確認]**` として定義書に記載すること。
 
