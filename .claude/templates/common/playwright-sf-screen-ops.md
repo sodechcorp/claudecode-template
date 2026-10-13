@@ -1,6 +1,6 @@
 # Playwright Salesforce 画面操作 共通手順
 
-Salesforce Sandbox での Playwright 画面操作に関する共通手順（例外として、本番の閲覧のみを行う「本番 UI 確認モード」を「本番ガード」に定める）。
+Salesforce Sandbox での Playwright 画面操作に関する共通手順（例外として、本番で保存の手前まで〔閲覧と、新規・編集画面での入力〕を行う「本番 UI 確認モード」を「本番ガード」に定める）。
 このファイルを Read したエージェントは以下の手順・指針に従う。
 
 ---
@@ -10,7 +10,7 @@ Salesforce Sandbox での Playwright 画面操作に関する共通手順（例�
 Sandbox 接続確認は `.claude/templates/common/sandbox-alias-check.md` を Read して実施する。
 `isSandbox = True` でなければ即座に中止する（`/test`・`auto-evidence-runner`・`ui-evidence-runner`・`backlog-repro-runner` を含む通常の呼び出しは、これが既定であり変更しない）。
 
-**例外 — 本番 UI 確認（read-only）モード**: 本番の画面を確認する目的（`/release` のリリース後確認〔`prod-ui-verifier`〕、またはユーザーが本番画面の確認を直接依頼した場合）で起動されたときに限り、上記の中止に代えて [prod-readonly-check.md](prod-readonly-check.md) の接続確認を行い、本番と確認できたら同ファイル「本番 UI 確認（read-only）」の**許可範囲のみ**で続行する（frontdoor 認証・Login As・閲覧・スクリーンショット・DOM テキスト取得）。本ファイル後段のフォーム入力・保存・送信を伴う手順は本番では実行しない。
+**例外 — 本番 UI 確認（read-only）モード**: 本番の画面を確認する目的（`/release` のリリース後確認〔`prod-ui-verifier`〕、またはユーザーが本番画面の確認を直接依頼した場合）で起動されたときに限り、上記の中止に代えて [prod-readonly-check.md](prod-readonly-check.md) の接続確認を行い、本番と確認できたら同ファイル「本番 UI 確認（read-only）」の**許可範囲のみ**で続行する（frontdoor 認証・Login As・閲覧・スクリーンショット・DOM テキスト取得、新規・編集画面での入力）。本ファイル後段の手順のうち、保存・送信・実行のボタンを押すもの・入力欄で Enter を押すもの・ファイルを選ぶものは本番では実行しない（入力は保存せずキャンセルで閉じる）。
 
 ---
 
@@ -904,7 +904,7 @@ mcp__playwright__browser_network_requests
 ## セキュリティ規約（全操作共通・必須）
 
 - **FRONTDOOR_URL（accessToken 含む）をコードブロック引数に直書きしない**（エージェント変数として展開した値を文字列に埋め込む）
-- `browser_run_code_unsafe` は RCE 相当のため **Sandbox セッション、または本番 UI 確認（read-only）モード〔`prod-ui-verifier`〕に限る**。本番では、閲覧・スクリーンショット・DOM 取得・Login As（本人確認とプロキシ解除を含む）以外のコードを書かない。本番で書いてはいけないもの: `.fill` / `.type` / `.press` / `selectOption` / `setInputFiles`、保存・削除・承認・送信系ボタンの `click`、`fetch` 等による API 呼び出し。唯一の例外は Login As フォールバックの ManageUsers 検索欄（`searchBox.fill` と Enter）のみ。範囲の正本: [prod-readonly-check.md](prod-readonly-check.md)「本番 UI 確認（read-only）」
+- `browser_run_code_unsafe` は RCE 相当のため **Sandbox セッション、または本番 UI 確認（read-only）モード〔`prod-ui-verifier`〕に限る**。本番で書いてよいのは、閲覧・スクリーンショット・DOM 取得・Login As（本人確認とプロキシ解除を含む）と、新規・編集画面の中の入力（`.fill`・`.selectOption`・`.check`）、新規・編集・キャンセルのクリックだけ。本番で書いてはいけないもの: 保存・削除・承認・送信・画面フローの次へ／完了などの確定操作のボタンの `click`、`.press('Enter')`、`setInputFiles`、`fetch` 等による API 呼び出し。Enter の唯一の例外は Login As フォールバックの ManageUsers 検索欄（`searchBox.fill` と Enter）のみ。範囲の正本: [prod-readonly-check.md](prod-readonly-check.md)「本番 UI 確認（read-only）」
 - **Playwright MCP は操作のたびに `.playwright-mcp/` へページ全文のスナップショット・コンソールログ・ダウンロードの複製を自動保存する**（エージェントの証跡ルールの外）。本番の画面では実顧客のデータが残るため、本番モードでは終了時に開始時刻以降のファイルを削除する（`prod-ui-verifier` Step 4）。`.playwright-mcp/` は `.gitignore` で追跡対象外にしている
 - accessToken はいかなる形でもファイル・ログ・証跡・return 値に出力しない
 - 操作完了後は必ず `mcp__playwright__browser_close` でセッションを閉じる

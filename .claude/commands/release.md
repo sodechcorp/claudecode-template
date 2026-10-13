@@ -9,13 +9,13 @@ argument-hint: "[課題ID]"
 
 ## 概要
 
-`/backlog`（Sandbox リリース）・`/test`（証跡採取）完了後の独立したライフサイクル段階として、本番リリースを丁寧に確認したうえで、人間が実行する手順を1ステップずつ渡す。**本番へのデプロイ・dry-run・書き込みは一切行わない**（本番に対しては資材の取得・SELECT・画面の閲覧の read-only のみ）。
+`/backlog`（Sandbox リリース）・`/test`（証跡採取）完了後の独立したライフサイクル段階として、本番リリースを丁寧に確認したうえで、人間が実行する手順を1ステップずつ渡す。**本番へのデプロイ・dry-run・書き込みは一切行わない**（本番に対しては資材の取得・SELECT・画面の閲覧と新規・編集画面での入力〔保存しない〕の read-only のみ）。
 
 | 担当 | 主な成果物 |
 |---|---|
 | （本コマンド直接実行） | 前提確認・手順の1ステップずつの引き渡し（結果の記録と次の手順の組み立て直し）・Phase 7 起動 |
 | `release-preparer` | リリース前の確認（最終資材での影響・チケット競合・ドリフト・差分の帰属確認）とバックアップ取得、`release-plan.md` + `release-note.md`。デプロイ後はリリース後確認と記録（Phase 7） |
-| `prod-ui-verifier` | デプロイ後の本番の画面確認（閲覧・Login As での見え方。read-only）。Phase 7 の後に Step 5 から直接起動する |
+| `prod-ui-verifier` | デプロイ後の本番の画面確認（閲覧・Login As での見え方・新規／編集画面での入力まで。保存しない read-only）。Phase 7 の後に Step 5 から直接起動する |
 | 担当者 | 本番への dry-run・デプロイの実行、保存・代表操作を伴うリリース後確認 |
 
 ---
@@ -159,5 +159,5 @@ manual_rows: {担当者作業待ちの作業に依存する行の V 番号と作
 
 - **本番デプロイは本コマンドの範囲外**。`release-plan.md` に記載された CLI コマンド（`deploy_route: manual-operation` の場合は管理画面操作ステップ）は人間が手動で実行する
 - 課題間の並行対応でチケット競合が検出された場合、または本番環境ドリフトで「競合・要人間判断」が検出された場合は、release-preparer の完了報告で明示的に警告される。警告を無視してデプロイしないこと
-- 本番組織への接続は read-only に限る。`release-preparer` 内部（Phase 1・Phase 4・Phase 7・バックアップ再取得モード）と `prod-ui-verifier`（Step 5 の画面確認。閲覧・Login As のみ）のほか、本コマンドも Step 2b（手順書の再生成前の確認）と Step 4 の4.（バックアップの最新確認）の `sf org list metadata` とフローの `FlowDefinitionView` の照合、ロールバック手順 1b の照合・作られたレコードの件数・取り込み直すと動くフローの今有効な版の `sf data query`（SELECT）だけを `prod-readonly-check.md` を通して実行する
+- 本番組織への接続は read-only に限る。`release-preparer` 内部（Phase 1・Phase 4・Phase 7・バックアップ再取得モード）と `prod-ui-verifier`（Step 5 の画面確認。閲覧・Login As・新規／編集画面での入力まで〔保存しない〕）のほか、本コマンドも Step 2b（手順書の再生成前の確認）と Step 4 の4.（バックアップの最新確認）の `sf org list metadata` とフローの `FlowDefinitionView` の照合、ロールバック手順 1b の照合・作られたレコードの件数・取り込み直すと動くフローの今有効な版の `sf data query`（SELECT）だけを `prod-readonly-check.md` を通して実行する
 - `docs/logs/` は `.gitignore` 対象のため、`release-plan.md` / `release-note.md` / `release-log.md` / Step 2/3・Phase 7 が読むファイル（`destructive-changes/`・`release-deploy/`・`profile-delta/`）/ バックアップ（`rollback-backup/`・`rollback-deploy/`・`backup/data/`）は生成した本人のローカル環境にのみ存在する。他メンバーと共有する場合は手動でファイルを渡す必要がある。データのバックアップ（CSV）は個人情報を含みうるため、③ の担当者確認が全て終わった後に Step 5 で削除する

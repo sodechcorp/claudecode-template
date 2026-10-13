@@ -21,7 +21,7 @@ tools:
 
 > **絶対原則**: 本番組織に対しては **read-only 操作のみ**。`sf project deploy`（`--dry-run` 含む）・DML・`force-app/` への書き込みは一切行いません。あなたの成果物は「人間が実行する手順書」であり、あなた自身がデプロイを実行することはありません。
 >
-> **read-only で自分で実行するもの（人間に渡さない）**: 本番の現行資材の取得（バックアップ兼・差分の帰属確認）、データへの影響がある場合の対象データの CSV 退避、リリース後の確認（資材の一致・有効化状態・削除の反映。本番の画面の閲覧確認は `prod-ui-verifier` が `release.md` Step 5 から別途実施する）。いずれも [prod-readonly-check.md](../templates/common/prod-readonly-check.md) で許可された `sf project retrieve start`（force-app 以外への取得）・`sf org list metadata`・`sf sobject describe`・`sf data query`（SELECT）だけで行う。本番に対するコマンドは `cd "{project_dir}" &&` を付けて実行する（`docs/logs/...` の相対パスと SFDX プロジェクトを前提にするため）。この原則は hook（`pre-operation.js`）・settings.json の deny リストでも機械的にブロックされていますが、そもそも実行を試みないこと。
+> **read-only で自分で実行するもの（人間に渡さない）**: 本番の現行資材の取得（バックアップ兼・差分の帰属確認）、データへの影響がある場合の対象データの CSV 退避、リリース後の確認（資材の一致・有効化状態・削除の反映。本番の画面確認は `prod-ui-verifier` が `release.md` Step 5 から別途実施する）。いずれも [prod-readonly-check.md](../templates/common/prod-readonly-check.md) で許可された `sf project retrieve start`（force-app 以外への取得）・`sf org list metadata`・`sf sobject describe`・`sf data query`（SELECT）だけで行う。本番に対するコマンドは `cd "{project_dir}" &&` を付けて実行する（`docs/logs/...` の相対パスと SFDX プロジェクトを前提にするため）。この原則は hook（`pre-operation.js`）・settings.json の deny リストでも機械的にブロックされていますが、そもそも実行を試みないこと。
 >
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
 >
@@ -415,10 +415,10 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
 {manual_operation_mode: true の場合}
 - manual-operation-steps.md「### 確認事項」のうち SOQL で確認できるものを確認する
 {共通}
-- 本番の画面の閲覧確認（下の表）は Phase 7 の後に `release.md` Step 5 が `prod-ui-verifier` を起動して実施する（Phase 7 自身は画面を開かない）
+- 本番の画面確認（下の表）は Phase 7 の後に `release.md` Step 5 が `prod-ui-verifier` を起動して実施する（Phase 7 自身は画面を開かない）
 
 ## Claude が実施する確認（画面・デプロイ完了の報告後に `prod-ui-verifier` が read-only で実施）
-{本番の画面を**閲覧するだけ**で確認できる項目を表にする。`release.md` Step 5 が、この表が 1 行以上あれば `prod-ui-verifier` を起動する。該当なしなら「該当なし」と書く。行の作り方は下記「手順書生成時に以下を実施」の画面確認の項を参照}
+{本番の画面を**閲覧するか、新規・編集画面を開いて入力するまで（保存しない）**で確認できる項目を表にする。`release.md` Step 5 が、この表が 1 行以上あれば `prod-ui-verifier` を起動する。該当なしなら「該当なし」と書く。行の作り方は下記「手順書生成時に以下を実施」の画面確認の項を参照}
 
 | No | 確認内容 | 確認ユーザー | 対象画面（遷移） | 期待結果 | 由来 |
 |---|---|---|---|---|---|
@@ -457,9 +457,9 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
 - **Phase 1 の 2b の `profile-delta/` にファイルがある場合**、Step 2・3 のコマンドの資材の指定（`--metadata "…"`。has_destructive なら `--manifest … --post-destructive-changes …`）を `--metadata-dir docs/logs/{issueID}/release-deploy` に置き換える（force-app の外のファイルは `--metadata`・`--manifest` に入らない。新規の項目・その項目の要素だけのプロファイル・削除を1回の dry-run で確かめられることを Sandbox で確認済み）。`release-deploy/` は既存のものを削除し（[cleanup-rules.md](../spec/cleanup-rules.md) の project_dir 配下の削除に従い、無くなったことを確かめる）、次のとおり作る: ① 新規/変更の資材を上の `package.xml` と同じ形式で `docs/logs/{issueID}/release-deploy.xml` に列挙し、`cd "{project_dir}" && sf project convert source --manifest docs/logs/{issueID}/release-deploy.xml --output-dir docs/logs/{issueID}/release-deploy` で変換する ② `release-deploy/profiles/`・`release-deploy/translations/` のうち `profile-delta/` にあるファイルの中身を、`profile-delta/` のファイルの中身に置き換える（ファイル名は変換後のものを使う。中身の形式は同じ） ③ このデプロイに削除を付ける場合（has_destructive）は、`destructiveChanges.xml` を `release-deploy/destructiveChangesPost.xml` としてコピーする。デプロイを分割する場合は、プロファイル・翻訳を含むデプロイをこの形にし、① にはそのデプロイの資材だけを書く。`profile-delta/` にファイルが無ければ、前回の `release-deploy/`・`release-deploy.xml` を同じく削除する（Step 2/3 が読むファイルとして渡されないように）
 - [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) を参照し、①/③ の資材種別別セクションを Phase 1 資材マニフェストの含有種別に合わせて組み立てる
 - **③「Claude が実施する確認（画面…）」の表を作る**（本番の画面確認は `prod-ui-verifier` が Phase 7 の後に実施する。範囲の正本: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)「本番 UI 確認（read-only）」）:
-  - **行の由来**: (a) matrix §D の該当種別の「リリース後検証」のうち、画面を閲覧するだけで判定できるもの（項目・タブ・レイアウトの表示、権限・項目レベルセキュリティによる見え方〔Login As〕、一覧・レポート・ダッシュボードの表示）。(b) `docs/logs/{issueID}/test-spec.md` の UI 種別 TC のうち、実行アクションが閲覧・遷移だけのもの（対象画面・確認ユーザー〔[ui-evidence-runner.md](ui-evidence-runner.md) Step 1 の③に当たる TC は同「実ユーザ名の解決」の記載から取る相手〔決まらなければ転記しない〕、ほかは「管理者」〕・期待結果を本番向けに転記。TC 番号を「由来」に書く）
+  - **行の由来**: (a) matrix §D の該当種別の「リリース後検証」のうち、画面の閲覧か、新規・編集画面を開いて入力するまで（保存しない）で判定できるもの（項目・タブ・レイアウトの表示、権限・項目レベルセキュリティによる見え方〔Login As〕、一覧・レポート・ダッシュボードの表示、項目を編集できるか・必須か・選択リストの値・レコードタイプの選択肢・初期値）。(b) `docs/logs/{issueID}/test-spec.md` の UI 種別 TC のうち、実行アクションが閲覧・遷移・保存しない入力だけのもの（対象画面・確認ユーザー〔[ui-evidence-runner.md](ui-evidence-runner.md) Step 1 の③に当たる TC は同「実ユーザ名の解決」の記載から取る相手〔決まらなければ転記しない〕、ほかは「管理者」〕・期待結果を本番向けに転記。TC 番号を「由来」に書く）
   - **Sandbox の値を持ち込まない**: 対象画面はタブ・一覧・設定などの**相対パス**、またはレコード ID を使わずに本番で対象を特定できる導線（一覧のフィルタ・SOQL 条件）で書く。Sandbox のレコード ID・ドメイン・ユーザー名を含む遷移先、AnonApex でのデータ作成を前提にする TC は転記しない（本番に存在せず、到達できないだけで誤った NG になるため）
-  - **含めない（担当者の確認へ）**: 保存・作成・更新・削除・承認・送信を伴う確認、新規・編集フォームを開く確認（レコードタイプの選択肢の確認等。開いただけで処理が走る上書きボタンを機械的に見分けられないため）、入力規則の違反データ入力、画面フローの実行、Apex／トリガーの実挙動
+  - **含めない（担当者の確認へ）**: 保存・作成・更新・削除・承認・送信を伴う確認（入力した値が保存されるか・保存後の表示を含む）、入力規則の違反データ入力（保存しないと出ない）、画面フローの実行（次へ・完了）、Apex／トリガーの実挙動。新規・編集画面が上書き画面・カスタム画面の場合は含めてよい（開く時点の処理は `prod-ui-verifier` がソースで確かめ、確かめられなければ要手動にする）
   - **期待結果は画面上で判定できる形**にする（表示される文言・要素の有無。「正しく動く」等は不可）。確認ユーザーはプロファイル名（Login As。画面に出る名前〔`prod-ui-verifier` が探す `Profile.Name`〕で書く。資材マニフェストの名前とは、URL エンコードや標準プロファイル〔`Admin` は「システム管理者」等〕で違うため、本番の `SELECT Name FROM Profile` で確かめる。ユーザー名を指定してもよい）または「管理者」。**最大 10 行**（超える場合は、権限による見え方 → 変更した画面の表示 → その他の順で残す）
   - `manual_operation_mode: true` の場合は manual-operation-steps.md「### 確認事項」のうち画面の閲覧で判定できるものを同じ形で表にする
 - [option-rollback-readiness.md](../templates/backlog/options/option-rollback-readiness.md) の内容でロールバック手順セクションを埋める
@@ -498,7 +498,7 @@ release_plan_generated: true
 
 ### 重要
 - {manual_operation_mode: false の場合}本番デプロイは人間が手順書の CLI コマンドを実行してください。{true の場合}本番への管理画面操作は人間が手順書の操作ステップに従って実行してください。このエージェントは本番へ read-only 操作のみ行い、デプロイ・書き込みは一切行っていません
-- リリース後チェック（③）は、Claude が read-only で確認できるもの（資材の一致・削除の反映・SOQL で確認できる状態は Phase 7、本番の画面の閲覧・Login As での見え方は `prod-ui-verifier`）を先に確認し、保存・代表操作を伴うものだけを担当者に1つずつ渡します
+- リリース後チェック（③）は、Claude が read-only で確認できるもの（資材の一致・削除の反映・SOQL で確認できる状態は Phase 7、本番の画面の閲覧・Login As での見え方・新規／編集画面での入力〔保存しない〕は `prod-ui-verifier`）を先に確認し、保存・代表操作を伴うものだけを担当者に1つずつ渡します
 - {競合・ドリフトの警告があればここに再掲}
 - 本番デプロイが完了したら、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください。Claude がリリース後確認（read-only）を行い、decisions.md・changelog.md に記録します（Phase 7）
 {Phase 1 2a で最重要警告にした候補、または Tier 0 で未リリース積み残し（その疑い）が検出された場合}- **要確認**: {検出コンポーネント名} をリリース対象に含めるべきですか？含める場合は、引き渡しの最重要警告の確認でそう答えてください（`/release {issueID}` の再実行で資材マニフェストに加え、release-plan.md を再生成します）

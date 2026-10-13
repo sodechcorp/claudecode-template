@@ -42,7 +42,7 @@
 
 | ファイル | 目的 | 正本 |
 |---|---|---|
-| `prod-readonly-check.md` | 本番組織 read-only チェック手順・本番 UI 確認（閲覧・Login As）の許可範囲（release-preparer 等が使用） | ○ |
+| `prod-readonly-check.md` | 本番組織 read-only チェック手順・本番 UI 確認（閲覧・Login As・保存しない入力）の許可範囲（release-preparer 等が使用） | ○ |
 | `sandbox-alias-check.md` | Sandbox 接続確認（本番誤操作防止の必須チェック） | ○ |
 | `shared-folder-protection.md` | 共有フォルダ（G:\ 等）への書き込み（確認不要）・削除（禁止）の扱い | ○ |
 | `visual-confirmation-handoff.md` | ユーザーへの目視確認依頼時、レコードURL/ID/操作手順を添える運用ルール | ○ |

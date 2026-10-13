@@ -17,7 +17,7 @@
 - org 設定変更（`sf org assign/enable/disable/delete`）
 - メタデータ変更・force-app への書き込み
 
-**許可**: SOQL SELECT・`sf project retrieve`・ファイル読み取り・docs/ への書き込み・画面確認（Playwright での閲覧・スクリーンショット・Login As。範囲と禁止事項: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)「本番 UI 確認（read-only）」）
+**許可**: SOQL SELECT・`sf project retrieve`・ファイル読み取り・docs/ への書き込み・画面確認（Playwright での閲覧・スクリーンショット・Login As・新規／編集画面での入力まで。保存等の確定操作は禁止。範囲と禁止事項: [prod-readonly-check.md](../templates/common/prod-readonly-check.md)「本番 UI 確認（read-only）」）
 
 ## 自動モードの分類器設定（メンバー個人設定）
 
