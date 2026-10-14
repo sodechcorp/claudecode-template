@@ -36,7 +36,7 @@ tools:
 
 > **VF ページ設計書は対象外**: Visualforce ページ（ApexPage）の設計書生成はこのエージェントの担当外。VF コントローラー（`*Controller.cls`）を含む Apex クラス自体は通常の Apex クラスとして `apex/` に設計書化してよいが、`.page` 単位の VF ページ設計書は生成しない（cat4-lwc が `design/vf/` に生成する）。
 
-> **ハンドラクラスの扱い**: 単一 Trigger/Batch から排他的に呼ばれる Handler は呼び出し元に統合。複数から共通に呼ばれる場合は独立ファイル。統合時のファイル名は `【F-002〜F-003】name.md` のように全機能IDを列挙する。統合した機能IDは個別ファイルを別途作らない（cat4-common.md Phase 2「ファイル粒度の原則」に従う）。
+> **ハンドラクラスの扱い**: 単一 Trigger/Batch から排他的に呼ばれる Handler は呼び出し元に統合。複数から共通に呼ばれる場合は独立ファイル。統合時のファイル名は `【F-002・F-003】name.md` のように全機能IDを「・」で列挙する。統合した機能IDは個別ファイルを別途作らない（cat4-common.md Phase 2「ファイル粒度の原則」に従う）。
 
 ---
 
@@ -111,4 +111,4 @@ sf data query -q "SELECT CronJobDetail.Name, CronJobDetail.JobType, CronExpressi
 
 既存設計書がある場合はそのファイルも Read してアップデートモードで更新する。
 
-> **deprecated 設計書の扱い**: 対象 API 名が `feature_ids.yml` で `deprecated=true` の場合、本フェーズでは設計書を更新せずスキップする。deprecated 注記の付与は `cat4-common.md` Phase 2.0 の `mark_design_deprecated.py` が一括処理する。
+> **deprecated 設計書の扱い**: 対象（API 名と種別）が Phase 0 の `feature_list.json` に無く `feature_ids.yml` で `deprecated=true` の場合、本フェーズでは設計書を更新せずスキップする。deprecated 注記の付与は `cat4-common.md` Phase 2.0 の `mark_design_deprecated.py` が一括処理する。

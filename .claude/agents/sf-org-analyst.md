@@ -259,7 +259,7 @@ cat1 が `docs/overview/org-profile.md` に残置した `**[資料未確認]**` 
    - `deprecated_list`: `[{id, api_name, type}, ...]`（`deprecated == true` のみ）
 
 2. リマップ対 (`F-OLD → F-NEW`) を抽出:
-   - 各 deprecated 項目 `D` について、`active_by_name[D.api_name]` が **ちょうど 1 件**ある場合、`(D.id → 該当 active.id)` を remap pair として確定
+   - 各 deprecated 項目 `D` について、`active_by_name[D.api_name]` のうち D と同じ種別グループ（Apex・Batch・Integration／Flow・画面フロー／それ以外は同じ type）のものが **ちょうど 1 件**ある場合、`(D.id → 該当 active.id)` を remap pair として確定
    - **複数件**ある場合: `**[要確認: F-{D.id} のリマップ先候補が複数（{ID列挙}）]**` を Phase 6 残置一覧に記録し、自動書き換えはスキップ
    - **0 件**: 単純に削除された機能。何もしない（deprecated 状態を保持）
    - remap pair が 1 件も無ければ本ステップ完了（Phase 5 へ）

@@ -339,7 +339,7 @@ if fids_path.exists():
     data = yaml.safe_load(fids_path.read_text(encoding='utf-8')) or {}
     for feat in data.get('features', []):
         if not feat.get('deprecated', False):
-            api_to_fid[feat['api_name']] = feat['id']
+            api_to_fid.setdefault(feat['api_name'], []).append(feat['id'])
 with open(r'{project_dir}/docs/.sf/feature_groups.yml', encoding='utf-8') as f:
     _grp_data = yaml.safe_load(f)
 groups = _grp_data.get('groups', []) if isinstance(_grp_data, dict) else (_grp_data or [])
@@ -353,13 +353,12 @@ for inp in inputs:
     if inp.startswith('FG-'):
         resolved.add(inp)
         continue
-    fid = inp if inp.startswith('F-') else api_to_fid.get(inp)
-    if fid:
-        grp = fid_to_group.get(fid)
-        if grp:
-            resolved.add(grp)
-        else:
-            errors.append(f'{inp}: feature_groups.yml にグループが見つかりません')
+    fids = [inp] if inp.startswith('F-') else api_to_fid.get(inp, [])
+    grps = {fid_to_group[fid] for fid in fids if fid in fid_to_group}
+    if grps:
+        resolved |= grps
+    elif fids:
+        errors.append(f'{inp}: feature_groups.yml にグループが見つかりません')
     else:
         errors.append(f'{inp}: feature_ids.yml に API 名が見つかりません')
 for g in sorted(resolved):
@@ -460,16 +459,16 @@ if fids_path.exists():
     data = yaml.safe_load(fids_path.read_text(encoding='utf-8')) or {}
     for feat in data.get('features', []):
         if not feat.get('deprecated', False):
-            api_to_fid[feat['api_name']] = feat['id']
+            api_to_fid.setdefault(feat['api_name'], []).append(feat['id'])
 resolved = []
 errors = []
 for inp in inputs:
     if inp.startswith('F-'):
         resolved.append(inp)
     else:
-        fid = api_to_fid.get(inp)
-        if fid:
-            resolved.append(fid)
+        fids = api_to_fid.get(inp)
+        if fids:
+            resolved.extend(fids)
         else:
             errors.append(f'{inp}: feature_ids.yml に API 名が見つかりません')
 for fid in resolved:

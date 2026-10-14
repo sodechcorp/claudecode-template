@@ -18,7 +18,7 @@ from pathlib import Path
 import yaml
 
 # scan_features.py の _TYPE_TO_DESIGN_FOLDER を再利用（DRY）
-from scan_features import _TYPE_TO_DESIGN_FOLDER
+from scan_features import _TYPE_TO_DESIGN_FOLDER, design_doc_ids
 
 
 BANNER_MARKER = "<!-- sf-memory:deprecated-banner -->"
@@ -43,7 +43,7 @@ def find_design_md(project_dir: Path, ftype: str, feat_id: str, api_name: str) -
     検索戦略:
     1. _TYPE_TO_DESIGN_FOLDER でサブフォルダを特定
     2. 「【{feat_id}】*.md」の glob で厳密に検索
-    3. 結合ファイル「【CMP-002〜CMP-003】...」の feat_id 包含も拾う
+    3. 複合ファイル（【F-002・F-003】等）の feat_id 包含も拾う
     """
     folder = _TYPE_TO_DESIGN_FOLDER.get(ftype)
     if folder is None:
@@ -58,16 +58,9 @@ def find_design_md(project_dir: Path, ftype: str, feat_id: str, api_name: str) -
         return candidates[0]
 
     if not candidates:
-        # 結合ファイル「【CMP-002〜CMP-003】...」形式も拾う
         for md in sub.glob("【*】*.md"):
-            stem = md.stem
-            # 「【」から「】」の間を取り出す
-            m = re.match(r"^【([^】]+)】", stem)
-            if m:
-                raw_ids = re.split(r"[、,〜~]", m.group(1))
-                ids = [i.strip() for i in raw_ids]
-                if feat_id in ids:
-                    return md
+            if feat_id in design_doc_ids(md):
+                return md
         return None
 
     # 複数候補時は api_name を正規化して最も近いものを選ぶ
@@ -156,12 +149,14 @@ def main() -> None:
 
     ledger = yaml.safe_load(ledger_path.read_text(encoding="utf-8")) or {}
     deprecated_entries = [e for e in ledger.get("features", []) if e.get("deprecated")]
+    active_ids = {e.get("id") for e in ledger.get("features", []) if not e.get("deprecated")}
 
     stats = {
         "total": len(deprecated_entries),
         "updated": 0,
         "already": 0,
         "missing_md": 0,
+        "shared": 0,
         "warning": 0,
     }
     updated_files: list[str] = []
@@ -176,6 +171,15 @@ def main() -> None:
             stats["missing_md"] += 1
             print(
                 f"  [skip] 設計書 MD なし: {feat_id} ({ftype}) {api_name}",
+                file=sys.stderr,
+            )
+            continue
+
+        # 複合ファイルは、載っている機能がすべて deprecated になるまで注記しない
+        if design_doc_ids(md) & active_ids:
+            stats["shared"] += 1
+            print(
+                f"  [skip] 複合ファイルの他の機能が有効: {feat_id} ({ftype}) {md.name}",
                 file=sys.stderr,
             )
             continue
@@ -203,7 +207,7 @@ def main() -> None:
     print(
         f"[mark_design_deprecated] deprecated={stats['total']} "
         f"updated={stats['updated']} already={stats['already']} "
-        f"missing_md={stats['missing_md']} warning={stats['warning']}"
+        f"missing_md={stats['missing_md']} shared={stats['shared']} warning={stats['warning']}"
         f"{dry_label}"
     )
 

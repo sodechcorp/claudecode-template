@@ -64,7 +64,7 @@
 
 ```json
 {
-  "id": "F-XXX（docs/.sf/feature_ids.yml より取得。なければ TBD）",
+  "id": "F-XXX（feature_list の id。なければ TBD）",
   "type": "LWC | 画面フロー | Aura | Visualforce",
   "name": "機能名（日本語。コードコメント・要件定義書から取得）",
   "api_name": "ComponentApiName または FlowApiName",

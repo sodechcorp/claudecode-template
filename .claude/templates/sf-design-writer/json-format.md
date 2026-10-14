@@ -142,7 +142,7 @@ Phase 1 開始時に Read ツールで読み込む。ステップ記述ルール
 
 ```json
 {
-  "id": "F-XXX（docs/feature_ids.yml より取得。なければ TBD）",
+  "id": "F-XXX（feature_list の id。なければ TBD）",
   "type": "Apex | Batch | Flow | 画面フロー | LWC | Integration（上表の「type値」列と完全一致させること）",
   "name": "機能名（日本語。コードコメント・要件定義書から取得）",
   "api_name": "ClassName または FlowApiName",

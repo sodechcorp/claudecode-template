@@ -545,6 +545,36 @@ def get_design_doc(docs_design_dir: Path, name: str, ftype: str = "") -> str | N
     return None
 
 
+# 接頭辞を省いた番号（【F-104-115】の 115・【CMP-135-166-167】の 166）は直前の接頭辞を引き継ぐ
+_DESIGN_NAME_ID = re.compile(r"(?:([A-Z]+)-)?(\d+)")
+_DESIGN_NAME_RANGE = re.compile(r"([A-Z]+)-(\d+)\s*[〜～~-]\s*(?:\1-)?(\d+)")
+_DESIGN_BODY_ID = re.compile(r"(?<![A-Za-z0-9])[A-Z]+-\d+(?!\d)")
+
+
+def design_doc_ids(md: Path) -> set[str]:
+    """設計書ファイル名の先頭の【】（【F-042】【F-064】のように重ねたものも）から、その設計書に載っている機能IDを返す。
+
+    番号2つを「〜」「-」でつないだ名前は範囲（【F-104-115】）にも
+    2件の列挙（Handler と Trigger の【F-001〜F-027】）にも使っているので、間の番号は本文に出てくるものだけ数える。
+    """
+    m = re.match(r"(?:【[^】]+】)+", md.name)
+    if not m:
+        return set()
+    inner = m.group(0)[1:-1]
+    ids: set[str] = set()
+    prefix = None
+    for t in _DESIGN_NAME_ID.finditer(inner):
+        prefix = t.group(1) or prefix
+        if prefix:
+            ids.add(f"{prefix}-{t.group(2)}")
+    r = _DESIGN_NAME_RANGE.fullmatch(inner)
+    if r:
+        p, lo, hi = r.group(1), r.group(2), int(r.group(3))
+        body = set(_DESIGN_BODY_ID.findall(md.read_text(encoding="utf-8", errors="ignore")))
+        ids |= {f"{p}-{n:0{len(lo)}d}" for n in range(int(lo) + 1, hi)} & body
+    return ids
+
+
 def extract_design_doc_title(md_path: str | None) -> str:
     """docs/design/ 配下の MD ファイルから title 行の説明文を抽出する。
 

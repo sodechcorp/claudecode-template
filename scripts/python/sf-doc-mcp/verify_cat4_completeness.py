@@ -12,27 +12,28 @@ Exit code:
   1 — missing > 0（未生成あり。stderr に一覧）
   2 — 入力ファイル・_metadata_cache.json の対象キーが無い
 """
-import argparse, json, re, sys
+import argparse, json, sys
 from pathlib import Path
 
 import yaml
 
-from scan_features import classify_apex, is_trivial_vf_page
+from feature_id_ledger import _APEX_GROUP, _FLOW_GROUP
+from scan_features import classify_apex, design_doc_ids, is_trivial_vf_page
 
 
-# kind ごとのメタデータキー・API 名フィールド・ソースのパス（force-app/main/default/ 配下）のマッピング
+# kind ごとのメタデータキー・API 名フィールド・ソースのパス（force-app/main/default/ 配下）・台帳の type のマッピング
 _KIND_META = {
     "flow": [
-        ("flow_definitions", "ApiName", "flows/{}.flow-meta.xml"),
+        ("flow_definitions", "ApiName", "flows/{}.flow-meta.xml", _FLOW_GROUP),
     ],
     "apex": [
-        ("apex_classes", "Name", "classes/{}.cls"),
-        ("apex_triggers", "Name", "triggers/{}.trigger"),
+        ("apex_classes", "Name", "classes/{}.cls", _APEX_GROUP),
+        ("apex_triggers", "Name", "triggers/{}.trigger", {"Trigger"}),
     ],
     "lwc": [
-        ("lwc_bundles", "DeveloperName", "lwc/{}"),
-        ("apex_pages", "Name", "pages/{}.page-meta.xml"),
-        ("aura_bundles", "DeveloperName", "aura/{}"),
+        ("lwc_bundles", "DeveloperName", "lwc/{}", {"LWC"}),
+        ("apex_pages", "Name", "pages/{}.page-meta.xml", {"Visualforce"}),
+        ("aura_bundles", "DeveloperName", "aura/{}", {"Aura"}),
     ],
 }
 
@@ -42,8 +43,6 @@ _KIND_DESIGN_DIRS = {
     "apex": ["apex", "batch", "integration"],
     "lwc": ["lwc", "vf", "aura"],
 }
-
-_CMP_PATTERN = re.compile(r"【([A-Z]+-\d+)】")
 
 
 def main():
@@ -67,7 +66,7 @@ def main():
         sys.exit(2)
 
     cache = json.loads(cache_path.read_text(encoding="utf-8"))
-    missing_keys = [meta_key for meta_key, _, _ in _KIND_META[kind] if meta_key not in cache]
+    missing_keys = [meta_key for meta_key, *_ in _KIND_META[kind] if meta_key not in cache]
     if missing_keys:
         print(
             f"[verify_cat4] ERROR: _metadata_cache.json に {', '.join(missing_keys)} が無い。"
@@ -76,10 +75,10 @@ def main():
         )
         sys.exit(2)
 
-    # 2. kind に対応するメタデータから API 名 → ソースのパスを収集
+    # 2. kind に対応するメタデータから (メタデータキー, API 名) → (台帳の type, ソースのパス) を収集
     src_root = proj / "force-app" / "main" / "default"
-    expected_sources: dict[str, Path] = {}
-    for meta_key, name_field, src_pattern in _KIND_META[kind]:
+    expected_sources: dict[tuple[str, str], tuple[set[str], Path]] = {}
+    for meta_key, name_field, src_pattern, types in _KIND_META[kind]:
         records = cache.get(meta_key, [])
         for rec in records:
             api_name = rec.get(name_field)
@@ -91,41 +90,43 @@ def main():
                 continue
             if meta_key == "apex_classes" and classify_apex(src) is None:
                 continue
-            expected_sources[api_name] = src
+            expected_sources[(meta_key, api_name)] = (types, src)
 
-    # 3. feature_ids.yml を読み、API 名 → (cmp_id, deprecated) のマップを作る
+    # 3. feature_ids.yml を読み、(type, API 名) → (cmp_id, deprecated) のマップを作る
     fids_path = proj / "docs" / ".sf" / "feature_ids.yml"
     if not fids_path.exists():
         print(f"[verify_cat4] ERROR: {fids_path} not found", file=sys.stderr)
         sys.exit(2)
 
     fids_data = yaml.safe_load(fids_path.read_text(encoding="utf-8")) or {}
-    api_to_cmp: dict[str, tuple[str, bool]] = {}
+    fids: dict[tuple[str, str], tuple[str, bool]] = {}
     for feat in fids_data.get("features", []):
         api_name = feat.get("api_name")
         if api_name:
-            api_to_cmp[api_name] = (feat["id"], bool(feat.get("deprecated", False)))
+            fids[(feat.get("type"), api_name)] = (feat["id"], bool(feat.get("deprecated", False)))
 
     # 4. 期待 CMP ID 集合（deprecated=false のもの）を構築
     expected_cmps: set[str] = set()
     deprecated_count = 0
-    not_in_fids: set[str] = set()
+    not_in_fids: list[Path] = []
 
-    for api_name in expected_sources:
-        if api_name not in api_to_cmp:
-            not_in_fids.add(api_name)
+    for (_, api_name), (types, src) in expected_sources.items():
+        entries = [fids[(t, api_name)] for t in types if (t, api_name) in fids]
+        if not entries:
+            not_in_fids.append(src)
             continue
-        cmp_id, is_deprecated = api_to_cmp[api_name]
+        # 同じ type のグループに deprecated と有効が並ぶ（Flow から画面フローに変わった）ときは有効な方
+        cmp_id, is_deprecated = min(entries, key=lambda e: (e[1], e[0]))
         if is_deprecated:
             deprecated_count += 1
         else:
             expected_cmps.add(cmp_id)
 
     # scan_features.py はソースを走査して台帳に入れるため、ソースが無いものは再実行では入らない
-    no_source = {api_name for api_name in not_in_fids if not expected_sources[api_name].exists()}
-    if not_in_fids - no_source:
+    no_source = [src for src in not_in_fids if not src.exists()]
+    if len(not_in_fids) > len(no_source):
         print(
-            f"[verify_cat4] WARNING: {len(not_in_fids - no_source)} API 名が feature_ids.yml に未登録"
+            f"[verify_cat4] WARNING: {len(not_in_fids) - len(no_source)} API 名が feature_ids.yml に未登録"
             " (scan_features.py を再実行してください)",
             file=sys.stderr,
         )
@@ -142,9 +143,7 @@ def main():
         design_dir = proj / "docs" / "design" / dir_name
         if design_dir.exists():
             for md_file in design_dir.glob("*.md"):
-                m = _CMP_PATTERN.search(md_file.name)
-                if m:
-                    generated_cmps.add(m.group(1))
+                generated_cmps |= design_doc_ids(md_file)
 
     # 6. 差分を計算
     missing_cmps = expected_cmps - generated_cmps
@@ -153,7 +152,7 @@ def main():
     # 7. 未生成一覧を stderr に出力（最大 50 件）
     if missing_cmps:
         # CMP ID → API 名の逆引きマップ
-        cmp_to_api = {cmp_id: api for api, (cmp_id, _) in api_to_cmp.items()}
+        cmp_to_api = {cmp_id: api for (_, api), (cmp_id, _) in fids.items()}
         print(f"[verify_cat4] MISSING {missing_count} 件の設計書が未生成:", file=sys.stderr)
         for cmp_id in sorted(missing_cmps, key=lambda x: int(x.split("-")[1]))[:50]:
             api_name = cmp_to_api.get(cmp_id, "?")
