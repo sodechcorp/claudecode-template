@@ -168,8 +168,9 @@ sf data query --use-tooling-api -q "SELECT SubscriberPackage.Name, SubscriberPac
 
 #### 1-5. Platform Event・カスタム設定（エラーが出ても続行）
 ```bash
-sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__e'" --use-tooling-api --json
 # 管理パッケージの行（NamespacePrefix がある）は除く（EntityDefinition は WHERE の NamespacePrefix = null で0件になる）
+# LIKE の _ は任意の1文字（Case 等も返り、\_ でエスケープすると0件）なので、Platform Event は __e で終わる行を python で残す
+sf data query -q "SELECT QualifiedApiName, Label, NamespacePrefix FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__e'" --use-tooling-api --json | python -c "import sys,json; d=json.load(sys.stdin); rs=[r for r in (d.get('result') or {}).get('records') or [] if r['QualifiedApiName'].endswith('__e') and not r.get('NamespacePrefix')]; [print(r['QualifiedApiName'], r.get('Label') or '', sep='\t') for r in rs]; print('ERROR', d.get('message')) if d.get('status') else print(len(rs), '件')"
 sf data query -q "SELECT QualifiedApiName, Label, NamespacePrefix FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__c' AND IsCustomSetting = true" --use-tooling-api --json
 ```
 

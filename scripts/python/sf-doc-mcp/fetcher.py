@@ -207,7 +207,7 @@ class MetadataFetcher:
     def _fetch_lightning_pages(self, api_name: str) -> list[dict]:
         records = self._tooling_query(
             f"SELECT Id, MasterLabel, DeveloperName, Type FROM FlexiPage "
-            f"WHERE EntityDefinitionId = '{api_name}'"
+            f"WHERE EntityDefinition.QualifiedApiName = '{api_name}'"
         )
         return [
             {

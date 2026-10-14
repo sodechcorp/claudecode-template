@@ -93,7 +93,9 @@ email-templates.md: テンプレート一覧 / 差し込み項目
 #### Step 1: マスタ系オブジェクトの特定
 
 ```bash
-sf data query -q "SELECT QualifiedApiName, Label FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__c' ORDER BY QualifiedApiName" --json
+# 管理パッケージの行（NamespacePrefix がある）は除く（EntityDefinition は WHERE の NamespacePrefix = null で0件になる）
+# LIKE の _ は任意の1文字（ScorecardMetric 等も返り、\_ でエスケープすると0件）なので、__c で終わる行を python で残す
+sf data query -q "SELECT QualifiedApiName, Label, NamespacePrefix FROM EntityDefinition WHERE IsCustomizable = true AND QualifiedApiName LIKE '%__c' ORDER BY QualifiedApiName" --json | python -c "import sys,json; d=json.load(sys.stdin); rs=[r for r in (d.get('result') or {}).get('records') or [] if r['QualifiedApiName'].endswith('__c') and not r.get('NamespacePrefix')]; [print(r['QualifiedApiName'], r.get('Label') or '', sep='\t') for r in rs]; print('ERROR', d.get('message')) if d.get('status') else print(len(rs), '件')"
 ```
 
 名称に `Product/Master/Type/Category/Config/Setting/Code/Item/Kind/Status/Grade/Plan` が含まれるものを優先的にマスタ系と判断する。cat2 のオブジェクト定義書も参照して判断精度を上げる。
