@@ -17,22 +17,22 @@ from pathlib import Path
 
 import yaml
 
-from scan_features import is_trivial_vf_page
+from scan_features import classify_apex, is_trivial_vf_page
 
 
-# kind ごとのメタデータキーと API 名フィールドのマッピング
+# kind ごとのメタデータキー・API 名フィールド・ソースのパス（force-app/main/default/ 配下）のマッピング
 _KIND_META = {
     "flow": [
-        ("flow_definitions", "ApiName"),
+        ("flow_definitions", "ApiName", "flows/{}.flow-meta.xml"),
     ],
     "apex": [
-        ("apex_classes", "Name"),
-        ("apex_triggers", "Name"),
+        ("apex_classes", "Name", "classes/{}.cls"),
+        ("apex_triggers", "Name", "triggers/{}.trigger"),
     ],
     "lwc": [
-        ("lwc_bundles", "DeveloperName"),
-        ("apex_pages", "Name"),
-        ("aura_bundles", "DeveloperName"),
+        ("lwc_bundles", "DeveloperName", "lwc/{}"),
+        ("apex_pages", "Name", "pages/{}.page-meta.xml"),
+        ("aura_bundles", "DeveloperName", "aura/{}"),
     ],
 }
 
@@ -67,7 +67,7 @@ def main():
         sys.exit(2)
 
     cache = json.loads(cache_path.read_text(encoding="utf-8"))
-    missing_keys = [meta_key for meta_key, _ in _KIND_META[kind] if meta_key not in cache]
+    missing_keys = [meta_key for meta_key, _, _ in _KIND_META[kind] if meta_key not in cache]
     if missing_keys:
         print(
             f"[verify_cat4] ERROR: _metadata_cache.json に {', '.join(missing_keys)} が無い。"
@@ -76,24 +76,22 @@ def main():
         )
         sys.exit(2)
 
-    # 2. kind に対応するメタデータから API 名一覧を収集
-    expected_api_names: set[str] = set()
-    for meta_key, name_field in _KIND_META[kind]:
+    # 2. kind に対応するメタデータから API 名 → ソースのパスを収集
+    src_root = proj / "force-app" / "main" / "default"
+    expected_sources: dict[str, Path] = {}
+    for meta_key, name_field, src_pattern in _KIND_META[kind]:
         records = cache.get(meta_key, [])
         for rec in records:
             api_name = rec.get(name_field)
             if not api_name:
                 continue
-            # apex_pages のうち空・雛形 VF は doc 必須対象外
-            if meta_key == "apex_pages":
-                page_meta = (
-                    proj
-                    / "force-app" / "main" / "default" / "pages"
-                    / f"{api_name}.page-meta.xml"
-                )
-                if is_trivial_vf_page(page_meta):
-                    continue
-            expected_api_names.add(api_name)
+            src = src_root / src_pattern.format(api_name)
+            # scan_features.py が機能一覧に入れないもの（空・雛形 VF、テスト・Schedulable のみのクラス）は doc 必須対象外
+            if meta_key == "apex_pages" and is_trivial_vf_page(src):
+                continue
+            if meta_key == "apex_classes" and classify_apex(src) is None:
+                continue
+            expected_sources[api_name] = src
 
     # 3. feature_ids.yml を読み、API 名 → (cmp_id, deprecated) のマップを作る
     fids_path = proj / "docs" / ".sf" / "feature_ids.yml"
@@ -113,7 +111,7 @@ def main():
     deprecated_count = 0
     not_in_fids: set[str] = set()
 
-    for api_name in expected_api_names:
+    for api_name in expected_sources:
         if api_name not in api_to_cmp:
             not_in_fids.add(api_name)
             continue
@@ -123,10 +121,18 @@ def main():
         else:
             expected_cmps.add(cmp_id)
 
-    if not_in_fids:
+    # scan_features.py はソースを走査して台帳に入れるため、ソースが無いものは再実行では入らない
+    no_source = {api_name for api_name in not_in_fids if not expected_sources[api_name].exists()}
+    if not_in_fids - no_source:
         print(
-            f"[verify_cat4] WARNING: {len(not_in_fids)} API 名が feature_ids.yml に未登録"
+            f"[verify_cat4] WARNING: {len(not_in_fids - no_source)} API 名が feature_ids.yml に未登録"
             " (scan_features.py を再実行してください)",
+            file=sys.stderr,
+        )
+    if no_source:
+        print(
+            f"[verify_cat4] WARNING: {len(no_source)} API 名が force-app に無く feature_ids.yml に未登録"
+            " (このフェーズでは取得しない。/sf-retrieve で取得してから scan_features.py を再実行してください)",
             file=sys.stderr,
         )
 

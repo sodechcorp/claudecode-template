@@ -106,7 +106,7 @@ ls force-app/main/default/lwc/ 2>/dev/null
 ls force-app/main/default/triggers/ 2>/dev/null
 ```
 
-全コンポーネントの API名リスト（種別付き。テストクラスは feature_ids.yml に無いので除く）を作成する。
+全コンポーネントの API名リスト（種別付き。テストクラス・Schedulable だけのクラスは除く。scan_features.py が機能一覧に入れないため、feature_ids.yml に無いか deprecated になっている）を作成する。
 
 ### Phase 2: 業務機能グループの推論（UC-anchor方式）
 
