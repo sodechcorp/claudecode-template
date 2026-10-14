@@ -202,7 +202,7 @@ for md in sorted(apex_dir.rglob('*.md')) if apex_dir.exists() else []:
     nk   = _norm(bare)
     txt  = md.read_text(encoding='utf-8', errors='ignore')
     by_name    = nk in vf_api_norms
-    by_content = bool(re.search(r'\|\\s*種別\\s*\|[^\\n]*Visualforce', txt))
+    by_content = bool(re.search(r'^\|\s*実装種別\s*\|\s*Visualforce(?!\s*(?:Controller|コントローラ))', txt, re.M))
     if not (by_name or by_content):
         continue
     found = True

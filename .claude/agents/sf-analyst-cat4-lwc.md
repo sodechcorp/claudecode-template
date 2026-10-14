@@ -142,12 +142,12 @@ if apex_dir.exists():
     for md in apex_dir.rglob('*.md'):
         txt = md.read_text(encoding='utf-8', errors='ignore')
         by_name    = _norm(_bare(md)) in vf_norms
-        by_content = bool(re.search(r'\|\\s*種別\\s*\|[^\\n]*Visualforce', txt))
+        by_content = bool(re.search(r'^\|\s*実装種別\s*\|\s*Visualforce(?!\s*(?:Controller|コントローラ))', txt, re.M))
         if by_name or by_content:
             residuals.append(md.as_posix())
 
 if residuals:
-    print('FAIL: apex/ に VF 設計書残存 (Phase 2.0b 未除去 = vf/ 未移管 or 手動追記あり):')
+    print('FAIL: apex/ に VF 設計書残存 (Phase 2.0b 未除去 = vf/ 未移管 / 手動追記あり / 集約ファイル):')
     for r in residuals:
         print(f'  {r}')
     sys.exit(1)
