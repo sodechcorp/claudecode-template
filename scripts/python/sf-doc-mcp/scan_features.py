@@ -30,9 +30,13 @@ FEATURE_TYPES = {
     "aura":      "Aura",
 }
 
-BATCH_PATTERNS       = re.compile(r"\bDatabase\.Batchable\b", re.IGNORECASE)
+APEX_COMMENT_OR_STRING = re.compile(r"/\*.*?(?:\*/|\Z)|//[^\n]*|'(?:\\.|[^'\\\n])*'", re.DOTALL)
+APEX_CLASS_DECL      = re.compile(r"\bclass\b([^{]*)\{", re.IGNORECASE)
+BATCH_PATTERNS       = re.compile(r"\bDatabase\s*\.\s*Batchable\b", re.IGNORECASE)
 SCHED_PATTERNS       = re.compile(r"\bSchedulable\b", re.IGNORECASE)
-TEST_PATTERNS        = re.compile(r"@IsTest|@isTest|isTest", re.IGNORECASE)
+LAUNCH_BATCH_PATTERNS = re.compile(r"\bDatabase\s*\.\s*executeBatch\b|\bSystem\s*\.\s*scheduleBatch\b", re.IGNORECASE)
+TYPE_FOR_NAME        = re.compile(r"\bType\s*\.\s*forName\s*\(([^)]*)\)", re.IGNORECASE)
+TEST_PATTERNS        = re.compile(r"@isTest\b", re.IGNORECASE)
 INTEGRATION_PATTERNS = re.compile(
     r"\bHttp\b|\bHttpRequest\b|\bHttpResponse\b"
     r"|\bHttpCalloutMock\b"
@@ -409,26 +413,68 @@ def extract_trigger_handler(trigger_path: Path) -> str | None:
     return guessed
 
 
-def classify_apex(path: Path) -> str:
-    """Apexクラスの種別を判定する (Batch / Integration / Apex)
+def _apex_source(path: Path) -> tuple[str, str] | None:
+    """コメントを除いた本文と、さらに文字列リテラルも除いたコードを返す"""
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return None
+    no_comments = APEX_COMMENT_OR_STRING.sub(lambda m: m.group(0) if m.group(0)[0] == "'" else " ", text)
+    code = APEX_COMMENT_OR_STRING.sub(lambda m: "''" if m.group(0)[0] == "'" else " ", text)
+    return no_comments, code
 
-    Schedulable のみを実装するクラス（バッチの起動設定だけ）は
+
+def _implements(code: str) -> str:
+    decl = APEX_CLASS_DECL.search(code)
+    return decl.group(1) if decl else ""
+
+
+def _launches_batch(path: Path, no_comments: str, code: str, seen: set[str]) -> bool:
+    """Batch を起動するか。同じフォルダの Batch・Batch を起動する Schedulable をコードで参照していれば起動役とみなす
+    （System.schedule(…, new X()) や Type.forName('X.Starter') を経由する起動。文字列は Type.forName の引数だけを見る）"""
+    if LAUNCH_BATCH_PATTERNS.search(code):
+        return True
+    seen.add(path.stem.lower())
+    classes = {p.stem.lower(): p for p in path.parent.glob("*.cls")}
+    words = re.findall(r"\w+", code + " " + " ".join(TYPE_FOR_NAME.findall(no_comments)))
+    for name in {w.lower() for w in words} - seen:
+        ref = classes.get(name)
+        src = _apex_source(ref) if ref else None
+        if src is None:
+            continue
+        implements = _implements(src[1])
+        if BATCH_PATTERNS.search(implements) or (
+                SCHED_PATTERNS.search(implements) and _launches_batch(ref, *src, seen)):
+            return True
+    return False
+
+
+def classify_apex(path: Path) -> str | None:
+    """Apexクラスの種別を判定する (Batch / Integration / Apex。対象外は None)
+
+    コメント・文字列リテラルを除いたコードで判定し、テスト・Batch・Schedulable は
+    最初のクラス宣言（クラスに付いた @isTest・implements 句）で見る。
+    テストクラスは None を返す（testMethod だけを持つ旧 API の業務クラスは対象）。
+
+    Schedulable を実装して Batch を起動するクラス（_launches_batch）は
     独立した機能として扱わず None を返してスキャン対象から除外する。
     スケジュール情報（cron式）は対応する Batch の設計書の trigger に記載する。
 
     Http / HttpRequest / HttpResponse を使う外部連携クラスは Integration に分類する。
     """
-    try:
-        text = path.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
+    src = _apex_source(path)
+    if src is None:
         return "Apex"
-    if TEST_PATTERNS.search(text):
+    no_comments, code = src
+    decl = APEX_CLASS_DECL.search(code)
+    if decl and TEST_PATTERNS.search(code[:decl.start()]):
         return None          # テストクラスは除外
-    if BATCH_PATTERNS.search(text):
+    implements = decl.group(1) if decl else ""
+    if BATCH_PATTERNS.search(implements):
         return "Batch"
-    if SCHED_PATTERNS.search(text):
-        return None          # Schedulable のみ → Batch の trigger に吸収
-    if INTEGRATION_PATTERNS.search(text):
+    if SCHED_PATTERNS.search(implements) and _launches_batch(path, no_comments, code, set()):
+        return None          # Batch を起動する Schedulable → Batch の trigger に吸収
+    if INTEGRATION_PATTERNS.search(code):
         return "Integration"
     return "Apex"
 

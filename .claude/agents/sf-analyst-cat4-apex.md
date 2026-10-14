@@ -29,9 +29,9 @@ tools:
 
 | 種別 | 出力フォルダ | 判定基準 |
 |---|---|---|
-| Apex クラス（非 Batch / 非 Schedule） | `apex/` | `Database.Batchable` / `Schedulable` 未実装 |
+| Apex クラス（非 Batch） | `apex/` | `Database.Batchable` 未実装（Batch を起動しない `Schedulable` 実装を含む） |
 | Apex トリガー | `apex/` | ApexTrigger クエリで検出 |
-| バッチ | `batch/` | `Database.Batchable` 実装（Schedulable だけのクラスは設計書を作らず、cron 式を対応する Batch の設計書に書く） |
+| バッチ | `batch/` | `Database.Batchable` 実装（Batch を起動する Schedulable のクラスは設計書を作らず、cron 式を対応する Batch の設計書に書く） |
 | 外部 API・Named Credential 連携 | `integration/` | NamedCredential 使用 or callout 含む Apex |
 
 > **VF ページ設計書は対象外**: Visualforce ページ（ApexPage）の設計書生成はこのエージェントの担当外。VF コントローラー（`*Controller.cls`）を含む Apex クラス自体は通常の Apex クラスとして `apex/` に設計書化してよいが、`.page` 単位の VF ページ設計書は生成しない（cat4-lwc が `design/vf/` に生成する）。
@@ -92,7 +92,7 @@ _metadata_cache.json の `apex_classes` / `apex_triggers` / `named_credentials` 
 > **収集しないメタデータ**: `ApexPage`（Visualforce ページ）は **このエージェントの収集対象外**。VF ページの設計書生成は cat4-lwc が担当する。
 
 ```bash
-# Apex クラス（Phase 0 の feature_list.json に無いクラス＝scan_features.py がテスト・Schedulable だけと判定したクラスは対象外）
+# Apex クラス（Phase 0 の feature_list.json に無いクラス＝scan_features.py がテスト・Batch を起動する Schedulable と判定したクラスは対象外）
 sf data query -q "SELECT Name FROM ApexClass WHERE NamespacePrefix = null ORDER BY Name" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_classes
 
 # Apex トリガー

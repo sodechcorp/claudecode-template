@@ -32,7 +32,9 @@ _RE_CLASS = re.compile(
     r'(?:virtual\s+|abstract\s+)?class\s+(\w+)',
     re.I,
 )
-_RE_IMPLEMENTS = re.compile(r'\bimplements\b(.+?)(?=\{)', re.I | re.S)
+_RE_CLASS_DECL = re.compile(r'\bclass\b([^{]*)\{', re.I)
+_RE_IMPLEMENTS = re.compile(r'\bimplements\b(.*)', re.I | re.S)
+_RE_STRING = re.compile(r"'(?:\\.|[^'\\\n])*'")
 _RE_SOQL_INLINE = re.compile(r'\[(\s*SELECT\b.+?)\]', re.I | re.S)
 _RE_FROM = re.compile(r'\bFROM\s+(\w+)\b', re.I)
 _RE_SOQL_DB = re.compile(
@@ -509,7 +511,10 @@ def method_to_step(method_name: str, segs: list[Seg], no: int) -> dict:
 # ─── クラス種別検出 ───────────────────────────────────────────────────────────
 
 def detect_type(code: str) -> str:
-    m = _RE_IMPLEMENTS.search(code)
+    # 文字列の URL・クラス名では判定しない。implements は最初のクラス宣言のもの（内部クラスのものは見ない）
+    code = _RE_STRING.sub("''", code)
+    decl = _RE_CLASS_DECL.search(code)
+    m = _RE_IMPLEMENTS.search(decl.group(1)) if decl else None
     if m:
         s = m.group(1)
         if re.search(r'Database\.Batchable', s, re.I):
@@ -522,7 +527,7 @@ def detect_type(code: str) -> str:
         return 'Apex_Invocable'
     if re.search(r'TriggerHandler', code, re.I):
         return 'Apex_TriggerHandler'
-    if re.search(r'\bHttp\b|\bHttpRequest\b|\bHttpResponse\b', code, re.I):
+    if re.search(r'\bHttp\b|\bHttpRequest\b|\bHttpResponse\b|\bWebServiceCallout\b', code, re.I):
         return 'Apex_Integration'
     return 'Apex'
 

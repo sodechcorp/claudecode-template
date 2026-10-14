@@ -86,7 +86,7 @@ def main():
             if not api_name:
                 continue
             src = src_root / src_pattern.format(api_name)
-            # scan_features.py が機能一覧に入れないもの（空・雛形 VF、テスト・Schedulable のみのクラス）は doc 必須対象外
+            # scan_features.py が機能一覧に入れないもの（空・雛形 VF、テスト・Batch を起動する Schedulable のクラス）は doc 必須対象外
             if meta_key == "apex_pages" and is_trivial_vf_page(src):
                 continue
             if meta_key == "apex_classes" and classify_apex(src) is None:

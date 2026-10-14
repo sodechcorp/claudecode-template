@@ -134,7 +134,7 @@ Phase 1 開始時に Read ツールで読み込む。ステップ記述ルール
 - `trigger` に以下を記載する:
   - スコープサイズ（`Database.executeBatch` の第2引数）
   - スケジュール設定（cron 式）— 同フォルダに対応するSchedulableクラス（`implements Schedulable`）があれば読んで取得する。`execute()` メソッドの `System.scheduleBatch` または `System.schedule` 呼び出しからcron式を特定する
-- Schedulableクラス単体は設計書を作らない（Batchの `trigger` に吸収済み）
+- Batch を起動する Schedulable クラス単体は設計書を作らない（Batchの `trigger` に吸収済み）
 
 ---
 
