@@ -73,12 +73,10 @@ class VersionManager:
                     "modified": modified,
                 }
 
-            # その他セクションは件数変化のみ記録
-            for sec in ("record_types", "page_layouts", "validation_rules"):
-                old_cnt = len(old_meta.get(sec, []))
-                new_cnt = len(meta.get(sec, []))
-                if old_cnt != new_cnt:
-                    obj_diff[sec] = {"old": old_cnt, "new": new_cnt}
+            # その他セクションは内容の変化を記録
+            for sec in _SECTION_NAMES:
+                if old_meta.get(sec) != meta.get(sec):
+                    obj_diff[sec] = True
 
             if len(obj_diff) > 1:   # label 以外に差分あり
                 diffs[api_name] = obj_diff
@@ -138,6 +136,20 @@ class VersionManager:
 # ヘルパー
 # ------------------------------------------------------------------ #
 
+# 項目以外で定義書に書くセクション（値は改版履歴に出す名前）
+_SECTION_NAMES = {
+    "object_info":      "オブジェクト基本情報",
+    "record_types":     "レコードタイプ",
+    "page_layouts":     "ページレイアウト",
+    "lightning_pages":  "Lightning ページ",
+    "compact_layouts":  "コンパクトレイアウト",
+    "search_layouts":   "検索レイアウト",
+    "field_sets":       "項目セット",
+    "validation_rules": "入力規則",
+    "lookup_filters":   "参照条件",
+}
+
+
 def _comparable(field: dict) -> tuple:
     """差分検出に使うフィールド値を tuple 化"""
     keys = ("label", "data_type", "length", "scale", "required", "unique",
@@ -157,10 +169,5 @@ def _summarize(diff: dict) -> str:
         parts.append(f"項目削除 {len(fd['removed'])}件")
     if fd.get("modified"):
         parts.append(f"項目変更 {len(fd['modified'])}件")
-    if diff.get("record_types"):
-        parts.append("レコードタイプ変更")
-    if diff.get("page_layouts"):
-        parts.append("ページレイアウト変更")
-    if diff.get("validation_rules"):
-        parts.append("入力規則変更")
+    parts += [f"{name}変更" for sec, name in _SECTION_NAMES.items() if diff.get(sec)]
     return "、".join(parts) if parts else "変更あり"

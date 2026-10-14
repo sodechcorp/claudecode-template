@@ -142,6 +142,7 @@ SECTION_SHEETS = {
     "business_flow":    "業務フロー",
     "process_steps":    "処理概要",
     "related_objects":  "対象オブジェクト",
+    "object_access":    "対象オブジェクト",
     "components":       "関連コンポーネント",
 }
 
@@ -3182,6 +3183,9 @@ def _compute_diffs(prev_data: dict | None, new_data: dict) -> dict:
             "related_objects": dr.diff_list(
                 prev_data.get("related_objects", []),
                 new_data.get("related_objects", []), "api_name"),
+            "object_access": dr.diff_list(
+                prev_data.get("object_access", []),
+                new_data.get("object_access", []), ("component", "object")),
             "process_steps": dr.diff_list(
                 prev_data.get("process_steps", []),
                 new_data.get("process_steps", []), "step"),

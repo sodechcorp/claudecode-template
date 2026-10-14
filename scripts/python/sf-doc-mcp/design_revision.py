@@ -30,14 +30,17 @@ def diff_scalars(old: dict, new: dict, fields: list[str]) -> list[dict]:
     return out
 
 
-def _list_to_map(items: list[dict], id_field: str) -> dict:
-    """identifier → item マップ。重複IDは最後勝ち。"""
+def _list_to_map(items: list[dict], id_field: str | tuple) -> dict:
+    """identifier → item マップ。重複IDは最後勝ち。
+    id_field が tuple なら各キーの値を "::" でつないだ複合キーにする。"""
+    if isinstance(id_field, tuple):
+        return {"::".join(str(it.get(k, "")) for k in id_field): it for it in (items or [])}
     return {it.get(id_field): it for it in (items or []) if it.get(id_field) is not None}
 
 
 def diff_list(old_list: list[dict], new_list: list[dict],
-              id_field: str) -> dict:
-    """配列セクションの差分を返す（id_field で突合）。
+              id_field: str | tuple) -> dict:
+    """配列セクションの差分を返す（id_field で突合。1キーで一意にならない一覧は tuple で複合キー）。
     戻り値: {"added": [id,...], "removed": [id,...], "modified": [id,...]}
     modified: 同一ID同士で全キーを比較して差分あり
     """

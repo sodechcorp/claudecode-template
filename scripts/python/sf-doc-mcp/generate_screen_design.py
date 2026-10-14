@@ -574,11 +574,13 @@ def fill_params(ws, data, changed_params_map: dict = None,
 
 
 SCALAR_FIELDS   = ["purpose", "overview", "features",
-                   "prerequisites", "transition"]
+                   "prerequisites", "transition", "business_context"]
 SECTION_SHEETS  = {"items":          "画面項目定義",
                    "usecases":       "処理詳細",
                    "param_sections": "パラメーター定義",
-                   "param_items":    "パラメーター定義"}
+                   "param_items":    "パラメーター定義",
+                   "apex_calls":     "画面概要",
+                   "events":         "イベント定義"}
 
 
 def _flatten_param_items(sections: list) -> list[dict]:
@@ -612,6 +614,12 @@ def _compute_diffs(prev_data: dict | None, new_data: dict) -> dict:
                 _flatten_param_items(prev_data.get("param_sections", [])),
                 _flatten_param_items(new_data.get("param_sections", [])),
                 "_key"),
+            "apex_calls": dr.diff_list(prev_data.get("apex_calls", []),
+                                       new_data.get("apex_calls", []),
+                                       ("name", "operation", "trigger")),
+            "events":     dr.diff_list(prev_data.get("events", []),
+                                       new_data.get("events", []),
+                                       ("event", "element", "handler")),
         },
     }
 
