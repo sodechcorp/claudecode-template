@@ -93,7 +93,7 @@ tools:
 ```bash
 sf data query -q "SELECT Name FROM ApexClass WHERE NamespacePrefix = null ORDER BY Name" --json
 sf data query -q "SELECT Name, TableEnumOrId FROM ApexTrigger WHERE NamespacePrefix = null" --json
-sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null ORDER BY ApiName" --json
+sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null AND NamespacePrefix = null ORDER BY ApiName" --json
 sf data query -q "SELECT DeveloperName FROM LightningComponentBundle WHERE NamespacePrefix = null ORDER BY DeveloperName" --use-tooling-api --json
 ```
 

@@ -632,11 +632,11 @@ PYEOF
 
 # --- 取得後の重要型検証 ---
 # Flow は保守業務の中核。取得後に1件も存在しない場合、まず組織側に本当に
-# Flow が無いかを Tooling API で裏取りしてから判定する。
+# 管理パッケージ以外の Flow が無いかを Tooling API で裏取りしてから判定する。
 # （skipped_manifests チェックで本当の取得失敗は既に呼び出し元で error 停止
 #   済みのため、ここに到達する 0 件は「組織に元々 Flow が無い」ケースが
 #   大半だが、推測だけで済ませず実クエリで確認する。クエリ失敗時・組織側に
-#   Flow が存在する場合は従来通り error で止める＝fail-safe は維持する）
+#   管理パッケージ以外の Flow が存在する場合は従来通り error で止める＝fail-safe は維持する）
 verify_critical_types() {
     local target_org="$1"
     local flow_count
@@ -648,7 +648,7 @@ verify_critical_types() {
 
     local org_flow_json org_flow_count
     org_flow_json=$(sf data query --use-tooling-api \
-        -q "SELECT DeveloperName FROM FlowDefinition" \
+        -q "SELECT DeveloperName FROM FlowDefinition WHERE NamespacePrefix = null" \
         --target-org "$target_org" --json 2>/dev/null) || org_flow_json=""
 
     org_flow_count=""
@@ -665,7 +665,7 @@ PYEOF
     fi
 
     if [ "$org_flow_count" = "0" ]; then
-        warn "Flow は1件も取得されていませんが、組織側にも Flow が存在しないため正常です（取得後検証: Flow 0件）"
+        warn "Flow は1件も取得されていませんが、組織側にも管理パッケージ以外の Flow が存在しないため正常です（取得後検証: Flow 0件）"
         return
     fi
 
@@ -684,7 +684,7 @@ audit_flow_versions() {
     local active_dir="manifest/flow-active"
     local flow_query_json
     flow_query_json=$(sf data query --use-tooling-api \
-        -q "SELECT DeveloperName, ActiveVersionId, ActiveVersion.VersionNumber, LatestVersion.VersionNumber, LatestVersion.Status FROM FlowDefinition" \
+        -q "SELECT DeveloperName, ActiveVersionId, ActiveVersion.VersionNumber, LatestVersion.VersionNumber, LatestVersion.Status FROM FlowDefinition WHERE NamespacePrefix = null" \
         --target-org "$target_org" --json 2>/dev/null) || {
         warn "Flow バージョン監査スキップ（Tooling API クエリ失敗）"
         return

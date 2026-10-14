@@ -140,7 +140,7 @@ sf org display --json
 sf sobject list -s custom
 sf data query -q "SELECT Name, ApiVersion, Status, CreatedDate, LastModifiedDate FROM ApexClass WHERE NamespacePrefix = null ORDER BY LastModifiedDate DESC" --json
 sf data query -q "SELECT Name, TableEnumOrId, ApiVersion, Status FROM ApexTrigger WHERE NamespacePrefix = null" --json
-sf data query -q "SELECT ApiName, ActiveVersionId, Description, ProcessType, TriggerType FROM FlowDefinitionView" --json
+sf data query -q "SELECT ApiName, ActiveVersionId, Description, ProcessType, TriggerType FROM FlowDefinitionView WHERE NamespacePrefix = null" --json
 ```
 
 #### 1-2. ユーザー・権限構成（エラーが出ても続行）
@@ -206,7 +206,7 @@ Phase 1-1 の主要クエリ結果を `docs/.sf/_metadata_cache.json` に保存�
 ```bash
 sf data query -q "SELECT Name FROM ApexClass WHERE NamespacePrefix = null ORDER BY Name" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_classes
 sf data query -q "SELECT Name, TableEnumOrId FROM ApexTrigger WHERE NamespacePrefix = null" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key apex_triggers
-sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null ORDER BY ApiName" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key flow_definitions
+sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null AND NamespacePrefix = null ORDER BY ApiName" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key flow_definitions
 sf data query -q "SELECT DeveloperName, Endpoint FROM NamedCredential" --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key named_credentials
 ```
 

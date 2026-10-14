@@ -77,7 +77,7 @@ _metadata_cache.json の `cached_at_by_key` で `flow_definitions` の書き込�
 
 ```bash
 # フロー（アクティブバージョンのみ）
-sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null ORDER BY ApiName" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key flow_definitions
+sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefinitionView WHERE ActiveVersionId != null AND NamespacePrefix = null ORDER BY ApiName" --json | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key flow_definitions
 ```
 
 > **Inactive Flow（Draft/Obsolete）の扱い**: `ActiveVersionId == null` の Flow（Inactive）は本クエリの対象外＝設計書生成対象外とする（「設計書は稼働中の組織を記述する」という意図的な設計）。ただし silent 除外を避けるため、`force-app/main/default/flows/` のフロー（ファイル名から `.flow-meta.xml` を除いた API 名）のうち本クエリの結果に無いものを抽出し、その API 名と件数を**最終報告の「主な発見・所見」に1行**記載する（例: `Inactive Flow 2 件を設計書生成対象から除外: GH_UpdateTaskLastActivityDate, GH_UpdateToDoLastActivityDate`）。物理ファイルは存在するが稼働していないため、文書化要否は人間が個別判断する。
