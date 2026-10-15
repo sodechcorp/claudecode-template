@@ -10,7 +10,7 @@
 
 ## A. リリース前チェック（pre-release・全資材共通）
 
-【Claude確認済】は release-preparer が read-only で確認して結果を埋める項目（引き渡し時にまとめて一度だけ伝える）。【担当者】は担当者が行う作業・判断（引き渡し時に1つずつ渡す）。
+【Claude確認済】は release-preparer が read-only で確認して結果を埋める項目（引き渡し時にまとめて一度だけ伝える）。【担当者】は Claude では行えない担当者の操作だけ（引き渡し時に1つずつ渡す）。確認・判断だけの項目は担当者に渡さない（Claude が確かめられるものは【Claude確認済】にし、それ以外は載せない）。
 
 - [ ] 【Claude確認済】Sandbox でのテスト完了（`test-report.md` の `## テスト結果:` 見出しより後の最初の総合判定が PASS）
 - [ ] 【Claude確認済】`/test` の詳細証跡取得済み（`evidence/` に before/after が揃っている）
@@ -22,11 +22,9 @@
 - [ ] 【Claude確認済】チケット競合チェック（Phase 3。重大度「高」があれば担当者の判断）
 - [ ] 【Claude確認済】本番環境ドリフト確認・差分の帰属確認（Phase 4。疑いがあれば担当者の判断）
 - [ ] 【Claude確認済】バックアップ（Phase 4: 本番資材 `rollback-backup/`、データに影響する場合は対象データの CSV）
+- [ ] 【Claude確認済】ロールバック手順の準備（通常経路は `option-rollback-readiness` 準拠。管理画面操作版は manual-operation-steps.md「### ロールバック手順」を転記できたか。戻せないもの〔バックアップの取得できず・未取得、管理画面操作版でロールバック手順なし〕は Phase 4 の9. で最重要警告に入る）
+- [ ] 【Claude確認済】お客様確認サイン（`docs/logs/{issueID}/pending-signoff.md` があれば「未報告（要否: {記録の要否}）」、無ければ「未報告の記録なし」〔取得済み・不要の報告済みか、記録が無い〕。要否が「必須」で未報告なら Phase 4 の9. で最重要警告に入る）
 - [ ] 【担当者】データのバックアップ（Claude が取得できない件数・打ち切りがあった場合のみ。Data Loader 等で取得）
-- [ ] 【担当者】ロールバック手順の確認（`option-rollback-readiness` 準拠）
-- [ ] 【担当者】お客様確認サイン取得済み（バグ・仕様変更を伴う場合）
-- [ ] 【担当者】リリース日時・実施者・立ち会い者の確定
-- [ ] 【担当者】リリース時間帯の業務影響確認（営業時間中か・バッチ稼働時間と重ならないか）
 
 ## B. リリース実行手順（execution・全資材共通）
 
@@ -34,26 +32,21 @@
 
 > **注意**: コマンドは常に1行で実行する（bash の `\` 行継続は PowerShell では動作しない）。デプロイ元は必ず `force-app` 本体（競合解消用のバックアップ/マージ用フォルダをそのままデプロイ元に指定しない）。dry-run・デプロイ実行（2./3.）の適用範囲は Phase 1 資材マニフェストのうち変更種別が「新規/変更」の項目に絞った `--metadata <API名一覧>` を使う（`--source-dir force-app` は使わない。「削除」がある場合は `--metadata` の代わりに `--manifest <新規/変更を列挙した package.xml> --post-destructive-changes <destructiveChanges.xml>` で同じデプロイに付ける。プロファイル・翻訳を今回の課題で変えた要素だけで出す場合は、force-app から作ったメタデータ形式のパッケージを `--metadata-dir` で指定する。作り方は release-preparer.md Phase 5）。バックアップ（1.・Claude が取得済み）は「削除」を含む本番に存在する全項目が対象のため退避範囲が異なる（削除予定コンポーネントもロールバック用に退避が必要なため）。
 
-> **実行方針（厳守）**: 下記 1〜6 は1つずつ実行し、結果を確認してから次に進む。1個のスクリプト/コードブロックにまとめて流さない。特に 2.（dry-run）と 3.（デプロイ実行）は独立したステップとして扱い、dry-run が 0 errors であることを確認してから 3. に進む。release-plan.md 生成時もこの構成（Step ごとに個別コードブロック）を維持する。**この「1つずつ」原則は release-plan.md 生成側の構成規約であり、人間への引き渡し時に Todo 化してステップごとに逐次提示するのは呼び出し元 `release.md` Step 4 の責務**（[manual-steps-todo-handoff.md](../common/manual-steps-todo-handoff.md) 参照）。
+> **実行方針（厳守）**: 下記 1〜5 は1つずつ実行し、結果を確認してから次に進む。1個のスクリプト/コードブロックにまとめて流さない。特に 2.（dry-run）と 3.（デプロイ実行）は独立したステップとして扱い、dry-run が 0 errors であることを確認してから 3. に進む。release-plan.md 生成時もこの構成（Step ごとに個別コードブロック）を維持する。**この「1つずつ」原則は release-plan.md 生成側の構成規約であり、人間への引き渡し時に Todo 化してステップごとに逐次提示するのは呼び出し元 `release.md` Step 4 の責務**（[manual-steps-todo-handoff.md](../common/manual-steps-todo-handoff.md) 参照）。
 
 > **`--test-level` の判定ロジック（Apex 含有有無 + 専用テストクラスの特定有無で決定。固定で `RunLocalTests` にしない）は release-preparer.md Phase 1/5 が正本**。以下のコマンドの `--test-level` にはその判定結果を使う。
 
 1. **バックアップの最新確認（Claude）**: バックアップ（本番資材の `rollback-backup/`・データの CSV）は release-preparer Phase 4 で Claude が取得済み。dry-run と本番デプロイの直前に、本番のコンポーネントが取得後に変わっていないかを Claude が確認し、変わっていれば `release.md` Step 4 の4. に従う（手順書の外でデプロイされていなければ取り直す）
 2. **dry-run（必須）**: `sf project deploy start --dry-run --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加。判定が「付けない」なら `--test-level` ごと省く）で 0 errors を確認
-3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）
+3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）。表示された結果で成否を確かめる（待ち時間切れで結果が出なかった場合だけ `sf project deploy report --use-most-recent --target-org <本番エイリアス>` で確かめる。本番の実体は Phase 7 で Claude が確かめる）
 4. **デプロイを分ける場合**（Phase 1 でデプロイの間に作業が要ると判定した場合だけ。順序のためには分けない）: 分けたデプロイごとに 1.〜3. を行い、デプロイの間に作業を行う
-5. **結果確認**: `sf project deploy report --target-org <本番エイリアス>` で成功を確認
-6. **管理画面手動操作**: ソースデプロイ対象外の資材（Phase 1 で分離したもの）があれば、手順書の管理画面操作セクションに従って実施（各操作の直前に変更前の値・設定状態を記録する。ロールバック手順 1c で使う）
+5. **管理画面手動操作**: ソースデプロイ対象外の資材（Phase 1 で分離したもの）があれば、手順書の管理画面操作セクションに従って実施（各操作の直前に変更前の値・設定状態を記録する。ロールバック手順 1c で使う）
 
 ## C. リリース後チェック（post-release・全資材共通）
 
-デプロイ完了の報告を受けて、まず Claude が read-only で確認し（release-preparer Phase 7 の 7-3: 資材の一致・削除の反映・SOQL で確認できる状態・想定外の変更。続けて `release.md` Step 5 が `prod-ui-verifier` で本番の画面確認）、そのあと担当者が本番で確認する。以下は担当者の確認項目（Claude の確認と重複する項目は載せない。画面確認で「要手動」になった項目は担当者の確認に加わる）。
+デプロイ完了の報告を受けて、まず Claude が read-only で確認し（release-preparer Phase 7 の 7-3: 資材の一致・削除の反映・SOQL で確認できる状態・想定外の変更。続けて `release.md` Step 5 が `prod-ui-verifier` で本番の画面確認）、そのあと担当者が本番で操作して確認する。担当者に渡すのは Claude が実行できない操作を伴う確認だけ（Claude の確認と重複する項目・確認や判断だけの項目は載せない。画面確認で「要手動」になった項目は担当者の確認に加わる）。
 
-- [ ] 資材種別別のリリース後検証のうち、Claude が実行できないもの（**保存・代表操作・データ更新を伴う確認**、入力規則の違反データ入力、画面フローの実行、`sf apex run test` での本番テスト実行。下記 §D の該当種別）
-- [ ] リリース後エビデンス取得（担当者の操作を伴う本番での動作確認結果を保存。Claude の画面確認の証跡は `docs/logs/{issueID}/release-verification/` に保存済みのため、それと重複するものは載せない）
-- [ ] エラーログ確認（デプロイ直後の Setup → デバッグログ・例外メールに異常がないか）
-- [ ] 関係者への完了連絡・リリースノート展開
-- [ ] 問題発生時のロールバック判断基準の再確認（誰がどの症状で判断・実行するか）
+- [ ] 資材種別別のリリース後検証のうち、Claude が実行できないもの（**保存・代表操作・データ更新を伴う確認**、入力規則の違反データ入力、画面フローの実行、`sf apex run test` での本番テスト実行。下記 §D の該当種別）。結果は画面キャプチャで残してもらう（Claude の画面確認の証跡〔`docs/logs/{issueID}/release-verification/`〕と重複するものは載せない）
 
 ---
 

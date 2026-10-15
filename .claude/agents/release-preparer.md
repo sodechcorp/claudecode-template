@@ -256,6 +256,8 @@ Phase 1 で確定した資材マニフェスト（API名一覧。URL エンコ�
    - Phase 1 の 1a（資材マニフェストを環境間実体差分と変更記録から再構築した）・2a（資材マニフェスト外で言及されているコンポーネントのうちローカル実在のもの。2a-3 で Tier 0 の判定に任せたものを除く）
    - Phase 1 の 2b で、変更前の写しが無くファイル全体を出すプロファイル・翻訳、IP 制限／ログイン時間帯を全て外したプロファイル・訳を消した翻訳の要素（出しても外れない）
    - Backlog 本文照合による競合（option-ticket-conflict-check.md の重大度「高」「中」）
+   - お客様確認サインが未報告で要否が「必須」（`docs/logs/{issueID}/pending-signoff.md` の要否。担当者の判断は「サインを待つ／進める」）
+   - 管理画面操作版で、転記するロールバック手順が無い（manual-operation-steps.md が無い、または「### ロールバック手順」が無い）
 
 ## Phase 5: リリース手順書の生成
 
@@ -310,7 +312,7 @@ manual_operation_mode: {true / false}（`release.md`・Phase 7・再取得モー
 
 # ① リリース前チェック（pre-release）
 
-{matrix §A の共通チェックを【Claude確認済】と【担当者】に分けて書く。【Claude確認済】は確認結果を埋める（引き渡し時はまとめて一度だけ伝える）。【担当者】は担当者が行う作業・判断で、引き渡し時に1つずつ渡す（データのバックアップを担当者が取る場合もここに入れる）。`manual_operation_mode: true` の場合、「Sandbox でのテスト完了」「`/test` の詳細証跡取得済み」「`--test-level` の決定」「デプロイ元が force-app 本体であることの確認」「デプロイ順序の確認」「本番環境ドリフト確認・差分の帰属確認」の6項目と「バックアップ」の本番資材の分は「対象外（manual-operation）」と記載する}
+{matrix §A の共通チェックを【Claude確認済】と【担当者】に分けて書く。【Claude確認済】は確認結果を埋める（引き渡し時はまとめて一度だけ伝える）。【担当者】は Claude では行えない担当者の操作だけで、引き渡し時に1つずつ渡す（データのバックアップを担当者が取る場合。該当が無ければ「なし」）。確認・判断だけの項目を【担当者】に足さない。「ロールバック手順の準備」は、`manual_operation_mode: false` なら option-rollback-readiness の判定を、true なら manual-operation-steps.md「### ロールバック手順」を転記したか（無ければ「ロールバック手順なし」）を書く。`manual_operation_mode: true` の場合、「Sandbox でのテスト完了」「`/test` の詳細証跡取得済み」「`--test-level` の決定」「デプロイ元が force-app 本体であることの確認」「デプロイ順序の確認」「本番環境ドリフト確認・差分の帰属確認」の6項目と「バックアップ」の本番資材の分は「対象外（manual-operation）」と記載する}
 
 ## 資材種別別・リリース前確認
 {Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「リリース前」を転記}
@@ -329,9 +331,9 @@ ROLLBACK_BACKUP_DIR: docs/logs/{issueID}/rollback-backup/ （{取得済み: {取
 
 # ② リリース実行（execution・本番への実行は担当者。{manual_operation_mode: false の場合}Step 1 のみ Claude が read-only で実施{true の場合}全ステップ担当者が実施）
 
-{manual_operation_mode: true の場合、本セクションは下記「### manual-operation 版」の内容に置き換える（`--test-level` 判定・Step 1〜4 は一切記載しない）。false の場合は以下の内容（`--test-level` 判定〜Step 4）をそのまま使う（「### manual-operation 版」は記載しない）}
+{manual_operation_mode: true の場合、本セクションは下記「### manual-operation 版」の内容に置き換える（`--test-level` 判定・Step 1〜3 は一切記載しない）。false の場合は以下の内容（`--test-level` 判定〜Step 3）をそのまま使う（「### manual-operation 版」は記載しない）}
 
-**具体的な実行コマンド・Step構成は本セクション（Step 1〜4）が正本**。matrix §B は同じ実行手順を人間向け参照用に保持しているが、`{issueID}`/`{test_level}`/`{本番エイリアス}` 等の実値埋め込みが必要な release-plan.md 生成は本セクションのテンプレートをそのまま使う（matrix §B からの転記は行わない）。**`{本番エイリアス}` は Phase 4 で確認済みの値をそのまま埋め込む。Phase 4 をスキップした場合（未接続等）は値が確定していないため `{本番エイリアス}` の文字列のまま残す。この場合、「⚠️ 本番エイリアス未確定: 実行前に対象組織のエイリアスへ置き換えてください」を Step 2・3・4 の各コードブロック直下に個別に挿入する**（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の逐次提示ではステップが1つずつ単独で提示され、他ステップの内容は見せないため、セクション冒頭に1回だけ書いても該当ステップ提示時にユーザーの目に入らない）。
+**具体的な実行コマンド・Step構成は本セクション（Step 1〜3）が正本**。matrix §B は同じ実行手順を人間向け参照用に保持しているが、`{issueID}`/`{test_level}`/`{本番エイリアス}` 等の実値埋め込みが必要な release-plan.md 生成は本セクションのテンプレートをそのまま使う（matrix §B からの転記は行わない）。**`{本番エイリアス}` は Phase 4 で確認済みの値をそのまま埋め込む。Phase 4 をスキップした場合（未接続等）は値が確定していないため `{本番エイリアス}` の文字列のまま残す。この場合、「⚠️ 本番エイリアス未確定: 実行前に対象組織のエイリアスへ置き換えてください」を Step 2・3 の各コードブロック直下に個別に挿入する**（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の逐次提示ではステップが1つずつ単独で提示され、他ステップの内容は見せないため、セクション冒頭に1回だけ書いても該当ステップ提示時にユーザーの目に入らない）。
 
 **`--test-level` の決定（Phase 1 で判定した `apex_in_scope` / `test_coverage_risk` と、Phase 1・Phase 2 ② で確定した `target_test_classes` に基づく。固定で `RunLocalTests` にしない）**:
 
@@ -344,7 +346,7 @@ Salesforce はテストレベルによってカバレッジ計算方式が異な
 
 **今回の判定: {apex_in_scope / test_coverage_risk の値と根拠（含まれる Apex クラス/トリガー名、削除する Apex クラス/トリガー名、対応する target_test_classes、または test_coverage_risk の理由）を明記した上で `--test-level` と `{tests_flag}` を確定する}**
 
-> **実行方針（厳守）**: 以下の Step 1〜4 は必ず1つずつ実行し、各 Step の結果を確認してから次の Step に進む。**Step 2（dry-run）と Step 3（本番デプロイ）をまとめて流さない**。dry-run が 0 errors であることを目視確認できた場合のみ Step 3 に進むこと。
+> **実行方針（厳守）**: 以下の Step 1〜3 は必ず1つずつ実行し、各 Step の結果を確認してから次の Step に進む。**Step 2（dry-run）と Step 3（本番デプロイ）をまとめて流さない**。dry-run が 0 errors であることを目視確認できた場合のみ Step 3 に進むこと。
 
 ### Step 1: バックアップの最新確認（Claude が実行・担当者の作業なし）
 手順書の引き渡し時、**dry-run（Step 2）の直前と本番デプロイ（Step 3）の直前**に Claude が read-only で確認する: 資材マニフェストの本番コンポーネントの最終更新日時（`sf org list metadata`）が、「事前記録」に記録したコンポーネントごとの `lastModifiedDate` と一致するか、フローは `FlowDefinitionView` の `ActiveVersionId`・`LatestVersionId` も「本番コンポーネントの最終更新日時（取得時点）」の行の値と一致するか（「一覧に出ないため対象外」の資材は確かめない。デプロイを分けた場合は、次に渡すデプロイの資材だけ確かめる）。一致しない場合・本番に接続できない場合の扱いは `release.md` Step 4 の4.に従う（release-preparer の再取得モードでの取り直し等）。**新規追加コンポーネント**（本番に未存在）はバックアップ対象外（ロールバック時は削除で対応）。**変更種別「削除」のコンポーネントはバックアップ対象に含める**（削除した後に復元できるようにするため）。
@@ -359,13 +361,7 @@ sf project deploy start --dry-run --metadata "{リリース対象メタデータ
 ```bash
 sf project deploy start --metadata "{リリース対象メタデータのうち変更種別が新規/変更のもののAPI名一覧をType:Name形式で列挙（削除は含めない）}" --target-org {本番エイリアス} --test-level {test_level}{tests_flag}
 ```
-→ 完了後、Step 4 へ進む。失敗した場合は下記「dry-run/デプロイが失敗した場合の切り分け」に従う。
-
-### Step 4: デプロイ結果確認
-```bash
-sf project deploy report --target-org {本番エイリアス}
-```
-→ `--job-id` を指定しない場合は直近のデプロイジョブが対象になる。
+→ 表示された結果（成功か失敗か）を伝える。待ち時間切れで結果が出なかった場合だけ `sf project deploy report --use-most-recent --target-org {本番エイリアス}` で確かめる（直近のデプロイジョブが対象。`--use-most-recent` か `--job-id` が無いとエラーになる。まだ進行中なら ` --wait 30` を付けて終わるまで待つ。本番の実体は Phase 7 で Claude が確かめる）。失敗した場合は下記「dry-run/デプロイが失敗した場合の切り分け」に従う。
 
 > `{tests_flag}`: `--test-level RunSpecifiedTests` の場合のみ `--tests {クラス1} --tests {クラス2} ...`（`target_test_classes` を拡張子なしのクラス名で1つずつ `--tests` で列挙）を付与する。`RunLocalTests` では付与しない。`--test-level` を付けない場合は ` --test-level {test_level}{tests_flag}` ごと書かない。
 
@@ -382,11 +378,11 @@ sf project deploy report --target-org {本番エイリアス}
 > - **実装起因の失敗**（デプロイ対象コード自体のロジック・カバレッジ不足等が原因）→ 既存の `docs/logs/{issueID}/prod-release-issue.md` があれば `prod-release-issue.R{N}.md`（N = 既存の `prod-release-issue.R*.md` の最大回次番号 + 1。欠番があってもファイル数ではなく最大値を基準にする）へリネームして退避してから、差し戻し理由・現象・ログ・差し戻し先 Phase（`Phase 4`）を `docs/logs/{issueID}/prod-release-issue.md`（退避後のため新規作成）に記録し（backlog-releaser.md §2a の `release-issue.md` と同じスキーマ・退避ルールだが、**ファイル名は `prod-release-issue.md` とし `release-issue.md`〔Sandbox 段階・backlog-releaser 用〕とは分ける**＝本番段階とSandbox段階の差し戻し回数カウンタ・resume-phase-routing.md の案内文言が混線しないようにする。`resume-phase-routing.md` がこのファイルを読んで再開選択肢を出す）、「`/backlog {issueID}` を再実行して Phase 4（実装修正）から再開 → 完了後 `/test {issueID}` → `/release {issueID}` の順で再実施してください」と人間に案内する
 > - 切り分けが困難な場合は上記2択を提示し、人間に判断してもらう
 
-{デプロイを分ける場合（Phase 1 の3.）は、上の Step 2・3 を分けたデプロイごとに `### Step 2-{k}: {そのデプロイの資材の要約}の dry-run`・`### Step 3-{k}: {そのデプロイの資材の要約}の本番デプロイ`（k = 1, 2, …）として順に書き、Step 3-{k} と Step 2-{k+1} の間に `### Step 3-{k} の後: {作業}` を入れ、Step 4 は最後のデプロイの後に1回だけ書く（後のデプロイが前のデプロイの資材を参照していると、その dry-run は前のデプロイの後でないと通らないため、dry-run もデプロイごとに行う）。各コマンドにはそのデプロイの資材だけを書き、`--test-level` と `{tests_flag}` は、そのコマンドの資材で上の `--test-level` の決定をし直して書く（Apex クラス・トリガーを含まず、そのコマンドに付けた削除にも無いコマンドには付けない）。作業のステップには、管理画面での操作なら下の管理画面手動操作と同じく操作直前の記録（実施済みなら ⚠️）を入れる。管理画面手動操作がある場合は操作手順を記載し、各操作の先頭に「操作直前に、対象の変更前の値・設定状態を記録する（画面キャプチャ・設定値メモ等）」を入れる（ロールバック手順 1c で使う。本番変更の記録にその操作の実施があれば、代わりに下の manual-operation 版と同じ実施済みの ⚠️ を入れる）}
+{デプロイを分ける場合（Phase 1 の3.）は、上の Step 2・3 を分けたデプロイごとに `### Step 2-{k}: {そのデプロイの資材の要約}の dry-run`・`### Step 3-{k}: {そのデプロイの資材の要約}の本番デプロイ`（k = 1, 2, …）として順に書き、Step 3-{k} と Step 2-{k+1} の間に `### Step 3-{k} の後: {作業}` を入れる（後のデプロイが前のデプロイの資材を参照していると、その dry-run は前のデプロイの後でないと通らないため、dry-run もデプロイごとに行う）。各コマンドにはそのデプロイの資材だけを書き、`--test-level` と `{tests_flag}` は、そのコマンドの資材で上の `--test-level` の決定をし直して書く（Apex クラス・トリガーを含まず、そのコマンドに付けた削除にも無いコマンドには付けない）。作業のステップには、管理画面での操作なら下の管理画面手動操作と同じく操作直前の記録（実施済みなら ⚠️）を入れる。管理画面手動操作がある場合は操作手順を記載し、各操作の先頭に「操作直前に、対象の変更前の値・設定状態を記録する（画面キャプチャ・設定値メモ等）」を入れる（ロールバック手順 1c で使う。本番変更の記録にその操作の実施があれば、代わりに下の manual-operation 版と同じ実施済みの ⚠️ を入れる）}
 
-### manual-operation 版（`manual_operation_mode: true` の場合はこちらを使う。上記 Step 1〜4・`--test-level` 判定は記載しない）
+### manual-operation 版（`manual_operation_mode: true` の場合はこちらを使う。上記 Step 1〜3・`--test-level` 判定は記載しない）
 
-**具体的な操作内容は本節が正本**。`docs/logs/{issueID}/manual-operation-steps.md`「### 操作ステップ」の各項目を `### Step {N}: {ステップの要約}` 見出しに変換し、それぞれ独立したセクションとして転記する（内容自体は書き換えない。[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) が `### Step N: ...` 単位で TodoWrite 化する既存ロジックに揃えるため、通常経路の Step 1〜4 と同じ見出し形式にする。Sandbox 固有の値〔レコードID等〕が含まれる場合は該当ステップ直下に「⚠️ Sandbox 固有の値を含む可能性があります。本番の実値に読み替えてください」を、値・設定を入力・変更するステップの見出しの直後に「⚠️ 変更前の値・設定状態を記録してから、この操作を行ってください（ロールバックで使います）」を〔本番変更の記録にそのステップの実施があれば、代わりに「⚠️ このステップは実施済みです（{日時}。途中で失敗していればその旨）。今の値は操作後の値のため、変更前の値として記録し直さないでください（前回の記録を使います。記録が無ければ担当者が戻し方を判断してください）」を〕挿入する）。「### 確認事項」はここに含めない（③ リリース後チェックに転記する。SOQL で確認できるものは Claude が Phase 7 で確認し、画面の閲覧で判定できるものは `prod-ui-verifier`〔③「Claude が実施する確認（画面…）」表〕、保存・代表操作を伴うものは担当者の確認項目として1つずつ渡す）。
+**具体的な操作内容は本節が正本**。`docs/logs/{issueID}/manual-operation-steps.md`「### 操作ステップ」の各項目を `### Step {N}: {ステップの要約}` 見出しに変換し、それぞれ独立したセクションとして転記する（内容自体は書き換えない。[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) が `### Step N: ...` 単位で TodoWrite 化する既存ロジックに揃えるため、通常経路の Step 1〜3 と同じ見出し形式にする。Sandbox 固有の値〔レコードID等〕が含まれる場合は該当ステップ直下に「⚠️ Sandbox 固有の値を含む可能性があります。本番の実値に読み替えてください」を、値・設定を入力・変更するステップの見出しの直後に「⚠️ 変更前の値・設定状態を記録してから、この操作を行ってください（ロールバックで使います）」を〔本番変更の記録にそのステップの実施があれば、代わりに「⚠️ このステップは実施済みです（{日時}。途中で失敗していればその旨）。今の値は操作後の値のため、変更前の値として記録し直さないでください（前回の記録を使います。記録が無ければ担当者が戻し方を判断してください）」を〕挿入する）。「### 確認事項」はここに含めない（③ リリース後チェックに転記する。SOQL で確認できるものは Claude が Phase 7 で確認し、画面の閲覧で判定できるものは `prod-ui-verifier`〔③「Claude が実施する確認（画面…）」表〕、保存・代表操作を伴うものは担当者の確認項目として1つずつ渡す）。
 
 対象環境: {本番エイリアス}
 
@@ -425,10 +421,10 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
 | V-1 | {例: 項目「〇〇」が取引先の詳細画面に表示される} | 管理者 / {プロファイル名}（Login As） | {相対 URL、またはクリック手順} | {画面上で判定できる具体的な文言・要素} | {matrix §D の種別 / test-spec.md の TC-xxx} |
 
 ## 担当者が実施する確認（引き渡し時に1つずつ渡す）
-{matrix §C の担当者の項目と、matrix §D の該当種別のうち Claude が実行できないもの（**保存・代表操作・データ更新を伴う確認**、入力規則の違反データ入力、画面フローの実行、`sf apex run test` での本番テスト実行）だけを転記する。Claude の確認（SOQL・資材の一致・上記の画面確認）と重複する項目は載せない}
+{matrix §C のとおり、matrix §D の該当種別のうち Claude が実行できない操作を伴うもの（**保存・代表操作・データ更新を伴う確認**、入力規則の違反データ入力、画面フローの実行、`sf apex run test` での本番テスト実行）だけを、1項目に1つの操作と期待結果で転記する。Claude の確認（SOQL・資材の一致・上記の画面確認）と重複する項目、確認・判断だけの項目は載せない。該当が無ければ「なし」}
 
 ## 資材種別別・リリース後検証の注意点
-{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「注意点」を転記（「リリース後検証方法」のうち担当者の分は上の「担当者が実施する確認」に転記済み）。`manual_operation_mode: true` の場合は、manual-operation-steps.md「### 確認事項」のうち、SOQL で確認できるものは Claude の確認、画面の閲覧で判定できるものは上の「Claude が実施する確認（画面…）」表、それ以外（保存・代表操作を伴うもの）を上の「担当者が実施する確認」に転記する（担当者の分は引き渡し時に1つずつ渡す）。`{本番エイリアス}` は Step 1〜4 と同じ値を埋め込む（未確定の場合の扱いも同様）}
+{Phase 1 資材マニフェストに含まれる種別のみ、matrix §D の「注意点」を転記（「リリース後検証方法」のうち担当者の分は上の「担当者が実施する確認」に転記済み）。`manual_operation_mode: true` の場合は、manual-operation-steps.md「### 確認事項」のうち、SOQL で確認できるものは Claude の確認、画面の閲覧で判定できるものは上の「Claude が実施する確認（画面…）」表、それ以外（保存・代表操作を伴うもの）を上の「担当者が実施する確認」に転記する（担当者の分は引き渡し時に1つずつ渡す）。`{本番エイリアス}` は Step 2・3 と同じ値を埋め込む（未確定の場合の扱いも同様）}
 
 ---
 
@@ -452,7 +448,7 @@ manual-operation 版では Step 1 から担当者の操作になる（通常経�
 ```
 
 手順書生成時に以下を実施:
-- **`manual_operation_mode: true` の場合**、`has_destructive` は false 固定のため destructiveChanges.xml は生成しない。「② リリース実行」は上記「### manual-operation 版」を使う（Step 1〜4・`--test-level` 判定は記載しない）
+- **`manual_operation_mode: true` の場合**、`has_destructive` は false 固定のため destructiveChanges.xml は生成しない。「② リリース実行」は上記「### manual-operation 版」を使う（Step 1〜3・`--test-level` 判定は記載しない）
 - **`has_destructive: true` の場合**、`docs/logs/{issueID}/destructive-changes/destructiveChanges.xml`（削除対象を種別ごとに `<types><members>{API名}</members>...<name>{メタデータ種別}</name></types>` で列挙）と、同じフォルダの `package.xml`（変更種別が新規/変更の資材を同じ形式で列挙。`<version>` は `sfdx-project.json` の `sourceApiVersion`）を生成し、Step 2・3 のコマンドの `--metadata "…"` を `--manifest docs/logs/{issueID}/destructive-changes/package.xml --post-destructive-changes docs/logs/{issueID}/destructive-changes/destructiveChanges.xml` に置き換える（新規/変更の反映と削除を1回のデプロイにする。dry-run で削除も確かめられ、削除だけが失敗して途中まで変わった本番が残らない。`--post-destructive-changes` は `--manifest` と組でしか使えない）。デプロイを分割する場合は最後のデプロイに付ける（その `package.xml` には最後のデプロイの資材だけを書く）
 - **Phase 1 の 2b の `profile-delta/` にファイルがある場合**、Step 2・3 のコマンドの資材の指定（`--metadata "…"`。has_destructive なら `--manifest … --post-destructive-changes …`）を `--metadata-dir docs/logs/{issueID}/release-deploy` に置き換える（force-app の外のファイルは `--metadata`・`--manifest` に入らない。新規の項目・その項目の要素だけのプロファイル・削除を1回の dry-run で確かめられることを Sandbox で確認済み）。`release-deploy/` は既存のものを削除し（[cleanup-rules.md](../spec/cleanup-rules.md) の project_dir 配下の削除に従い、無くなったことを確かめる）、次のとおり作る: ① 新規/変更の資材を上の `package.xml` と同じ形式で `docs/logs/{issueID}/release-deploy.xml` に列挙し、`cd "{project_dir}" && sf project convert source --manifest docs/logs/{issueID}/release-deploy.xml --output-dir docs/logs/{issueID}/release-deploy` で変換する ② `release-deploy/profiles/`・`release-deploy/translations/` のうち `profile-delta/` にあるファイルの中身を、`profile-delta/` のファイルの中身に置き換える（ファイル名は変換後のものを使う。中身の形式は同じ） ③ このデプロイに削除を付ける場合（has_destructive）は、`destructiveChanges.xml` を `release-deploy/destructiveChangesPost.xml` としてコピーする。デプロイを分割する場合は、プロファイル・翻訳を含むデプロイをこの形にし、① にはそのデプロイの資材だけを書く。`profile-delta/` にファイルが無ければ、前回の `release-deploy/`・`release-deploy.xml` を同じく削除する（Step 2/3 が読むファイルとして渡されないように）
 - [release-checklist-matrix.md](../templates/backlog/release-checklist-matrix.md) を参照し、①/③ の資材種別別セクションを Phase 1 資材マニフェストの含有種別に合わせて組み立てる
@@ -500,11 +496,11 @@ release_plan_generated: true
 - {manual_operation_mode: false の場合}本番デプロイは人間が手順書の CLI コマンドを実行してください。{true の場合}本番への管理画面操作は人間が手順書の操作ステップに従って実行してください。このエージェントは本番へ read-only 操作のみ行い、デプロイ・書き込みは一切行っていません
 - リリース後チェック（③）は、Claude が read-only で確認できるもの（資材の一致・削除の反映・SOQL で確認できる状態は Phase 7、本番の画面の閲覧・Login As での見え方・新規／編集画面での入力〔保存しない〕は `prod-ui-verifier`）を先に確認し、保存・代表操作を伴うものだけを担当者に1つずつ渡します
 - {競合・ドリフトの警告があればここに再掲}
-- 本番デプロイが完了したら、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください。Claude がリリース後確認（read-only）を行い、decisions.md・changelog.md に記録します（Phase 7）
+- 引き渡しの中で本番デプロイの結果を伝えてもらえれば、そのまま Claude がリリース後確認（read-only）を行い、decisions.md・changelog.md に記録します（Phase 7）。途中で止めて後でデプロイした場合や手順書の外でデプロイした場合は、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください
 {Phase 1 2a で最重要警告にした候補、または Tier 0 で未リリース積み残し（その疑い）が検出された場合}- **要確認**: {検出コンポーネント名} をリリース対象に含めるべきですか？含める場合は、引き渡しの最重要警告の確認でそう答えてください（`/release {issueID}` の再実行で資材マニフェストに加え、release-plan.md を再生成します）
 ```
 
-この直後、呼び出し元（`release.md` Step 4）が `release-plan.md` を読み込み、最重要警告の確認 → ①【Claude確認済】の要約 → ①【担当者】・② を1ステップずつ、の順で引き渡しを続ける（③ はデプロイ完了後の Phase 7 のあと）（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) 参照）。
+この直後、呼び出し元（`release.md` Step 4）が `release-plan.md` を読み込み、最重要警告の確認 → ①【Claude確認済】の要約 → ①【担当者】・② を Todo にし、Claude の作業は Claude が実施、担当者の操作だけを1ステップずつ、の順で引き渡しを続ける（③ はデプロイ完了後の Phase 7 のあと）（[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) 参照）。
 
 Notion タスクに紐づく作業であれば、完了後に「ナレッジ／タスクに登録しておきますか？」と一言提案する（WS 側の Notion 登録提案ルールと同旨。本テンプレートはプロジェクト側の運用のため深追いしない）。
 
