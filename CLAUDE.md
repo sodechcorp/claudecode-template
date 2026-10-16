@@ -70,7 +70,7 @@
 | 組織プロフィール・要件定義 | `docs/overview/` `docs/requirements/` | `/sf-memory` | プロジェクト開始時・変更時 | 組織概要・用語集・AS-IS/TO-BE・要件一覧 |
 | 業務フロー・ユースケース一覧 | `docs/flow/` | `/sf-memory` | プロジェクト開始時・変更時 | 業務フロー図・スイムレーン定義 |
 | システム構成図データ | `docs/architecture/` | `/sf-memory` | プロジェクト開始時・変更時 | system.json |
-| オブジェクト・項目定義書（Markdown） | `docs/catalog/` | `/sf-memory` | プロジェクト開始時・オブジェクト変更時 | オブジェクト・項目構成・権限。Claude記憶形成用 |
+| オブジェクト・項目定義書（Markdown） | `docs/catalog/` | `/sf-memory` | プロジェクト開始時・オブジェクト変更時 | オブジェクト・項目構成。Claude記憶形成用 |
 | オブジェクト・項目定義書（Excel/PowerPoint） | `docs/` 任意 | `/sf-doc` | 成果物提出・共有時 | 正式な成果物として提出・共有するための定義書 |
 | 機能設計書 | `docs/design/{種別}/` | `/sf-memory` | 機能実装前 | apex/flow/batch/lwc/vf/aura/integration |
 | データ統計・マスタ | `docs/data/` | `/sf-memory` | プロジェクト開始時・変更時 | マスタデータ・テンプレート・統計・品質 |
