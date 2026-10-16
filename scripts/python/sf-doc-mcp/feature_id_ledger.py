@@ -39,7 +39,10 @@ def load_ledger(ledger_path: Path) -> dict:
         return {"next_id": 1, "features": []}
     try:
         with ledger_path.open("r", encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
+            data = yaml.safe_load(f)
+        # 中身が空の台帳を「台帳なし」にすると F-001 から振り直して上書きする
+        if not isinstance(data, dict):
+            raise ValueError("中身が空か形式が違う（ファイルを確かめ、壊れていれば git の履歴から戻して再実行する）")
     except Exception as e:
         raise RuntimeError(f"台帳の読込に失敗: {ledger_path}: {e}")
 

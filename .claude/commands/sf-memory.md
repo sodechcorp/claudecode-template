@@ -209,6 +209,7 @@ Phase 3a: feature_list.json の確定再スキャン（cat4 を実行した場�
   python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
     --project-dir "{project_dir}" \
     --output "{project_dir}/docs/.sf/feature_list.json"
+  ※ 0 以外で終わったら Phase 3b 以降に進まず、エラーの最後の行を完了報告に書いて中断する（feature_list.json と台帳は前回のまま）。
 
 Phase 3b: 機能グループ定義をエージェントへ委譲（順次）
   ※ cat4-apex/cat4-flow/cat4-lwc の全完了後に実行（docs/design/ の「関連UC」フィールドと _apex_skeletons.json/_lwc_skeletons.json/_flow_index.json を参照するため）

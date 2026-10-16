@@ -40,6 +40,8 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
   --output "{project_dir}/docs/.sf/feature_list.json"
 ```
 
+0 以外で終わったら以降のフェーズに進まず、エラーの最後の行を最終報告に書いて中断する（feature_list.json と台帳は前回のまま）。
+
 ---
 
 ## Phase 0.5: 前段カテゴリの出力を読む（必須）
@@ -243,6 +245,8 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
   --project-dir "{project_dir}" \
   --output "{project_dir}/docs/.sf/feature_list.json"
 ```
+
+0 以外で終わったら Phase 0 と同じく中断する。
 
 ---
 

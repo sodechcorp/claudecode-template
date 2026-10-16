@@ -87,7 +87,7 @@ else
 fi
 ```
 
-完了後、xlsx の存在を確認してからこのエージェントを終了する:
+スクリプトが 0 以外で終わったら、下の確認は流さず「❌ 機能一覧 生成失敗」とエラーの最後の行を返す（既存ファイルがあると確認が通ってしまうため）。0 で終わったら xlsx の存在を確認してからこのエージェントを終了する:
 
 ```bash
 python -c "import pathlib, sys; p = pathlib.Path(r'{output_dir}/01_基本設計/機能一覧.xlsx'); sys.exit(print(f'ERROR: {p} が生成されませんでした', file=sys.stderr) or 1) if not p.exists() else print(f'OK: {p}')"

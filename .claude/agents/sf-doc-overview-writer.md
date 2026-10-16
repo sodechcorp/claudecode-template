@@ -110,7 +110,7 @@ else
 fi
 ```
 
-完了後、xlsx の存在を確認してからこのエージェントを終了する:
+スクリプトが 0 以外で終わったら、下の確認は流さず「生成中断」の報告を返す（既存ファイルがあると確認が通ってしまうため）。0 で終わったら xlsx の存在を確認してからこのエージェントを終了する:
 
 ```bash
 python -c "import pathlib, sys; p = pathlib.Path(r'{output_dir}/01_基本設計/プロジェクト概要書.xlsx'); (print(f'ERROR: {p} が生成されませんでした', file=sys.stderr), sys.exit(1)) if not p.exists() else None; print(f'OK: {p}')"
@@ -136,11 +136,11 @@ python "{project_dir}/scripts/python/sf-doc-mcp/check_sf_doc_overview.py" \
 
 > 内容検証post-checkでWARNINGが出た場合は完了報告に追記する: 「⚠️ 内容検証WARNING: {該当シート・理由}」。
 
-Phase 1.5 で中断した場合（パラメータ妥当性に関わる指摘があった場合）:
+Phase 1.5 で中断した場合（パラメータ妥当性に関わる指摘があった場合）、または Phase 2 のスクリプトが 0 以外で終わった場合:
 ```
 ⚠️ プロジェクト概要書 生成中断
 
-【理由】要確認: {チェック項目} — {具体的な懸念点}
+【理由】要確認: {チェック項目} — {具体的な懸念点}（Phase 2 の場合はスクリプトの [ERROR] の行）
 【対応】ユーザーに確認のうえ再実行してください。
 ```
 

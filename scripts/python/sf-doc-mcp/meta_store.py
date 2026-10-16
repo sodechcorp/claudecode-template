@@ -19,7 +19,7 @@ _CHUNK = 30000
 
 def read_meta(source_file: str) -> dict | None:
     """既存 Excel の _meta シートからメタデータを読み込む。
-    見つからない・読み込み失敗時は None を返す。"""
+    _meta シートが無いときは None を返す。読めないときは例外を上げる（None は新規作成として扱われ、改版履歴が消える）。"""
     try:
         wb = load_workbook(source_file, read_only=True, data_only=True)
         if META_SHEET not in wb.sheetnames:
@@ -32,15 +32,10 @@ def read_meta(source_file: str) -> dict | None:
             if row[0] is not None:
                 chunks.append(str(row[0]))
         wb.close()
-        if not chunks:
-            return None
         return json.loads("".join(chunks))
-    except FileNotFoundError:
-        print(f"  [ERROR] ファイルが見つかりません: {source_file}")
-        return None
     except Exception as e:
-        print(f"  [WARN] _meta 読み込み失敗: {e}")
-        return None
+        raise RuntimeError(f"_meta の読込に失敗: {source_file}: {e}（新規作成にすると改版履歴が消えるため書かずに止めた。"
+                           f"ファイルは動かさずに報告する。作り直すなら担当者が別の場所へ移して再実行する）") from e
 
 
 def write_meta(wb, data: dict):
