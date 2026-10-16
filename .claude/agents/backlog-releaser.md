@@ -117,7 +117,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 1. デプロイ対象を一覧化する。base コミットの決定手順は [deploy-manifest-base.md](../templates/backlog/_partials/deploy-manifest-base.md) を参照（Phase 4 は標準フローでコミットしない設計のため実装変更が未コミットの作業ツリーに残る点・option-progressive-commits 採用時は複数コミットに分かれる点の両方を取り逃さない base 決定ロジック）
    - **上記いずれも差分が空の場合、まず `force-app/` が `.gitignore` 対象かを確認する**（`git check-ignore -q force-app/main/default` の終了コード、または `.gitignore` を Grep）:
-     - **`.gitignore` 対象の場合（テンプレート既定構成であり、実運用ではこちらが標準経路）**: `implementation-plan.md`（Step 0d で取得済み・再 Read しない）の「## 関連コンポーネント一覧（変更対象ファイル）」をデプロイ対象一覧として採用する（Step 2a-5 で対象レコード特定に使う情報源と同一）。同表はファイル名のみでフォルダパスを含まないため、報告書にパスを記載したい場合のみ `Glob '**/{ファイル名}'` で補完する（同名衝突等でパスを一意に特定できない場合はファイル名のみ記載しパス欄を省略してよい）。**この一覧は報告・完了報告チェックリスト（Apex/UI変更有無等）の判定用であり、デプロイ本体（4. の `sf project deploy start --source-dir force-app`）は常に force-app 全体を対象とするため、一覧の精度不足がデプロイ内容に影響することはない**
+     - **`.gitignore` 対象の場合（テンプレート既定構成であり、実運用ではこちらが標準経路）**: `implementation-plan.md`（Step 0d で取得済み・再 Read しない）の「## 関連コンポーネント一覧（変更対象ファイル）」をデプロイ対象一覧として採用する（Step 2a-5 で対象レコード特定に使う情報源と同一）。同表はファイル名のみでフォルダパスを含まないため、報告書にパスを記載したい場合のみ `Glob 'force-app/**/{ファイル名}'` で補完する（同名衝突等でパスを一意に特定できない場合はファイル名のみ記載しパス欄を省略してよい）。**この一覧は報告・完了報告チェックリスト（Apex/UI変更有無等）の判定用であり、デプロイ本体（4. の `sf project deploy start --source-dir force-app`）は常に force-app 全体を対象とするため、一覧の精度不足がデプロイ内容に影響することはない**
      - **`.gitignore` 対象でない場合（force-app を Git 管理対象に含めるようカスタマイズした非標準プロジェクトでのみ発生する例外経路）**: 「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認し、回答内容を（上記の `.gitignore` 対象の場合と同様に）デプロイ対象一覧として採用する。`Glob` での全量フォールバックは行わない
 2. dry-run 検証（スキップ判定あり）:
 
@@ -530,8 +530,8 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 - [ ] ドキュメント更新通知（Step 6）の付記要否が判定済か
 
 > **catalog/design 更新確認の実施手順**（2a. Sandbox の場合のみ。2b. 管理画面直接操作の場合はスキップ — Claude が実装していないため確認対象がない）:
-> 1. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）の「関連コンポーネント一覧（変更対象ファイル）」からコンポーネント（カスタム項目・Apex・Flow・LWC・VF・Aura・Batch・Integration）を抽出する。Step 0d で「不在」と判定されている場合、または該当コンポーネントが0件（データ変更のみ等）の場合はこの確認自体をスキップする。
-> 2. 各コンポーネントに対応する期待ファイルパスを、[docs-driven-behavior.md](../spec/docs-driven-behavior.md)「実装後のドキュメント更新マッピング」（カスタム項目 → `docs/catalog/{standard|custom}/{オブジェクト名}.md`、Apex/Flow/LWC/VF/Aura/Batch/Integration → 同節の「機能別設計書の取り方」）に従って算出する。定義書・設計書が無いものは期待パスに入れない。
+> 1. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）の「関連コンポーネント一覧（変更対象ファイル）」の各ファイルを、[docs-driven-behavior.md](../spec/docs-driven-behavior.md)「実装後のドキュメント更新マッピング」の更新対象が「—」でない行に当てはめる（行はファイルの種別で決める。権限セット・プロファイルは「変更概要」で CRUD・FLS の変更かを見る）。Step 0d で「不在」と判定されている場合、または当たるファイルが0件の場合はこの確認自体をスキップする。
+> 2. 各ファイルの期待ファイルパスを、同マッピングの「更新対象」「更新方法」で反映先になっている `docs/catalog/`・`docs/design/` のファイルとして算出する。定義書のオブジェクトは計画書の括弧書き・変更概要から取り、書かれていなければ `Glob 'force-app/**/{ファイル名}'` の `objects/` 直下のフォルダ名を使う（Glob で1つに決まらない・見つからないファイルは期待パスに入れず、完了報告の「未確認事項」に `⚠ catalog/design 未確認（オブジェクト未特定）: {ファイル名}` と書く）。参照先は field-meta.xml の `<referenceTo>`。値セットの行は、force-app の field-meta.xml を `<valueSetName>{値セット名}</valueSetName>` で Grep して当たったオブジェクトを全部使う（標準値セットは対応する標準項目）。定義書・設計書が無いものは期待パスに入れない。
 > 3. 以下で `implementation-plan.md` 作成後に更新されたファイル一覧を取得する（Step 2a-2 と同型の `-newer` 判定）:
 >    ```bash
 >    find docs/catalog docs/design -type f -newer docs/logs/{issueID}/implementation-plan.md 2>/dev/null
