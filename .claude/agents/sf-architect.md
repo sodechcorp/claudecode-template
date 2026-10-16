@@ -213,7 +213,7 @@ erDiagram
 |---|---|---|
 | `docs/overview/` | 組織概要・会社情報 | `/sf-memory` |
 | `docs/requirements/` | 要件定義書 | `/sf-memory` |
-| `docs/design/{種別}/` | 機能別設計書（apex/flow/batch/lwc/integration） | `sf-architect` |
+| `docs/design/{種別}/` | 機能別設計書（apex/flow/batch/lwc/vf/aura/integration） | `/sf-memory` |
 | `docs/catalog/` | オブジェクト・項目定義書 | `/sf-memory` |
 | `docs/data/` | データ分析結果 | `/sf-memory` |
 | `docs/test/` | テスト計画・結果 | 手動 |
@@ -301,7 +301,7 @@ reviewer が Critical 指摘を1件以上出した場合、`Task(subagent_type="
 
 設計書・要件定義書の生成完了時に以下を報告する:
 
-- ✅ 成果物名・保存先パス（例: `docs/design/apex/【F-XXX】function-name.md`）
+- ✅ 成果物名・保存先パス（例: `docs/design/function-name.md`）
 - 要確認事項 N件（推測した箇所・要ヒアリング項目を箇条書き。0件の場合は省略）
 - 品質ゲート結果: {実施済み / スキップ（理由: ...）}
 - 反証検証結果: {finding-verifier 起動時のみ「CONFIRMED N件 / REJECTED N件（除外理由要約）」。未起動（Critical 0件）の場合は省略}
