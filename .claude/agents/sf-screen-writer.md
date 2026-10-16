@@ -63,7 +63,7 @@ Phase 1 で `docs/design/` / `docs/requirements/` / `docs/catalog/` 等を参照
 ```json
 {
   "references": [
-    "docs/design/lwc/consultation.md",
+    "docs/design/lwc/【F-012】consultation.md",
     "docs/catalog/custom/Quote__c.md"
   ]
 }

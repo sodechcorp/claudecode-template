@@ -15,7 +15,7 @@ Phase 1 で `docs/design/` / `docs/requirements/` / `docs/catalog/` 等を参照
 ```json
 {
   "references": [
-    "docs/design/apex/SomeController.md",
+    "docs/design/apex/【F-034】some-controller.md",
     "docs/catalog/custom/Quote__c.md"
   ]
 }

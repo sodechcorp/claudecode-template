@@ -531,7 +531,7 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 
 > **catalog/design 更新確認の実施手順**（2a. Sandbox の場合のみ。2b. 管理画面直接操作の場合はスキップ — Claude が実装していないため確認対象がない）:
 > 1. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）の「関連コンポーネント一覧（変更対象ファイル）」からコンポーネント（カスタム項目・Apex・Flow・LWC・VF・Aura・Batch・Integration）を抽出する。Step 0d で「不在」と判定されている場合、または該当コンポーネントが0件（データ変更のみ等）の場合はこの確認自体をスキップする。
-> 2. 各コンポーネントに対応する期待ファイルパスを、backlog-implementer.md の対応表（カスタム項目 → `docs/catalog/{standard|custom}/{オブジェクト名}.md`、Apex/Flow/LWC/VF/Aura/Batch/Integration → `docs/design/{種別}/{名称}.md`）に従って算出する。
+> 2. 各コンポーネントに対応する期待ファイルパスを、[docs-driven-behavior.md](../spec/docs-driven-behavior.md)「実装後のドキュメント更新マッピング」（カスタム項目 → `docs/catalog/{standard|custom}/{オブジェクト名}.md`、Apex/Flow/LWC/VF/Aura/Batch/Integration → 同節の「機能別設計書の取り方」）に従って算出する。設計書なしのコンポーネントは期待パスに入れない。
 > 3. 以下で `implementation-plan.md` 作成後に更新されたファイル一覧を取得する（Step 2a-2 と同型の `-newer` 判定）:
 >    ```bash
 >    find docs/catalog docs/design -type f -newer docs/logs/{issueID}/implementation-plan.md 2>/dev/null
