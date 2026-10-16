@@ -83,9 +83,11 @@ requirements.md にスコープ定義がない場合はこのチェックをス�
 | カスタム項目の追加・変更・削除 | `docs/catalog/{standard\|custom}/{オブジェクト名}.md` | 「全項目一覧」（選択リストの値は「ピックリスト値」）に反映。参照・主従関係の項目は、このオブジェクトと参照先の定義書の「リレーション」と `docs/catalog/_data-model.md` にも反映（記法は `.claude/templates/sf-analyst-cat2/object-definition-template.md`「Mermaid ERD 記法の規約」） |
 | 選択リスト値セット（標準・グローバル）の変更 | その値セットを使う項目のオブジェクトの `docs/catalog/{standard\|custom}/{オブジェクト名}.md` | 「ピックリスト値」に反映 |
 | Apex / トリガー・フロー・LWC・Visualforce・Aura・バッチ・外部API連携クラスの追加・変更 | 機能別設計書（下記の取り方） | 設計書があれば更新。無ければ作らず、`/sf-memory` カテゴリ4（台帳の機能IDで作る）を案内する（`/backlog` は Phase 6 のドキュメント更新通知） |
+| Apex クラス（テストクラスを除く）・トリガー・フローの追加・削除、操作するオブジェクトの変更 | 操作するオブジェクト（変更は増えた・外れたもの）の `docs/catalog/{standard\|custom}/{オブジェクト名}.md` | 「自動化」に反映 |
 | 権限セット・プロファイルのオブジェクト権限・項目権限（CRUD・FLS）の変更 | `docs/catalog/{standard\|custom}/{オブジェクト名}.md` | 「権限マトリクス」に反映 |
-| レコードタイプの追加・変更 | `docs/catalog/{standard\|custom}/{オブジェクト名}.md` | 「レコードタイプ」に反映 |
-| 入力規則の追加・変更 | `docs/catalog/{standard\|custom}/{オブジェクト名}.md` | 「入力規則」に反映 |
-| レイアウト変更、権限セット・プロファイルのそれ以外の変更（タブ表示・レイアウトとレコードタイプの割当・Apex クラス／Visualforce ページのアクセス等） | — | ドキュメント更新不要 |
+| レコードタイプの追加・削除、API 名・ラベル・有効/無効・説明（用途）の変更 | `docs/catalog/{standard\|custom}/{オブジェクト名}.md` | 「レコードタイプ」に反映 |
+| 入力規則の追加・変更・削除 | `docs/catalog/{standard\|custom}/{オブジェクト名}.md` | 「入力規則」に反映 |
+| Apex / トリガー・フロー・LWC・Visualforce・Aura・バッチ・外部API連携クラスの削除 | — | 機能別設計書は消さない。`/sf-memory` カテゴリ4 を案内する（台帳で廃止になり、設計書に廃止の注記が付く。`/backlog` は Phase 6 のドキュメント更新通知） |
+| レイアウト変更、レコードタイプの選択リスト値の割当、権限セット・プロファイルのそれ以外の変更（タブ表示・レイアウトとレコードタイプの割当・Apex クラス／Visualforce ページのアクセス等） | — | ドキュメント更新不要 |
 
 **機能別設計書の取り方**: `docs/.sf/feature_list.json` を API 名で引いたエントリ（同じ API 名が複数あれば種別 `type` の合うもの）の `design_doc`。`design_doc` が無く `absorb_into` があれば、吸収先（`absorb_into` の API 名で引いたエントリ）の `design_doc`。パスは `design_doc` の `docs/design/` 以降（絶対パスでも同じ）を、この案件のルートからのパスとして使う。エントリ・`design_doc` が無ければ設計書なし。そのパスにファイルが無いか、ファイル名の【】に `design_doc` を取ったエントリ（吸収先から取ったときは吸収先）の `id` が無いとき（旧番号・同名の別コンポーネントの設計書のことがある）は、同じフォルダで先頭の【】（重ねたものは全部）の後ろが同じで、【】にその `id` があるファイルを使い、無ければ設計書なし。
