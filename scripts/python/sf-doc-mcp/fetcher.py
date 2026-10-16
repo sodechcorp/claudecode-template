@@ -64,6 +64,24 @@ class MetadataFetcher:
 
         return result
 
+    def fetch_hidden_fields(self, describe: dict) -> list[str]:
+        """組織にあるが、接続ユーザーに項目レベルセキュリティで見えない項目（describe に出ない）"""
+        api_name = describe["name"]
+        visible  = {f["name"] for f in describe.get("fields", [])}
+        hidden   = [r["QualifiedApiName"] for r in self._tooling_query(
+                        f"SELECT QualifiedApiName FROM FieldDefinition "
+                        f"WHERE EntityDefinition.QualifiedApiName = '{api_name}'")
+                    if r["QualifiedApiName"] not in visible]
+        # 標準項目には誰の describe にも出ない内部項目（RecordVisibilityId 等）があるため、どこかで参照権限が付いているものだけ
+        standard = [n for n in hidden if "__" not in n]
+        granted  = set()
+        if standard:
+            fields  = ", ".join(f"'{api_name}.{n}'" for n in standard)
+            granted = {r["Field"].split(".", 1)[1] for r in self._sf.query_all(
+                f"SELECT Field FROM FieldPermissions "
+                f"WHERE SobjectType = '{api_name}' AND Field IN ({fields})")["records"]}
+        return [n for n in hidden if "__" in n or n in granted]
+
     # ------------------------------------------------------------------ #
     # 内部ヘルパー
     # ------------------------------------------------------------------ #

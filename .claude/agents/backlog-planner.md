@@ -114,7 +114,7 @@ Phase B の提示を行う**前に**、以下を実施する:
 2. **判断ポイントに関わる全フィールドのAPI名を確認する**
    `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` を確認する（最優先）。
    `docs/catalog/` があれば照合する。推測・記憶に頼らず必ずメタデータの定義から確認する
-   **該当ディレクトリが存在しない・空の場合**: investigation.md の「使用中のフィールドAPI名」セクションを Read する（investigator が `sf sobject describe` で取得した API 名を記録している）。そこにも無い項目は、API 名の代わりに `[要確認: sf sobject describe は tools 未所持のため未実施]` と書く（CLAUDE.md 調査尽くしゲートの tools 制約）
+   **該当ディレクトリが存在しない・空の場合**: investigation.md の「使用中のフィールドAPI名」セクションを Read する（investigator が組織の describe・FieldDefinition で取得した API 名を記録している）。そこにも無い項目は、API 名の代わりに `[要確認: sf sobject describe は tools 未所持のため未実施]` と書く（CLAUDE.md 調査尽くしゲートの tools 制約）
 
 3. **確認結果を判断ポイントの提示に反映させる**
 

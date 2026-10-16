@@ -214,7 +214,7 @@ Bash ツール引数に改行・インデント付きの多行スクリプトを
 | パターン | 検索先 |
 |---|---|
 | Salesforce 標準仕様（API・UI・ガバナ制限・トリガ順序等） | help.salesforce.com / developer.salesforce.com |
-| **組織状態（標準オブジェクト/項目/ラベルの有無・設定の有無・タブ/UI表示）** | **対象組織を `sf sobject describe` / `sf data query` で確認。Web一般論・記憶で断定しない**。ただし **タブ/UI表示・項目可視性は対象ユーザー基準で確認する**（`sf sobject describe`/`sf data query` は SFDX 認証ユーザー＝通常システム管理者の権限で解決されるため、一般ユーザーの見え方の証明にはならない。実ユーザーでのログイン確認、または対象ユーザーの権限アサインを条件にした実査で確認する） |
+| **組織状態（標準オブジェクト/項目/ラベルの有無・設定の有無・タブ/UI表示）** | **対象組織を `sf sobject describe` / `sf data query`（項目の有無は `--use-tooling-api` の FieldDefinition も）で確認。Web一般論・記憶で断定しない**。ただし **タブ/UI表示・項目可視性は対象ユーザー基準で確認する**（`sf sobject describe`/`sf data query` は SFDX 認証ユーザー＝通常システム管理者の権限で解決されるため、一般ユーザーの見え方の証明にはならない。実ユーザーでのログイン確認、または対象ユーザーの権限アサインを条件にした実査で確認する） |
 | 第三者ライブラリ・MCP・ツールの仕様 | 公式ドキュメント・GitHub README |
 | バージョン依存の挙動・最新リリース情報 | release notes / changelog |
 | 「最新の〜は？」「今〜できる？」型の質問 | 公式サイト・公式ブログ |
@@ -230,7 +230,7 @@ Bash ツール引数に改行・インデント付きの多行スクリプトを
 **調査尽くしゲート（マーカーを付ける前の必須チェック）**: 「〜すればわかる」「〜を確認しないと断言できない」「実データを見ないと断定できない」と**書きそうになったら、それは推論で締める合図ではなく、その手段を実行する合図**。書いて済ませない。`**[推定]**` / `**[要確認]**` / 「断言できません」は、以下の手段を**すべて試した"これ以上は何もできない"状態でのみ**許可。未着手の手段が1つでも残っているなら付けてはいけない:
 1. コード Grep / Read（`force-app/` 配下）
 2. `docs/` 参照（catalog・design・overview・knowledge）
-3. `sf data query`（実レコード値・件数・存在確認）/ `sf sobject describe`（項目の有無）
+3. `sf data query`（実レコード値・件数・存在確認）/ `sf sobject describe` と Tooling の FieldDefinition（項目の有無）
 4. WebSearch / WebFetch（Salesforce 標準仕様・第三者製品の公式ドキュメント。ユビレジ等サードパーティ連携仕様も含む）
 5. 組織直接問い合わせ（Tooling API `InstalledSubscriberPackage` 等）
 
@@ -259,7 +259,7 @@ Bash ツール引数に改行・インデント付きの多行スクリプトを
 | **課題間の関係性（同一原因か・別か）** | **両課題の該当/修正コードを Read し、対象フィールドの型・原因レイヤー（LWC 送信値／Apex SOQL／Flow 等）・修正箇所が一致するか比較。記憶や issue タイトル・現象の類似で同一視しない** | 2件以上の課題が同一原因か否かを主張するとき |
 | プラットフォーム標準仕様 | `docs/knowledge/sf-standard.md` を先に Read → 無ければ Web で裏取り（詳細: `.claude/templates/common/verify-implementation-spec.md`） | Salesforce 標準仕様（API・UI・ガバナ制限等）を主張するとき |
 | **組織のランタイム状態（導入パッケージ・バージョン／組織設定／機能有効化／ライセンス）** | **組織に直接問い合わせる**: Setup → インストール済みパッケージ、または `sf data query --use-tooling-api -q "SELECT SubscriberPackage.Name, SubscriberPackage.NamespacePrefix, SubscriberPackageVersion.MajorVersion, SubscriberPackageVersion.MinorVersion FROM InstalledSubscriberPackage"`（全件取得後に絞る。`WHERE NamespacePrefix = ...` はフィルタ不可）。**コード・コメント・VF タグから推論しない** | 導入パッケージ・組織設定・機能有効化・ライセンスの状態を主張するとき |
-| **データ件数・レコード存在・項目の有無** | **対象組織に直接実査する**: 件数は `sf data query -q "SELECT COUNT() FROM Object__c ..."` を対象組織で実行 / 項目の有無は `sf sobject describe -s Object__c` または field-meta.xml で確認。**非本番組織のクエリ結果・部分 retrieve したメタを、本番の件数・存在・有無の根拠にしない**。実査できなければ `[要確認: 本番データ未確認]` を付けて断定しない | データの件数・存在・有無を主張するとき |
+| **データ件数・レコード存在・項目の有無** | **対象組織に直接実査する**: 件数は `sf data query -q "SELECT COUNT() FROM Object__c ..."` を対象組織で実行 / 項目の有無は field-meta.xml、または `sf sobject describe -s Object__c` と `sf data query --use-tooling-api -q "SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = 'Object__c' AND QualifiedApiName = 'Field__c'"` で確認（組織ではどちらかにあれば有る。describe とデータ API の FieldDefinition は接続ユーザーに項目レベルセキュリティで見えない項目を返さず、Tooling の FieldDefinition は複合項目の構成項目〔FirstName・BillingCity 等〕など一部の標準項目を返さない）。**非本番組織のクエリ結果・部分 retrieve したメタを、本番の件数・存在・有無の根拠にしない**。実査できなければ `[要確認: 本番データ未確認]` を付けて断定しない | データの件数・存在・有無を主張するとき |
 | **メタデータ要素の実在（オブジェクト・レポートタイプ・カスタムメタデータ種別等）** | **記憶で名前を断定しない**。オブジェクト名は `sf sobject list` / `sf sobject describe`、レポートタイプは Setup > レポートタイプ一覧 / カスタムレポートタイプ定義で確認。retrieve 済みメタに含まれているかでも判断可。確認できなければ `[要確認]` を付け、実在を断定しない | オブジェクト・レポートタイプ等メタデータ要素の実在を主張するとき |
 | **可否判断が複数の前提の連鎖で成り立つ場合（「〇〇すれば××できる」等）** | 結論を構成する前提を1個ずつ分解し、**末端の前提まで個別に検証してから結論を書く**。手前の前提（例: 画面が表示ラベルで並ぶ）に出典があっても、その先の前提（例: そのラベル自体を変更できるか・変更が対象画面に反映されるか）が未検証なら、全体を「確認済み」「成立」と報告しない。各前提は理論値・推測で代替せず、本表の該当行が定める確認方法（Read/Grep・SOQL・describe・Login As 等、前提の種類に応じたもの）で確認する。前提の一部が未検証なら「〇〇までは確認、△△（具体的な前提）は未検証」と分けて報告し `[要確認]` を付ける | 結論が複数の前提の連鎖の上に成り立つ可否判断をするとき |
 

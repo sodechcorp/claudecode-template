@@ -185,11 +185,13 @@ def main():
     fetcher = MetadataFetcher(connector)
     sections = default_sections()
     metadata_list = []
+    hidden = {}
     failed = []
     for obj_name in objects:
         print(f"取得中: {obj_name} ...")
         try:
             meta_obj = fetcher.fetch_all(obj_name, sections)
+            hidden[obj_name] = fetcher.fetch_hidden_fields(meta_obj["describe"])
             metadata_list.append(meta_obj)
             print(f"  → 項目数: {len(meta_obj.get('fields', []))}")
         except Exception as e:
@@ -200,6 +202,18 @@ def main():
     if failed:
         print(f"[エラー] 取得に失敗したオブジェクトがあるため出力しません: {failed}", file=sys.stderr)
         sys.exit(1)
+
+    # 項目レベルセキュリティで見えない項目は describe に出ず、前回の定義書にあれば削除と記録されるため書かない
+    old_fields = {api: {f["api_name"] for f in m.get("fields", [])} for api, m in (old_objects or {}).items()}
+    lost = [f"{api}.{n}" for api, names in hidden.items() for n in names if n in old_fields.get(api, ())]
+    if lost:
+        print(f"[エラー] 前回の定義書にある項目が接続ユーザーに見えないため出力しません"
+              f"（項目レベルセキュリティ等。参照権限のあるユーザーで実行するか、接続ユーザーに参照権限を付ける）: {lost}",
+              file=sys.stderr)
+        sys.exit(1)
+    unseen = [f"{api}.{n}" for api, names in hidden.items() for n in names]
+    if unseen:
+        print(f"[警告] 接続ユーザーに見えない項目は定義書に載りません（項目レベルセキュリティ等）: {unseen}", file=sys.stderr)
 
     # 差分計算
     vm    = VersionManager(args.author)

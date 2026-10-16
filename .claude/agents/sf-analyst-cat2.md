@@ -173,15 +173,19 @@ python -c "import re, pathlib; text = pathlib.Path(r'{project_dir}/CLAUDE.md').r
 ```bash
 sf sobject describe -s <オブジェクト名> --json
 sf data query -q "SELECT COUNT() FROM <オブジェクト名>" --json
+sf data query --use-tooling-api -q "SELECT QualifiedApiName, Label, DataType, ReferenceTo FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '<オブジェクト名>'" --json
 ```
 
-> **本番突合モード（`_prod_alias` が指定されている場合のみ）**: default org describe の結果を `_sandbox_fields[Object]`（項目名の集合）として記録し、さらに本番 alias に対しても同じコマンドを実行して結果を `_prod_fields[Object]` として保持する:
+describe は接続ユーザーに項目レベルセキュリティで見えない項目を返さない。FieldDefinition にあって describe に無い項目のうち、カスタム項目（名前に `__` を含むもの）と、`sf data query -q "SELECT Field FROM FieldPermissions WHERE SobjectType = '<オブジェクト名>' AND Field IN ('<オブジェクト名>.<項目>', ...)" --json` で返る標準項目（返らない標準項目は誰の describe にも出ない内部項目）は、`force-app/main/default/objects/<Object>/fields/<項目>.field-meta.xml`（無ければ FieldDefinition の表示ラベル・型・参照先）から全項目一覧の行（選択リストなら valueSet からピックリスト値、参照なら referenceTo からリレーションも）を作り、備考に `**[接続ユーザーに非表示]**` を付ける。
+
+> **本番突合モード（`_prod_alias` が指定されている場合のみ）**: default org の describe と FieldDefinition の項目名を合わせた集合を `_sandbox_fields[Object]` として記録し、さらに本番 alias に対しても同じ2つを実行して合わせた集合を `_prod_fields[Object]` として保持する:
 >
 > ```bash
 > sf sobject describe -s <オブジェクト名> --target-org <_prod_alias> --json
+> sf data query --use-tooling-api -q "SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '<オブジェクト名>'" --target-org <_prod_alias> --json
 > ```
 >
-> 本番 alias の describe が失敗した場合（接続不可・権限不足など）: 「⚠️ 本番 ({_prod_alias}) への describe に失敗しました。そのオブジェクトは注記なしで生成します。」と警告出力し、処理を継続する（中断しない）。
+> 本番 alias の describe・クエリのどちらかが失敗した場合（接続不可・権限不足など）: 「⚠️ 本番 ({_prod_alias}) への問い合わせに失敗しました。そのオブジェクトは注記なしで生成します。」と警告出力し、処理を継続する（中断しない）。
 
 リレーション（参照先・Lookup と MasterDetail の別・このオブジェクトを参照している他オブジェクト）は describe の `fields[]` の `referenceTo`・`relationshipName`・`relationshipOrder`（MasterDetail のときだけ null でない）と `childRelationships` から取る。
 

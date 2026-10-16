@@ -38,9 +38,9 @@
      ```bash
      sf data query -q "SELECT DurableId, IsReadable, IsEditable, IsCreatable, IsDeletable FROM UserEntityAccess WHERE UserId = '{対象ユーザーID}' AND EntityDefinition.QualifiedApiName = '{オブジェクト API 名}'" --target-org <alias> --json
      ```
-     フィールド単位は `UserFieldAccess.DurableId` がカスタム項目では `{オブジェクトAPI名}.{フィールドAPI名}` ではなく内部形式になり0件またはエラーになるため、先に `FieldDefinition` で解決してから問い合わせる:
+     フィールド単位は `UserFieldAccess.DurableId` がカスタム項目では `{オブジェクトAPI名}.{フィールドAPI名}` ではなく内部形式になり0件またはエラーになるため、先に Tooling の `FieldDefinition` で解決してから問い合わせる:
      ```bash
-     sf data query -q "SELECT DurableId FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '{オブジェクト API 名}' AND QualifiedApiName = '{フィールド API 名}'" --target-org <alias> --json
+     sf data query --use-tooling-api -q "SELECT DurableId FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '{オブジェクト API 名}' AND QualifiedApiName = '{フィールド API 名}'" --target-org <alias> --json
      sf data query -q "SELECT DurableId, IsAccessible, IsUpdatable FROM UserFieldAccess WHERE DurableId = '{直前のクエリで取得した DurableId}.{対象ユーザーID}'" --target-org <alias> --json
      ```
    組織に問い合わせられない場合は「無関係」と断定せず `**[要確認: 権限未確認（組織問い合わせ不可、または権限セットグループの Muting 未確認）]**` を付ける。

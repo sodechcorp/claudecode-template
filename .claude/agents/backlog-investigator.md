@@ -477,9 +477,9 @@ Step C で収集した情報をもとに、報告された症状の原因仮説�
 4. **ローカルにメタデータ未取得の場合:**
    a. **alias の解決**（優先順）:
       - `sf config list --json` で `target-org` のデフォルト値を取得する
-      - デフォルトも取得不可なら sf sobject describe をスキップし、調査レポートに「メタデータ未取得：alias 未指定」と記録してコード分析のみで続行する
+      - デフォルトも取得不可なら組織への問い合わせをスキップし、調査レポートに「メタデータ未取得：alias 未指定」と記録してコード分析のみで続行する
    b. **メタデータ取得**:
-      - `sf sobject describe --sobject {ObjectName__c} --target-org <alias> --json` を実行する
+      - `sf sobject describe --sobject {ObjectName__c} --target-org <alias> --json` と `sf data query --use-tooling-api -q "SELECT QualifiedApiName, DataType FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '{ObjectName__c}' AND QualifiedApiName IN ('{コードが使う項目}', ...)" --target-org <alias> --json` を実行する（コードが使う項目が describe に無ければ FieldDefinition の結果で記録する）
       - 取得した API 名・型を investigation.md の「使用中のフィールドAPI名」セクションに記録する
       - コマンドが失敗した場合 → 調査レポートに「メタデータ未取得：{エラーの要約}」と記録してコード分析のみで続行する
 
