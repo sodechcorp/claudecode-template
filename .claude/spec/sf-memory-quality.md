@@ -66,7 +66,7 @@ cat1 は外部公開情報（会社概要・業種・組織規模・拠点数等
 本原則を適用する具体的フィールドは各カテゴリのエージェント定義（Phase 0.5 ブロック）に書く。
 書かれていない field には適用しない（過剰検出を防ぐ）。
 以下は **適用外**:
-- `docs/catalog/*.md` の項目一覧テーブル（API 名カラム）
+- `docs/catalog/*.md` の全項目一覧テーブル（API 名カラム）
 - `docs/knowledge/sf-standard.md`（cat8 成果物・SF 公式仕様）
 - `docs/knowledge/case-index.md` の「関連用語」カラム（cat6 が意図的に API 名を記録）
 
@@ -107,7 +107,7 @@ cat1/2/3 の差分更新フェーズおよび sf-org-analyst の横断補完フ�
 | 数値の種類 | 正本 | 同期先 |
 |---|---|---|
 | オブジェクト別レコード件数 | `data/data-statistics.md`（無ければ `catalog/{standard\|custom}/{obj}.md` 基本情報テーブル） | org-profile 構成サマリ・catalog/_index.md・catalog/{standard\|custom}/{obj}.md 用途/所見欄・usecases.md・catalog/_data-model.md 孤立/整理候補一覧の件数 |
-| 項目数 | `catalog/{standard\|custom}/{obj}.md` 項目一覧の実カウント | org-profile・requirements・catalog/_index.md |
+| 項目数 | `catalog/{standard\|custom}/{obj}.md` 全項目一覧の実カウント | org-profile・requirements・catalog/_index.md |
 | ユーザー総数・プロファイル別人数 | `org-profile.md`（cat1 Phase 1-2 実測） | requirements・その他本文 |
 | レポート/ダッシュボード件数 | `data/reports-dashboards.md` 本文テーブル | data/_index.md・org-profile |
 | オブジェクト総数（カスタム/標準別） | `catalog/custom/`・`catalog/standard/` のファイル数（分類定義は cat2 Phase 1「オブジェクト分類定義」） | `catalog/_index.md` 種別集計・`catalog/_data-model.md` 全体統計・`org-profile.md` 構成サマリ |

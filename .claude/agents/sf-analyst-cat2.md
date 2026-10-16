@@ -71,15 +71,11 @@ docs/catalog/
 
 ### Phase 0.5: 既存ファイルの規約適合チェック（差分更新モード時必須）
 
-[共通手順参照](../templates/sf-memory/phase0.5-common.md) — cat2 固有の必須 H2:
+[共通手順参照](../templates/sf-memory/phase0.5-common.md) — cat2 固有の必須 H2: [object-definition-template.md](../templates/sf-analyst-cat2/object-definition-template.md)「オブジェクト定義書の必須構成」のコードブロックの H2
 
-```
-必須 H2: 基本情報 / 項目一覧 / リレーション / 権限マトリクス / 自動化・ビジネスルール / 被参照（被 Lookup）
-```
-
-1. `docs/catalog/` 配下の既存 `.md` を Glob で列挙 → 先頭 80 行を Read して H2 見出しを抽出
-2. 上記必須項目と照合し、欠落があれば Phase 3 で末尾追記（手動追記は保護）
-3. **技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各オブジェクト定義書の **説明文・備考・業務的意味プロズセクション**（例: 「基本情報 > 用途」「被参照 > 業務上の意味」）。**注意**: 「項目一覧」テーブルの API 名カラム・型カラムは適用外（API 名の記録が目的）
+1. `docs/catalog/` 配下の既存 `.md` を Glob で列挙 → ファイルごとに `^## ` を Grep して H2 見出しを全て抽出
+2. 上記必須 H2 と照合し（名前が違っても相当する節があれば欠落にしない）、欠落があれば Phase 3 で末尾追記（手動追記は保護）
+3. **技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各オブジェクト定義書の **説明文・備考・業務的意味プロズセクション**（例: 「基本情報 > 用途」「所見・注意点」）。**注意**: 「全項目一覧」テーブルの API 名カラム・型カラムは適用外（API 名の記録が目的）
 
 次に `docs/catalog/` 配下にmdファイルが存在するか確認する:
 - **存在しない → 初回生成モード**: Phase 1 へ進む
@@ -195,7 +191,7 @@ describe は接続ユーザーに項目レベルセキュリティで見えな�
 
 各オブジェクトについて `sf sobject describe` の前に `force-app/main/default/objects/<Object>/<Object>.object-meta.xml` を Read し、`<description>` タグの内容を抽出する。
 
-- `<description>` が存在する → 用途記述の**確定値（事実）**として保持。Phase 3 の定義書生成時に `## 用途` セクションへ `**[推定]**` なしで記載する。
+- `<description>` が存在する → 用途記述の**確定値（事実）**として保持。Phase 3 の定義書生成時に「基本情報」の用途の行へ `**[推定]**` なしで記載する。
 - `<description>` が存在しない → describe 結果・リレーション・項目構成から用途を推測し `**[推定]**` を付ける（従来通り）。
 
 抽出する情報:
