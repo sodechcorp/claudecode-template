@@ -73,9 +73,9 @@ docs/catalog/
 
 [共通手順参照](../templates/sf-memory/phase0.5-common.md) — cat2 固有の必須 H2: [object-definition-template.md](../templates/sf-analyst-cat2/object-definition-template.md)「オブジェクト定義書の必須構成」のコードブロックの H2
 
-1. `docs/catalog/{standard,custom}/*.md` を Glob で列挙 → ファイルごとに `^## ` を Grep して H2 見出しを全て抽出
+1. `docs/catalog/{standard,custom}/*.md` を Glob で列挙（特定オブジェクト指定のときは、ファイル名（拡張子を除く）が指定した API 名と大文字・小文字を区別せずに一致するものだけ残す）→ ファイルごとに `^## ` を Grep して H2 見出しを全て抽出
 2. 上記必須 H2 と照合し（名前が違っても相当する節があれば欠落にしない）、欠落があれば Phase 3 で末尾追記（手動追記は保護）
-3. **技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各オブジェクト定義書の **説明文・備考・業務的意味プロズセクション**（例: 「基本情報 > 用途」「所見・注意点」）。**注意**: 「全項目一覧」テーブルの API 名カラム・型カラムは適用外（API 名の記録が目的）
+3. **技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 1. で対象にした定義書の **説明文・備考・業務的意味プロズセクション**（例: 「基本情報 > 用途」「所見・注意点」）。**注意**: 「全項目一覧」テーブルの API 名カラム・型カラムは適用外（API 名の記録が目的）
 
 次に `docs/catalog/` 配下にmdファイルが存在するか確認する:
 - **存在しない → 初回生成モード**: Phase 1 へ進む
@@ -333,7 +333,7 @@ Phase 2 の `sf sobject describe` 出力の `recordTypeInfos` からマスター
 
 アップデートモードの場合:
 - 既存の手動追記・設計コメント・要件番号を絶対に消さない
-- 各オブジェクト定義書の冒頭バージョン番号を1インクリメントする
+- 今回の実行で書き換えた既存の定義書の冒頭バージョン番号を1インクリメントする
 - **件数の最新化**: [件数・数値の一貫性原則](../spec/sf-memory-quality.md#件数数値の一貫性原則差分更新横断補完共通) の正本階層（[適用ルール5 recency tiebreaker]）に従い、`data/data-statistics.md` が存在し改版履歴日付が本 Phase の実測より新しい場合は data-statistics 値を正本とする。それ以外（data-statistics 未生成、または本 Phase の実測が更新日として新しい）は Phase 2 で実測したレコード件数（基本情報テーブル）を正本とする。正本値で、同一ファイルの用途欄・所見欄・本文に残る旧件数を Grep して上書きする。数値のみ差し替え、手動の判断コメントは保持する。
 
 ### Phase 7: 実行記録（内部メモ）
