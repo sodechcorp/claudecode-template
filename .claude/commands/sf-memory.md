@@ -84,7 +84,7 @@ AskUserQuestion ツールを **3回、順番に** 呼び出す（[共通ルー�
 > - カテゴリ2: force-app/ のオブジェクト・項目メタデータに変更があった場合
 > - カテゴリ3: マスタデータ・承認プロセス・キュー・メールテンプレート等に変更があった場合
 > - カテゴリ4: force-app/ のコンポーネント（Apex・Flow・LWC・ページ等）に変更があった場合
-> - カテゴリ5: docs/design/ を手動修正後に feature_groups.yml だけ更新したい場合
+> - カテゴリ5: force-app/ のコンポーネントを追加・削除した場合、または docs/design/ を手動修正後に feature_groups.yml だけ更新したい場合
 > - カテゴリ6: Backlog 完了課題に変更（完了案件の追加・実績工数の更新）があった場合 → 横断ナレッジ（global-calibration / global-pitfalls）も自動更新（差分のみ処理するため2回目以降は軽量）
 > - カテゴリ7: docs/ に新しいファイルが追加された場合・_README.md が古くなった場合
 
