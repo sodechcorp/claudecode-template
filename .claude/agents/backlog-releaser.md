@@ -522,19 +522,19 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 - [ ] effort-log.md に見込み工数（単一値）が追記されているか（旧2列形式や内訳再掲になっていないか）
 - [ ] decisions.md が更新されているか（または更新不要の判定がされているか）
 - [ ] 全社共有ナレッジ登録（Step 3.9）の要否判定が実施されたか（スキップした場合、理由が「Notion MCP 未設定」または「共有不可判定」のいずれかで説明できるか）
-- [ ] catalog/design 更新確認: 下記手順で機械確認し、未更新の可能性があるファイルがあれば完了報告の「未確認事項」に明記されているか（2b. 管理画面直接操作の場合はスキップ）
+- [ ] catalog/design 更新確認: 下記手順で機械確認し、未更新の可能性があるファイルがあれば完了報告の「未確認事項」に明記されているか
 - [ ] お客様確認サイン: 取得済み（または issue_type がバグ以外で対象外と判定済）。未取得の場合は `pending-signoff.md` が作成され、完了報告の「残作業」に明記されているか（Step 3.7 参照。ブロッキングしないため未取得のまま先へ進んでよい）
 - [ ] approach-plan.md「### 今回対象外とする要求・入口」が「なし」以外なら、その全件が完了報告の「残作業」（お客様に伝える要望から外した点）に載っているか
 - [ ] 管理画面操作手順書が保存され、完了報告にはファイルパスと操作ステップ数の概要のみ記載されているか（管理画面操作の場合。チャットへの全文貼り付けはしない — Step 2b「全文提示はしない」参照）
 - [ ] 完了報告に確認環境・本番反映状況・残作業・確認方法・未確認事項の5項目が揃っているか（[completion-report-spec.md](../templates/common/completion-report-spec.md) 参照）
 - [ ] ドキュメント更新通知（Step 6）の付記要否が判定済か
 
-> **catalog/design 更新確認の実施手順**（2a. Sandbox の場合のみ。2b. 管理画面直接操作の場合はスキップ — Claude が実装していないため確認対象がない）:
+> **catalog/design 更新確認の実施手順**（2a. Sandbox の場合のみ。2b. 管理画面直接操作の場合と、`docs/logs/{issueID}/implementation-start.md` が無い場合〔Phase 4 が force-app を編集していない〕はスキップ — Claude が実装していないため確認対象がない）:
 > 1. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）の「関連コンポーネント一覧（変更対象ファイル）」の各ファイルを、[docs-driven-behavior.md](../spec/docs-driven-behavior.md)「実装後のドキュメント更新マッピング」の更新対象が「—」でない行に当てはめる（行はファイルの種別で決める。権限セット・プロファイルは「変更概要」で CRUD・FLS の変更かを見る。レコードタイプと、Apex / トリガー・フロー等のコンポーネントは「変更種別」と「変更概要」で当たる行を決める）。Step 0d で「不在」と判定されている場合、または当たるファイルが0件の場合はこの確認自体をスキップする。
 > 2. 各ファイルの期待ファイルパスを、同マッピングの「更新対象」「更新方法」で反映先になっている `docs/catalog/`・`docs/design/` のファイルとして算出する。定義書のオブジェクトは計画書の括弧書き・変更概要から取り、書かれていなければ `Glob 'force-app/**/{ファイル名}'`（変更種別が削除のファイルは `Glob 'docs/logs/{issueID}/before-snapshot/force-app/**/{ファイル名}'`）の `objects/` 直下のフォルダ名を使う（Glob で1つに決まらない・見つからないファイルは期待パスに入れず、完了報告の「未確認事項」に `⚠ catalog/design 未確認（オブジェクト未特定）: {ファイル名}` と書く）。Apex クラス・トリガー・フローの操作するオブジェクトは、変更概要に無ければ、同じ Glob で見つけたファイルのトリガーの `on`・フローの `<object>`・Apex の SOQL の `FROM` と DML するレコードの型を全部使う（変更は before-snapshot の写しと比べて増えた・外れたものだけ）。参照先は field-meta.xml の `<referenceTo>`。値セットの行は、force-app の field-meta.xml を `<valueSetName>{値セット名}</valueSetName>` で Grep して当たったオブジェクトを全部使う（標準値セットは対応する標準項目）。定義書・設計書が無いものは期待パスに入れない。
-> 3. 以下で `implementation-plan.md` 作成後に更新されたファイル一覧を取得する（Step 2a-2 と同型の `-newer` 判定）:
+> 3. 以下で `implementation-start.md`（Phase 4 が force-app の編集を始めるときに作る）より後に更新されたファイル一覧を取得する（Step 2a-2 と同型の `-newer` 判定）:
 >    ```bash
->    find docs/catalog docs/design -type f -newer docs/logs/{issueID}/implementation-plan.md 2>/dev/null
+>    find docs/catalog docs/design -type f -newer docs/logs/{issueID}/implementation-start.md 2>/dev/null
 >    ```
 > 4. 手順2の期待パスのうち手順3の一覧に含まれないものを「未更新の可能性」として記録する。**内容の正しさまでは検証しない存在+更新有無の機械確認であり、ブロッキングしない**（WARNING 扱い）。1件以上あれば完了報告の「未確認事項」に `⚠ catalog/design 未更新の可能性: {パス一覧}` として明記する。0件なら内部記録のみで完了報告への記載は不要。
 
