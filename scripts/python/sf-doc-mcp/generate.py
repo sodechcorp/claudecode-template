@@ -52,46 +52,47 @@ def connect_via_sf_cli(alias: str) -> SalesforceConnector:
     )
 
 
-def resolve_objects(sf, raw_inputs: list[str]) -> list[str]:
-    """API名またはラベル名からAPI名に解決する（大文字小文字・全角スペース無視）"""
+def resolve_objects(sf, raw_inputs: list[str], known_names=()) -> tuple[list[str], list[str]]:
+    """API名またはラベル名からAPI名に解決する（大文字小文字・全角スペース無視）。
+    API名の形の名前は部分一致にかけない。known_names（前回の定義書のAPI名）で見つからないものは2つ目に返す"""
     # 区切り文字を統一して分割
     joined = " ".join(raw_inputs)
     tokens = [t.strip() for t in re.split(r"[,\s　、]+", joined) if t.strip()]
     if not tokens:
-        return []
+        return [], []
 
     sobjects = sf.describe()["sobjects"]
     name_map  = {o["name"].lower(): o["name"] for o in sobjects}
     label_map = {o["label"].lower(): o["name"] for o in sobjects}
+    known     = {n.lower() for n in known_names}
 
     resolved = []
     unresolved = []
+    missing = []
     for token in tokens:
         key = token.lower()
         if key in name_map:
             resolved.append(name_map[key])
+        elif key in known:
+            missing.append(token)
         elif key in label_map:
             api = label_map[key]
             print(f"  ラベル解決: '{token}' → {api}")
             resolved.append(api)
+        elif re.fullmatch(r"[a-z0-9_]+", key):
+            # API名の形は部分一致にかけない（組織に無い名前が別のオブジェクトに置き換わる）
+            unresolved.append(token)
         else:
-            # 部分一致（ラベル優先、次にAPI名）
-            label_hits = [o for o in sobjects if key in o["label"].lower()]
-            name_hits  = [o for o in sobjects if key in o["name"].lower()]
-            hits = label_hits or name_hits
-
+            # ラベルの部分一致
+            hits = [o for o in sobjects if key in o["label"].lower()]
             if len(hits) == 1:
-                print(f"  部分一致: '{token}' → {hits[0]['name']}")
+                print(f"[警告] 部分一致: '{token}' → {hits[0]['name']}", file=sys.stderr)
                 resolved.append(hits[0]["name"])
             elif len(hits) > 1:
                 # 入力がラベル全体に占める割合が最大のものを推定（最も近い候補）
                 best = max(hits, key=lambda o: len(key) / len(o["label"].lower()))
-                ratio = len(key) / len(best["label"].lower())
                 candidates = [o["name"] for o in hits]
-                if ratio >= 0.6:
-                    print(f"  推定一致: '{token}' → {best['name']}（候補: {candidates}）")
-                else:
-                    print(f"  推定一致（低確度）: '{token}' → {best['name']}（候補: {candidates}）", file=sys.stderr)
+                print(f"[警告] 推定一致: '{token}' → {best['name']}（候補: {candidates}）", file=sys.stderr)
                 resolved.append(best["name"])
             else:
                 unresolved.append(token)
@@ -99,7 +100,7 @@ def resolve_objects(sf, raw_inputs: list[str]) -> list[str]:
     if unresolved:
         print(f"[警告] 解決できなかったオブジェクト: {unresolved}", file=sys.stderr)
 
-    return resolved
+    return list(dict.fromkeys(resolved)), missing
 
 
 def default_sections() -> dict:
@@ -148,13 +149,19 @@ def main():
     print(f"接続OK: {connector._username}")
 
     # オブジェクト名解決
-    objects = resolve_objects(connector.sf, args.objects)
+    prev_meta = read_meta(source_file) if source_file else None
+    objects, missing = resolve_objects(connector.sf, args.objects,
+                                       prev_meta.get("objects", {}) if prev_meta else ())
+    # 一覧から外すと削除として記録されるため、前回の定義書にあるものが見つからなければ書かない
+    if missing:
+        print(f"[エラー] 前回の定義書にあるオブジェクトが接続先の組織で見つからないため出力しません"
+              f"（組織から削除された・権限で見えない・接続先が違う）: {missing}", file=sys.stderr)
+        sys.exit(1)
     if not objects:
         print("[エラー] 有効なオブジェクトが指定されていません", file=sys.stderr)
         sys.exit(1)
 
     # バージョン管理
-    prev_meta = read_meta(source_file) if source_file else None
     if prev_meta:
         current_version = increment_version(prev_meta["version"], args.version_increment)
         history         = prev_meta.get("history", [])
