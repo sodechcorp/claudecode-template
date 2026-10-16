@@ -289,7 +289,7 @@ AskUserQuestion で提示（Other は自動表示。`{n}` は直前のスクリ�
 **「既存＋追加」選択時:** テキストで追加オブジェクトを入力してもらい、既存リストに結合する。
 **Other 選択時:** テキストで全オブジェクトを入力してもらう（区切り文字は何でもOK）。
 
-> 誤ってオブジェクトを消してしまわないよう、通常は「既存と同じ」または「既存＋追加」を使うこと。オブジェクト自体を削除したい場合は Phase 7 完了後に手動で行い、改版履歴に記録する（後述）。
+> 誤ってオブジェクトを消してしまわないよう、通常は「既存と同じ」または「既存＋追加」を使うこと。入力から外したオブジェクトはシートが消え、マイナー更新では改版履歴に「オブジェクト削除」と記録される。
 
 入力内容を `オブジェクトリスト` として保持。`--objects` に渡す（generate.py 内で名前解決する）。
 
@@ -385,7 +385,7 @@ python "{project_dir}/scripts/python/sf-doc-mcp/generate.py" \
 - **新規作成の場合**: `{source_file_arg}` は空文字（`--source-file` 自体を渡さない）。`{version_increment}` は `minor`
 - **更新の場合**: `{source_file_arg}` は `--source-file "{latest_obj_file}"`
 
-完了後、xlsx の存在を確認する。
+generate.py が 0 以外で終わったら、下の確認は流さず失敗の完了報告にする。「差分なし:」を出して終わったとき（minor 更新で既存ファイルと一致）はファイルを書いていないので、下の確認は流さず 7-3 へ進む（完了報告の版は既存ファイルの版）。それ以外は完了後に xlsx の存在を確認する。generate.py の [警告] 行と確認の WARNING は、完了報告の末尾に ⚠️ を付けて書く。
 
 以下の内容で `{output_dir}/.tmp/verify-obj-xlsx-output.py` を Write する:
 ```python
@@ -405,15 +405,15 @@ if mtime.date() != today or os.path.getsize(latest) == 0:
     sys.exit(1)
 
 # 内容検証: 指定オブジェクト数と実際に生成されたオブジェクト数を突き合わせる
-# （generate.py の resolve_objects / fetch_all は一部失敗しても [警告] を出すだけで処理を継続するため、
+# （generate.py の resolve_objects は名前を解決できないオブジェクトを [警告] を出して外すだけで処理を継続するため、
 #  存在確認・mtime・sizeだけでは一部オブジェクトのサイレント欠落を検知できない）
 requested = [t for t in re.split(r'[,\s　、]+', r'{オブジェクトリスト}') if t.strip()]
 meta = read_meta(latest) or {}
 generated = list(meta.get('objects', {}).keys())
 if len(generated) < len(requested):
     print(f'WARNING: 指定 {len(requested)} 件に対し生成されたオブジェクトは {len(generated)} 件（{generated}）。'
-          f'一部オブジェクトの名前解決・メタデータ取得に失敗している可能性があります。'
-          f'上の generate.py 実行ログの [警告]/[エラー] 行を確認してください。')
+          f'一部オブジェクトの名前解決に失敗している可能性があります。'
+          f'上の generate.py 実行ログの [警告] 行を確認してください。')
 
 print(f'OK: {latest} (size={os.path.getsize(latest)} bytes, オブジェクト数={len(generated)}/{len(requested)})')
 ```
@@ -429,10 +429,6 @@ python {output_dir}/.tmp/verify-obj-xlsx-output.py
 > ```
 
 `SF_ALIAS` が `_doc-tmp` 以外の場合はスキップ。
-
-### 7-4. オブジェクト・項目の削除について
-
-オブジェクトや項目が組織から削除された場合、generate.py は対応する行・シートを **そのまま削除して出力** し、改版履歴シートに `YYYY-MM-DD / 削除 / オブジェクト名または項目名` の行を自動追記する（取り消し線は付けない）。自動記録が行われていない場合は手動で追記すること。
 
 ---
 
@@ -451,6 +447,7 @@ python {output_dir}/.tmp/verify-obj-xlsx-output.py
 
 【オブジェクト定義書】
   - オブジェクト項目定義書_v{version}.xlsx
+  - 差分なし（既存ファイルのまま・更新なし）（7-2 で差分なしの場合のみ表示）
 
 ⚠️ 内容検証WARNING: {overview_warning}（overview_warning がある場合のみ表示）
 ```
@@ -463,6 +460,7 @@ python {output_dir}/.tmp/verify-obj-xlsx-output.py
 
 【オブジェクト定義書】
   - オブジェクト項目定義書_v{version}.xlsx
+  - 差分なし（既存ファイルのまま・更新なし）（7-2 で差分なしの場合のみ表示）
 
 ⚠️ プロジェクト概要書は生成されていません（{overview_reason}）
 【対応】内容を確認のうえ、必要であれば /sf-doc を再実行してください。

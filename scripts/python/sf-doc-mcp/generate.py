@@ -178,6 +178,7 @@ def main():
     fetcher = MetadataFetcher(connector)
     sections = default_sections()
     metadata_list = []
+    failed = []
     for obj_name in objects:
         print(f"取得中: {obj_name} ...")
         try:
@@ -185,10 +186,12 @@ def main():
             metadata_list.append(meta_obj)
             print(f"  → 項目数: {len(meta_obj.get('fields', []))}")
         except Exception as e:
-            print(f"  [警告] {obj_name} の取得失敗: {e}", file=sys.stderr)
+            print(f"  [エラー] {obj_name} の取得失敗: {e}", file=sys.stderr)
+            failed.append(obj_name)
 
-    if not metadata_list:
-        print("[エラー] メタデータを取得できたオブジェクトがありません", file=sys.stderr)
+    # 一覧から外すと削除として記録されるため、取得に失敗したら書かない
+    if failed:
+        print(f"[エラー] 取得に失敗したオブジェクトがあるため出力しません: {failed}", file=sys.stderr)
         sys.exit(1)
 
     # 差分計算
@@ -202,8 +205,9 @@ def main():
 
     if not is_major:
         for api_name, diff in diffs.items():
-            # 新規オブジェクトはタブ色赤のみ。全項目赤字にしない
-            if diff.get("new_object"):
+            # 新規オブジェクトはタブ色赤のみ。全項目赤字にしない。外れたオブジェクトはシートが無い
+            if diff.get("new_object") or diff.get("removed_object"):
+                field_changes.pop(api_name, None)
                 continue
             if api_name not in field_changes:
                 field_changes[api_name] = {}
@@ -216,7 +220,7 @@ def main():
                     })
 
     last_no = max((e["no"] for e in history if isinstance(e.get("no"), int)), default=0)
-    entries = vm.build_entries(current_version, diffs, metadata_list,
+    entries = vm.build_entries(current_version, diffs,
                                start_no=last_no + 1, is_major=is_major)
     history = history + entries
 

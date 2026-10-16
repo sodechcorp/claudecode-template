@@ -81,6 +81,15 @@ class VersionManager:
             if len(obj_diff) > 1:   # label 以外に差分あり
                 diffs[api_name] = obj_diff
 
+        # 今回の一覧から外れたオブジェクト
+        new_names = {m["object_api_name"] for m in new_metadata_list}
+        for api_name, old_meta in old_objects.items():
+            if api_name not in new_names:
+                diffs[api_name] = {
+                    "label": old_meta.get("object_info", {}).get("label", api_name),
+                    "removed_object": True,
+                }
+
         return diffs
 
     # ------------------------------------------------------------------ #
@@ -88,7 +97,7 @@ class VersionManager:
     # ------------------------------------------------------------------ #
 
     def build_entries(self, version: str, diffs: dict,
-                      metadata_list: list, start_no: int = 1,
+                      start_no: int = 1,
                       is_major: bool = False) -> list[dict]:
         today = str(date.today())
 
@@ -114,13 +123,8 @@ class VersionManager:
                 "author": self._author,
             }]
 
-        label_map = {
-            m["object_api_name"]: m.get("object_info", {}).get("label", m["object_api_name"])
-            for m in metadata_list
-        }
-
         # 変更箇所・内容を1行に集約
-        sheets   = [label_map.get(api, api) for api in diffs]
+        sheets   = [diff["label"] for diff in diffs.values()]
         contents = [_summarize(diff) for diff in diffs.values()]
         return [{
             "no":      start_no,
@@ -161,6 +165,8 @@ def _comparable(field: dict) -> tuple:
 def _summarize(diff: dict) -> str:
     if diff.get("new_object"):
         return "新規オブジェクト追加"
+    if diff.get("removed_object"):
+        return "オブジェクト削除"
     parts = []
     fd = diff.get("fields", {})
     if fd.get("added"):
