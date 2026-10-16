@@ -24,7 +24,7 @@
 
 各エージェントは自ファイルにカテゴリ固有の必須項目を記述し、本ファイルを参照する。
 
-### cat2: catalog/*.md
+### cat2: catalog/{standard,custom}/*.md
 ```
 必須 H2: .claude/templates/sf-analyst-cat2/object-definition-template.md「オブジェクト定義書の必須構成」のコードブロックの H2
 ```

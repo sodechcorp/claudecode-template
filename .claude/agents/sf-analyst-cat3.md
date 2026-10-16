@@ -179,7 +179,7 @@ sf data query -q "SELECT Name, SobjectType FROM AssignmentRule WHERE Active = tr
 ```
 → エラーが出ても続行（権限によっては取得できない場合あり）。**取得失敗時は `automation-config.md` の該当セクションに `**[要確認: API権限不足]**` と明記し、完了報告の「要確認事項」にも「SOQL 失敗: {対象テーブル名}」として列挙する**（空欄・無記載は禁止）。
 
-記録内容: キュー名・対象オブジェクト・用途（推定）。承認プロセスは **承認者の条件・段階数・差戻しルール** まで記録する（cat1 の usecases.md との紐付けを確認）。
+記録内容: キュー名・対象オブジェクト・用途（推定）。承認プロセスは **承認者の条件・段階数・差戻しルール** まで記録する（`force-app/main/default/approvalProcesses/<TableEnumOrId>.<DeveloperName>.approvalProcess-meta.xml` から取る。ファイルが無ければ `**[組織未調査]**`。cat1 の usecases.md との紐付けを確認）。
 
 ### Phase 5: データ統計の収集（data-statistics.md）
 

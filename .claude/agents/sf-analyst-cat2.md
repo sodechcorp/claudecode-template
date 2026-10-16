@@ -73,7 +73,7 @@ docs/catalog/
 
 [共通手順参照](../templates/sf-memory/phase0.5-common.md) — cat2 固有の必須 H2: [object-definition-template.md](../templates/sf-analyst-cat2/object-definition-template.md)「オブジェクト定義書の必須構成」のコードブロックの H2
 
-1. `docs/catalog/` 配下の既存 `.md` を Glob で列挙 → ファイルごとに `^## ` を Grep して H2 見出しを全て抽出
+1. `docs/catalog/{standard,custom}/*.md` を Glob で列挙 → ファイルごとに `^## ` を Grep して H2 見出しを全て抽出
 2. 上記必須 H2 と照合し（名前が違っても相当する節があれば欠落にしない）、欠落があれば Phase 3 で末尾追記（手動追記は保護）
 3. **技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各オブジェクト定義書の **説明文・備考・業務的意味プロズセクション**（例: 「基本情報 > 用途」「所見・注意点」）。**注意**: 「全項目一覧」テーブルの API 名カラム・型カラムは適用外（API 名の記録が目的）
 
@@ -170,6 +170,7 @@ python -c "import re, pathlib; text = pathlib.Path(r'{project_dir}/CLAUDE.md').r
 sf sobject describe -s <オブジェクト名> --json
 sf data query -q "SELECT COUNT() FROM <オブジェクト名>" --json
 sf data query --use-tooling-api -q "SELECT QualifiedApiName, Label, DataType, ReferenceTo FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '<オブジェクト名>'" --json
+sf data query --use-tooling-api -q "SELECT Id, ValidationName, Active, ErrorMessage FROM ValidationRule WHERE EntityDefinition.QualifiedApiName = '<オブジェクト名>'" --json
 ```
 
 describe は接続ユーザーに項目レベルセキュリティで見えない項目を返さない。FieldDefinition にあって describe に無い項目のうち、カスタム項目（名前に `__` を含むもの）と、`sf data query -q "SELECT Field FROM FieldPermissions WHERE SobjectType = '<オブジェクト名>' AND Field IN ('<オブジェクト名>.<項目>', ...)" --json` で返る標準項目（返らない標準項目は誰の describe にも出ない内部項目）は、`force-app/main/default/objects/<Object>/fields/<項目>.field-meta.xml`（無ければ FieldDefinition の表示ラベル・型・参照先）から全項目一覧の行（選択リストなら valueSet からピックリスト値、参照なら referenceTo からリレーションも）を作り、備考に `**[接続ユーザーに非表示]**` を付ける。
@@ -185,6 +186,8 @@ describe は接続ユーザーに項目レベルセキュリティで見えな�
 
 リレーション（参照先・Lookup と MasterDetail の別・このオブジェクトを参照している他オブジェクト）は describe の `fields[]` の `referenceTo`・`relationshipName`・`relationshipOrder`（MasterDetail のときだけ null でない）と `childRelationships` から取る。
 
+入力規則（名前・有効/無効・エラーメッセージ）は ValidationRule の結果から取る。条件式は `force-app/main/default/objects/<Object>/validationRules/<ValidationName>.validationRule-meta.xml` の `<errorConditionFormula>`（`&quot;` 等の文字参照は元の文字に戻す）から取り、ファイルが無い規則だけ `sf data query --use-tooling-api -q "SELECT Metadata FROM ValidationRule WHERE Id = '<Id>'" --json` の `Metadata.errorConditionFormula` から取る（Metadata は結果が1行のクエリでしか返らない）。
+
 > コマンドが失敗した場合は「取得失敗：権限またはAPI制限を確認」と警告ログを出力し、該当項目を `**[要確認]**` として定義書に記載すること。
 
 **オブジェクトメタファイルの読み込み（Phase 2 先頭）:**
@@ -198,7 +201,7 @@ describe は接続ユーザーに項目レベルセキュリティで見えな�
 - **基本情報**: オブジェクト名（API名・ラベル）・用途（`object-meta.xml <description>` があれば事実記述、なければ推定）・レコード件数・オブジェクトタイプ
 - **全項目**: 型・長さ・必須・一意・デフォルト値・数式の場合は数式全文・外部IDか否か
 - **リレーション**: Lookup/MasterDetail（方向・参照先）・Junction Object か否か
-- **レコードタイプ**: 名前・有効/無効・用途（`object-meta.xml <description>` または推定）
+- **レコードタイプ**: 名前・有効/無効・用途（`sf data query -q "SELECT DeveloperName, Description FROM RecordType WHERE SobjectType = '<オブジェクト名>'" --json` の Description。空なら推定）
 - **入力規則**: 名前・条件式・エラーメッセージ（全文）・有効/無効
 - **ピックリスト値**: `describe` の `picklistValues` 配列を**ループし、1値=1行**で全値（API名・ラベル・デフォルト値・有効/無効）を収集する。カンマ連結で1行にまとめない（記法は object-definition-template.md「ピックリスト値セクションの記法規約」を厳守）
 
