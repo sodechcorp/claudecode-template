@@ -18,7 +18,7 @@ from pathlib import Path
 import yaml
 
 from feature_id_ledger import _APEX_GROUP, _FLOW_GROUP
-from scan_features import classify_apex, design_doc_ids, is_trivial_vf_page
+from scan_features import _KIND_DESIGN_DIRS, classify_apex, design_doc_ids, is_trivial_vf_page
 
 
 # kind ごとのメタデータキー・API 名フィールド・ソースのパス（force-app/main/default/ 配下）・台帳の type のマッピング
@@ -35,13 +35,6 @@ _KIND_META = {
         ("apex_pages", "Name", "pages/{}.page-meta.xml", {"Visualforce"}),
         ("aura_bundles", "DeveloperName", "aura/{}", {"Aura"}),
     ],
-}
-
-# kind ごとの設計書出力ディレクトリ（docs/design/ 配下）
-_KIND_DESIGN_DIRS = {
-    "flow": ["flow"],
-    "apex": ["apex", "batch", "integration"],
-    "lwc": ["lwc", "vf", "aura"],
 }
 
 

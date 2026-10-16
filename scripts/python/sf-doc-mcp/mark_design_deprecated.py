@@ -17,8 +17,8 @@ from pathlib import Path
 
 import yaml
 
-# scan_features.py の _TYPE_TO_DESIGN_FOLDER を再利用（DRY）
-from scan_features import _TYPE_TO_DESIGN_FOLDER, design_doc_ids
+# 設計書を探すフォルダは verify_cat4_completeness.py と同じ scan_features.py の定義を使う（DRY）
+from scan_features import design_doc_ids, design_folders
 
 
 BANNER_MARKER = "<!-- sf-memory:deprecated-banner -->"
@@ -38,17 +38,24 @@ STATUS_ROW_REPLACEMENT = r"\1 **[廃止]** \3"
 
 
 def find_design_md(project_dir: Path, ftype: str, feat_id: str, api_name: str) -> Path | None:
-    """feature_ids.yml のエントリに対応する設計書 MD を探して返す。
+    """feature_ids.yml のエントリに対応する設計書 MD を、design_folders のフォルダの順に探して返す。
 
-    検索戦略:
-    1. _TYPE_TO_DESIGN_FOLDER でサブフォルダを特定
-    2. 「【{feat_id}】*.md」の glob で厳密に検索
-    3. 複合ファイル（【F-002・F-003】等）の feat_id 包含も拾う
+    種別のフォルダの外では、同じ kind の別のフォルダにある古い番号の設計書（同じ ID の別のコンポーネント）に
+    注記を付けないよう、本文に api_name が出てくるものだけ採る。
     """
-    folder = _TYPE_TO_DESIGN_FOLDER.get(ftype)
-    if folder is None:
-        return None
-    sub = project_dir / "docs" / "design" / folder
+    folders = design_folders(ftype)
+    for folder in folders:
+        md = _find_in_folder(project_dir / "docs" / "design" / folder, feat_id, api_name)
+        if md and (folder == folders[0] or api_name in md.read_text(encoding="utf-8", errors="ignore")):
+            return md
+    return None
+
+
+def _find_in_folder(sub: Path, feat_id: str, api_name: str) -> Path | None:
+    """検索戦略:
+    1. 「【{feat_id}】*.md」の glob で厳密に検索
+    2. 複合ファイル（【F-002・F-003】等）の feat_id 包含も拾う
+    """
     if not sub.exists():
         return None
 

@@ -200,7 +200,7 @@ def extract_lwc_overview(lwc_dir: Path, design_doc: str | None = None) -> str:
     """LWC コンポーネントバンドルから概要を抽出する。
 
     優先順:
-      1. docs/design/lwc/ の MD title
+      1. docs/design/ の MD title
       2. .js-meta.xml の <description> / <masterLabel>
       3. .js の冒頭 JSDoc（`/** ... */`）
       4. .js の最初の単行コメント（`// ...`）
@@ -333,7 +333,7 @@ def extract_aura_overview(aura_dir: Path, design_doc: str | None = None) -> str:
     """Aura コンポーネントバンドルから概要を抽出する。
 
     優先順:
-      1. docs/design/aura/ の MD title
+      1. docs/design/ の MD title
       2. .cmp-meta.xml の <description>（デフォルト値は除外）
       3. .design の <design:component label="..."> 属性
       4. .cmp の冒頭 HTML コメント
@@ -506,16 +506,38 @@ _TYPE_TO_DESIGN_FOLDER = {
     "Integration": "integration",
 }
 
+# verify_cat4_completeness.py の --kind ごとの設計書のサブフォルダ（cat4-apex・cat4-flow・cat4-lwc の出力先）
+_KIND_DESIGN_DIRS = {
+    "flow": ["flow"],
+    "apex": ["apex", "batch", "integration"],
+    "lwc": ["lwc", "vf", "aura"],
+}
 
-def get_design_doc(docs_design_dir: Path, name: str, ftype: str = "") -> str | None:
+
+def design_folders(ftype: str) -> list[str]:
+    """種別の設計書を探すサブフォルダを、種別のフォルダ・同じ kind の他のフォルダの順で返す。
+
+    複合ファイルは代表の種別のフォルダに置かれ（Handler が batch/ に入る）、古い案件は Aura を lwc/ に、
+    Apex を integration/ に置いているので、種別のフォルダだけでは見つからない。
+    """
+    folder = _TYPE_TO_DESIGN_FOLDER.get(ftype)
+    if folder is None:
+        return []
+    dirs = next((d for d in _KIND_DESIGN_DIRS.values() if folder in d), [folder])
+    return [folder, *(d for d in dirs if d != folder)]
+
+
+def get_design_doc(docs_design_dir: Path, name: str, ftype: str = "", fid: str = "") -> str | None:
     """docs/design/ 配下から機能名に対応するMDファイルのパスを返す。
 
     マッチングは「スペース・ハイフン除去した小文字一致（stem 完全一致）」のみで行い、
     異なる種別同士の誤マッチ（例: Flow `QuoteRequestPending` が LWC `request.md` に
     マッチしてしまう）を防ぐ。
 
-    種別が指定された場合はまず対応サブフォルダ内を探索し、見つからない場合のみ
-    docs/design/ 全体を再検索する。
+    種別が指定された場合は design_folders のフォルダだけを探す（Aura と同名の Apex コントローラの設計書等、
+    他の kind のフォルダに誤マッチさせない）。種別のフォルダの外では、同じ kind の同名の別種別
+    （Aura と VF の forgotPassword 等）を拾わないよう、ファイル名の機能IDに fid があるものだけ採る。
+    種別不明時のみ docs/design/ 全体を探す。
     """
     def _normalize(s: str) -> str:
         return re.sub(r'[-_\s]', '', s.lower())
@@ -527,16 +549,16 @@ def get_design_doc(docs_design_dir: Path, name: str, ftype: str = "") -> str | N
         stem = re.sub(r'^【[^】]+】', '', md.stem)
         return _normalize(stem) == target
 
-    # 1. 種別に対応するサブフォルダ内をまず検索（誤マッチ防止）
-    folder = _TYPE_TO_DESIGN_FOLDER.get(ftype)
-    if folder:
-        sub_dir = docs_design_dir / folder
-        if sub_dir.exists():
-            for md in sub_dir.rglob("*.md"):
-                if _match(md):
-                    return md.as_posix()
-            # 同種フォルダに無ければ None を返す（他種別フォルダに誤マッチさせない）
-            return None
+    # 1. 種別に対応するサブフォルダ内を検索（誤マッチ防止）
+    folders = design_folders(ftype)
+    if folders:
+        for folder in folders:
+            sub_dir = docs_design_dir / folder
+            if sub_dir.exists():
+                for md in sub_dir.rglob("*.md"):
+                    if _match(md) and (folder == folders[0] or fid in design_doc_ids(md)):
+                        return md.as_posix()
+        return None
 
     # 2. 種別不明時のみ全体を完全一致で検索
     for md in docs_design_dir.rglob("*.md"):
@@ -645,6 +667,9 @@ def scan(project_dir: Path) -> list[dict]:
                 entry[key] = Path(entry[key]).relative_to(project_dir).as_posix()
         features.append(entry)
 
+    def _design_doc(ftype: str, api_name: str) -> str | None:
+        return get_design_doc(docs_design, api_name, ftype, resolve_id(ledger, ftype, api_name))
+
     # --- Apex / Batch ---
     base = force_app / "classes"
     if base.exists():
@@ -652,7 +677,7 @@ def scan(project_dir: Path) -> list[dict]:
             classified = classify_apex(cls_file)
             if classified is None:
                 continue
-            doc = get_design_doc(docs_design, cls_file.stem, classified)
+            doc = _design_doc(classified, cls_file.stem)
             _add(classified, cls_file.stem, {
                 "name":        cls_file.stem,
                 "overview":    extract_javadoc(cls_file, cls_file.stem, doc),
@@ -665,7 +690,7 @@ def scan(project_dir: Path) -> list[dict]:
     if base.exists():
         for trig_file in sorted(base.glob("*.trigger")):
             handler = extract_trigger_handler(trig_file)
-            doc = get_design_doc(docs_design, trig_file.stem, "Trigger")
+            doc = _design_doc("Trigger", trig_file.stem)
             _add("Trigger", trig_file.stem, {
                 "name":        trig_file.stem,
                 "overview":    extract_trigger_overview(trig_file, doc),
@@ -682,7 +707,7 @@ def scan(project_dir: Path) -> list[dict]:
             flow_type = "画面フロー" if ptype == "Flow" and b"<screens>" in flow_file.read_bytes() else "Flow"
             api_name = flow_file.name.replace(".flow-meta.xml", "")
             # flow_file.stem だと "X.flow-meta" のように .flow-meta が残ってしまうので api_name を使う
-            doc = get_design_doc(docs_design, api_name, flow_type)
+            doc = _design_doc(flow_type, api_name)
             # 優先順: design_doc の title → description → label
             overview = extract_design_doc_title(doc) or clean_tech_business(desc.strip())
             if not overview and label and label != api_name:
@@ -706,7 +731,7 @@ def scan(project_dir: Path) -> list[dict]:
                 candidate = name[:-5]   # "Modal" / "modal" = 5文字
                 if candidate and candidate in lwc_names:
                     parent_name = candidate
-            doc = get_design_doc(docs_design, name, "LWC")
+            doc = _design_doc("LWC", name)
             _add("LWC", name, {
                 "name":        name,
                 "overview":    extract_lwc_overview(comp_dir, doc),
@@ -719,7 +744,7 @@ def scan(project_dir: Path) -> list[dict]:
     base = force_app / "aura"
     if base.exists():
         for comp_dir in sorted(p for p in base.iterdir() if p.is_dir()):
-            doc = get_design_doc(docs_design, comp_dir.name, "Aura")
+            doc = _design_doc("Aura", comp_dir.name)
             _add("Aura", comp_dir.name, {
                 "name":        comp_dir.name,
                 "overview":    extract_aura_overview(comp_dir, doc),
@@ -738,7 +763,7 @@ def scan(project_dir: Path) -> list[dict]:
                 active_keys.add(_make_key("Visualforce", api_name))
                 print(f"[情報] 空/雛形VFを設計書対象外: {api_name}", file=sys.stderr)
                 continue
-            doc = get_design_doc(docs_design, api_name, "Visualforce")
+            doc = _design_doc("Visualforce", api_name)
             _add("Visualforce", api_name, {
                 "name":        api_name,
                 "overview":    extract_vf_overview(page_file, doc),
