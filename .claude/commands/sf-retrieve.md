@@ -149,7 +149,8 @@ git diff --name-only force-app/
 | `force-app/main/default/lwc/` | LWC |
 | `force-app/main/default/aura/` | Aura |
 | `force-app/main/default/pages/` | Visualforce |
-| `force-app/main/default/objects/` | オブジェクト / 項目 / レイアウト / レコードタイプ |
+| `force-app/main/default/objects/`・`force-app/main/default/globalValueSets/`・`force-app/main/default/standardValueSets/` | オブジェクト / 項目 / レコードタイプ / コンパクトレイアウト |
+| `force-app/main/default/layouts/`・`force-app/main/default/flexipages/` | ページレイアウト / Lightning ページ |
 | それ以外 | その他メタデータ |
 
 該当する項目のみ通知する:
@@ -159,7 +160,8 @@ git diff --name-only force-app/
 
 【変更検出】
 - Apex / Flow / LWC / Trigger: {変更ファイル名一覧}
-- オブジェクト / 項目 / レイアウト / レコードタイプ: {変更ファイル名一覧}
+- オブジェクト / 項目 / レコードタイプ / コンパクトレイアウト: {変更ファイル名一覧}
+- ページレイアウト / Lightning ページ: {変更ファイル名一覧}
 - その他メタデータ: {変更ファイル名一覧}
 
 【ドキュメント更新推奨】
@@ -168,10 +170,10 @@ git diff --name-only force-app/
   □ cat1: requirements.md / usecases.md
     → 仕様変更・新機能追加・業務フロー変更を伴う場合
   □ cat2: オブジェクト/項目定義
-    → オブジェクト項目・レイアウト・レコードタイプ・入力規則変更時
+    → オブジェクト・項目・レコードタイプ・入力規則変更時
     対象: {オブジェクト名}
   □ cat3: マスタデータ/自動化設定
-    → フロー外の自動化・メールテンプレート・マスタデータ変更時
+    → フロー外の自動化・キュー・メールテンプレート・レポート・ダッシュボード・マスタデータ（カスタムメタデータ・カスタム設定を含む）変更時
   □ cat4: コンポーネント設計書
     → Apex / Trigger / Flow / LWC / Aura / Visualforce / Batch / Integration 全コンポーネント変更時
     対象: {コンポーネント名}
@@ -181,7 +183,7 @@ git diff --name-only force-app/
 
 ■ /sf-design / /sf-doc（成果物の再生成）
   □ 機能一覧.xlsx        — 新規コンポーネント追加・削除時（cat4完了後）
-  □ オブジェクト定義書.xlsx — オブジェクト/項目変更時（cat2完了後）  対象: {オブジェクト名}
+  □ オブジェクト定義書.xlsx — オブジェクト・項目・レコードタイプ・入力規則・コンパクト／検索レイアウトの変更時、ページレイアウト・Lightning ページ・項目セットの追加・削除・ラベル変更時、ページレイアウトの割り当て変更時（オブジェクト追加時は cat2完了後）  対象: {オブジェクト名}
   □ 詳細設計.xlsx        — コード・オブジェクト・仕様いずれかの変更時（cat4完了後）  対象FG: {FG名}
   □ プログラム設計書.xlsx  — コード変更時（cat4完了後）  対象: {コンポーネント名}
 ```
