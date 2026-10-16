@@ -832,14 +832,7 @@ class DefinitionWriter:
     # ------------------------------------------------------------------ #
 
     def _write_search_layouts(self, ws, layouts: list, row: int) -> int:
-        data = []
-        for sl in (layouts if isinstance(layouts, list) else [layouts]):
-            if isinstance(sl, dict):
-                fields_str = ", ".join(
-                    c.get("label", c.get("fieldApiName",""))
-                    for c in sl.get("columns",[]) if isinstance(c, dict)
-                )
-                data.append([sl.get("layoutType",""), fields_str])
+        data = [[sl.get("label",""), ", ".join(sl.get("fields",[]))] for sl in layouts]
         return _write_section(ws, row, "検索レイアウト",
                               ["レイアウト種別","表示項目"],
                               data, SECTION_SPANS["search_layouts"])

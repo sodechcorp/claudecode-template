@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Salesforce メタデータ取得"""
 
-import sys
 from typing import Any
 from connector import SalesforceConnector
 from dependency import fetch_field_usage
@@ -35,8 +34,8 @@ class MetadataFetcher:
             ("record_types",     lambda: self._fetch_record_types(object_api_name)),
             ("page_layouts",     lambda: self._fetch_page_layouts(object_api_name)),
             ("lightning_pages",  lambda: self._fetch_lightning_pages(object_api_name)),
-            ("compact_layouts",  lambda: self._fetch_compact_layouts(object_api_name)),
-            ("search_layouts",   lambda: self._fetch_search_layouts(object_api_name)),
+            ("compact_layouts",  lambda: self._fetch_compact_layouts(describe)),
+            ("search_layouts",   lambda: self._fetch_search_layouts(describe)),
             ("field_sets",       lambda: self._fetch_field_sets(object_api_name)),
             ("validation_rules", lambda: self._fetch_validation_rules(object_api_name)),
             ("lookup_filters",   lambda: self._fetch_lookup_filters(describe)),
@@ -75,17 +74,12 @@ class MetadataFetcher:
 
     def _tooling_query(self, soql: str) -> list:
         """Tooling API 経由で SOQL を実行する（ページネーション対応）"""
-        try:
-            result  = self._sf.restful("tooling/query/", params={"q": soql})
-            records = result.get("records", [])
-            while result.get("nextRecordsUrl"):
-                path   = result["nextRecordsUrl"].split("/services/data/", 1)[-1]
-                result = self._sf.restful(path)
-                records.extend(result.get("records", []))
-            return records
-        except Exception as e:
-            print(f"  [WARN Tooling API] {e} | SQL: {soql[:80]}")
-            return []
+        result  = self._sf.restful("tooling/query/", params={"q": soql})
+        records = result.get("records", [])
+        while result.get("nextRecordsUrl"):
+            result = self._sf.query_more(result["nextRecordsUrl"], identifier_is_url=True)
+            records.extend(result.get("records", []))
+        return records
 
     # ------------------------------------------------------------------ #
     # 各セクション取得
@@ -135,24 +129,20 @@ class MetadataFetcher:
         }
 
     def _fetch_record_types(self, api_name: str) -> list[dict]:
-        try:
-            result = self._sf.query(
-                f"SELECT Id, Name, DeveloperName, Description, IsActive "
-                f"FROM RecordType WHERE SobjectType = '{api_name}'"
-            )
-            rows = []
-            for r in result.get("records", []):
-                rows.append({
-                    "id":             r.get("Id", ""),
-                    "name":           r.get("Name", ""),
-                    "developer_name": r.get("DeveloperName", ""),
-                    "description":    r.get("Description", ""),
-                    "is_active":      r.get("IsActive", False),
-                })
-            return rows
-        except Exception as e:
-            print(f"[WARN] _fetch_record_types({api_name}): {e}", file=sys.stderr)
-            return []
+        result = self._sf.query(
+            f"SELECT Id, Name, DeveloperName, Description, IsActive "
+            f"FROM RecordType WHERE SobjectType = '{api_name}'"
+        )
+        rows = []
+        for r in result.get("records", []):
+            rows.append({
+                "id":             r.get("Id", ""),
+                "name":           r.get("Name", ""),
+                "developer_name": r.get("DeveloperName", ""),
+                "description":    r.get("Description", ""),
+                "is_active":      r.get("IsActive", False),
+            })
+        return rows
 
     def _fetch_page_layouts(self, api_name: str) -> list[dict]:
         # レイアウト一覧
@@ -196,12 +186,6 @@ class MetadataFetcher:
                 "profiles":     "\n".join(profiles),
                 "record_types": "\n".join(rts),
             })
-
-        # 割り当て情報が取れなかった場合は基本情報だけ（フィルタ済み layout_map を使用）
-        if not result:
-            return [{"id": lid, "name": lname, "profiles": "", "record_types": ""}
-                    for lid, lname in layout_map.items()]
-
         return result
 
     def _fetch_lightning_pages(self, api_name: str) -> list[dict]:
@@ -219,31 +203,42 @@ class MetadataFetcher:
             for r in records
         ]
 
-    def _fetch_compact_layouts(self, api_name: str) -> list[dict]:
-        try:
-            resp = self._sf.restful(f"sobjects/{api_name}/describe/compactLayouts")
-            layouts = resp.get("compactLayouts", [])
-            return [
-                {
-                    "id":     cl.get("id", ""),
-                    "name":   cl.get("name", ""),
-                    "label":  cl.get("label", ""),
-                    "fields": [f.get("label", "") for f in cl.get("fields", [])],
-                }
-                for cl in layouts
-            ]
-        except Exception as e:
-            print(f"[WARN] _fetch_compact_layouts({api_name}): {e}", file=sys.stderr)
+    def _fetch_compact_layouts(self, describe: dict) -> list[dict]:
+        if not describe.get("compactLayoutable"):
             return []
+        api_name = describe["name"]
+        resp = self._sf.restful(f"sobjects/{api_name}/describe/compactLayouts")
+        layouts = resp.get("compactLayouts")
+        if layouts is None:
+            # レコードタイプのあるオブジェクトはレコードタイプごとの割り当てだけが返る
+            assigned = {(m.get("compactLayoutId"), m.get("compactLayoutName")): m["recordTypeId"]
+                        for m in resp.get("recordTypeCompactLayoutMappings") or []}
+            layouts = [self._sf.restful(f"sobjects/{api_name}/describe/compactLayouts/{rt_id}")
+                       for rt_id in assigned.values()]
+        return [
+            {
+                "id":     cl.get("id", ""),
+                "name":   cl.get("name", ""),
+                "label":  cl.get("label", ""),
+                "fields": [f.get("label", "") for f in cl.get("fieldItems") or []],
+            }
+            for cl in layouts
+        ]
 
-    def _fetch_search_layouts(self, api_name: str) -> list[dict]:
-        try:
-            resp = self._sf.restful(f"sobjects/{api_name}/describe/searchLayouts")
-            if isinstance(resp, list):
-                return resp
-            return [resp] if resp else []
-        except Exception:
+    def _fetch_search_layouts(self, describe: dict) -> list[dict]:
+        if not describe.get("searchLayoutable"):
             return []
+        layouts = self._sf.restful("search/layout/", params={"q": describe["name"]})
+        for sl in layouts:
+            if sl.get("errorMsg"):
+                raise RuntimeError(f"search/layout ({describe['name']}): {sl['errorMsg']}")
+        return [
+            {
+                "label":  sl.get("label", ""),
+                "fields": [c.get("label", "") for c in sl.get("searchColumns") or []],
+            }
+            for sl in layouts
+        ]
 
     def _fetch_field_sets(self, api_name: str) -> list[dict]:
         records = self._tooling_query(

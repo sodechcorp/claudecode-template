@@ -56,11 +56,7 @@ def fetch_field_usage(sf, obj_api_name: str) -> dict[str, str]:
     # Step1: カスタム項目 Id → API名 マッピング
     q1 = (f"SELECT Id, DeveloperName FROM CustomField "
           f"WHERE EntityDefinition.QualifiedApiName = '{obj_api_name}'")
-    try:
-        r1 = sf.restful(f"tooling/query?q={urllib.parse.quote(q1, safe='')}")
-    except Exception as e:
-        print(f"  [WARN] 項目ID取得失敗 ({obj_api_name}): {e}")
-        return {}
+    r1 = sf.restful(f"tooling/query?q={urllib.parse.quote(q1, safe='')}")
 
     id_to_api: dict[str, str] = {
         r["Id"]: f"{r['DeveloperName']}__c"
@@ -78,11 +74,7 @@ def fetch_field_usage(sf, obj_api_name: str) -> dict[str, str]:
         q2 = (f"SELECT MetadataComponentName, MetadataComponentType, RefMetadataComponentId "
               f"FROM MetadataComponentDependency "
               f"WHERE RefMetadataComponentId IN ('{id_list}')")
-        try:
-            r2 = sf.restful(f"tooling/query?q={urllib.parse.quote(q2, safe='')}")
-        except Exception as e:
-            print(f"  [WARN] 依存関係取得失敗 ({obj_api_name}): {e}")
-            return {}
+        r2 = sf.restful(f"tooling/query?q={urllib.parse.quote(q2, safe='')}")
         all_records.extend(r2.get("records", []))
 
     # Step3: api_name → 利用箇所リスト にまとめる
