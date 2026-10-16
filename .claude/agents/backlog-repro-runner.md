@@ -239,29 +239,14 @@ WAIT_OK={0 または 1}
 export RESTORE_FILE="{証跡保存先}/logs/restore_H{N}.json"
 FIELDS=$(python -c "import json, os; print(', '.join(json.load(open(os.environ['RESTORE_FILE'], encoding='utf-8'))['fields']))")
 check_restored() {
-  sf data query --query "SELECT $FIELDS FROM {SObjectAPI名} WHERE Id = '{RecordId}'" --target-org "$SF_ALIAS" --json | python -c "
-import sys, json, os
-d = json.load(open(os.environ['RESTORE_FILE'], encoding='utf-8'))
-r = {k.lower(): v for k, v in json.load(sys.stdin)['result']['records'][0].items()}
-n = lambda v: '' if v is None else str(v)
-print('OK' if all(n(r.get(k.lower())) == n(v) for k, v in d['fields'].items()) else 'NG')
-"
+  sf data query --query "SELECT $FIELDS FROM {SObjectAPI名} WHERE Id = '{RecordId}'" --target-org "$SF_ALIAS" --json | python -c "import sys, json, os; d = json.load(open(os.environ['RESTORE_FILE'], encoding='utf-8')); r = {k.lower(): v for k, v in json.load(sys.stdin)['result']['records'][0].items()}; n = lambda v: '' if v is None else str(v); print('OK' if all(n(r.get(k.lower())) == n(v) for k, v in d['fields'].items()) else 'NG')"
 }
 MATCH=$(check_restored)
 # 既に原値のまま（操作が保存されなかった等）なら update しない（値の変わらない update でもトリガー・フロー・後から動く処理が動くため）
 if [ "$MATCH" != "OK" ]; then
   # restore_H{N}.json の fields を sf CLI --values 形式に変換する
   # （値をダブルクォートで囲みスペース混入に対応、null は空文字列に変換して誤って文字列"None"をセットしないようにする）
-  RESTORE_VALUES=$(python -c "
-import json
-d = json.load(open(r'{証跡保存先}/logs/restore_H{N}.json', encoding='utf-8'))
-def esc(v):
-    v = '' if v is None else str(v)
-    v = v.replace(chr(92), chr(92) * 2)
-    v = v.replace(chr(34), chr(92) + chr(34))
-    return v
-print(' '.join(f'{k}=\"{esc(v)}\"' for k, v in d['fields'].items()))
-")
+  RESTORE_VALUES=$(python -c "import json; d = json.load(open(r'{証跡保存先}/logs/restore_H{N}.json', encoding='utf-8')); esc = lambda v: ('' if v is None else str(v)).replace(chr(92), chr(92) * 2).replace(chr(34), chr(92) + chr(34)); print(' '.join(f'{k}=\"{esc(v)}\"' for k, v in d['fields'].items()))")
   sf data update record --sobject {SObjectAPI名} --record-id {RecordId} \
     --values "$RESTORE_VALUES" --target-org "$SF_ALIAS" --json
   N=0

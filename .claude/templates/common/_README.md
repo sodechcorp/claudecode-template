@@ -28,7 +28,7 @@
 
 | ファイル | 目的 | 正本 |
 |---|---|---|
-| `backlog-mcp-hygiene.md` | Backlog MCP 呼び出し時の作法（書き込み系ハードブロックとの付き合い方等） | ○ |
+| `backlog-mcp-hygiene.md` | Backlog MCP の取得の作法（count 指定・ページング・転記するフィールドの絞り込み） | ○ |
 | `knowledge-reflux-formats.md` | `backlog-releaser.md` / `backlog.md §中断時の知見還流` が共有する追記フォーマット | ○ |
 | `manual-steps-todo-handoff.md` | 手順書の Todo 化・逐次ハンドオフ共通仕様（`/release` Step 4・Step 5・`/backlog` Phase 6 が使用） | ○ |
 | `cases-format.md` | `docs/knowledge/cases/<案件キー>.md` の出力構造 | ○ |

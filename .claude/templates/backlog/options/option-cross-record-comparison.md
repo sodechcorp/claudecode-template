@@ -37,16 +37,8 @@ sf data query --query "SELECT {調査対象フィールドリスト} FROM {Objec
 取得した症状あり/なしレコードを横断的に比較する:
 
 ```bash
-# JSON出力を整形して差分確認
-# （必要に応じて Python や jq で整形する）
-python -c "
-import json, sys
-data = json.load(open('/dev/stdin'))
-for r in data['result']['records']:
-    print({k: v for k, v in r.items() if k != 'attributes'})
-" << 'EOF'
-{sf data query の JSON 出力}
-EOF
+# Step 2 の各コマンドの末尾（--json の後ろ）にこのパイプを付けて実行する（流し直さない）。attributes を除いた1レコード1行に整形して差分確認
+sf data query --query "{Step 2 の SOQL}" --target-org <症状が出た組織の alias> --json | python -c "import json, sys; [print({k: v for k, v in r.items() if k != 'attributes'}) for r in json.load(sys.stdin)['result']['records']]"
 ```
 
 比較観点:

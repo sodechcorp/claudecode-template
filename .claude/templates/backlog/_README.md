@@ -107,7 +107,7 @@
 
 ## blind 系オプション（subagent 化必須）
 
-「先入観なし」が要件の 3 オプションは parent context に履歴が残ると blind 性が崩れるため、**サブエージェントとして独立実行** する。実行手順内で `Task` ツールから対応 subagent を起動する。
+「先入観なし」が要件のオプションは parent context に履歴が残ると blind 性が崩れるため、**サブエージェントとして独立実行** する。実行手順内で `Task` ツールから対応 subagent を起動する。
 
 | オプション | 対応 subagent | 役割 |
 |---|---|---|
@@ -437,4 +437,4 @@ xlsx・MD 成果物の **人が読む欄**（概要・メリット・デメリ�
 
 > `{issueID}` は Backlog の課題キー（`[A-Z][A-Z0-9_]*-\d+`、例 `GF-341`）。`docs/knowledge/cases/{issueKey}.md` のファイル名で使う `{issueKey}` と**同一値**で、作業フォルダ・中間成果物系では `{issueID}`、cases ナレッジファイル名では `{issueKey}` と表記を使い分ける。
 
-> `{report_dir}` / `{xlsx_create}` / `{xlsx_folder}` / `{evidence_dir}`（固定パス `docs/logs/{issueID}/evidence` に統一）・`.backlog_config.yml` の `xlsx_default` キーは対応記録.xlsx 廃止（2026-09-18）に伴い削除済み。`.backlog_config.yml` の `report_dir` キーは `/test` Phase G（証跡の共有フォルダ保存）が `share_evidence.py` 経由で使う（プレースホルダーとしては使わない）。
+> `{report_dir}` / `{xlsx_create}`・`.backlog_config.yml` の `xlsx_default` キーは対応記録.xlsx 廃止（2026-09-18）に伴い削除済み。`{xlsx_folder}`（`docs/logs/{issueID}`）・`{evidence_dir}`（`docs/logs/{issueID}/evidence`）は `/test` が固定パスで確定する（`commands/test.md` の「xlsx_folder / evidence_dir の確定」）。`.backlog_config.yml` の `report_dir` キーは `/test` Phase G（証跡の共有フォルダ保存）が `share_evidence.py` 経由で使う（プレースホルダーとしては使わない）。

@@ -7,7 +7,7 @@
 | 作業の種類 | 実行エージェント | チェック担当 | チェック内容 |
 |---|---|---|---|
 | 設計書・要件定義書 | sf-architect | **reviewer** | 整合性・スコープ・受入基準の明確性・依頼との一致 |
-| Apex / LWC / Flow / 権限・設定変更 実装（保守課題） | backlog-implementer | **backlog-validator**（Phase 3.5）＋ blind系3種 | コード品質・ガバナ制限・権限/FLS・テストカバレッジ／regression-guard で影響再走査 |
+| Apex / LWC / Flow / 権限・設定変更 実装（保守課題） | backlog-implementer | **backlog-validator**（Phase 3.5） | コード品質・ガバナ制限・権限/FLS・テストカバレッジ／regression-guard で影響再走査 |
 | force-app 直接変更（宣言的メタデータのみ・アドホック実装、/backlog 未経由。Apex/LWC/Flow/トリガー/バッチのコーディングは対象外 → `/backlog` 必須） | メインスレッド／assistant | **reviewer**（§軽微修正の4条件を満たす場合はスキップ可） | メタデータ品質・権限/FLS・スコープ整合性 |
 | プログラム設計 JSON 生成（/sf-design、任意起動） | sf-design-step2 | **reviewer** | 生成した設計 JSON の整合性・スコープ・プレースホルダ残存・責務記述の妥当性 |
 

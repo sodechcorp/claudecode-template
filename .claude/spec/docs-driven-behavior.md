@@ -35,7 +35,7 @@
 
 ### 「Apex 作って」「トリガー書いて」
 
-**Apex / トリガーのコーディングは `/backlog` 経由が必須**（Backlog課題を伴わないアドホック実装の対象外）。理由: `/backlog` の実装は backlog-validator（Phase 3.5）＋ blind系3種＋regression-guard の多層ゲートを通るが、メインスレッドの直接実装ではこの水準のゲートを提供できないため（[quality-gate.md](../spec/quality-gate.md) 参照）。
+**Apex / トリガーのコーディングは `/backlog` 経由が必須**（Backlog課題を伴わないアドホック実装の対象外）。理由: `/backlog` の実装は backlog-validator（Phase 3.5）＋regression-guard の多層ゲートを通るが、メインスレッドの直接実装ではこの水準のゲートを提供できないため（[quality-gate.md](../spec/quality-gate.md) 参照）。
 
 1. Backlog課題が未作成の場合: 「Apex / トリガーの実装は `/backlog` 経由が必要です。Backlog課題を作成のうえ `/backlog {issueID}` で対応してください」と案内する（ここでは実装しない）
 2. Backlog課題が既にある場合: `/backlog {issueID}` の実行を案内する
@@ -59,8 +59,8 @@
 ### 「デプロイして」
 1. `docs/logs/changelog.md` で最近の変更を確認
 2. 対象のメタデータを確認
-3. デプロイコマンドを提示（**本番へのデプロイは必ずユーザー確認**）
-   - 本番判定の根拠（target-org の alias が `*prod*` / `*production*` に一致）は `.claude/spec/security-and-permissions.md` に記載
+3. デプロイコマンドを提示（**本番〔`sf org display` で `isSandbox: false`〕へは Claude はデプロイしない。本番リリースは `/release` の手順で担当者が実行する**）
+   - alias の `*prod*` / `*production*` 一致（`.claude/spec/security-and-permissions.md`）と `.prod-aliases`（ルート `CLAUDE.md` の組織情報）は hook の補助判定
 
 ### スコープ外の依頼
 `docs/requirements/requirements.md` のスコープ定義と合致しない場合:

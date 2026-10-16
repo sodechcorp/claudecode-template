@@ -543,15 +543,7 @@ case "{log_dir}" in
   *)
     if [ -d "{log_dir}/repro/before" ] || [ -d "{log_dir}/repro/after" ]; then
       REPRO_SIZE=$(du -sh "{log_dir}/repro" 2>/dev/null | cut -f1)
-      REPRO_TARGET="{log_dir}/repro" python -c "
-import os, shutil
-base = os.environ['REPRO_TARGET']
-for sub in ('before', 'after'):
-    p = os.path.join(base, sub)
-    if os.path.isdir(p):
-        shutil.rmtree(p)
-        assert not os.path.exists(p), 'rmtree 後も残存: ' + p
-"
+      REPRO_TARGET="{log_dir}/repro" python -c "import os, shutil; b = os.environ['REPRO_TARGET']; ps = [os.path.join(b, s) for s in ('before', 'after')]; [shutil.rmtree(p) for p in ps if os.path.isdir(p)]; assert not any(os.path.exists(p) for p in ps), 'rmtree 後も残存: ' + b"
       if [ -d "{log_dir}/repro/before" ] || [ -d "{log_dir}/repro/after" ]; then
         echo "[WARN] repro/ 配下スクショの削除に失敗しました（残存: 約 ${REPRO_SIZE}）。手動確認してください。"
       else

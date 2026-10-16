@@ -13,7 +13,7 @@
 
 > **force-app への実装依頼（/backlog 未経由）**: 「項目を追加して」等のアドホックな force-app 変更は、メインスレッド／assistant が `docs-driven-behavior.md` の指示パターンに従い直接実施する（Apex/LWC/Flow/トリガー/バッチのコーディングは対象外・`assistant` の禁止事項どおり sf-architect/backlog に委譲）。完了後は `quality-gate.md` のゲート表「force-app 直接変更」に従い reviewer チェックを通す。
 
-> **工数見積の強制集約**: `工数 / effort / 見積 / 何時間 / どのくらい` 等の語を含む依頼は、他エージェントが回答を始める前に必ず `sf-effort-estimator` に委譲する。例外なし。
+> **工数見積の強制集約**: `工数 / effort / 見積 / 何時間 / どのくらい` 等の語を含む依頼は、他エージェントが回答を始める前に必ず `sf-effort-estimator` に委譲する。下表で「委譲」の依頼は例外なし（「除外」の閲覧・集計は委譲しない）。
 >
 > | 種別 | 判定 | 例 |
 > |---|---|---|
@@ -55,6 +55,6 @@
 | `/test` 各 Phase（証跡採取・レポート） | `auto-evidence-runner` / `ui-evidence-runner` / `test-spec-builder` |
 | `/release`（本番リリース準備。`/backlog`・`/test` 完了後の独立段階） | `release-preparer` / `prod-ui-verifier`（デプロイ後の本番の画面確認・read-only。`release.md` Step 5 から直接 Task 委譲し、二段ネストにしない） |
 | blind 系（Task 経由のみ・親の情報を受け取らない） | `backlog-blind-second-opinion`（起動元は investigator） |
-| `quality-gate.md` の reviewer ゲート（reviewer が Critical 指摘を1件以上出した場合のみ）→ `sf-architect`（Phase最終）/ `sf-design-step2`（Phase 5.5）から Task 委譲 | `finding-verifier`（reviewer 指摘の反証検証。単発・非並列のため main thread への引き上げ対象外。/backlog フローには適用しない — backlog-validator + blind系3種 + regression-guard による独立検証で誤検知対策を既に担保しているため） |
+| `quality-gate.md` の reviewer ゲート（reviewer が Critical 指摘を1件以上出した場合のみ）→ `sf-architect`（Phase最終）/ `sf-design-step2`（Phase 5.5）から Task 委譲 | `finding-verifier`（reviewer 指摘の反証検証。単発・非並列のため main thread への引き上げ対象外。/backlog フローには適用しない — backlog-validator + regression-guard による独立検証で誤検知対策を既に担保しているため） |
 
 > `sf-design-step2` の委譲先（順番厳守）: ① `sf-screen-writer`（画面系: LWC/画面フロー/Aura/VF）→ ② `sf-design-writer`（Apex系・機能一覧、①の結果を集約）の順に両方委譲
