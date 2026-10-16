@@ -12,7 +12,7 @@
 3. プロジェクトルート `CLAUDE.md` の命名規則に従う
 4. メタデータファイルを作成（force-app 配下）
 5. **権限・基本設定を設定する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「カスタム項目」セクションに従い、FLS・ページレイアウト配置を必ず実施（付与方針の詳細はchecklist参照）。チェック漏れを黙殺しない
-6. `docs/catalog/` の該当定義書を更新（項目追加を反映）
+6. `docs/catalog/` の該当定義書があれば更新（項目追加を反映）。無ければ作らず、デプロイ後の `/sf-memory` カテゴリ2（対象オブジェクト: {API名}）を案内する
 
 ### 「オブジェクトを作って」「カスタムオブジェクト追加して」
 1. `docs/catalog/` で既存オブジェクト構成・命名規則を確認
@@ -20,7 +20,7 @@
 3. プロジェクトルート `CLAUDE.md` の命名規則に従う
 4. メタデータファイルを作成（`force-app/main/default/objects/` 配下）
 5. **権限・基本設定を設定する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の「カスタムオブジェクト」セクションに従い、CRUD権限・タブ・ページレイアウト・アプリ追加を必ず実施（付与方針の詳細はchecklist参照）
-6. `docs/catalog/` に新オブジェクトの定義書を作成
+6. 定義書は作らず、デプロイ後の `/sf-memory` カテゴリ2（対象オブジェクト: {API名}）を案内する
 
 ### 「レコードタイプを作って」
 1. 対象オブジェクトの既存レコードタイプ構成（`force-app/` の `recordType-meta.xml`）を確認

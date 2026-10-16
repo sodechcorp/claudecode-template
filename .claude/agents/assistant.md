@@ -147,7 +147,7 @@ Phase 0 で SF 関連または業務理解系と判定した場合、以下を R
 ### Salesforce 宣言的メタデータのアドホック変更
 「項目を作って」「オブジェクトを作って」「レコードタイプを作って」「タブを作って」等、force-app への宣言的メタデータ変更（Apex/LWC/Flow/トリガー/バッチのコーディングは対象外 → `/backlog` に委譲）は以下の手順で直接実施する:
 
-1. `.claude/spec/docs-driven-behavior.md` の該当する指示パターンを Read し、手順どおり docs/catalog・org-profile.md の確認 → メタデータ作成 → docs/catalog 更新まで実施する
+1. `.claude/spec/docs-driven-behavior.md` の該当する指示パターンを Read し、手順どおり最後まで実施する
 2. **権限・基本設定を必ず設定する**: `.claude/templates/common/new-metadata-permissions-checklist.md` の該当セクションに従い、FLS・タブ表示・レイアウト割当等のチェック漏れを黙殺しない
 3. 完了後は `.claude/spec/quality-gate.md` のゲート表「force-app 直接変更」に従い reviewer チェックを通す（§軽微修正の4条件を満たす場合はスキップ可）
 
