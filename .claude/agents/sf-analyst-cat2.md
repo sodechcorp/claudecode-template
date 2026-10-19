@@ -135,9 +135,9 @@ AskUserQuestion で突合モードを選択させる:
 - multiSelect: false
 - options:
   - label: "本番 alias で突合する"、description: "Sandbox にあって本番にない項目を検出し、備考欄に **[本番デプロイ待ち]** を付与する"
-  - label: "スキップ（単一 org で生成）"、description: "従来通り default org のみで定義書を生成する。注記は付かない"
+  - label: "スキップ（単一 org で生成）"、description: "従来通り default org のみで定義書を生成する。新しい注記は付かない"
 
-**「スキップ」が選ばれた場合**: `_prod_alias` を空として Phase 2 へ進む。
+**「スキップ」が選ばれた場合**: `_prod_alias` を空として Phase 2 へ進む（既存の `**[本番デプロイ待ち]**` は変えない）。
 
 **「本番 alias で突合する」が選ばれた場合**: CLAUDE.md の Salesforce組織情報テーブルから本番 alias の候補を取得する:
 
@@ -173,7 +173,7 @@ sf data query --use-tooling-api -q "SELECT QualifiedApiName, Label, DataType, Re
 sf data query --use-tooling-api -q "SELECT Id, ValidationName, Active, ErrorMessage FROM ValidationRule WHERE EntityDefinition.QualifiedApiName = '<オブジェクト名>'" --json
 ```
 
-describe は接続ユーザーに項目レベルセキュリティで見えない項目を返さない。FieldDefinition にあって describe に無い項目のうち、カスタム項目（名前に `__` を含むもの）と、`sf data query -q "SELECT Field FROM FieldPermissions WHERE SobjectType = '<オブジェクト名>' AND Field IN ('<オブジェクト名>.<項目>', ...)" --json` で返る標準項目（返らない標準項目は誰の describe にも出ない内部項目）は、`force-app/main/default/objects/<Object>/fields/<項目>.field-meta.xml`（無ければ FieldDefinition の表示ラベル・型・参照先）から全項目一覧の行（選択リストなら valueSet からピックリスト値、参照なら referenceTo からリレーションも）を作り、備考に `**[接続ユーザーに非表示]**` を付ける。
+describe は接続ユーザーに項目レベルセキュリティで見えない項目を返さない。FieldDefinition にあって describe に無い項目のうち、カスタム項目（名前に `__` を含むもの）と、`sf data query -q "SELECT Field FROM FieldPermissions WHERE SobjectType = '<オブジェクト名>' AND Field IN ('<オブジェクト名>.<項目>', ...)" --json` で返る標準項目（返らない標準項目は誰の describe にも出ない内部項目）は、`force-app/main/default/objects/<Object>/fields/<項目>.field-meta.xml`（無ければ FieldDefinition の表示ラベル・型・参照先）から全項目一覧の行（選択リストなら valueSet からピックリスト値、参照なら referenceTo からリレーションも）を作り、備考に `**[接続ユーザーに非表示]**` を付ける（describe に出る項目からは外す）。
 
 > **本番突合モード（`_prod_alias` が指定されている場合のみ）**: default org の describe と FieldDefinition の項目名を合わせた集合を `_sandbox_fields[Object]` として記録し、さらに本番 alias に対しても同じ2つを実行して合わせた集合を `_prod_fields[Object]` として保持する:
 >
@@ -182,7 +182,7 @@ describe は接続ユーザーに項目レベルセキュリティで見えな�
 > sf data query --use-tooling-api -q "SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '<オブジェクト名>'" --target-org <_prod_alias> --json
 > ```
 >
-> 本番 alias の describe・クエリのどちらかが失敗した場合（接続不可・権限不足など）: 「⚠️ 本番 ({_prod_alias}) への問い合わせに失敗しました。そのオブジェクトは注記なしで生成します。」と警告出力し、処理を継続する（中断しない）。
+> 本番 alias の describe・クエリのどちらかが失敗した場合（接続不可・権限不足など）: 「⚠️ 本番 ({_prod_alias}) への問い合わせに失敗しました。そのオブジェクトの本番デプロイ待ちの注記は、既存のものをそのまま残して生成します。」と警告出力し、処理を継続する（中断しない）。
 
 リレーション（参照先・Lookup と MasterDetail の別・このオブジェクトを参照している他オブジェクト）は describe の `fields[]` の `referenceTo`・`relationshipName`・`relationshipOrder`（MasterDetail のときだけ null でない）と `childRelationships` から取る。
 
@@ -255,11 +255,9 @@ cat1 Phase 1-6 が生成した `docs/.sf/_picklist_samples.json` を Read し、
 
 Phase 2 の `sf sobject describe` 出力の `recordTypeInfos` からマスター（`master: true`。XML も RecordType の行も無い）を除いたものを、**そのオブジェクトのレコードタイプの正本**とする。cat1 の申し送り（org 全体 SOQL 由来）は他オブジェクトのレコードタイプを誤って混入している場合があるため、件数・名前をそのまま転記しない。
 
-1. 各オブジェクトについてレコードタイプ一覧（DeveloperName・ラベル・有効/無効）を確定し、Phase 3 のレコードタイプ記述の正本として保持する。
-2. cat1 の申し送り値（`docs/flow/usecases.md` 本文・差分更新時の既存定義書に残る「N record types（cat1 申送り）」等の記述）と describe 実測を照合し、件数・名前が異なる場合:
-   - Phase 3 では **describe 実測値で記述する**（基本情報の用途欄・レコードタイプ記述に cat1 申し送りの件数/名前を残さない）
-   - 差分の理由を「所見・注意点」セクションに 1 行記録する。例: `**[要確認]** レコードタイプ: describe 実測 {X} 件に対し cat1 申し送りは {Y} 件。差分は他オブジェクトのレコードタイプ（例: {名前}）の誤混入の可能性`
-3. describe 実測と force-app XML（`force-app/main/default/objects/<Object>/recordTypes/*.recordType-meta.xml` の数）が異なる場合も describe を正本とし、差分（XML 未取得・本番デプロイ待ち等）を「所見・注意点」に注記する。
+1. 各オブジェクトについてレコードタイプ一覧（DeveloperName・ラベル・有効/無効）を確定し、Phase 3 のレコードタイプ記述の正本として保持する。差分更新でも、定義書のレコードタイプの行・件数・名前はこの一覧に合わせる（一覧に無い行を残さない。今回 describe を取れなかったオブジェクトは、2・3 の差分注記も含めて変えない）。cat1 申し送りの件数/名前は 2 の差分注記にだけ書く。
+2. cat1 の申し送り値（`docs/flow/usecases.md` 本文等の記述）と describe 実測を照合し、件数・名前が異なる場合は差分の理由を「所見・注意点」セクションに 1 行記録する。例: `**[要確認]** レコードタイプ: describe 実測 {X} 件に対し cat1 申し送りは {Y} 件。差分は他オブジェクトのレコードタイプ（例: {名前}）の誤混入の可能性`
+3. describe 実測と force-app XML（`force-app/main/default/objects/<Object>/recordTypes/*.recordType-meta.xml` の数）が異なる場合も describe を正本とし、差分（XML 未取得・本番デプロイ待ち等）を「所見・注意点」に注記する。2・3 の差分注記は、既存の定義書に残るものも今回の照合結果で書き直し、差が無くなったものは消す。
 4. **cat1 生成ファイルのマーカー解消**: `docs/requirements/requirements.md` / `docs/flow/usecases.md` に `**[要確認: cat2 describe で確認]**` 付きのレコードタイプ表記がある場合、本フェーズで確定した describe 実測の正本値で当該マーカーを解消する（仮表記を実測値に置換しマーカーを除去）。当該セッションで describe 実測できていないオブジェクトのマーカーは解消せず残置し、sf-org-analyst（2周目）に委ねる（cf. L69 名称衝突と同じ扱い）。解消・残置いずれの場合も手動追記・他マーカーには一切触れない。
 
 ### Phase 3: オブジェクト定義書の生成
@@ -269,7 +267,7 @@ Phase 2 の `sf sobject describe` 出力の `recordTypeInfos` からマスター
 > **定義書の必須構成・cross-reference 記載ルール・`_index.md` 列規約・ピックリスト値セクションの記法規約・セル内テキスト整形規約・Mermaid ERD 記法の規約**（下流 `generate_basic_doc.py` との連携含む）:
 > [../templates/sf-analyst-cat2/object-definition-template.md](../templates/sf-analyst-cat2/object-definition-template.md)
 
-> **本番突合モード（`_prod_alias` 指定時）**: 各項目のテーブル行を生成する際、その項目の API 名が `deploy_pending_fields[Object]` に含まれていれば、備考列の先頭に `**[本番デプロイ待ち]**` を追加する。備考列が空の場合は `**[本番デプロイ待ち]**` のみ記載する。
+> **本番突合モード（`_prod_alias` 指定時）**: 各項目のテーブル行を生成する際、その項目の API 名が `deploy_pending_fields[Object]` に含まれていれば、備考列の先頭に `**[本番デプロイ待ち]**` を追加する。備考列が空の場合は `**[本番デプロイ待ち]**` のみ記載する。含まれていない項目からは既存の `**[本番デプロイ待ち]**` を外す（本番への問い合わせに失敗したオブジェクトは既存のものを残す）。
 
 > **SFラベルと業務通称の乖離がある場合**: オブジェクト定義書の「基本情報 > 用途」セクションで `（業務通称: {通称}）` を明記する。`_index.md` のラベル列は SF ラベルのまま維持すること（Phase 5 のラベル列制約を参照）。衝突ガードの詳細は Phase 0 を参照。
 
