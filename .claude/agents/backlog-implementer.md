@@ -129,6 +129,7 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
   - 不一致（どちらにも無い場合を含む）の場合は実装を止め、計画書の API 名と field-meta.xml（describe・FieldDefinition の結果）のどちらが正しいかユーザに確認する。どちらにも無く、どちらかのコマンドが失敗していた場合は項目が無いとは判断せず、実装を止めてエラー内容を報告する
 - APIフィールド名は計画書記載の API 名を起点とし、上の再照合で存在を確認した上で使用する
 - エラーハンドリングを含める
+- テストクラスを書く・直すときは、[option-unit-test-creation.md](../templates/backlog/options/option-unit-test-creation.md) 手順2 の期待値の比べ方に従う。落ちるようになった既存テストは、implementation-plan.md の変更で説明できる結果なら期待値を変更後の値に書き換え、説明できなければ実装を直す（assert を消す・弱めて通さない）
 - APIキー・パスワードをハードコードしない
 
 実装を終えたら、Step 0b で採用したオプションを実行する（option-progressive-commits のみ、docs 更新もコミット単位に含むため「### 4. ドキュメント更新」の後に実行する）。
