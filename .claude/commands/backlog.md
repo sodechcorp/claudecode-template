@@ -511,7 +511,7 @@ project_dir: {プロジェクトルートパス}
 
 > **dry-run 重複排除**: Phase 5 で dry-run PASS 済みかつ force-app に変更がない場合、Phase 6 は dry-run をスキップして本デプロイへ直行する。Phase 5 以降にコード変更がある場合のみ再 dry-run を実行する。
 
-> **デプロイ失敗・問題発生時**: `backlog-releaser` がデプロイ失敗またはリリース後動作確認で問題を検知した場合、原因の種別（デプロイ失敗 → Phase 5 / 実装ロジック起因の挙動不良 → Phase 4 / 切り分け困難 → ユーザー確認）に応じて差し戻し先を判定し、`docs/logs/{issueID}/release-issue.md` に差し戻し理由・現象・ログ・差し戻し先を記録した上で該当 Phase への差し戻しを提案する（`backlog-releaser.md` §2a. Sandbox の場合 参照）。ユーザーは `/backlog` を再実行し「途中フェーズから再開」で対応する。
+> **デプロイ失敗・問題発生時**: `backlog-releaser` がデプロイ失敗を検知した場合、またはデプロイ後に担当者から挙動不良の報告を受けた場合、原因の種別（デプロイ失敗 → Phase 5 / 実装ロジック起因の挙動不良 → Phase 4 / 切り分け困難 → ユーザー確認）に応じて差し戻し先を判定し、`docs/logs/{issueID}/release-issue.md` に差し戻し理由・現象・ログ・差し戻し先を記録した上で該当 Phase への差し戻しを提案する（`backlog-releaser.md` §2a. Sandbox の場合 参照）。ユーザーは `/backlog` を再実行し「途中フェーズから再開」で対応する。
 
 `backlog-releaser` エージェントを起動する:
 
@@ -529,7 +529,7 @@ deploy_route: {deploy_route}
 > 種別別ルール: [.claude/templates/backlog/customer-signoff.md](../templates/backlog/customer-signoff.md)
 > ファイルが存在しない場合は「種別 {issue_type} のお客様確認内容は何ですか？」とテキストで確認し、ユーザの指示に従ってサインを取得する。
 
-> **「完了」の意味範囲**: ここでの「完了」は `backlog-releaser` 内部の完了チェックリスト（デプロイ成功確認。`backlog-releaser.md` §2a. Sandbox の場合 参照）を通過した上での、Sandbox 実装・動作確認までの完了を意味する（Phase 0 で確認したスコープ通り）。動作検証（権限・FLS 変更時の Login As 確認を含む）は Phase 6 では行わず `/test` に一元化されている。お客様確認サインはブロッキングゲートではなく完了報告の「残作業」チェックボックスで管理する（未取得でも完了をブロックしない）。`/test`（次アクション案内）による網羅的テスト・証跡採取・エビデンス Excel 生成は追加の構造化証跡であり、本ステータスの前提条件ではない。
+> **「完了」の意味範囲**: ここでの「完了」は `backlog-releaser` 内部の完了チェックリスト（デプロイ成功確認。`backlog-releaser.md` §2a. Sandbox の場合 参照）を通過した上での、Sandbox への反映までの完了を意味する。動作検証（権限・FLS 変更時の Login As 確認を含む）は Phase 6 では行わず `/test` に一元化されている。お客様確認サインはブロッキングゲートではなく完了報告の「残作業」チェックボックスで管理する（未取得でも完了をブロックしない）。`/test`（次アクション案内）による網羅的テスト・証跡採取・エビデンス Excel 生成は追加の構造化証跡であり、本ステータスの前提条件ではない。
 
 **調査段階の再現確認スクショ（repro/before, repro/after）を削除**（`{issue_type}` = バグ で Phase 1.6 の `backlog-repro-runner` が実行された場合のみ `{log_dir}/repro/` が存在する。仮説検証用スクショで、一時証跡。結論は `hypothesis-verification.md` に記録済みのため、Phase 6 完了＝もう参照しないタイミングで画像のみ削除する。**`repro/logs/`（`created_records.txt` 等の監査記録。`backlog-releaser.md` §2a 5 が Phase 6 再実行時に参照するため）は削除対象から除外**する）:
 

@@ -18,7 +18,7 @@
   - 選択後: 把握済みの差し戻し理由・現象・ログを踏まえて該当フェーズを実施する
 - `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `FAIL` で始まる → 「Phase 4（/test NG 修正）から / 中止 のどれにしますか？」
   - 分岐を提示する前に `test-fail-routing.md §ループ上限` のループ回次を確認する（`docs/logs/{issueID}/` 配下の `judgment-result.R{N}.json` の最大回次番号 N = これまでの NG 修正回数。欠番があってもファイル数ではなく最大値を基準にする）。既に上限（3回）に達している場合は「差し戻し上限に達しています。業務担当者との打ち合わせを推奨します」を添えて提示する。
-  - 選択後: Phase 4 で修正 → Phase 5（dry-run）→ Phase 6（軽量再デプロイ）→ `/test` 再実行
+  - 選択後: Phase 4 で修正 → Phase 5（dry-run）→ Phase 6（Sandbox 再デプロイ）→ `/test` 再実行
 - `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `条件付きPASS` で始まる → 「Phase 4（受入基準再確認を踏まえた再実装）から / Phase 6（リリース、要確認を許容して進める）から / 中止 のどれにしますか？」
 - `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `PASS` で始まる → 「Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
 - `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `受入基準再確認待ち` で始まる → `/test` の受入基準再確認が完了していない。[test.md](../../commands/test.md) の「Phase F-1: 受入基準再確認」と「Phase G: 証跡を共有フォルダへ保存」（共有フォルダが既に同じ内容なら書き込まない）だけを `{log_dir}`=`docs/logs/{issueID}`・`{judgment_path}`=`docs/logs/{issueID}/judgment-result.json`・`{project_dir}`=プロジェクトルートで実施し、test.md の「完了報告フォーマット」で報告して終える（`/test` 全体の再実行は不要。`/backlog` の再開は行わない。Backlog に接続できず完了できない場合は理由を提示して止まる）
