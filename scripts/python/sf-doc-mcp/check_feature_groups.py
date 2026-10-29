@@ -46,7 +46,11 @@ def load_yaml(path: Path) -> dict:
     if not path.exists():
         print(f"ERROR: ファイルが見つかりません: {path}", file=sys.stderr)
         sys.exit(2)
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    try:
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, ValueError, yaml.YAMLError) as e:  # UTF-8 でない・YAML の構文エラー
+        print(f"ERROR: {path} を読み込めません: {e}", file=sys.stderr)
+        sys.exit(2)
 
 
 _GENERATED_AT_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")

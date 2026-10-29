@@ -356,7 +356,7 @@ cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); prin
      --decisions "{log_dir}/.tmp/ai-decisions.json"
    echo "反映 exit code: $?"
    ```
-   exit 2（反映エラー）の場合は stderr の理由を直して再実行する。`AI判定待ちが残っています` が出た場合は残りを判定してから Phase E に進む（AI判定待ちを残したまま Phase E に進まない）
+   exit 2（反映エラー）の場合は stderr の理由を直して再実行する（`{judgment_path}` が読めないときは手で直さず、`mv "{judgment_path}" "{judgment_path}.broken"` で退けてから Phase D からやり直す）。`AI判定待ちが残っています` が出た場合は残りを判定してから Phase E に進む（AI判定待ちを残したまま Phase E に進まない）
 6. **期待結果・判定方法の書き方が原因で AI 判定に回った TC**（期待件数なし・`項目=値` なし・判定方法の書き漏れ等）は、次回の機械判定のために `{spec_path}` の該当行を機械判定できる形（`test-pattern-map.md`「判定方法の選択肢」参照）に Edit しておく。期待値の意味は変えない（期待値ドリフト禁止）
 
 ---
@@ -685,7 +685,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 
 確認環境: Sandbox（{alias}）
 本番反映状況: 未 ⚠️（Sandbox 検証までの完了。本番反映は別セッションで /release {issueID} を実施）
-テスト結果: {OK=N / NG=N / 要手動=N}（うち AI 判定 {N} 件）
+テスト結果: {OK=N / NG=N / 要手動=N}（うち AI 判定 {judgment-result.json の ai_judged_count。キーの無い古い判定結果は results の ai_judged が true の件数} 件）
 総合判定: {実際の判定結果に応じて次の1つを選んで記載: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認で指摘あり） / FAIL ❌ （NG が {N} 件） / 受入基準再確認待ち ⏸（Phase F-1 未完了）}
 
 成果物:

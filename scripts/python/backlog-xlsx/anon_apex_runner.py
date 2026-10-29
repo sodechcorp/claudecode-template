@@ -370,7 +370,14 @@ def main():
         to_text_evidence(data, args.out, args.label, args.tc_no, apex_code)
 
     elif args.subcommand == "run-batch":
-        cases = json.loads(Path(args.cases_file).read_text(encoding="utf-8"))
+        try:  # 実行の前に cases と各 apex_file を確かめる（読めないまま途中で落ちると exit 1＝「NG あり」と区別できない）
+            cases = json.loads(Path(args.cases_file).read_text(encoding="utf-8"))
+            for c in cases:
+                c["no"], c["label"], c["out"]
+                Path(c["apex_file"]).read_text(encoding="utf-8")
+        except (OSError, ValueError, TypeError, KeyError) as e:
+            print(f"[ERROR] {args.cases_file}（または apex_file）を読み込めません: {type(e).__name__}: {e}", file=sys.stderr)
+            sys.exit(2)
         serial_nos = (set(t.strip() for t in args.serial_nos.split(",") if t.strip())
                       if args.serial_nos else set())
         max_workers = 1 if args.serial else args.max_workers

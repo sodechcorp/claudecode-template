@@ -268,7 +268,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 
 `{serial}` が true の場合は `--serial` を追加する。
 
-**exit code 1 は想定内（異常終了ではない）**: `run-batch` は対象 TC に 1 件でも失敗（コンパイルエラー・Apex 実行時例外・NG）があると exit code 1 を返す仕様。これは「1件以上 NG があった」ことを表すだけで、コマンド自体の失敗ではない。**exit code を理由に処理を中断せず、Step 2「実行できなかった TC の扱い」を済ませてから次に進む**（NG の内容は標準出力の `[NG] {No} ({観点}): {error}` 行で確認できる。コンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した証跡 txt が生成されるため、`judge_results.py` が自動で NG 判定する）。
+**exit code 1 は想定内（異常終了ではない）**: `run-batch` は対象 TC に 1 件でも失敗（コンパイルエラー・Apex 実行時例外・NG）があると exit code 1 を返す仕様。これは「1件以上 NG があった」ことを表すだけで、コマンド自体の失敗ではない。**exit code を理由に処理を中断せず、Step 2「実行できなかった TC の扱い」を済ませてから次に進む**（NG の内容は標準出力の `[NG] {No} ({観点}): {error}` 行で確認できる。コンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した証跡 txt が生成されるため、`judge_results.py` が自動で NG 判定する）。exit code 2（`[ERROR] {cases ファイル}（または apex_file）を読み込めません`）は cases ファイルか、そこに書いた `.apex` を読めず1件も実行していないので、それを直して同じコマンドを再実行する（3-3b・再実行の cases ファイルも同じ）。
 
 #### 3-3b: 2回目の実行（2回に分けて実行する TC がある場合のみ）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
@@ -308,6 +308,7 @@ while :; do
     --cases-file "{log_dir}/tmp/anon_check_pe_cases.json" \
     --max-workers {max_workers_anon} \
     --sandbox-cache "{project_dir}/.sf/sandbox_check_cache.json"
+  [ $? -eq 2 ] && break
   [ -z "$(grep -L -E "^NG項目数=0/[1-9]" {その TC の {log_dir}/tmp/{No}_check.txt を空白区切りで})" ] && break
   [ $SECONDS -ge 300 ] && break
   sleep 30

@@ -28,6 +28,9 @@ def apply(judgment: dict, decisions: list) -> list:
     errors = []
     by_no = {r.get("no"): r for r in judgment.get("results", [])}
     for d in decisions:
+        if not isinstance(d, dict) or not all(isinstance(d.get(k) or "", str) for k in ("no", "status", "basis", "ng_type")):
+            errors.append(f"{d}: 1件ごとに no・status・basis・ng_type（省略可）を文字列で持つオブジェクトにしてください")
+            continue
         no = d.get("no", "")
         status = d.get("status", "")
         basis = (d.get("basis") or "").strip()
@@ -69,6 +72,7 @@ def _recount(judgment: dict) -> None:
     judgment["ai_list"] = [ai_by_no.get(r["no"], {"no": r["no"], "label": r.get("label", "")})
                            for r in results if r.get("status") == "AI判定"]
     judgment["ai_pending"] = len(judgment["ai_list"])
+    judgment["ai_judged_count"] = sum(1 for r in results if r.get("ai_judged"))
     judgment["skip_list"] = [r["no"] for r in results if r.get("status") == "SKIP"]
     judgment["skip"] = len(judgment["skip_list"])
     judgment["total"] = len(results)
@@ -81,8 +85,14 @@ def main() -> int:
     args = parser.parse_args()
 
     judgment_path = Path(args.judgment)
-    judgment = json.loads(judgment_path.read_text(encoding="utf-8"))
-    decisions = json.loads(Path(args.decisions).read_text(encoding="utf-8"))
+    loaded = []
+    for path in (judgment_path, Path(args.decisions)):
+        try:
+            loaded.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError) as e:  # ファイルが無い・UTF-8 でない・JSON の構文エラー
+            print(f"[ERROR] {path} を読み込めません: {e}", file=sys.stderr)
+            return 2
+    judgment, decisions = loaded
     if not isinstance(decisions, list):
         print("[ERROR] decisions は JSON 配列にしてください", file=sys.stderr)
         return 2

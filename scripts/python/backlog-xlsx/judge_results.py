@@ -1027,6 +1027,7 @@ def main():
         "ok": ok_count,
         "ng": ng_count,
         "ai_pending": ai_count,
+        "ai_judged_count": sum(1 for r in results if r.get("ai_judged")),  # 前回 AI 判定で OK にして流用した TC
         "skip": skip_count,
         "taigaigai": taigaigai_count,
         "total": len(results),
