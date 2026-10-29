@@ -58,9 +58,9 @@ focus_hints: ["{関連コンポーネント一覧から抽出したキーワー�
 
 > **Phase 5 は dry-run 限定（Sandbox 実操作不可）**: 採用したオプション（`option-regression-test` / `option-edge-case-test` / `option-permission-test` / `option-performance-test` 等）の実行手順に Sandbox への実操作・UI 確認・デプロイ後の計測が含まれる場合、本 Phase では dry-run の制約上その部分は実施できない（Step 2・Step 3 参照。コードは Sandbox に永続化されない）。該当箇所は「/test で実施予定」として test-report.md に記録し、静的に確認可能な範囲（コードレビュー・観点の洗い出し・テストクラスの作成）と dry-run で確認できる範囲（Apex テストの実行）のみ実施する。デプロイ後の実操作確認・証跡採取は `/test` の担当範囲（観点は [test-pattern-map.md](../templates/backlog/test-pattern-map.md) 参照）であり、重複実施しない。
 
-判定結果（採用・スキップしたオプション）は `docs/logs/{issueID}/test-report.md` の「## スモーク確認結果」セクション末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
+判定結果（採用・スキップしたオプション）は `docs/logs/{issueID}/test-report.md` の「## スモーク確認結果」セクション末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。判定の後、オプションを実行する前に（採用が0件でも）、test-report.md から前回の Phase 5 のオプションの節を消す。消すのは、今回スキップしたものも含む _index-phase5.md の全オプションの option ファイルの「## 出力」に書かれた見出しから、次の `## ` の手前まで（やり直したとき、前の結果が重なって残らないようにするため）。
 
-採用したオプションで force-app のファイルを変更・削除する前に、backlog-implementer.md の 3. と同じく変更前の写しを `docs/logs/{issueID}/before-snapshot/` に取る。force-app を変えた場合（テストクラスの作成・拡充、見つけた問題の修正）は、変えた資材ごとに `docs/logs/{issueID}/implementation-summary.md`「変更を加えた資材一覧」へ行を加える（同じ資材の行が既にあれば、その行の「変更内容」に追記する。書き方は backlog-implementer.md の 7. に合わせる）。後工程（`/test` の変更点回帰・`/release` の差分の帰属確認等）はこの一覧で今回の課題の変更を知り、test-report.md は `/test` で作り直されて残らないため。
+採用したオプションで force-app のファイルを変更・削除する前に、backlog-implementer.md の 3. と同じく変更前の写しを `docs/logs/{issueID}/before-snapshot/` に取る。force-app を変えた場合（テストクラスの作成・拡充、見つけた問題の修正）は、変えた資材ごとに `docs/logs/{issueID}/implementation-summary.md`「変更を加えた資材一覧」へ行を加える（同じ資材の行が既にあれば、その行の「変更内容」に追記する。同じ内容が既にあれば足さない。書き方は backlog-implementer.md の 7. に合わせる）。後工程（`/test` の変更点回帰・`/release` の差分の帰属確認等）はこの一覧で今回の課題の変更を知り、test-report.md は `/test` で作り直されて残らないため。
 
 > **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。test-report.md の所見・確認結果は日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
 
