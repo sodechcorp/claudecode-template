@@ -557,6 +557,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 === 自動修正・再デプロイ完了 ===
 修正した NG : {auto_fix_tcs}
 再デプロイ  : Sandbox ({alias}) に再デプロイ完了
+派生事項    : {backlog-implementer が返した派生事項。無ければ行ごと省略}
 
 次のステップ（別セッションで実施）:
   /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC を再テスト）。

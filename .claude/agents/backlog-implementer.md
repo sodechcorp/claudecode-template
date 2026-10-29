@@ -26,7 +26,7 @@ tools:
 
 **エラー時の戻り先**: 経路1=計画書微修正で続行 / 経路2=`backlog-planner`（実装方針の問題・Phase 3 戻り）/ 経路3=`backlog-validator`（検証漏れ・Phase 3.5 戻り）。詳細は §エラー・不整合発見時の行動。
 
-> **例外**: 実装に伴う docs/ のドキュメント更新は「計画に書かれていないこと」には該当しない（Step 4 参照）。
+> **例外**: 実装に伴う docs/ のドキュメント更新（Step 4 参照）と、Step 0b で採用したオプションによる今回の変更箇所（計画に基づいて今回書いた・書き換えた部分。新規のクラス・メソッド・要素は全体）の修正は「計画に書かれていないこと」には該当しない。オプションで見つけた今回の変更箇所の外の問題は直さず、派生事項に記録する（[answer-scope-spec.md](../templates/common/answer-scope-spec.md) §3。今回の変更でその問題の起きる場面が増えるなら、派生事項ではなく経路3）。
 
 ---
 
@@ -61,7 +61,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
 > 本 agent の Phase: 4（_index-phase4.md を Read して判定）
 
-ここでは判定のみ行う。Phase 4 のオプションは実装したコードを対象とするため、採用したオプションは「### 3. 実装」末尾の記述に従って実装後に実行し、判定結果（採用・スキップしたオプション）は実行後に **implementation-plan.md** の末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
+ここでは判定のみ行う。Phase 4 のオプションは実装したコードを対象とするため、採用したオプションは「### 3. 実装」末尾の記述に従って実装後に実行し、判定結果（採用・スキップしたオプション）は実行後に **implementation-plan.md** の末尾にスキップ理由付きで記録する（force-app を変えたオプションは、変えたファイル・箇所も書く。_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
 > **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。Before/After 説明文・実装サマリーは日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
 
@@ -127,7 +127,7 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 - **実装前に**: implementation-plan.md の API 名を `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` で再照合し、一致することを確認してから使用する。field-meta.xml が無い項目と、計画書で `[要確認: sf sobject describe は tools 未所持のため未実施]` の項目は、既定の接続先に `sf sobject describe --sobject {Object} --json` と `sf data query --use-tooling-api -q "SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '{Object}' AND QualifiedApiName IN ('{項目}', ...)" --json` で確かめる（どちらかにあれば有る）
   - 不一致（どちらにも無い場合を含む）の場合は実装を止め、計画書の API 名と field-meta.xml（describe・FieldDefinition の結果）のどちらが正しいかユーザに確認する。どちらにも無く、どちらかのコマンドが失敗していた場合は項目が無いとは判断せず、実装を止めてエラー内容を報告する
 - APIフィールド名は計画書記載の API 名を起点とし、上の再照合で存在を確認した上で使用する
-- エラーハンドリングを含める
+- エラーハンドリングは計画で決めた扱いで含める（計画に無い点は既存のやり方に合わせる）
 - テストクラスを書く・直すときは、[option-unit-test-creation.md](../templates/backlog/options/option-unit-test-creation.md) 手順2 の期待値の比べ方に従う
 - APIキー・パスワードをハードコードしない
 
@@ -182,7 +182,7 @@ implementation-plan.md の「関連コンポーネント一覧（変更対象フ
 （変更後のコード）
 ```
 
-**変更理由**: （実装計画のどの判断ポイントに対応するか）
+**変更理由**: （実装計画のどの判断ポイントに対応するか。オプションによる修正はオプション名）
 ````
 
 ### 6. 自己レビュー
@@ -263,7 +263,7 @@ Before/After をユーザに提示した後、以下を必ず行う:
 
 **discussion-log.md への追記**（上記 1〜3 とは独立の必須処理。auto_fix_mode でも省略しない）: 1 の出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
 
-> **auto_fix_mode: true の場合**: 上記 1〜3 の対話確認は行わず、変更ファイル数・主な変更点・経路 2/3 判定の有無を構造化して呼び出し元（/test）に返す（本 Step 0「承認ガード」の【例外（/test 自動修正経由）】節と対称）。discussion-log.md への追記は省略しない。
+> **auto_fix_mode: true の場合**: 上記 1〜3 の対話確認は行わず、変更ファイル数・主な変更点・経路 2/3 判定の有無・派生事項を構造化して呼び出し元（/test）に返す（本 Step 0「承認ガード」の【例外（/test 自動修正経由）】節と対称）。discussion-log.md への追記は省略しない。
 
 ---
 

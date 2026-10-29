@@ -38,7 +38,7 @@ git diff {base} -- <変更ファイル>
 | 観点 | 確認内容 |
 |---|---|
 | 実装漏れ | 各判断ポイントが diff に反映されているか |
-| 計画外変更 | 無関係な lint fix・空白整形・debug code 残り・コメント追加が紛れていないか |
+| 計画外変更 | 無関係な lint fix・空白整形・debug code 残り・コメント追加が紛れていないか（implementation-plan.md の「採用したオプション」に記録された、Phase 4 のオプション〔_index-phase4.md〕による今回の変更箇所〔[backlog-implementer.md](../../../agents/backlog-implementer.md) の鉄則の例外〕の修正は計画外にしない） |
 | スコープ逸脱 | 計画で「変更しない」とした箇所が変更されていないか |
 
 ---
