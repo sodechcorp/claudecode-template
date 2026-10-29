@@ -130,7 +130,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    3. **出力なし（無変更）かつ PASS 記録あり** → dry-run を省略し「Phase 5 で dry-run PASS 済み・force-app 無変更のため dry-run を省略して本デプロイへ進む」と 1 行通知して 3.（デプロイ実行判断）へ
    4. **出力あり（変更あり）または PASS 記録なし** → 以下の dry-run を実行する:
       ```bash
-      sf project deploy start --dry-run --source-dir force-app --target-org "$SF_ALIAS"
+      CI=true sf project deploy start --dry-run --source-dir force-app --target-org "$SF_ALIAS"
       ```
 
 3. デプロイ実行判断（2026-09-15変更: Sandbox は可逆・低リスクのため承認を求めず自動進行する）:
@@ -141,7 +141,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、直前の F-2 Step 2（backlog-tester）で現 force-app に対する dry-run PASS が保証されている（PASS 以外なら F-2 Step 3 は起動されない）。この保証を根拠に上記スキップ判定を**必ず適用**し、`find` の出力が無変更なら再 dry-run を省略して確認省略で 4 へ直接進む。`find` が変更を検知した場合のみ dry-run を実行し 0 errors を確認してから 4 へ進む（**通常の「dry-run を実行した場合」と異なり、この例外では diff があってもテキスト確認は取らない**）。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。
 4. デプロイ実行:
    ```bash
-   sf project deploy start --source-dir force-app --target-org "$SF_ALIAS"
+   CI=true sf project deploy start --source-dir force-app --target-org "$SF_ALIAS"
    ```
 5. デプロイ後の確認:
 

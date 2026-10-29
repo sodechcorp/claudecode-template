@@ -115,7 +115,7 @@ Step 2（dry-run デプロイ）が `<alias>` を使うため、ここで先に�
 
 **Apex 変更あり**（`<テストクラス名>` は上記の特定方法で特定したテストクラスを拡張子なしのクラス名でスペース区切りで列挙）:
 ```bash
-sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
+CI=true sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
   --test-level RunSpecifiedTests --tests <テストクラス名> --concise --junit \
   --coverage-formatters json-summary --results-dir docs/logs/{issueID}/coverage
 ```
@@ -126,7 +126,7 @@ sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
 
 **Apex 変更なし**（コンパイル検証のみ）:
 ```bash
-sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
+CI=true sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
   --test-level NoTestRun --concise
 ```
 
@@ -159,7 +159,7 @@ dry-run のためコードは Sandbox に届いていない。変更の反映を
 
 ## 総合判定の優先順位ルール（エージェント判断用・出力に転記しない）
 
-総合判定は以下の優先順位で確定する: ① 実装レビュー表（ガバナ制限・FLS/CRUD・エラーハンドリング・実装計画との整合）に FAIL が1件でもある、または Step 2 の dry-run が成功しない（コンパイルエラー・指定した Apex テストの FAIL・カバレッジ不足のいずれでも） → 最優先で「FAIL（Phase 4 に差し戻す）」 / ② ①非該当かつ NoTestRun フォールバック発生（対応テストクラス未整備） → 「条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要）」固定とし、ユーザー判断（テスト追加 or 明示スキップ承認）を待つ / ③ ①②いずれも非該当 → 「PASS（Phase 6 へ進む）」。
+総合判定は以下の優先順位で確定する: ① 実装レビュー表（ガバナ制限・FLS/CRUD・エラーハンドリング・実装計画との整合）に FAIL が1件でもある、または Step 2 の dry-run が成功しない（コンパイルエラー・指定した Apex テストの FAIL・カバレッジ不足のいずれでも）、または Step 0b で採用したオプションが総合判定を FAIL にすると定めた結果が出た（option-regression-test 手順4 の関連する FAIL） → 最優先で「FAIL（Phase 4 に差し戻す）」 / ② ①非該当かつ NoTestRun フォールバック発生（対応テストクラス未整備） → 「条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要）」固定とし、ユーザー判断（テスト追加 or 明示スキップ承認）を待つ / ③ ①②いずれも非該当 → 「PASS（Phase 6 へ進む）」。
 
 test-report.md の「### 総合判定」セクションには、上記ルールで確定した**結果のみ**を記載する。本ルールの説明文自体は転記しない。
 
