@@ -558,7 +558,7 @@ esac
 
 完了報告を行う。
 
-> **管理画面操作手順書（2b）がある場合**: `docs/logs/{issueID}/manual-operation-steps.md` が存在する場合、完了報告に続けて [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従い引き渡しを行う（**手順書全文を一度に貼らない**）。同ファイルを Read し、「操作ステップ」内の番号付き各項目を TodoWrite でタスク化し、先頭の未完了ステップのみ内容を提示して「実行結果を教えてください」と添える。ユーザーの実行報告を受けたら該当 Todo を completed にし次のステップへ進む。エラー・質問ならその場で回答し Todo は進めない。Sandbox では行えない・行う意味がないと報告されたステップは completed にして飛ばし、今は本番で操作せず `/release` の手順書で行うよう一言伝える。全 Todo 完了後、Sandbox で操作したステップがあれば「確認事項」セクションを一度に提示する（飛ばしたステップだけに関わる項目は除く）。
+> **管理画面操作手順書（2b）がある場合**: `{deploy_route}` = `manual-operation` の場合（backlog-releaser が `docs/logs/{issueID}/manual-operation-steps.md` を作る）、完了報告に続けて [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従い引き渡しを行う（**手順書全文を一度に貼らない**）。同ファイルを Read し、「操作ステップ」内の番号付き各項目を TodoWrite でタスク化し、先頭の未完了ステップのみ内容を提示して「実行結果を教えてください」と添える。ユーザーの実行報告を受けたら該当 Todo を completed にし次のステップへ進む。エラー・質問ならその場で回答し Todo は進めない。Sandbox では行えない・行う意味がないと報告されたステップは completed にして飛ばし、今は本番で操作せず `/release` の手順書で行うよう一言伝える。全 Todo 完了後（ステップが1件のみ・まとめて提示した場合は実行報告を受けた後）、Sandbox で操作したステップがあれば「確認事項」セクションを一度に提示する（飛ばしたステップだけに関わる項目は除く）。続けて（全ステップを飛ばした場合も）「本番反映が必要なら `/release {issueID}` を起動してください」と案内し、「以上で Phase 6（最終フェーズ）の対応は完了です。追加のご確認・ご質問はありますか？（無ければ『完了』とお伝えください）」で締める。その後のやり取り・クロージングと Step 6 のドキュメント更新通知（操作対象は manual-operation-steps.md の「操作対象」）も、backlog-releaser.md の Step 5 の 3.〜5.・Step 6 のとおりここで行う（管理画面操作の場合、backlog-releaser は締めから先を行わない）。
 
 > **📋 本番リリース TODO**: 本フローは Sandbox リリースまで。**本番リリースは人間が手動で実施する**ため、本番デプロイの前に `/release {issueID}` で手順書とバックアップを作成し、デプロイ後に同じ `/release` でデプロイ完了を報告すること（バックアップはデプロイ前の本番から取る）。`/release` Phase 7 がリリース後確認（read-only）と decisions.md「リリース予定日 / 担当」欄・changelog.md への記録を行う。
 

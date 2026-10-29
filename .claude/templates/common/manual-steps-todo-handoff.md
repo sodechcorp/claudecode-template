@@ -26,7 +26,7 @@
    - **中断・持ち越し宣言** → 現在の Todo は未完了のまま残し、残りステップを保留した旨を一言添えて終了する
 5. 全ステップが `completed` になったら、後続の案内を提示する:
    - `/release`: ① ② が終わったら、改めて「デプロイ完了」の報告を求めずにリリース後確認（release-preparer.md Phase 7）へ進む（release.md Step 4 の7.）。③ は Phase 7 と画面確認（`prod-ui-verifier`）の後に同じ方式で渡す
-   - `/backlog`: Sandbox で操作したステップがあれば manual-operation-steps.md の「確認事項」を一度に提示する（飛ばしたステップだけに関わる項目は除く）
+   - `/backlog`: Sandbox で操作したステップがあれば manual-operation-steps.md の「確認事項」を一度に提示する（飛ばしたステップだけに関わる項目は除く）。続けて（全ステップを飛ばした場合も）`/release {issueID}` の起動を案内し、Phase 6 の締めの問いかけで終える（文言と、その後のクロージング・ドキュメント更新通知は backlog.md Phase 6）
 
 ## 適用しない場面
 
