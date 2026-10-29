@@ -120,7 +120,7 @@ sf project deploy start --dry-run --source-dir force-app --target-org <alias> \
   --coverage-formatters json-summary --results-dir docs/logs/{issueID}/coverage
 ```
 
-> **対応テストクラス不在の場合（変更対象の全クラス・トリガーに対応テストクラスが1件も見つからない場合）**: `<テストクラス名>` が空になるときは `RunSpecifiedTests` ではなく `NoTestRun`（コンパイル検証のみ）にフォールバックする。Step 4 の報告に「対応テストクラス未整備（カバレッジ未検証・要テスト追加）」を明記する。この場合 Step 4 で必ず「NoTestRun フォールバック: 発生」フラグを立て、総合判定を自動 PASS にせず「条件付きPASS（ユーザー判断要）」とする。
+> **対応テストクラス不在の場合（変更対象の全クラス・トリガーに対応テストクラスが1件も見つからない場合）**: `<テストクラス名>` が空になるときは `RunSpecifiedTests` ではなく `NoTestRun`（コンパイル検証のみ）にフォールバックする。Step 4 の報告に「対応テストクラス未整備（カバレッジ未検証・要テスト追加）」を明記する。この場合 Step 4 で必ず「NoTestRun フォールバック: 発生」フラグを立て、総合判定を自動 PASS にしない（「総合判定の優先順位ルール」②）。
 
 > **変更クラスカバレッジ%の取得方法**: `--concise` はクラス別カバレッジ%を標準出力に表示しないため（`--verbose` と排他）、上記コマンドの `--coverage-formatters json-summary --results-dir` オプションが出力するレポートから読み取る。実行後 `docs/logs/{issueID}/coverage/` 配下を Glob（`**/coverage-summary.json`）で検索し、見つかったファイルを Read して変更対象クラスに対応するカバレッジ%を Step 4「変更クラスカバレッジ」欄に転記する。ファイルが見つからない場合は「取得失敗（要確認）」と記録し、数値を推測で記入しない。
 
@@ -159,7 +159,7 @@ dry-run のためコードは Sandbox に届いていない。変更の反映を
 
 ## 総合判定の優先順位ルール（エージェント判断用・出力に転記しない）
 
-総合判定は以下の優先順位で確定する: ① 実装レビュー表（ガバナ制限・FLS/CRUD・エラーハンドリング・実装計画との整合）に FAIL が1件でもある → 最優先で「FAIL（Phase 4 に差し戻す）」（dry-run が 0 errors でも自動 PASS にしない） / ② ①非該当かつ NoTestRun フォールバック発生（対応テストクラス未整備） → 「条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要）」固定とし、ユーザー判断（テスト追加 or 明示スキップ承認）を待つ / ③ ①②いずれも非該当 → 「PASS（Phase 6 へ進む）」。
+総合判定は以下の優先順位で確定する: ① 実装レビュー表（ガバナ制限・FLS/CRUD・エラーハンドリング・実装計画との整合）に FAIL が1件でもある、または Step 2 の dry-run が成功しない（コンパイルエラー・指定した Apex テストの FAIL・カバレッジ不足のいずれでも） → 最優先で「FAIL（Phase 4 に差し戻す）」 / ② ①非該当かつ NoTestRun フォールバック発生（対応テストクラス未整備） → 「条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要）」固定とし、ユーザー判断（テスト追加 or 明示スキップ承認）を待つ / ③ ①②いずれも非該当 → 「PASS（Phase 6 へ進む）」。
 
 test-report.md の「### 総合判定」セクションには、上記ルールで確定した**結果のみ**を記載する。本ルールの説明文自体は転記しない。
 
@@ -203,7 +203,7 @@ FAIL の場合:
 
 ## 完了の提示
 
-> **`auto_fix_mode: true` の場合**: `/test` F-2 自動修正ループから起動されているため、`/backlog` 向けの次工程案内（「Phase 6 へ進んでください」「/backlog Phase 4 で修正後」）は**出力しない**。PASS/FAIL と dry-run 結果のみ返し、次工程の判断は `/test` コマンド側が行う。以下の Phase 末尾確認プロトコル（3ブロック構造・discussion-log 追記）も適用しない。
+> **`auto_fix_mode: true` の場合**: `/test` F-2 自動修正ループから起動されているため、`/backlog` 向けの次工程案内（「Phase 6 へ進んでください」「/backlog Phase 4 で修正後」）は**出力しない**。総合判定（PASS / 条件付きPASS（NoTestRun フォールバック発生） / FAIL。FAIL は NG 原因を添える）と dry-run 結果のみ返し、次工程の判断は `/test` コマンド側が行う。以下の Phase 末尾確認プロトコル（3ブロック構造・discussion-log 追記）も適用しない。
 
 **`auto_fix_mode` が `false`（通常の `/backlog` Phase 5）の場合**、`_README.md §Phase 末尾の確認プロトコル` に従い、以下を単一ブロックで出力する:
 

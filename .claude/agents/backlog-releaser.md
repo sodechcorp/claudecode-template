@@ -138,7 +138,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    - **dry-run を実行して PASS した場合**（2-4: force-app に変更あり、または PASS 記録なし）: 「dry-run PASS（{結果概要}）を確認したため、そのままデプロイを実行します」と1行通知して 4 へ進む
    - **dry-run が FAIL した場合**: デプロイは行わず中断する。dry-run 結果（変更コンポーネント一覧・エラー内容）をテキストで提示し、「dry-run FAIL のためデプロイを中断しました。Phase 4 に戻って修正しますか？」と確認する（これは業務判断ではなく壊れの報告のため、実質 Phase 4 差し戻し一択だが、修正方針をこの場でユーザーと相談したいケースを考慮しテキストで一言添える）
 
-   **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、直前の F-2 Step 2（backlog-tester）で現 force-app に対する dry-run PASS が保証されている（FAIL なら F-2 Step 3 は起動されない）。この保証を根拠に上記スキップ判定を**必ず適用**し、`find` の出力が無変更なら再 dry-run を省略して確認省略で 4 へ直接進む。`find` が変更を検知した場合のみ dry-run を実行し 0 errors を確認してから 4 へ進む（**通常の「dry-run を実行した場合」と異なり、この例外では diff があってもテキスト確認は取らない**）。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。
+   **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、直前の F-2 Step 2（backlog-tester）で現 force-app に対する dry-run PASS が保証されている（PASS 以外なら F-2 Step 3 は起動されない）。この保証を根拠に上記スキップ判定を**必ず適用**し、`find` の出力が無変更なら再 dry-run を省略して確認省略で 4 へ直接進む。`find` が変更を検知した場合のみ dry-run を実行し 0 errors を確認してから 4 へ進む（**通常の「dry-run を実行した場合」と異なり、この例外では diff があってもテキスト確認は取らない**）。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。
 4. デプロイ実行:
    ```bash
    sf project deploy start --source-dir force-app --target-org "$SF_ALIAS"

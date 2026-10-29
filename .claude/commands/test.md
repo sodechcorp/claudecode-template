@@ -521,7 +521,7 @@ task_description: 「/test 自動修正起動: {issueID} の実装バグ NG（{a
 Task tool で `backlog-tester` を起動する:
 
 ```
-task_description: 「/test 自動修正起動: {issueID} の修正後 dry-run 検証（PASS/FAIL を返す）」
+task_description: 「/test 自動修正起動: {issueID} の修正後 dry-run 検証（総合判定 PASS / 条件付きPASS / FAIL を返す）」
 パラメータ:
   issueID: {issueID}
   project_dir: {project_dir}
@@ -531,7 +531,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 dry-run �
 
 - **PASS** → F-2 Step 3 へ進む。
 - **条件付きPASS（NoTestRun フォールバック発生）** → 自動再デプロイしない（FAIL と同様に扱う）。対応テストクラス未整備でカバレッジ未検証である旨を提示し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
-- **FAIL** → 自動再デプロイしない。dry-run のエラー内容を提示し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
+- **FAIL** → 自動再デプロイしない。backlog-tester が返した NG 原因（dry-run のエラー内容等）を提示し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
 
 #### F-2 Step 3: backlog-releaser（軽量再デプロイ・確認なし）
 
