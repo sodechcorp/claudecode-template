@@ -538,7 +538,7 @@ def _build_ng_action(j_result: dict) -> str:
     """NG判定結果からユーザー向けのアクション文を生成する（NG原因/次アクション列）。"""
     reason = j_result.get("reason", "")
     ng_type = j_result.get("ng_type", "")
-    if ng_type == "未実行":
+    if ng_type in ("未実行", "証跡不正", "命名不一致"):
         return "再テスト要" + (f": {reason}" if reason else "（証跡なし）")
     if ng_type == "要確認":
         return "判定方法修正要" + (f": {reason}" if reason else "")
@@ -1047,7 +1047,8 @@ def main():
 
     test_cases = parse_test_spec(args.spec)
     if not test_cases:
-        print("[WARN] test-spec.md にテストケースが見つかりませんでした。空のエビデンスファイルを生成します。")
+        print(f"[FATAL] test-spec.md からテストケースを読めません（No 列のある表に TC の行がありません）: {args.spec}")
+        sys.exit(1)
 
     # 回次を自動探索（archived R1/R2... + 現在の最新）
     # --judgment 未指定時は単一回次として扱う

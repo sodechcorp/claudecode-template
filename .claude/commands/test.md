@@ -190,12 +190,14 @@ python -c "import PIL" 2>/dev/null || {
 
 `target=` 必須ルールのバックストップ自己チェック（test-spec-builder Step 3 軸0 の抜け漏れ検知）:
 ```bash
-MISSING_TARGET=$(python "$(pwd -W)/scripts/python/backlog-xlsx/check_target_required.py" --spec "{spec_path}" 2>/dev/null || echo "")
-if [ -n "$MISSING_TARGET" ]; then
+MISSING_TARGET=$(python "$(pwd -W)/scripts/python/backlog-xlsx/check_target_required.py" --spec "{spec_path}")
+if [ $? -eq 2 ]; then
+  echo "[FATAL] test-spec.md からテストケースを読めません（上の理由）。Phase C に進まない"
+elif [ -n "$MISSING_TARGET" ]; then
   echo "[WARN] target= 未付記の UI TC があります: $MISSING_TARGET（test-spec-builder Step 3 軸0 で追記されているはずです。test-spec.md を確認してください）"
 fi
 ```
-`[WARN]` が出た場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
+`[FATAL]` が出たら Phase C に進まず、test-spec.md の表を直す（または `/test {issueID} --force` で作り直す）。`[WARN]` が出た場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
 
 > **仕様スキーマ（参考）**: 11 列 — No / 観点 / 種別 / 前提・データ準備 / 実行アクション / テスト手順 / 期待結果 / 判定方法 / 証跡取得 / 自動化可否 / 確認ポイント（着眼点）。`テスト手順` と `確認ポイント（着眼点）` は任意列（詳細は `test-spec-builder.md` §Step 2 参照）。  
 > 詳細な展開ルール・種別選択肢・自動化可否判断基準・網羅性チェック手順は `test-spec-builder.md` に定義されている。  
@@ -328,8 +330,12 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/judge_results.py" \
 # judge_results.py は exit 1 で NG を報告する。同一ブロック内で終了コードを確認（別ブロックだと Bash の新シェル起動により $? が無効化される）
 RC=$?
 echo "判定結果 exit code: $RC"
-cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); print(f'OK={d[\"ok\"]} NG={d[\"ng\"]} AI判定待ち={d.get(\"ai_pending\",0)} 要手動={d[\"skip\"]}')"
+if [ "$RC" -le 1 ]; then
+  cat "{judgment_path}" | python -c "import sys,json; d=json.load(sys.stdin); print(f'OK={d[\"ok\"]} NG={d[\"ng\"]} AI判定待ち={d.get(\"ai_pending\",0)} 要手動={d[\"skip\"]}')"
+fi
 ```
+
+exit 2 は判定していない（test-spec.md からテストケースを読めない等。`{judgment_path}` は書き換えていない）。Phase D-2 以降に進まず、`[FATAL]` の理由を見て test-spec.md の表を直して（または `--force` で作り直して）から `/test {issueID}` をやり直す。
 
 ---
 
@@ -455,17 +461,17 @@ echo "NG件数: ${NG_COUNT}"
 
 > **[ハーネス直接実行]**
 
-`judgment-result.json` の `ng_list` から、`ng_type` が空（実装バグ）の TC とそれ以外（要確認・未実行）の TC を分類する:
+`judgment-result.json` の `ng_list` から、`ng_type` が空（実装バグ）の TC とそれ以外（未実行・画面エラー等）の TC を分類する:
 
 ```bash
 # 実装バグ TC（ng_type が空文字 = 証跡あり・実装が期待値と不一致）
 AUTO_FIX_TCS=$(python -c "import json; d=json.load(open(r'{judgment_path}', encoding='utf-8')); print(','.join(r['no'] for r in d.get('ng_list',[]) if (r.get('ng_type','') or '')==''))" 2>/dev/null || echo "")
 
-# その他のNG（要確認/未実行）— 後続の手動案内で対応
-OTHER_NG=$(python -c "import json; d=json.load(open(r'{judgment_path}', encoding='utf-8')); print(','.join(r['no'] for r in d.get('ng_list',[]) if (r.get('ng_type','') or '') in ('要確認','未実行')))" 2>/dev/null || echo "")
+# その他のNG（ng_type あり: 未実行・画面エラー等）— 後続の手動案内で対応
+OTHER_NG=$(python -c "import json; d=json.load(open(r'{judgment_path}', encoding='utf-8')); print(','.join(r['no'] for r in d.get('ng_list',[]) if (r.get('ng_type','') or '')!=''))" 2>/dev/null || echo "")
 
 echo "実装バグ（自動修正候補）: ${AUTO_FIX_TCS:-なし}"
-echo "その他のNG（要確認/未実行）: ${OTHER_NG:-なし}"
+echo "その他のNG（未実行・画面エラー等）: ${OTHER_NG:-なし}"
 ```
 
 **`AUTO_FIX_TCS` が空の場合**: このフェーズをスキップし、後続「NG があった場合の差し戻し」セクションで手動案内を実施する。
@@ -579,6 +585,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    | `ng_type` | NG の意味 | 次のアクション |
    |---|---|---|
    | `"未実行"` | 証跡が採取されていない・結果を確かめられなかった（環境起因・実行漏れ・デプロイ後キャッシュ遅延・テスト側のクエリ／匿名 Apex を実行できなかった） | **再テスト**: 差分再実行（`/test {issueID}` のみ・実装修正不要。テスト側のクエリの誤りは理由のエラーを見て test-spec.md を直してから） |
+   | `"証跡不正"`・`"命名不一致"` | 証跡の PNG が画像として開けない・証跡のファイル名の `TC-` の有無が No 列と違う（証跡採取側の不備） | **再テスト**: 差分再実行（`/test {issueID}` のみ・実装修正不要） |
    | `"要確認"` | （旧版の判定結果のみ。現在は機械照合できない TC は Phase D-2 で AI が判定するため発生しない） | Phase D・D-2 をやり直す |
    | `"画面エラー"` | Salesforce の標準エラー画面が撮影された（「問題が発生しました」「Record ID is malformed」「関連リストはレイアウトにありません」等） | **要調査**: 実装/設定の不備（レイアウトへの関連リスト未追加等）か、テスト手順・前提データの誤り（不正な ID 参照・前提レコード未作成等）かを確認し、該当する方に差し戻す |
    | `""` (空) | 証跡あり・実装が期待値と一致しない（実装バグ） | **実装差し戻し**: 実装修正→ `/test {issueID}` 再実行 |
@@ -729,9 +736,9 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 {総合判定が受入基準再確認待ちの場合（Phase F-1 未完了）}
 要対応: 受入基準再確認（Phase F-1）が完了していません。Backlog に接続できる状態で Phase F-1 と Phase G だけをやり直し、この完了報告を出し直してください（別セッションでは /backlog {issueID} の再開で F-1 と Phase G だけを実施できます。/test 全体の再実行は不要）。
 
-{手動対応が必要な NG がある場合（要確認/未実行 / 自動修正のガードで止まった場合 / dry-run FAIL の場合）}
+{手動対応が必要な NG がある場合（ng_type あり〔OTHER_NG〕/ 自動修正のガードで止まった場合 / dry-run FAIL の場合）}
 NG 一覧:
-  - TC-00X: {観点} — {理由}（種別: 未実行 / 要確認 / 画面エラー / 実装バグ のいずれか。`ng_type` が空欄の場合は「実装バグ」と表示する）
+  - TC-00X: {観点} — {理由}（種別: `ng_type` の値。空欄の場合は「実装バグ」と表示する）
 
 修正手順（この順番で実施してください。NG原因・修正方針の記録は上記「NG があった場合の差し戻し」手順5〜6で記録済みです）:
   1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run）

@@ -917,10 +917,14 @@ def main():
                         help="前回判定 JSON（差分再実行時に前回 OK を流用する）")
     args = parser.parse_args()
 
-    test_cases = parse_test_spec(args.spec)
+    # 読めない spec は判定せず exit 2（exit 1 は「NG あり」。--out は書かない＝前回の判定結果を退避・上書きしない）
+    try:
+        test_cases, err = parse_test_spec(args.spec), "No 列のある表に TC の行がありません"
+    except (OSError, UnicodeDecodeError) as e:
+        test_cases, err = [], str(e)
     if not test_cases:
-        print("[WARN] test-spec.md にテストケースが見つかりませんでした。")
-        sys.exit(0)
+        print(f"[FATAL] test-spec.md からテストケースを読めません（{err}）: {args.spec}", file=sys.stderr)
+        sys.exit(2)
 
     # 前回判定の読み込み（差分再実行用）
     prev_results = {}
