@@ -365,12 +365,17 @@ async (page) => {
     }
   }
   async function getPageText(page) {
-    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（playwright-sf-screen-ops.md「DOM 本文取得」節参照）
+    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（playwright-sf-screen-ops.md「DOM 本文取得」節参照）
     try {
       return await page.evaluate(() => {
-        const clone = document.body.cloneNode(true);
-        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
-        return clone.innerText;
+        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
+        const saved = heads.map(h => h.getAttribute('style'));
+        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
+        try {
+          return document.body.innerText;
+        } finally {
+          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
+        }
       });
     } catch (_) {
       return await page.locator('body').innerText();

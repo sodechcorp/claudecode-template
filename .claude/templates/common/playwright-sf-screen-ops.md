@@ -141,17 +141,26 @@ async function saveText(p, text, path) {
 
 ## DOM 本文取得（getPageText・グローバルヘッダーノイズの除去）
 
-`page.locator('body').innerText()` は画面全体を無条件取得するため、Lightning 共通ヘッダー（グローバルナビ・検索・通知等。ARIA ランドマーク `role="banner"`）が毎回のスナップショットに定型ノイズとして混入し、判定対象の肥大化や（`saveText` の download 不発火時フォールバックでの）LLM 再入力コスト増につながる。
+`page.locator('body').innerText()` は画面全体を無条件取得するため、Lightning 共通ヘッダー（検索・お気に入り・ヘルプ・設定・通知等）が毎回のスナップショットに定型ノイズとして混入し、判定対象の肥大化や（`saveText` の download 不発火時フォールバックでの）LLM 再入力コスト増につながる。
 
-代わりに body を複製した DOM 上で `role="banner"` 要素を除去してから `innerText` を取得する `getPageText` を使う。対象要素が存在しない画面（Setup／Flow／コミュニティ等）では除去が空振りするだけで、除去前と同じ全文がそのまま返る（実機確認済み: `data:` URL 上で複製 DOM の除去挙動と、`role="banner"` 非存在時に無変化であることの両方を確認済み）。
+代わりに、実際の画面で共通ヘッダー（Lightning の `#oneHeader`、ARIA ランドマーク `role="banner"`）を同じ同期処理の中で一時的に非表示にし、`document.body.innerText`（**画面に表示されている文字**）を取ってすぐ戻す `getPageText` を使う。対象要素が無い画面（Setup／Flow／コミュニティ等）では非表示にするものが無いだけで、表示中の全文がそのまま返る。同期処理の中で戻すので、画面の描画・スクショには影響しない。
+
+**body を複製して取らない（2026-11-02 に直した）**: 以前は `document.body.cloneNode(true)` から `role="banner"` を消して `innerText` を取っていた。複製は描画されていないため `innerText` が `textContent` と同じになり、`<script>`・`<style>` の中身と、画面に出ていない要素の文字まで入る。GF の UAT のレコード画面での実測: 複製は 14,834 字・最長の行 5,620 字で CSS・JavaScript（`moment.defineLocale(...)`・`$A.addValueProvider(...)`）と非表示の文言を含み、表示中の文字は 1,018 字・最長 50 字。期待文字列がスクリプト内のデータや非表示の要素にだけあっても「含む」が OK になり（偽 OK）、ブロック要素の間の改行も消えていた。また、この組織の Lightning の共通ヘッダーは `#oneHeader` で `role="banner"` を持たず、除去は効いていなかった。
 
 ```javascript
 async function getPageText(page) {
   try {
     return await page.evaluate(() => {
-      const clone = document.body.cloneNode(true);
-      clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
-      return clone.innerText;
+      // 表示中の文字だけを取る（複製した body の innerText は script・style・非表示の要素の文字まで返すため使わない）。
+      // 共通ヘッダー（Lightning の #oneHeader・role="banner"）は同じ処理の中で一時的に非表示にして除き、すぐ戻す
+      const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
+      const saved = heads.map(h => h.getAttribute('style'));
+      heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
+      try {
+        return document.body.innerText;
+      } finally {
+        heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
+      }
     });
   } catch (_) {
     return await page.locator('body').innerText(); // 失敗時は従来どおりの全文取得にフォールバック
@@ -159,7 +168,7 @@ async function getPageText(page) {
 }
 ```
 
-**適用範囲・既知の限界**: 除去対象は `role="banner"` のみ。標準レコードページの Chatter フィードパネル等は安定した共通セレクタが未確認のため対象外（画面種別ごとに DOM 構造が異なり、採用には実機 Sandbox でのセレクタ検証が別途必要）。以降の各コードブロック例では、DOM 本文取得に `page.locator('body').innerText()` の代わりに `getPageText(page)`（並列コンテキストでは `getPageText(p)`）を使う。`waitSfReady`/`saveText` と同様、コードブロックごとにインラインで定義する。
+**適用範囲・既知の限界**: 除去対象は共通ヘッダー（`#oneHeader`・`role="banner"`）のみ。その下のタブ列（`one-appnav`）は「アプリにタブを追加する」課題で確認対象になりうるため除かない。標準レコードページの Chatter フィードパネル等は安定した共通セレクタが未確認のため対象外（画面種別ごとに DOM 構造が異なり、採用には実機 Sandbox でのセレクタ検証が別途必要）。以降の各コードブロック例では、DOM 本文取得に `page.locator('body').innerText()` の代わりに `getPageText(page)`（並列コンテキストでは `getPageText(p)`）を使う。`waitSfReady`/`saveText` と同様、コードブロックごとにインラインで定義する。
 
 ---
 
@@ -218,12 +227,17 @@ async (page) => {
     }
   }
   async function getPageText(page) {
-    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
     try {
       return await page.evaluate(() => {
-        const clone = document.body.cloneNode(true);
-        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
-        return clone.innerText;
+        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
+        const saved = heads.map(h => h.getAttribute('style'));
+        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
+        try {
+          return document.body.innerText;
+        } finally {
+          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
+        }
       });
     } catch (_) {
       return await page.locator('body').innerText();
@@ -320,12 +334,17 @@ async (page) => {
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
   async function getPageText(page) {
-    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
     try {
       return await page.evaluate(() => {
-        const clone = document.body.cloneNode(true);
-        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
-        return clone.innerText;
+        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
+        const saved = heads.map(h => h.getAttribute('style'));
+        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
+        try {
+          return document.body.innerText;
+        } finally {
+          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
+        }
       });
     } catch (_) {
       return await page.locator('body').innerText();
@@ -386,12 +405,17 @@ async (page) => {
       .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   }
   async function getPageText(page) {
-    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
     try {
       return await page.evaluate(() => {
-        const clone = document.body.cloneNode(true);
-        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
-        return clone.innerText;
+        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
+        const saved = heads.map(h => h.getAttribute('style'));
+        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
+        try {
+          return document.body.innerText;
+        } finally {
+          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
+        }
       });
     } catch (_) {
       return await page.locator('body').innerText();
@@ -473,12 +497,17 @@ async (page) => {
     return false;
   }
   async function getPageText(page) {
-    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
     try {
       return await page.evaluate(() => {
-        const clone = document.body.cloneNode(true);
-        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
-        return clone.innerText;
+        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
+        const saved = heads.map(h => h.getAttribute('style'));
+        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
+        try {
+          return document.body.innerText;
+        } finally {
+          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
+        }
       });
     } catch (_) {
       return await page.locator('body').innerText();
@@ -642,12 +671,17 @@ async (page) => {
     }
   }
   async function getPageText(page) {
-    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
     try {
       return await page.evaluate(() => {
-        const clone = document.body.cloneNode(true);
-        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
-        return clone.innerText;
+        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
+        const saved = heads.map(h => h.getAttribute('style'));
+        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
+        try {
+          return document.body.innerText;
+        } finally {
+          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
+        }
       });
     } catch (_) {
       return await page.locator('body').innerText();
@@ -778,12 +812,17 @@ async (page) => {
   }
 
   async function getPageText(p) {
-    // グローバルヘッダー（role="banner"）ノイズを除去して取得する（「DOM 本文取得」節参照）
+    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
     try {
       return await p.evaluate(() => {
-        const clone = document.body.cloneNode(true);
-        clone.querySelectorAll('[role="banner"]').forEach(el => el.remove());
-        return clone.innerText;
+        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
+        const saved = heads.map(h => h.getAttribute('style'));
+        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
+        try {
+          return document.body.innerText;
+        } finally {
+          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
+        }
       });
     } catch (_) {
       return await p.locator('body').innerText();
