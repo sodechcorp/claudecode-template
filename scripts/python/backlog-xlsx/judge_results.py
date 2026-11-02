@@ -418,6 +418,21 @@ def _split_apex_evidence(content: str) -> tuple:
     return "\n".join(code), "\n".join(debug), debug[-1]
 
 
+def _evidence_outputs(content: str) -> str:
+    """画面エラーの文言を探す範囲。soql_evidence.py・anon_apex_runner.py の証跡は、各回の見出し（「実際の値:」より前）の
+    観点・クエリの行と実行コード（次の「--- System.debug 出力 ---」の手前まで）を除く（書き手の文は画面に出たエラーではない）。
+    それ以外（DOM の .txt 等）は全文。"""
+    text = content.replace("\r\n", "\n")
+    if not re.search(r"^(?:SOQL 証跡|匿名 Apex 実行証跡)", text, re.MULTILINE):
+        return text
+    parts = re.split(r"(^実際の値\s*[:：].*?(?=^=+\n(?:匿名 Apex 実行証跡|SOQL 証跡)|\Z))", text,
+                     flags=re.MULTILINE | re.DOTALL)
+    return "".join(p if i % 2 else re.sub(r"^--- 実行コード ---$.*?(?=^--- System\.debug 出力 ---$|\Z)", "",
+                                         re.sub(r"^(?:観点|クエリ)\s*[:：].*$", "", p, flags=re.MULTILINE),
+                                         flags=re.MULTILINE | re.DOTALL)
+                   for i, p in enumerate(parts))
+
+
 def _result_scope(content: str) -> str:
     """含む・含まない・前後比較の照合範囲: 匿名 Apex の証跡は System.debug 出力、それ以外は「実際の値:」セクション（無ければ全文）。"""
     _code, text, last = _split_apex_evidence(content)
@@ -514,9 +529,22 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
     # テキスト証跡（SOQL/Apex ログ / DOM スナップショット .txt）
     content = _read_text_evidence(evidence_path)
 
+    # 照合範囲: 匿名 Apex の証跡（anon_apex_runner.py）は System.debug 出力だけ（観点・実行コードや、3-3b で末尾に足した
+    # 2回目の見出し・実行コードに書いた期待値・NG項目数= に当てない）。それ以外の証跡は全文
+    apex_code, scope, apex_last = _split_apex_evidence(content)
+
     # Salesforce エラー画面検知（最終ガード）。UI の DOM スナップショット .txt が
     # PNG を介さず単独で判定対象になるケース（PNG なし・txt のみ）を含めてここでも検知する。
-    sf_err = _detect_sf_error(content, kiki)
+    # 観点・クエリ・実行コードに書いた文言は探さない（_evidence_outputs）。全回が成功した匿名 Apex の証跡は画面ではないため、
+    # debug 出力の文言（catch した例外・入力規則のメッセージ等）は期待どおりのエラーか決められず、画面エラーにせず AI 判定に回す
+    sf_err = _detect_sf_error(_evidence_outputs(content), kiki)
+    if sf_err and apex_last is not None and re.search(r"^成功\s*:\s*True", content, re.MULTILINE) \
+            and not re.search(r"^成功\s*:\s*False|^判定\s*[:：]\s*NG", content, re.MULTILINE):
+        return _ai_pending(f"匿名 Apex の debug 出力に Salesforce のエラー文言「{sf_err}」があります。期待結果どおりの"
+                           "エラー（catch した例外・入力規則のメッセージ等）か、期待しないエラーかを判定してください。"
+                           "期待しないエラーで、原因がテスト側（前提データ・テストコード・実行ユーザー）なら NG の ng_type は"
+                           "「未実行」、実装かテスト側かを証跡から決められなければ「画面エラー」（要調査）にしてください",
+                           f"AI判定待ち（debug にエラー文言「{sf_err[:20]}」）")
     if sf_err:
         return {"ok": False, "actual": f"画面エラー検出（{sf_err}）",
                 "reason": f"Salesforce のエラー画面が撮影されています（「{sf_err}」を検出）。"
@@ -557,10 +585,6 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                 reason = f"採取側はOKとしているが期待値「{kiki[:30]}」が「実際の値:」セクションに見つかりません"
         actual_str = "OK — " + reason if ok else "NG — " + reason
         return {"ok": ok, "actual": actual_str, "reason": "" if ok else reason}
-
-    # 照合範囲: 匿名 Apex の証跡（anon_apex_runner.py）は System.debug 出力だけ（観点・実行コードや、3-3b で末尾に足した
-    # 2回目の見出し・実行コードに書いた期待値・NG項目数= に当てない）。それ以外の証跡は全文
-    apex_code, scope, apex_last = _split_apex_evidence(content)
 
     # 件数一致判定 (期待結果が "N 件" 形式)
     m_expected_count = re.search(r"(\d+)\s*件", kiki)
