@@ -145,7 +145,7 @@ Excel出力 : {xlsx_folder}/{issueID}_エビデンス.xlsx
   Phase B: テスト仕様の展開（test-spec.md 生成・網羅性チェック）
   Phase C: SOQL / 匿名 Apex / Playwright UI の自動実行（分岐網羅・before/after）
   Phase D: OK/NG 判定（機械判定できない TC は Phase D-2 で AI が証跡を読んで判定）
-  Phase E: エビデンス.xlsx 生成（スクショ・DOM・SOQL 証跡を自動貼付）
+  Phase E: エビデンス.xlsx 生成（スクショはエビデンスと NG の TC だけ貼付。ほかは画面の文字・SOQL の結果を載せる）
   Phase F: test-report.md 生成・一時ファイル後始末（テストデータは削除せず Sandbox に保持）
   Phase G: 証跡（エビデンス.xlsx・evidence/before/）を共有フォルダへコピー
 ```
@@ -194,7 +194,7 @@ MISSING_TARGET=$(python "$(pwd -W)/scripts/python/backlog-xlsx/check_target_requ
 if [ $? -eq 2 ]; then
   echo "[FATAL] test-spec.md からテストケースを読めません（上の理由）。Phase C に進まない"
 elif [ -n "$MISSING_TARGET" ]; then
-  echo "[WARN] target= 未付記の UI TC があります: $MISSING_TARGET（test-spec-builder Step 3 軸0 で追記されているはずです。test-spec.md を確認してください）"
+  echo "[WARN] target= 未付記のエビデンスの UI TC があります: $MISSING_TARGET（test-spec-builder Step 3 軸0 で追記されているはずです。test-spec.md を確認してください）"
 fi
 ```
 `[FATAL]` が出たら Phase C に進まず、test-spec.md の表を直す（または `/test {issueID} --force` で作り直す）。`[WARN]` が出た場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
@@ -381,6 +381,8 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/generate_evidence_xlsx.py" \
 ```
 
 スクリプトの stdout（`生成完了: {出力パス}` / `テストケース: {N}件 (OK=.. / NG=.. / 要手動=.. / 対象外=..)` / `回次: {N}回`）をそのまま完了根拠とする。シート生成に失敗した場合（`PermissionError` 等）はスクリプトが exit 1 で終了するため、正常終了＝シート存在が保証される（目視確認は不要）。
+
+証跡シートにスクショを貼るのは、エビデンスの TC（観点の末尾が「（エビデンス）」。test-spec-builder 軸4 の1〜2件）と NG の TC だけ。ほかの画面テストは画面の文字の一致行（機械照合の結果）だけを載せ、画像は `{evidence_dir}/after/` に残す（テストは全件行い、人が見る証跡は最小にする。完了報告で案内する証跡クリーンアップを実行すると消える）。AI がスクショを読んで判定した TC と、画面の文字が無い・空のスクショがある TC は、スクショが判定の根拠なので貼る。エビデンスの印が1件も無い test-spec.md は従来どおり全部貼る。
 
 ---
 
@@ -716,8 +718,8 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 お客様への連絡: 「お客様に連絡するときに、要望から外した点と理由もあわせて伝えてください: {要求・入口} — {理由}」を添える（1件1行。[CLAUDE.md §要望への対応範囲の取捨選択](../CLAUDE.md#要望への対応範囲の取捨選択全エージェント共通) 5.）。お客様確認サインの要否や取得済みかどうかによらず出す
 
 {総合判定が PASS（完全・要確認なし）の場合のみ}
-証跡クリーンアップ: 証跡スクショ（PNG）のうちxlsxに実際に格納済みのものはエビデンス.xlsxに残っています（before/等xlsx対象外のファイル・DOM テキスト・investigation.md 等は削除されません。埋め込み実数を検証してから削除する安全設計です）。本番リリース準備が完了し、この課題でもう /test を再実行しない見込みなら、以下でディスク容量を削減できます:
-  python "{project_dir}/scripts/python/backlog-xlsx/cleanup_evidence.py" --folder "{xlsx_folder}" --issue-id "{issueID}" --evidence-dir "{evidence_dir}" --judgment "{judgment_path}"
+証跡クリーンアップ: 証跡スクショ（PNG）のうちxlsxに実際に格納済みのものはエビデンス.xlsxに残っています（before/等xlsx対象外のファイル・DOM テキスト・investigation.md 等は削除されません。埋め込み実数を検証してから削除する安全設計です）。エビデンス以外の画面テストの PNG（xlsx に貼らない機械照合用）も一緒に消えます（画面の文字の .txt は残ります）。本番リリース準備が完了し、この課題でもう /test を再実行しない見込みなら、以下でディスク容量を削減できます:
+  python "{project_dir}/scripts/python/backlog-xlsx/cleanup_evidence.py" --folder "{xlsx_folder}" --issue-id "{issueID}" --evidence-dir "{evidence_dir}" --judgment "{judgment_path}" --spec "{spec_path}"
 ※ 削除後に /test を再実行する場合は自動的に全量再実行になります（差分再実行モードは使われません）。
 
 {実装バグ NG が Phase F-2 で自動修正・再デプロイされた場合}

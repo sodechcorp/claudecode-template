@@ -11,10 +11,29 @@ backlog-investigator が Step 0b で参照する判定情報。
 以下のオプションは判定条件・実行手順が前段オプションの結果に依存するため、評価順序を守る:
 
 1. **`multi-cause-hypothesis`** を最初に評価
-2. その結果を踏まえて **`second-opinion`** / **`counter-evidence-search`** を評価（前段で原因仮説が薄い・偏っている場合に発火する設計）
+2. その結果を踏まえて **`counter-evidence-search`** を評価（前段で原因仮説が薄い・偏っている場合に発火する設計）。`second-opinion` は通常の Phase 1 では評価しない（下の「Phase 1 で実行しないオプション」。Phase 1 再入モードで使う）
 3. その他のオプションは独立評価可能（任意順序）
 
 並列実行不可。Step 0b で順次評価すること。
+
+---
+
+## Phase 1 で実行しないオプション（方針決定後に回す）
+
+Phase 1 は担当者が対応方針を決めるための調査で、網羅的な影響確認はしない（[backlog-investigator.md](../../agents/backlog-investigator.md)「ミッション」）。次のオプションは Phase 1 では判定の対象にせず、スキップ欄に「Phase 1 では実行しない（方針決定後に {確認先}）」と1行で記録する。方針が決まった後、決定方針で変える処理に対して右の確認先が確かめる。
+
+| オプション | 方針決定後の確認先 | Phase 1 でも実行する場合 |
+|---|---|---|
+| option-reverse-grep（通常モード） | Phase 3 backlog-planner のスコープ内の全量読込・Phase 3.5 regression-guard（変更対象の依存先 grep） | 根本原因が共有・再利用コンポーネントのバグ（root-cause-anchor モードで兄弟入口を判定。Step 0b の記録にかかわらず investigator Step C-2 の発火条件で実行する） |
+| option-similar-impl-search | Phase 3 backlog-planner（B-1 1.） | なし |
+| option-impact-scope-grep | Phase 3 backlog-planner のスコープ内の全量読込（保存時に連動する入力規則・承認プロセス・割り当てルール） | なし |
+| option-flow-trigger-trace | Phase 3 backlog-planner のスコープ内の全量読込・Phase 3.5 backlog-validator（稼働状態の確認） | 原因がフロー・トリガーの連鎖にありうるバグ |
+| option-permission-fls-check | Phase 3.5 backlog-validator のクロスレビュー（option-cross-review の CRUD・FLS・with sharing） | 課題そのものが「見えない・編集できない・操作できない」系（原因の特定に要る） |
+| option-test-class-impact | Phase 3.5 regression-guard（既存テストのカバレッジ）・Phase 5 backlog-tester | なし |
+| option-similar-past-issue | 実行しない（過去の類似課題は Phase 1 開始前に本体が渡す知識層コンテキストで見る。subagent の検索に約8分かかった実測がある） | なし |
+| option-second-opinion | Phase 1.6 で仮説が再現しなかったときの Phase 1 再入モード（investigator 手順 6） | なし |
+
+上の表に無いオプション（option-sharing-rule-check・option-data-volume-analysis・option-business-process-mapping・option-user-impact-survey 等）は、方針決定後に同じ確認をする担当がいないため、Phase 1 で従来どおり各エントリの条件で判定する。
 
 ---
 

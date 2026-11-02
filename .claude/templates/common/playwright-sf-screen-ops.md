@@ -534,7 +534,8 @@ async (page) => {
   // TC-XXX: {観点}
   await page.goto('{対象画面URL_1}');
   await waitSfReady(page);
-  // before 撮影（fullPage: true）+ before DOM 取得（**書き込み動詞ありの TC と、判定方法が前後比較の TC のみ**。ほかは before を採取しない）
+  // before 撮影（fullPage: true）+ before DOM 取得（**書き込み動詞ありの TC と、判定方法が前後比較の TC のみ**。ほかは before を採取しない。
+  // /test ではさらに、スクショはエビデンスの TC だけ・DOM は前後比較の TC だけ — ui-evidence-runner.md Step 1「エビデンスの TC」）
   await page.screenshot({path: '/絶対パス/{No}_xxx_before.png', fullPage: true, animations: 'disabled', scale: 'css'});
   const beforeText1 = await getPageText(page);
   const beforeSaved1 = await saveText(page, beforeText1, '/絶対パス/{No}_xxx_before.txt');
@@ -678,6 +679,7 @@ async (page) => {
   // TC-XXX: {観点}
   // 例: CopyQuoteByCustomer フローを起動する場合
   //   await page.goto(currentUrl.replace('/s/', '/s/') + '?flowName=CopyQuoteByCustomer');
+  // before（/test ではスクショはエビデンスの TC だけ・DOM は前後比較の TC だけ — ui-evidence-runner.md Step 1「エビデンスの TC」）
   await page.screenshot({path: '/絶対パス/evidence/before/{No}_before.png', fullPage: true, animations: 'disabled', scale: 'css'});
   const beforeText = await getPageText(page);
   const beforeSaved = await saveText(page, beforeText, '/絶対パス/evidence/before/{No}_before.txt');

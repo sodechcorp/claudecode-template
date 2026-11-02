@@ -147,7 +147,7 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
 
 **グループ判定ルール（動詞ベース）**:
 - **「実行アクション」列のみ**に**書き込み動詞**（登録/作成/編集/更新/削除/保存/承認/入力/insert/update/delete/upsert）が 1 つでも含まれる場合は**逐次②**。「前提・データ準備」列はスキャン対象外とする（前提データ作成は AnonApex 側で実行アクションの前に完了済みという前提。test-spec-builder.md §「前提・データ準備」列の記述ルール参照）。
-- **読み取り専用シグナルのみ**（表示/参照/確認/閲覧/ラベル確認/件数確認/取得/開く/遷移する）の場合は**並列可①**に倒す（判定方法が前後比較の TC は before を撮るため②）。「開く/遷移する」はデータを変更しないナビゲーション操作のため読み取り専用シグナルに含める（実TCの「実行アクション」列はほぼ必ず「〜画面を開き…」の形で始まるため、この動詞を除外すると「のみ」要件を満たすTCがほとんど無くなり①が機能しなくなる）。**ボタンクリック・項目選択・入力等の操作動詞（クリックする/選択する/押す 等）はこの読み取り専用シグナルに含めない**（サーバー側処理を誘発しうるため次項の曖昧判定に回す）。
+- **読み取り専用シグナルのみ**（表示/参照/確認/閲覧/ラベル確認/件数確認/取得/開く/遷移する）の場合は**並列可①**に倒す（判定方法が前後比較の TC は before を撮るため②。エビデンスの TC〔下の「エビデンスの TC」〕も赤枠を付けるため②。①は highlightTarget を使わない）。「開く/遷移する」はデータを変更しないナビゲーション操作のため読み取り専用シグナルに含める（実TCの「実行アクション」列はほぼ必ず「〜画面を開き…」の形で始まるため、この動詞を除外すると「のみ」要件を満たすTCがほとんど無くなり①が機能しなくなる）。**ボタンクリック・項目選択・入力等の操作動詞（クリックする/選択する/押す 等）はこの読み取り専用シグナルに含めない**（サーバー側処理を誘発しうるため次項の曖昧判定に回す）。
 - 書き込み動詞の有無が判断できない、または同一既存レコードを複数 TC が参照しつつ別 TC が更新する場合は**逐次②**（安全側）。Login As ③ は動詞によらず逐次扱い（Session 状態を持つため並列禁止）。
 
 **後から動く処理の結果を撮る TC**: 期待結果（前後比較は after:）が、その TC の操作か前提データの保存で動く、トランザクションの外の処理（`{log_dir}/investigation.md`「## スコープ」と force-app で確かめる）の結果を含む TC は、グループによらず `playwright-sf-screen-ops.md`「後から動く処理の結果を待つ」で待ってから（`$SF_ALIAS` は `{alias}`）after を撮る（グループ②③は操作の後でコードブロックを区切り、次のコードブロックで再読込してから撮る。グループ①は撮るコードブロックの前に待つ。同節 2. の比べる元の値は、操作の保存で動く処理ならその保存を含むコードブロックの前に SOQL で控え、前提データの保存で動く処理なら作成時の値にする）。待ちを打ち切った・終わったことを確かめる手段が無い TC（同節の最後の段落）は、撮影したうえで after DOM の `.txt`（保存失敗で Write した場合はその後）の末尾に `printf '\n判定: 未確認 — 後から動く処理の完了を確かめられず、結果を確認していない\n' >> "{その .txt}"` で1行足し（`judge_results.py` が行頭の `判定: 未確認` で NG〔未実行〕にする。DOM の最後の行に続けないよう改行から足す）、備考欄に `[後から動く処理の完了を確認できず]` を付記する。
@@ -155,6 +155,8 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
 **前の保存で動く処理の結果に依る TC**: 前の UI の TC の操作の保存で動く、トランザクションの外の処理（確かめ方は上と同じ）の結果に操作・期待結果（前後比較の before: を含む）が依る TC と、同じ TC の操作の途中の保存で動くその処理の結果に操作の残りが依る TC は、その保存の後でコードブロックを区切って `playwright-sf-screen-ops.md`「後から動く処理の結果を待つ」で待ち（同節 2. の比べる元の値はその保存を含むコードブロックの前に SOQL で控える）、次のコードブロックで再読込してから続ける。待ちを打ち切った・終わったことを確かめる手段が無い TC は、上と同じく after DOM の `.txt` に1行足し、備考欄に付記する。
 
 **続きの TC**: 前提・実行アクションに、別の UI の TC（続き元）の操作の後の画面のまま続けると書かれた TC（「TC-xxx の続き」「TC-xxx と同一画面」「TC-xxx 実行時の完了画面」等。同じレコード・データを使うだけの TC・続き元の操作の途中の画面〔「TC-xxx 実行時の入力画面」等〕を撮る TC は含めない）は、続き元と同じグループ（③なら同じユーザ。続き元が①なら両方を②）で続き元の直後に実行する（同じ続き元の TC が複数あれば No 順に続ける）。続き元が失敗した（`ok: false`）・飛ばされた（前のコードブロックのものを含む）・`ui_cases` に無い続きの TC は実行せず（`tcs` に入れない）、`printf '%s\n' '判定: 未確認 — 続き元 {続き元の No} の操作の後の画面が無く、結果を確認していない' > "{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt"` で書き（前回の証跡が残っていても `judge_results.py` が理由付きの NG〔未実行〕にする）、NG（備考に `[続き元 {続き元の No} の画面が無く未実行]`）にする。
+
+**エビデンスの TC**: 観点の末尾が `（エビデンス）` の TC（test-spec-builder 軸4 が選ぶ 1〜2 件）。赤枠（確認ポイントの `target=`。エビデンスの TC にだけ書かれる）と操作前（before）のスクショはこの TC だけで行う。ほかの UI の TC は画面の文字を機械で照合するテストのため、after のスクショ（判定・AI 判定用。エビデンス.xlsx には貼られない）と画面の文字（DOM）だけを保存し、before は判定方法が前後比較の TC の DOM だけを保存する（テストは全件行い、人が見る記録は最小にする）。
 
 **別の TC の保存の前に行う TC**: 前提・実行アクションに、別の UI の TC（TC-xxx）の保存の前のデータで行うと書かれた TC（「TC-xxx 実行前」・TC-xxx の操作の途中の画面〔「TC-xxx 実行時の入力画面」等〕を撮る TC）は、No 順・グループの順で TC-xxx より後になるなら TC-xxx の直前に（複数あれば No 順に）実行する（グループ〔③はユーザ〕が違えば TC-xxx の前でコードブロックを区切り、そのグループで実行する）。途中の画面を撮る TC は TC-xxx と同じグループ（③なら同じユーザ）にし、TC-xxx の操作をその画面まで行って撮り、その画面で止める。ほかの TC は No 順に実行する。
 
@@ -170,7 +172,7 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
 
 ---
 
-> **【before 採取の設計方針】** テスト証跡モードは `/test`（デプロイ後工程）での実行のため、before は「修正前の画面」を再現するものではなく「操作直前の現在画面」を指す。表示・参照のみの TC（グループ①）では before ≒ after（同じデプロイ済み画面）となり、「修正前も同じ内容だった」と誤読させる証跡になる。このため **before 採取はグループ②（書き込み動詞あり）と、Login As でデータ操作を伴う TC・判定方法が前後比較の TC のみ** とし、グループ①（読み取り専用）は after のみ採取する。Before-only モード（`mode: before-capture`）は実装前検証用で before=実装前現状が正当のため、この制約の対象外。
+> **【before 採取の設計方針】** テスト証跡モードは `/test`（デプロイ後工程）での実行のため、before は「修正前の画面」を再現するものではなく「操作直前の現在画面」を指す。表示・参照のみの TC（グループ①）では before ≒ after（同じデプロイ済み画面）となり、「修正前も同じ内容だった」と誤読させる証跡になる。このため **before 採取はグループ②（書き込み動詞あり）と、Login As でデータ操作を伴う TC・判定方法が前後比較の TC のみ** とし、グループ①（読み取り専用）は after のみ採取する。そのうえで、before のスクショはエビデンスの TC（Step 1）だけ、before の DOM（.txt）は判定方法が前後比較の TC だけで採る（judge_results.py が before を使うのは前後比較だけで、before のスクショは人が見るためのもの）。Before-only モード（`mode: before-capture`）は実装前検証用で before=実装前現状が正当のため、この制約の対象外。
 
 ## Step 2: 単一ユーザ UI 証跡（ユーザ切替なし）
 
@@ -207,7 +209,7 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
 
 ### Step 2B: 単一セッション逐次（グループ②：データ作成/更新あり）
 
-書き込み動詞（登録/更新/削除等）を伴う TC はレコード状態が操作前後で変化する。**before（操作直前状態）** は **after（操作後状態）** との差分を示す有意な証跡になるため、このグループのみ before/after を両方採取する。
+書き込み動詞（登録/更新/削除等）を伴う TC はレコード状態が操作前後で変化する。**before（操作直前状態）** は **after（操作後状態）** との差分を示す有意な証跡になるため、このグループのみ before/after を両方採取する（before のスクショはエビデンスの TC だけ、before の DOM は判定方法が前後比較の TC だけ。Step 1「エビデンスの TC」）。
 
 1件目の TC のみ `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用する（再ログインしない）。Step 1.5 で `--path` に渡した画面が1件目の TC の操作を始める画面（同じレコード。手順0.5）と同じ場合は、この1回の goto でその画面に着地するため、1件目の TC には `preNav` を書かない。
 
@@ -220,8 +222,9 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
 0.5. **画面遷移**: 当該 TC の操作を始める画面（前提のレコードの、実行アクションの最初の操作〔ボタン・入力等〕を行う画面。遷移そのものを確かめる TC は遷移元の画面で、遷移は `action` で行う）を開いてから（コード例の `preNav`。URL が決まる画面は `page.goto` で開く）手順1（before 撮影）に進む。前の TC と同じ画面でも開き直す（前の TC の操作で画面の状態が変わっている・別のレコードを開く TC があるため）。`preNav` を書かないのは、ログイン直後にその画面〔同じレコード〕に着地した1件目（上記の `--path`、コード例の TC-001 のホーム）と、続きの TC（Step 1。続き元の直後に置き、`from` に続き元の No を書く）。
 1. **before 撮影 + DOM取得（F-6/F-7）**（**手順0.5の遷移の後に行う。操作を始める画面を撮影する**）:
    - **例外（Phase3 Before参照）**: `ui_cases` の「証跡取得」列に `[Phase3 Before参照: ...]` の記載がある TC（`test-spec-builder.md` §展開の注意「タイミング=実装前のTC」参照）は、この手順のスクショ・DOM取得を**実行せず**、`{evidence_dir}/before/{issueID}_{対象画面サニタイズ}_before.png` と `.txt` を Read し、内容をそのまま `{evidence_dir}/before/{No}_{観点サニタイズ}_before.png` / `.txt` としてコピー保存する（Phase 3.5 `option-evidence-check.md` が採取済みの実装前状態が正本のため、`/test` 実行時点で新規撮影しない）。コピー元ファイルが存在しない場合はスクショ・DOM取得ともスキップし、当該 No を返却テーブルに「Phase3 Before証跡が見つかりません」と記録する（この場合の可否判定は Phase D `judge_results.py` 側で `対象外` 記載に従う）。
-   - **通常ケース**: スクショ: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true, animations: 'disabled', scale: 'css'})`
-   - before DOM: `const beforeText = await getPageText(page)`（`playwright-sf-screen-ops.md`「DOM 本文取得」節。グローバルヘッダーのノイズを除去して取得する）を取得し、`saveText(page, beforeText, '/絶対パス/before/{No}_{観点サニタイズ}_before.txt')` で直接保存する（後述）。
+   - **通常ケース**: スクショ（エビデンスの TC だけ）: `await page.screenshot({path: '/絶対パス/before/{No}_{観点サニタイズ}_before.png', fullPage: true, animations: 'disabled', scale: 'css'})`
+   - before DOM（判定方法が前後比較の TC だけ）: `const beforeText = await getPageText(page)`（`playwright-sf-screen-ops.md`「DOM 本文取得」節。グローバルヘッダーのノイズを除去して取得する）を取得し、`saveText(page, beforeText, '/絶対パス/before/{No}_{観点サニタイズ}_before.txt')` で直接保存する（後述）。
+   - エビデンスでも前後比較でもない TC は before を採らず、手順2に進む。
 2. **操作**（**画面内の操作のみ**。遷移部分は手順0.5で完了済み。遷移そのものを確かめる TC の遷移はここで行う）: 「実行アクション」のラベル名を `getByText`/`getByRole`/`getByLabel` で解決してクリック・入力。`waitSfReady(page)` で表示を待つ。
 3. **after 撮影（分岐ごと）＋ 確認対象の赤枠ハイライト**:
    - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。`target` 未記載の TC は `const highlightEl = null;` として明示する（ハイライトを試みない）。
@@ -384,29 +387,30 @@ async (page) => {
   }
   const results = [];
 
-  // TC 定義: TC ごとに変わるのはラベル・遷移（preNav）・操作（action）だけ。
+  // TC 定義: TC ごとに変わるのはラベル・遷移（preNav）・操作（action）・印（evidence・compare）だけ。
   // 撮影・DOM取得・保存・push の共通処理は runTC に集約しているため、
   // TC が増えてもここに1エントリ追記するだけでよい（ブロック全体を複製しない）。
+  // evidence: 観点の末尾が（エビデンス）の TC（赤枠と before のスクショ）/ compare: 判定方法が前後比較の TC（before の DOM）
   const tcs = [
     {
-      // TC-001: プリチェック画面のラベル確認（遷移自体が確認対象。遷移元はログイン直後のホームのため preNav は書かず、action で遷移+操作を行う）
-      no: 'TC-001', label: 'ラベル確認', targetLabel: 'プリチェック',
+      // TC-001: プリチェック画面のラベル確認（エビデンス。遷移自体が確認対象。遷移元はログイン直後のホームのため preNav は書かず、action で遷移+操作を行う）
+      no: 'TC-001', label: 'ラベル確認', targetLabel: 'プリチェック', evidence: true, compare: true,
       action: async (page) => { await page.getByText('プリチェック').click(); await waitSfReady(page); },
     },
     {
-      // TC-002: 次の画面での確認（再ログインせず同じセッションで続ける）
+      // TC-002: 次の画面での確認（再ログインせず同じセッションで続ける。エビデンスではないため赤枠・before なし）
       // preNav: この TC の操作を始める画面（前提のレコード）を開く遷移（before 採取より前に実行）
       // action: このTCで確認対象となる操作（before/after の間で実行）
-      no: 'TC-002', label: '別画面確認', targetLabel: '対象ボタン',
+      no: 'TC-002', label: '別画面確認', targetLabel: null, evidence: false, compare: false,
       preNav: async (page) => { await page.getByText('別画面').click(); await waitSfReady(page); },
       action: async (page) => { await page.getByText('対象ボタン').click(); await waitSfReady(page); },
     },
     // TC が増えたらここに1エントリ追加するだけでよい。例（TC-002 と同じ画面でも preNav で開き直す）:
-    // { no: 'TC-003', label: '追加確認', targetLabel: null,
+    // { no: 'TC-003', label: '追加確認', targetLabel: null, evidence: false, compare: false,
     //   preNav: async (page) => { await page.goto('{TC-003 が開く画面の URL}'); await waitSfReady(page); },
     //   action: async (page) => { await page.getByText('追加ボタン').click(); await waitSfReady(page); } },
     // 続きの TC（Step 1）は続き元の直後に置き、preNav を書かず from に続き元の No を書く（撮るだけなら action も書かない）:
-    // { no: 'TC-005', label: '続き確認', targetLabel: null, from: 'TC-003',
+    // { no: 'TC-005', label: '続き確認', targetLabel: null, evidence: false, compare: false, from: 'TC-003',
     //   action: async (page) => { await page.getByText('次へ').click(); await waitSfReady(page); } },
   ];
 
@@ -414,13 +418,13 @@ async (page) => {
     try {
       // 0.5 画面遷移: preNav で操作を始める画面を開いてから before 撮影に進む
       if (tc.preNav) await tc.preNav(page);
-      // 1. before 撮影（fullPage: true）+ before DOM 取得（F-6/F-7・状態遷移観点で使用。手順0.5の遷移の後＝操作を始める画面で撮る）
-      await page.screenshot({path: `C:/path/evidence/before/${tc.no}_${tc.label}_before.png`, fullPage: true, animations: 'disabled', scale: 'css'});
-      const beforeText = await getPageText(page);
-      const beforeSaved = await saveText(page, beforeText, `C:/path/evidence/before/${tc.no}_${tc.label}_before.txt`);
+      // 1. before（手順0.5の遷移の後＝操作を始める画面）: スクショはエビデンスの TC だけ、DOM は前後比較の TC だけ（F-6/F-7）
+      if (tc.evidence) await page.screenshot({path: `C:/path/evidence/before/${tc.no}_${tc.label}_before.png`, fullPage: true, animations: 'disabled', scale: 'css'});
+      const beforeText = tc.compare ? await getPageText(page) : null;
+      const beforeSaved = tc.compare ? await saveText(page, beforeText, `C:/path/evidence/before/${tc.no}_${tc.label}_before.txt`) : true;
       // 2. 操作
       if (tc.action) await tc.action(page);
-      // 3. after 撮影 + 確認対象に赤枠を注入（targetLabel がある場合のみ）
+      // 3. after 撮影（全 TC。判定・AI 判定用）+ 確認対象に赤枠を注入（targetLabel がある＝エビデンスの TC のみ）
       const highlightEl = tc.targetLabel ? await highlightTarget(page, tc.targetLabel) : null;
       await page.screenshot({path: `C:/path/evidence/after/screen/${tc.no}_${tc.label}.png`, fullPage: true, animations: 'disabled', scale: 'css'});
       await clearHighlight(highlightEl);
@@ -484,13 +488,13 @@ Step 1 で③の判定に使った記載からプロファイル名/ユーザ名
 ### 証跡の命名（TC 固有）
 
 Login As での証跡はユーザ名を含む命名にする:
-- before: `{evidence_dir}/before/{No}_{観点サニタイズ}_{ユーザ名サニタイズ}_before.png`（**書き込み動詞ありの TC と、判定方法が前後比較の TC のみ**。ほかの TC は before を採取しない）
+- before: `{evidence_dir}/before/{No}_{観点サニタイズ}_{ユーザ名サニタイズ}_before.png`（**書き込み動詞ありのエビデンスの TC のみ**）と `_before.txt`（**判定方法が前後比較の TC のみ**）。ほかの TC は before を採取しない（Step 1「エビデンスの TC」）
 - after: `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名サニタイズ}.png`
 - DOM テキスト: `{evidence_dir}/after/screen/{No}_{観点サニタイズ}_{ユーザ名サニタイズ}.txt`（Step 2B の `saveText` で直接保存。保存失敗時のみ Write でフォールバック）
 
 **ユーザ名サニタイズ**: ログインユーザ名がメールアドレス形式の場合、`@` は `_at_` に、`.` は `_` に置換する（観点サニタイズと同じくスペース・`/`・`\`・その他記号は除去）。`.`/`@` をそのまま残すと下流 `generate_evidence_xlsx.py` の `split('_')[0]` による No 接頭辞抽出には影響しないが、ファイル名の可読性・OS 予約文字回避のため明示的に定める。
 
-Step 2B と同様に `saveText`/`ERROR_SIGNATURES`（**ログイン画面 URL パターンによるセッション失効検知を含む**。Step 2B「画面エラー検知」節参照）を使い、`results.push` へ `url: page.url()` を含め、返却テーブルの「画面URL」列に `.split('?')[0]` でクエリを除去した値を記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。**本ステップは `highlightTarget` を適用しないため、`results.push` の各要素に `highlighted: false` を必ず含める**（省略すると下流 `generate_evidence_xlsx.py` が実績不明として「従来どおり赤枠あり」にフォールバックし、未試行の TC が虚偽の赤枠ありと表示される）。全ユーザ処理完了後、`{no: highlighted}`（`ok:false` の TC は含めない）のマッピングを Step 2B「ハイライト実績の記録」節と同じマージ手順で `_highlight_status.json` に反映する。
+Step 2B と同様に `saveText`/`ERROR_SIGNATURES`（**ログイン画面 URL パターンによるセッション失効検知を含む**。Step 2B「画面エラー検知」節参照）を使い、`results.push` へ `url: page.url()` を含め、返却テーブルの「画面URL」列に `.split('?')[0]` でクエリを除去した値を記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。**本ステップは `highlightTarget` をエビデンスの TC（確認ポイントに `target=` があるもの。Step 1「エビデンスの TC」）にだけ適用し（after 撮影の直前に注入・撮影後に解除。Step 2B 手順3と同じ）、`results.push` の各要素に `highlighted`（エビデンスの TC は要素を解決できたかの実際の結果、それ以外は `false`）を必ず含める**（省略すると下流 `generate_evidence_xlsx.py` が実績不明として「従来どおり赤枠あり」にフォールバックし、未試行の TC が虚偽の赤枠ありと表示される）。全ユーザ処理完了後、`{no: highlighted}`（`ok:false` の TC は含めない）のマッピングを Step 2B「ハイライト実績の記録」節と同じマージ手順で `_highlight_status.json` に反映する。
 
 **Login As が実行時に失敗した場合の手順**:
 1. まず `playwright-sf-screen-ops.md` のコミュニティ Login As 手順（Contact ページ → ユーザーとしてログイン）を試みる

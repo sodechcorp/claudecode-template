@@ -16,10 +16,10 @@ argument-hint: "[課題ID]"
 | フェーズ | エージェント | 主な成果物 |
 |---|---|---|
 | Phase 0: 作業フォルダ作成 | （本コマンド直接実行） | `docs/logs/{issueID}/` |
-| Phase 1: 調査・理解 | `backlog-investigator` | `investigation.md` |
+| Phase 1: 調査・理解（方針を決めるための調査） | `backlog-investigator` | `investigation.md` |
 | Phase 1.6: Sandbox 仮説検証 | `backlog-repro-runner` | `hypothesis-verification.md`（バグ系のみ） |
 | Phase 2: 対応方針の決定【担当者が決める】 | （本コマンド直接実行） | `approach-plan.md`（決定の記録） |
-| Phase 3: 実装方針の策定 | `backlog-planner` Phase B | `implementation-plan.md` |
+| Phase 3: 実装方針の策定（決定方針で変える処理のスコープ内を全量読込） | `backlog-planner` Phase B | `implementation-plan.md` |
 | Phase 3.5: 実装前検証（決定方針のチェックを含む） | `backlog-validator` | `validation-report.md` |
 | Phase 4: 実装 | `backlog-implementer`（内部: `sf-context-loader`） | 変更ファイル一覧 |
 | Phase 5: スモーク確認 | `backlog-tester`（内部: `sf-context-loader`） | スモーク結果（PASS で Phase 6 へ進む） |
@@ -31,7 +31,7 @@ argument-hint: "[課題ID]"
 
 **各エージェントの内部構造**: 全エージェント（`backlog-repro-runner` を除く）は Step 0b でフェーズ用 `_index-phase{N}.md` を読んでオプション判定を行う（[à la carte 仕組み](../templates/backlog/_README.md)）。`backlog-repro-runner` は Phase 1.6（バグ系のみ）専用で Step 0b を持たず、à la carte 判定の対象外。`backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-planner` はさらに Step 0a で `sf-context-loader` を呼び出す（`backlog-planner` は digest 優先で実運用上ほぼ発火しない）。
 
-> **サブエージェントの二段ネストを避ける（`backlog-validator` は完全 leaf agent・`backlog-investigator` は部分的）**: サブエージェントがさらに別のサブエージェントを起動する二段ネストのうち、「同一メッセージでの複数 Agent/Task 同時発行」を伴う箇所は不安定化要因と特定し、本コマンド（メインスレッド）に引き上げた。単発・非並列の呼び出し（`backlog-planner → sf-context-loader` / `backlog-investigator → pattern-curator・backlog-blind-second-opinion` 等）は `auto-evidence-runner → ui-evidence-runner`（`/test`）と同型の安定パターンのため据え置いている。
+> **サブエージェントの二段ネストを避ける（`backlog-validator` は完全 leaf agent・`backlog-investigator` は部分的）**: サブエージェントがさらに別のサブエージェントを起動する二段ネストのうち、「同一メッセージでの複数 Agent/Task 同時発行」を伴う箇所は不安定化要因と特定し、本コマンド（メインスレッド）に引き上げた。単発・非並列の呼び出し（`backlog-planner → sf-context-loader` / `backlog-investigator → backlog-blind-second-opinion`〔Phase 1 再入モード〕等）は `auto-evidence-runner → ui-evidence-runner`（`/test`）と同型の安定パターンのため据え置いている。
 > - `backlog-validator`: `regression-guard`・`ui-evidence-runner`（Before-only）を本コマンドが Phase 3.5 開始時に直接 Task 起動（詳細は Phase 3.5 セクション参照）
 > - `backlog-investigator`: `sf-context-loader`（knowledge-only + 通常モード。旧設計では investigator 内から同一メッセージ並列発行しており不安定化要因だった）を本コマンドが Phase 1 開始時に起動する。2つは互いに独立のため本コマンドから同一メッセージで並列起動する（不安定だったのはサブエージェント内からの並列起動で、メインスレッドからの並列起動は該当しない。詳細は Phase 1 セクション参照）。詳細は [agent-routing.md](../spec/agent-routing.md) 参照
 
@@ -53,7 +53,7 @@ argument-hint: "[課題ID]"
 > - **それ以外の遷移は全て自動進行**（Phase 0→1／1→1.6／1.6→2／3→3.5／3.5→4／4→5／5→6）。フェーズ末サマリーを提示し、末尾に「**異議がなければこのまま Phase N に進みます**」と明示して、承認を待たず同一ターンで次フェーズへ進む（ユーザーはいつでも会話で異議・修正を差し込める）。**ただし Phase 1・1.6 はサマリーを出さない**（結果の報告は Phase 2 の提示に1回でまとめる。途中は「調査中」「Sandbox で再現確認中」程度の1行の進捗だけ。下記の止まる条件に当たった場合は、その条件が定める内容（確認事項・中断報告・Phase 1.6 ④ の検証結果）を提示して待つ。調査結果のサマリーは書かない）。**理由**: 調査・決定方針のチェック・実装方針・実装前検証・実装・スモークテスト・Sandbox デプロイは「人間がやるより AI がやる方が速い、または人間の目では原理的に検知できないリスクを拾う」工程であり、Sandbox は可逆のため。
 > - **自動進行を止める条件（問題が見つかった時だけ止まる）**: 以下のいずれかに該当したら自動進行せず、内容を提示して担当者の判断を待つ:
 >   - Phase 1.6 で仮説が尽きた（再入の上限に達した、または investigator が新仮説なしを返した。phase1-6-sandbox-verification.md ④）
->   - Phase 3（planner）が「決定方針では実現できない・要求を満たせない」または「周辺部分のために範囲が広がる」と返した
+>   - Phase 3（planner）が「決定方針では実現できない・要求を満たせない」「周辺部分のために範囲が広がる」または「スコープ内を読み切れません」と返した
 >   - Phase 3 で業務判断の判断ポイント（「未確定」）が残った
 >   - Phase 3.5（validator）の総合判定が「Phase 2 に戻る（決定方針に問題）」「技術確認待ち」、総合判定を返さなかった（異常終了・必要項目の欠落）、または Phase 3 戻りが上限（Phase 3.5 セクション参照）に達した
 >   - Phase 5 が条件付きPASS（NoTestRun フォールバック）
@@ -198,6 +198,8 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 ### Phase 1: 調査（backlog-investigator）
 
+> **Phase 1 は方針を決めるための調査**: 課題の理解・現状と原因（バグ）の把握・業務判断の論点までで、網羅的な確認はしない。スコープ内の全量読込は方針決定後に Phase 3（backlog-planner）が決定方針で変える処理に対して行い、影響・副作用は Phase 3.5、動作は `/test` が確かめる（backlog-investigator.md「ミッション」）。担当者が方針を聞くまでの時間を短くするため。
+
 > **サブエージェントの二段ネストを避ける**: `backlog-investigator` は sf-context-loader を自ら起動しない。本コマンド（メインスレッド）が事前に取得し、結果を investigator の起動パラメータとして渡す。
 
 > **調査は investigator に任せる（メインスレッドは先回りして調べない）**: Phase 0〜Phase 1 Step A でメインスレッドが行うのは、本書に書かれた手順（接続組織の確認・既存ログの読込・課題本文の取得・sf-context-loader の起動）だけ。課題本文を読んで気になった点（リポジトリの場所・ブランチ・テスト実行・カバレッジ・コード比較・本番との差分等）を自分で調べ始めない。気になった点は Step B の `申し送り:` に1行で書いて investigator に渡す。**理由**: investigator 起動前のメインスレッドのツール実行は通常1〜3分だが、独自調査をした回は20回超・10〜16分かかっていた（2026-09〜10 の実行記録で4件）。investigator も同じ調査をやり直すため二重になり、最初の報告が遅れる。
@@ -285,7 +287,7 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 > **次に進む条件（自動進行）**: Phase 1 の結果は報告しない。調査結果（バグは Phase 1.6 の検証結果も）は Phase 2 の提示に1回でまとめて報告する（Phase 2 の提示が Phase 1・1.6 のサマリーを兼ねる）。
 > - `{issue_type}` = `バグ` の場合: 「調査が終わりました。Sandbox で再現を確認します」の1行だけ伝えて Phase 1.6 へ進む（仮説の内容はここで書かない。断定は Phase 1.6 完了後まで禁止。ただし typo・定数値誤り等のコード上で明白な自明バグは Phase 1.6 の判定に従う）
 > - `{issue_type}` = `追加要望` / `その他` / `問い合わせ` の場合: 何も報告せずそのまま Phase 2 へ進む
-> - investigator が「担当者の確認が必要なもの」を返した場合（上記「investigator の確認記録ゲート」の共有依頼・症状前提の未確定、スコープ内の読み残し等）は、この時点で止まり、その確認事項だけを短く提示して担当者の応答を待つ（自動進行を止める条件。調査結果のサマリーは書かない。結果の報告は Phase 2 の提示で行う）
+> - investigator が「担当者の確認が必要なもの」を返した場合（上記「investigator の確認記録ゲート」の共有依頼・症状前提の未確定等）は、この時点で止まり、その確認事項だけを短く提示して担当者の応答を待つ（自動進行を止める条件。調査結果のサマリーは書かない。結果の報告は Phase 2 の提示で行う）
 > - 影響範囲に区分 S（兄弟入口: 根本原因の共有元を経由して報告症状そのものが別入口でも再現する）の行がある場合は、Phase 2 の提示で必ず伝える（backlog-investigator.md Step C-2 参照）
 
 ---
@@ -334,7 +336,7 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 **推奨の決め方**（推奨は1つに絞る。案を並べて比較しない）:
 - **バグ**: 報告された症状を全ての入口で解消する最小の修正。区分 S がある場合は、共有元での修正または全ての兄弟入口をカバーする修正を推奨する（1入口だけ直す修正は症状が残るため推奨しない）
-- **追加要望**: 既存の類似実装のパターンを踏襲する。類似実装がなければ最も近い既存実装のスタイルに合わせる
+- **追加要望**: 既存の類似実装のパターンを踏襲する。類似実装がなければ最も近い既存実装のスタイルに合わせる（Phase 1 は類似実装を探さず、investigation.md「## 類似する既存実装」には読んだ処理の中で目に入ったものだけがある。Phase 3 で planner が探し、方針と食い違えば判断ポイントにする）
 - **実装レイヤーが複数成立する場合**: 要件を満たす最も軽い方式（設定 < フロー < Apex）。ただし既存に同型のパターンがあればそれに合わせる
 - **要望を文字どおり満たすと周辺部分のために範囲が広がる場合**（investigation.md「## 根本原因 / 要件の本質」の「周辺部分」が「なし」以外）: [CLAUDE.md §要望への対応範囲の取捨選択](../CLAUDE.md#要望への対応範囲の取捨選択全エージェント共通) に従い、周辺部分を対象外にする方針を推奨し、「■ 対応方針」の方針の直後に「{周辺部分}は{理由}のため対象外にします（含めると{増える変更。例: Apex 3本の変更と項目の新設}が要ります）」を1行添える。手で編集できる部分を外す場合など、外すと要望の本質が損なわれるか判断できない場合は Q にし（推奨は「外す」、理由に含めた場合に増える変更）、方針の1〜2行と併記する。担当者・お客様が「全項目」「影響ゼロ」等を事前に指示していても、両立させると範囲が広がるなら同じ1行で伝える（決めるのは担当者）
 - **その他**: 課題の性質（データ補正・設定変更・調査依頼等）に合わせ、影響が最小で元に戻しやすい方式を推奨する。本番データへの影響・準備期間が大きい場合は Q にする
@@ -410,6 +412,7 @@ project_dir: {プロジェクトルートパス}
 > - planner が「決定方針では実現できない・要求を満たせない」と返した → 理由と代替の方向性を提示し、担当者が方針を決め直したら approach-plan.md の「## 対応方針（結論）」を更新し改版履歴に追記してから Phase 3 を再実行する
 > - planner が「周辺部分のために範囲が広がる」と返した → 外す部分・理由・外すと要らなくなる変更を2〜3行で提示する。担当者が外すと決めたら approach-plan.md の「## 対応方針（結論）」と「### 今回対象外とする要求・入口」を更新し改版履歴に追記してから Phase 3 を再実行する。外さないと決めたら「## 方針決定の経緯・根拠」に承認の行（Phase 2 Step 4 の書式。「### 業務要件への回答」より前）を追記して Phase 3 を再実行する。どちらの場合も discussion-log.md に決定を1行追記する
 > - 業務判断の判断ポイントが「未確定」で残った → その判断ポイントだけを提示し、回答を implementation-plan.md に反映してから進む
+> - planner が「スコープ内を読み切れません」と返した → 読めなかったものを1〜2行で提示し、分割して読み進めるか、範囲を絞るかを担当者に確認してから Phase 3 を再実行する
 
 ---
 

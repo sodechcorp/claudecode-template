@@ -10,6 +10,8 @@ Sheet 1「テスト結果」  : 1 行 = 1 ケース。実際の結果・判定�
 Sheet 2「証跡」 or     : 各ケースの証跡（スクショ PNG / SOQL テキスト）を縦に配置し、
 「証跡_R1」「証跡_R2」…  「テスト結果」シートからハイパーリンクで紐付け。
                           再テスト時は回次別シートを生成（証跡_R1 / 証跡_R2 …）。
+                          スクショを貼るのはエビデンス（観点の末尾が「（エビデンス）」）と NG の
+                          ケースだけ。ほかの画面テストは画面の文字の一致行だけを載せる。
 「要手動」ケースのみ旧来の「貼付枠＋指示文」を証跡シートに残す（ハイブリッド）。
 
 Usage（初回・単一回次）:
@@ -168,6 +170,14 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: 
     found = []
     seen = set()
 
+    def _add(path: str) -> None:
+        # judgment の evidence は相対パス・"\" 区切り、索引は evidence_dir 起点の絶対パスのため、
+        # 文字列のまま比べると同じファイルを2回拾い、証跡シートに同じ画像・テキストが2回ずつ載る
+        key = os.path.normcase(os.path.abspath(path))
+        if key not in seen:
+            seen.add(key)
+            found.append(os.path.abspath(path))
+
     # ① judgment の evidence パスを最優先（正本が既にある場合は即採用）
     # ただし、パスが当該回次の evidence_dir 配下であることを検証する（C-5）。
     # 回次退避（cp -r evidence/after evidence/after_R1）は judgment-result.R{n}.json
@@ -176,7 +186,7 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: 
     # 検証なしに採用すると過去回次の証跡シートに現回次の内容が混入してしまう。
     if judgment is not None:
         ev_path = judgment.get(tc_no, {}).get("evidence", "")
-        if ev_path and os.path.isfile(ev_path) and ev_path not in seen:
+        if ev_path and os.path.isfile(ev_path):
             try:
                 ev_abs = os.path.abspath(ev_path)
                 dir_abs = os.path.abspath(evidence_dir)
@@ -184,8 +194,7 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: 
             except ValueError:
                 is_under_dir = False
             if is_under_dir:
-                seen.add(ev_path)
-                found.append(ev_path)
+                _add(ev_path)
 
     tc_num = _tc_normalize(tc_no)
     if tc_num < 0:
@@ -194,10 +203,7 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: 
     if index is not None:
         # ② index 索引引き（build_evidence_index で1回だけ os.walk 済み）
         for fpath in index.get(tc_num, []):
-            if fpath in seen:
-                continue
-            seen.add(fpath)
-            found.append(fpath)
+            _add(fpath)
     elif os.path.isdir(evidence_dir):
         # ② os.walk 再帰探索（TC番号正規化で桁差・複合種別・サブディレクトリを吸収）
         for dirpath, _dirs, filenames in os.walk(evidence_dir):
@@ -205,14 +211,10 @@ def find_evidence_files(evidence_dir: str, tc_no: str, shubetsu: str, judgment: 
                 # before / リサイズ済みサムネイルは対象外
                 if "_before." in fname or "_resized." in fname:
                     continue
-                fpath = os.path.join(dirpath, fname)
-                if fpath in seen:
-                    continue
                 # ファイル名先頭の "TC-NNN" 部分を抽出して TC番号と比較
                 fname_prefix = fname.split("_")[0]  # "TC-001" / "TC-04" / "tc-4"
                 if _tc_normalize(fname_prefix) == tc_num:
-                    seen.add(fpath)
-                    found.append(fpath)
+                    _add(os.path.join(dirpath, fname))
 
     return found
 
@@ -255,7 +257,9 @@ def _highlight_terms_from_tc(tc: dict) -> list:
     # judge_results.py 側（C-2）と同根: バッククォートが残ると証跡側に出現せず
     # 赤字ハイライトが当たらないため、トークン化前に除去する
     kitai_raw = re.sub(r"`+", "", kitai_raw).strip()
-    neg_patterns = ["含まない", "非表示", "なし確認", "存在しない", "NG確認"]
+    # 複合種別の「UI:… / SOQL:3件」は種別ラベルを外してから語に分ける（付いたままだと証跡のどこにも当たらない）
+    kitai_raw = re.sub(r"(^|/)\s*(?:UI|SOQL|AnonApex)\s*[:：]", r"\1 ", kitai_raw).strip()
+    neg_patterns =["含まない", "非表示", "なし確認", "存在しない", "NG確認"]
     if any(p in hanteihoo for p in neg_patterns):
         anchor = _parse_positive_anchor(kitai_raw)
         return [anchor] if anchor else []
@@ -268,8 +272,9 @@ def _highlight_terms_from_tc(tc: dict) -> list:
         kitai = m.group(1)
     # 「...」 形式の引用句を優先抽出（句内にセパレータが含まれるケースに対応）
     quoted = re.findall(r'[「『"]([^「『」』"]{1,40})[」』"]', kitai)
-    # 残テキストを一般セパレータで分割
+    # 残テキストを一般セパレータで分割（「3 件」は空白で割れないよう「3件」に寄せる）
     remainder = re.sub(r'[「『"][^「『」』"]*[」』"]', '', kitai)
+    remainder = re.sub(r'(\d+)\s+件', r'\1件', remainder)
     raw_tokens = re.split(r'[/,、\s]+', remainder)
     tokens = list(quoted)
     for t in raw_tokens:
@@ -277,14 +282,32 @@ def _highlight_terms_from_tc(tc: dict) -> list:
         if not t or t in ('-', '—', '…') or len(t) <= 1:
             continue
         tokens.append(t)
-    # 「3件」→「3」も追加（SOQL件数ヘッダーの数値に一致させる）
-    extra = []
-    for t in tokens:
-        nm = re.match(r'^(\d+)\s*件', t)
-        if nm:
-            extra.append(nm.group(1))
-    tokens.extend(extra)
+    # 「3件」は SOQL 証跡の件数行（件数 : 3 件）に _term_regex で当てる。数字だけを語にしない
+    # （数字だけにすると実行日時・ID・「B-1」の中の同じ数字まで赤くなる）
     return list(dict.fromkeys(tokens))  # 重複除去・順序保持
+
+
+# 数字の前後にあると「別の値の一部」とみなす文字（日付・時刻・ID・「B-1」等）
+_NUM_EDGE = r"0-9A-Za-z\-:./_"
+
+
+def _term_regex(term: str) -> str:
+    """赤字にする語の正規表現。数字は、日付・時刻・ID・「B-1」の中の同じ数字に当てない。"""
+    m = re.fullmatch(r"(\d+)件", term)
+    if m:
+        # 「3件」は SOQL 証跡の「件数 : 3 件」のように数字と「件」の間に空白があるものにも当てる
+        return rf"(?<![{_NUM_EDGE}]){m.group(1)}\s*件"
+    if term.isdigit():
+        return rf"(?<![{_NUM_EDGE}]){term}(?![{_NUM_EDGE}])"
+    return re.escape(term)
+
+
+def _term_pattern(terms: list):
+    """terms のどれかに当たる正規表現（最長一致優先）。terms が空なら None。"""
+    if not terms:
+        return None
+    sorted_terms = sorted(terms, key=len, reverse=True)
+    return re.compile("(" + "|".join(_term_regex(t) for t in sorted_terms) + ")", re.IGNORECASE)
 
 
 def _build_richtext_line(line: str, terms: list):
@@ -293,15 +316,7 @@ def _build_richtext_line(line: str, terms: list):
     """
     if not _RICHTEXT_OK or not terms:
         return line
-    if not any(t.lower() in line.lower() for t in terms):
-        return line
-    # 最長一致優先でトークンをソート
-    sorted_terms = sorted(terms, key=len, reverse=True)
-    pattern = re.compile(
-        "(" + "|".join(re.escape(t) for t in sorted_terms) + ")",
-        re.IGNORECASE,
-    )
-    parts = pattern.split(line)
+    parts = _term_pattern(terms).split(line)
     if len(parts) <= 1:
         return line
     base_font  = InlineFont(rFont="Courier New", sz=9)
@@ -332,16 +347,19 @@ def _append_text_block(ws, path: str, start_row: int, highlight_terms: list = No
     return len(lines)
 
 
-def _append_dom_excerpt(ws, path: str, start_row: int, highlight_terms: list = None) -> int:
+def _append_dom_excerpt(ws, path: str, start_row: int, highlight_terms: list = None,
+                        screenshot_shown: bool = True) -> int:
     """DOM テキストから期待値一致行だけ抜粋して ws の start_row から展開し、書いた行数を返す。
 
     highlight_terms が空（否定観点）の場合は確認ノート1行のみ書く。
     一致行がある場合は一致行のみ赤字抜粋（証跡の主役はスクショ・DOMは補助）。
+    screenshot_shown=False（スクショを貼らない TC）はノートで「スクショ参照」と書かない。
     SOQL/Apex の .txt 全文展開（_append_text_block）とは別物。
     """
+    see = "（スクショ参照）" if screenshot_shown else "（画面の文字で確認）"
     if not highlight_terms:
-        # 否定観点: 期待文字列なしを確認（スクショ参照）
-        note = "DOM照合: 期待文字列なしを確認（スクショ参照）"
+        # 否定観点: 期待文字列なしを確認
+        note = f"DOM照合: 期待文字列なしを確認{see}"
         c = ws.cell(row=start_row, column=2, value=note)
         c.font = _font(fg="888888", italic=True, size=9)
         c.alignment = _align("left", "top", wrap=True)
@@ -352,11 +370,11 @@ def _append_dom_excerpt(ws, path: str, start_row: int, highlight_terms: list = N
 
     text = _read_text_safe(path)
     lines = text.splitlines()
-    matched = [ln for ln in lines
-               if any(t.lower() in ln.lower() for t in highlight_terms)]
+    pattern = _term_pattern(highlight_terms)
+    matched = [ln for ln in lines if pattern.search(ln)]
 
     if not matched:
-        note = "DOM照合: 期待値一致行なし（スクショ参照）"
+        note = f"DOM照合: 期待値一致行なし{see}"
         c = ws.cell(row=start_row, column=2, value=note)
         c.font = _font(fg="888888", italic=True, size=9)
         c.alignment = _align("left", "top", wrap=True)
@@ -366,6 +384,11 @@ def _append_dom_excerpt(ws, path: str, start_row: int, highlight_terms: list = N
         return 1
 
     for i, line in enumerate(matched):
+        if len(line) > 200:
+            # 画面に埋め込まれたスクリプト等の長い行は、一致した箇所の前後だけを載せる
+            m = pattern.search(line)
+            start, end = max(0, m.start() - 60), min(len(line), m.end() + 60)
+            line = ("…" if start > 0 else "") + line[start:end] + ("…" if end < len(line) else "")
         safe = (" " + line) if line.startswith("=") else line
         cell_value = _build_richtext_line(safe, highlight_terms)
         c = ws.cell(row=start_row + i, column=2, value=cell_value)
@@ -430,7 +453,8 @@ def _load_highlight_status(evidence_dir: str) -> dict:
 
 
 def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
-                          result_ws_name: str = "テスト結果", highlight_status: dict = None) -> int:
+                          result_ws_name: str = "テスト結果", highlight_status: dict = None,
+                          shows_screenshot: bool = True) -> int:
     """証跡シートの TC セクション先頭に読み方ガイドブロックを書き、次の row_ptr を返す。
 
     出力イメージ（簡素化版・全行動的行高）:
@@ -504,7 +528,11 @@ def _write_reading_header(ws, tc: dict, judgment_entry: dict, row_ptr: int,
     # 行3: 確認箇所（赤枠・赤字がどこに付くかを明示し、証跡内の該当箇所へ読み手を誘導する）
     terms = _highlight_terms_from_tc(tc)
     hl_actual = (highlight_status or {}).get(no)
-    if "UI" in shubetsu:
+    if "UI" in shubetsu and not shows_screenshot:
+        # エビデンス以外の画面テスト: スクショは貼らず、画面の文字の機械照合だけを載せる
+        loc = ("下記テキストの赤字部分（画面の文字を機械で照合。スクショは貼っていない）" if terms
+               else "下記テキスト（画面の文字を機械で照合。スクショは貼っていない）")
+    elif "UI" in shubetsu:
         if hl_actual is False:
             # ui-evidence-runner が実際にハイライト対象を解決できず枠なしで撮影した実績あり
             loc = "スクショ全体（赤枠対象が見つからず枠なし撮影）＋ 下記テキストの赤字部分" if terms else "スクショ全体（赤枠対象が見つからず枠なし撮影）"
@@ -809,8 +837,26 @@ def _thumb_cache_path(ep: str, disp_w: int, disp_h: int) -> str:
     return os.path.join(cache_dir, f"{digest}.png")
 
 
+def _is_evidence_tc(tc: dict) -> bool:
+    """test-spec-builder 軸4 がエビデンス（人が後から見る画面の記録・1〜2件）にした TC か。"""
+    return bool(re.search(r"[（(]エビデンス[）)]", tc.get("観点", "")))
+
+
+def _has_dom_text(png_path: str) -> bool:
+    """PNG と同名の画面の文字（DOM .txt）があり、空でないか。"""
+    snap = re.sub(r'\.png$', '.txt', png_path, flags=re.IGNORECASE)
+    return os.path.isfile(snap) and _read_text_safe(snap).strip() != ""
+
+
 def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str, tc_to_row: dict) -> None:
-    """証跡シートを構築する。シート名は呼び出し側で設定済みのため上書きしない。"""
+    """証跡シートを構築する。シート名は呼び出し側で設定済みのため上書きしない。
+
+    スクショを貼るのは、エビデンスの TC（観点の末尾が「（エビデンス）」）・NG の TC・AI がスクショを
+    読んで判定した TC・画面の文字（DOM .txt）が無いか空の PNG がある TC だけ。ほかの画面テストは
+    機械で照合した画面の文字（一致行）だけを載せ、画像は証跡フォルダに残す（画面テストは全件スクショを
+    撮るが、人が見る証跡は最小にするため。cleanup_evidence.py --spec はこの残した画像を消す）。
+    エビデンスの印が1件も無い test-spec.md（印を付ける前の版）は従来どおり全部貼る。
+    """
     # ws.title はシート作成時に呼び出し側が設定する（単一回次="証跡" / 複数回次="証跡_R{N}"）
 
     headers = ["No", "証跡内容"]
@@ -831,6 +877,7 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
     evidence_index = build_evidence_index(evidence_dir)
     # ui-evidence-runner が実際に赤枠ハイライトできたかの実績（TC番号→bool）
     highlight_status = _load_highlight_status(evidence_dir)
+    has_evidence_mark = any(_is_evidence_tc(tc) for tc in test_cases)
 
     for tc in test_cases:
         no = tc.get("No", "")
@@ -845,8 +892,14 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
         # 読み方ガイドヘッダー（S1-a: 何を確認/期待結果/判定/確認ポイント）
         judgment_entry = judgment.get(no, {})
         hl_terms = _highlight_terms_from_tc(tc)  # S2: 期待結果トークン（否定観点は空）
+        # AI がスクショを読んで判定した TC（ai_judged）と、同名の画面の文字（.txt）が無い・空の PNG がある TC は、
+        # スクショが判定の根拠・唯一の記録なので貼る
+        embed_png = (not has_evidence_mark or _is_evidence_tc(tc)
+                     or judgment_entry.get("status") == "NG" or bool(judgment_entry.get("ai_judged"))
+                     or any(p.lower().endswith(".png") and not _has_dom_text(p) for p in all_evidence))
         row_ptr, anchor_cell_addr = _write_reading_header(ws, tc, judgment_entry, row_ptr,
-                                                           highlight_status=highlight_status)
+                                                           highlight_status=highlight_status,
+                                                           shows_screenshot=embed_png)
 
         if is_manual:
             # 要手動: 貼付枠を残す
@@ -898,9 +951,9 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
             # PNG + 同名 txt のペアは PNG -> txt の順で同一ブロックに入れる
             processed = set()
             for ep in all_evidence:
-                if ep in processed:
+                if os.path.normcase(ep) in processed:
                     continue
-                processed.add(ep)
+                processed.add(os.path.normcase(ep))
                 fname = os.path.basename(ep)
 
                 # ブロック小見出し（複数ある場合のみ）
@@ -913,7 +966,19 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                     _set_row_height(ws, row_ptr, 16)
                     row_ptr += 1
 
-                if ep.lower().endswith(".png") and _PIL_OK:
+                if ep.lower().endswith(".png") and not embed_png:
+                    # エビデンス以外の画面テスト: スクショは貼らず画像の場所だけ書く（下に画面の文字の一致行）
+                    rel = os.path.relpath(ep, evidence_dir).replace(os.sep, "/")
+                    round_dir = os.path.basename(os.path.normpath(evidence_dir))
+                    c = ws.cell(row_ptr, 2, f"（スクショは貼っていません。画像: evidence/{round_dir}/{rel}"
+                                            "。証跡のクリーンアップ後は削除済み）")
+                    c.alignment = WRAP
+                    c.font = _font(fg="888888", italic=True, size=9)
+                    c.border = THIN_BORDER
+                    ws.cell(row_ptr, 1).border = THIN_BORDER
+                    row_ptr += 1
+
+                elif ep.lower().endswith(".png") and _PIL_OK:
                     # PNG: 自動貼付
                     try:
                         pil_img = PILImage.open(ep)
@@ -963,14 +1028,6 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                         ws.cell(row_ptr, 1).border = THIN_BORDER
                         row_ptr += 2
 
-                    # 同名 DOM スナップショット (.txt) を期待値一致行だけ抜粋して展開（S2）
-                    # .txt ファイル自体は judge_results.py の DOM 照合判定に使うためディスクに残す
-                    snap_path = re.sub(r'\.png$', '.txt', ep, flags=re.IGNORECASE)
-                    if os.path.exists(snap_path) and snap_path not in processed:
-                        processed.add(snap_path)
-                        n_dom = _append_dom_excerpt(ws, snap_path, row_ptr, highlight_terms=hl_terms)
-                        row_ptr += n_dom + 1
-
                 elif ep.lower().endswith(".png") and not _PIL_OK:
                     c = ws.cell(row_ptr, 2, f"[PNG] {fname} — Pillow 未インストールのため未貼付")
                     c.alignment = WRAP
@@ -978,6 +1035,16 @@ def build_evidence_sheet(ws, test_cases: list, judgment: dict, evidence_dir: str
                     c.border = THIN_BORDER
                     ws.cell(row_ptr, 1).border = THIN_BORDER
                     row_ptr += 2
+
+                if ep.lower().endswith(".png"):
+                    # 同名 DOM スナップショット (.txt) を期待値一致行だけ抜粋して展開（S2）
+                    # .txt ファイル自体は judge_results.py の DOM 照合判定に使うためディスクに残す
+                    snap_path = re.sub(r'\.png$', '.txt', ep, flags=re.IGNORECASE)
+                    if os.path.exists(snap_path) and os.path.normcase(snap_path) not in processed:
+                        processed.add(os.path.normcase(snap_path))
+                        n_dom = _append_dom_excerpt(ws, snap_path, row_ptr, highlight_terms=hl_terms,
+                                                    screenshot_shown=embed_png and _PIL_OK)
+                        row_ptr += n_dom + 1
 
                 else:
                     # テキスト証跡: 全行展開（S2: 期待値を赤字）

@@ -10,7 +10,7 @@ tools:
   - mcp__backlog__get_issue_comments
 ---
 
-**起動元**: `.claude/templates/backlog/options/option-second-opinion.md` 経由で backlog-investigator（Step C-3・Step 0b で option-second-opinion の実行が決定された場合のみ）から Task ツールで起動される。
+**起動元**: `.claude/templates/backlog/options/option-second-opinion.md` 経由で backlog-investigator（Step C-3。Phase 1.6 で仮説が再現せず Phase 1 再入モードになったとき、手順 6 の観点として選んだ場合のみ）から Task ツールで起動される。
 
 あなたは Salesforce 保守課題の **独立した** 原因分析専門エージェントです。
 

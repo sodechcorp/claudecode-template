@@ -12,6 +12,14 @@ find_evidence_files 参照）。これらは xlsx に一度も入らないため
   - ファイル名に "_before." / "_resized." を含むものは最初から削除候補にしない
   - それでも、xlsx 内の埋め込み画像数（xl/media/ 配下）が削除候補数を下回る場合は
     「未知の除外条件があるかもしれない」とみなし、丸ごと削除を見送る（--force でも省略しない）
+例外: --spec を渡し、test-spec.md にエビデンスの印（観点の末尾が「（エビデンス）」）がある場合、
+次を全て満たす PNG は xlsx に貼らない機械照合用のため、埋め込みの確認なしで削除候補にする（画面の文字の
+.txt は残る）。埋め込み数と比べるのはそれ以外の PNG だけ（generate_evidence_xlsx.py が貼る条件の裏返し）:
+  - エビデンス以外の TC（spec にある No）の PNG
+  - 同名の画面の文字（.txt）があり空でない（無い・空ならスクショが唯一の記録）
+  - その PNG の回（evidence/after は judgment-result.json、evidence/after_R{n} は judgment-result.R{n}.json）で、
+    その TC が NG でも AI 判定（ai_judged。スクショを読んで判定した）でもない
+判定結果を読めない回（--judgment なしの --force 等）の PNG は例外にせず、従来どおり埋め込み数と比べる。
 DOM テキスト（.txt）・ハイライト実績（.json）・investigation.md 等のログ本体は対象外。
 
 安全ガード（すべて満たさない場合は削除せず理由を表示して終了する。1・4 は --force でも省略しない。
@@ -20,7 +28,8 @@ DOM テキスト（.txt）・ハイライト実績（.json）・investigation.md
   2. judgment-result.json が存在し ng == 0（全件OK。要手動・対象外は許容）
   3. エビデンス.xlsx の mtime が evidence 配下の全 PNG の最新 mtime より新しい
      （xlsx が現在の evidence 状態を反映済み＝取りこぼしがないことの確認）
-  4. xlsx 内の埋め込み画像数 >= 削除候補 PNG 数（実際に格納されたことの直接検証）
+  4. xlsx 内の埋め込み画像数 >= 削除候補 PNG 数（実際に格納されたことの直接検証。
+     上記の例外に当たる機械照合用の PNG は数えない）
 
 差分再実行モードへの影響: /test は前回 OK の TC を再撮影しない設計のため、削除後に /test を
 再実行すると証跡ファイル不在で偽 NG になる。削除完了時に {evidence_dir}/.png-cleaned を書き込み、
@@ -31,7 +40,8 @@ Usage（/test 完了報告からの案内・通常の完了後クリーンアッ
       --folder /path/to/xlsx_folder \\
       --issue-id GF-350 \\
       --evidence-dir /path/to/docs/logs/GF-350/evidence \\
-      --judgment /path/to/docs/logs/GF-350/judgment-result.json
+      --judgment /path/to/docs/logs/GF-350/judgment-result.json \\
+      --spec /path/to/docs/logs/GF-350/test-spec.md
 
 Usage（過去に完了した課題の一括バックフィル。judgment-result.json 不在・xlsx 生成が
 古いテンプレ版等で NG/新しさガードが判定できない場合に、それらのみ無視して削除する。
@@ -45,16 +55,70 @@ import argparse
 import glob
 import json
 import os
+import re
 import sys
 import zipfile
 
-from _common import validate_folder
+from _common import parse_test_spec, validate_folder
 
 _EXCLUDED_MARKERS = ("_before.", "_resized.")  # generate_evidence_xlsx.py の除外条件と一致させる
 
 
 def _fmt_mb(n_bytes: int) -> str:
     return f"{n_bytes / 1024 / 1024:.1f}MB"
+
+
+def _tc_num(text: str) -> int:
+    """"TC-004" / "TC-04" / "tc-4" → 4（generate_evidence_xlsx.py の _tc_normalize と同じ）。読めなければ -1。"""
+    m = re.match(r"(?:[Tt][Cc])-0*(\d+)", text.strip())
+    return int(m.group(1)) if m else -1
+
+
+def _machine_only_tc_nums(spec_path: str) -> set:
+    """xlsx にスクショを貼らない（機械照合用の）TC の番号。エビデンスの印が無い spec・読めない spec は空。"""
+    try:
+        rows = parse_test_spec(spec_path)
+    except (OSError, UnicodeDecodeError):
+        return set()
+    is_ev = {_tc_num(r.get("No", "")): bool(re.search(r"[（(]エビデンス[）)]", r.get("観点") or "")) for r in rows}
+    is_ev.pop(-1, None)
+    if not any(is_ev.values()):
+        return set()
+    return {n for n, ev in is_ev.items() if not ev}
+
+
+def _screenshot_judged_by_round(judgment_path: str) -> dict:
+    """回ごとに、NG か AI 判定（ai_judged）だった TC の番号（その回の xlsx の証跡シートにスクショが貼られる）。
+    キーは証跡の回のフォルダ名（今の回 = "after"・退避済み = "after_R{n}"。judgment-result.R{n}.json と対）。
+    読めない回はキーに入れない（その回の PNG は埋め込みの確認の対象のまま）。"""
+    if not judgment_path or not os.path.isfile(judgment_path):
+        return {}
+    base = os.path.splitext(judgment_path)[0]
+    rounds = {"after": judgment_path}
+    for path in glob.glob(glob.escape(base) + ".R*.json"):
+        m = re.search(r"\.R(\d+)\.json$", path)
+        if m:
+            rounds[f"after_R{m.group(1)}"] = path
+    by_round = {}
+    for round_dir, path in rounds.items():
+        try:
+            with open(path, encoding="utf-8") as f:
+                results = json.load(f).get("results", [])
+            by_round[round_dir] = {_tc_num(r.get("no", "")) for r in results
+                                   if r.get("status") == "NG" or r.get("ai_judged")}
+        except (OSError, json.JSONDecodeError, AttributeError):
+            continue
+    return by_round
+
+
+def _has_dom_text(png_path: str) -> bool:
+    """PNG と同名の画面の文字（.txt）があり、空でないか。"""
+    txt = os.path.splitext(png_path)[0] + ".txt"
+    try:
+        with open(txt, "rb") as f:
+            return f.read().strip(b"\x00\r\n\t \xff\xfe") != b""
+    except OSError:
+        return False
 
 
 def _count_embedded_images(xlsx_path: str) -> int:
@@ -69,6 +133,7 @@ def main():
     ap.add_argument("--issue-id", required=True)
     ap.add_argument("--evidence-dir", required=True, help="docs/logs/{issueID}/evidence（before/after/after_R* を含む親フォルダ）")
     ap.add_argument("--judgment", default="", help="judgment-result.json のパス（最新回次）。--force 時は省略可")
+    ap.add_argument("--spec", default="", help="test-spec.md のパス。エビデンス以外の TC の PNG（xlsx に貼らない機械照合用）を埋め込み確認なしで削除候補にする")
     ap.add_argument("--force", action="store_true", help="NG件数・xlsx新しさガードを無視して削除する（バックフィル用途。埋め込み実数チェックは無視しない）")
     ap.add_argument("--dry-run", action="store_true", help="削除せず対象一覧・件数のみ表示する")
     args = ap.parse_args()
@@ -141,8 +206,23 @@ def main():
     except (zipfile.BadZipFile, OSError) as e:
         print(f"[SKIP] エビデンス.xlsx の読み込みに失敗しました: {e}")
         sys.exit(0)
-    if embedded < len(png_files):
-        print(f"[SKIP] xlsx 内の埋め込み画像は {embedded} 件、削除候補 PNG は {len(png_files)} 件で数が一致しません。")
+    machine_nums = _machine_only_tc_nums(args.spec) if args.spec else set()
+    judged_by_round = _screenshot_judged_by_round(args.judgment) if machine_nums else {}
+
+    def _is_machine_only(p: str) -> bool:
+        # 判定結果を読めない回の PNG は、NG・AI 判定で貼られたものを見分けられないので例外にしない
+        round_dir = os.path.relpath(p, evidence_dir).replace("\\", "/").split("/")[0]
+        num = _tc_num(os.path.basename(p).split("_")[0])
+        return (round_dir in judged_by_round and num in machine_nums
+                and num not in judged_by_round[round_dir] and _has_dom_text(p))
+
+    machine_only = [p for p in png_files if _is_machine_only(p)]
+    must_embed = [p for p in png_files if p not in machine_only]
+    if machine_only:
+        print(f"[INFO] エビデンス以外の画面テストの PNG {len(machine_only)} 件は xlsx に貼らない機械照合用のため、"
+              "埋め込みの確認なしで削除候補にします（画面の文字の .txt は残します）。")
+    if embedded < len(must_embed):
+        print(f"[SKIP] xlsx 内の埋め込み画像は {embedded} 件、削除候補 PNG は {len(must_embed)} 件で数が一致しません。")
         print("       xlsx に格納されていない証跡が含まれる可能性があるため削除しません"
               "（Pillow 未インストール等での貼付失敗が考えられます）。")
         sys.exit(0)
