@@ -390,10 +390,17 @@ def _validate_png(path: str) -> tuple:
         return False, f"PNGとしてデコード不可（{e}）"
 
 
-def _expects_no_error(kiki: str, judge_method: str) -> bool:
-    """期待結果が「例外なく完了すること」そのものである TC か。"""
-    text = f"{kiki} {judge_method}"
-    return any(w in text for w in ("例外なし", "エラーなし", "正常終了", "例外が発生しない", "エラーが発生しない"))
+def _mentions_no_error(kiki: str, judge_method: str) -> bool:
+    """期待結果・判定方法に例外・エラーが起きない旨の判定語があるか（値の中・否定の言い方も含む部分一致）。"""
+    return any(re.search(r"例外なし|エラーなし|(?:例外|エラー)が(?:発生し|起き)ない|正常終了", re.sub(r"[\s。．.]", "", t))
+               for t in (kiki, judge_method))
+
+
+def _expects_no_error(kiki: str) -> bool:
+    """期待結果が例外なく完了することだけか（test-spec-builder.md の `例外なし` と同じ意味の短い言い方）。値の併記・
+    値そのもの（Status__c=正常終了）・否定（正常終了しない）など、それ以外の言い方は当たらない。"""
+    return bool(re.fullmatch(r"(?:例外|エラー)(?:なし|が(?:発生し|起き)ない(?:こと)?)|正常終了(?:する(?:こと)?)?",
+                             re.sub(r"[\s。．.]", "", kiki)))
 
 
 def _split_apex_evidence(content: str) -> tuple:
@@ -577,27 +584,22 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         reason = "" if ok else f"期待 {exp} 件 / 実際 {act} 件"
         return {"ok": ok, "actual": actual_str, "reason": reason}
 
-    # 期待結果が「例外なく完了すること」そのものの匿名 Apex 証跡は、値照合より先に例外の有無で判定する
-    # （値照合に回すと「例外なし」という文言自体が証跡に無いため偽 NG になる）。未処理の例外は anon_apex_runner.py が
-    # 「判定: NG」の証跡にするため、ここで見るのは TC が catch して debug に出した例外と、catch で握りつぶしうるか
-    if _expects_no_error(kiki, judge_method) and re.search(
-            r"^成功\s*:\s*True|Executed successfully\.", content, re.MULTILINE | re.IGNORECASE):
-        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", scope)
-        if m_err:
-            return {"ok": False, "actual": "AnonApex 実行エラー", "reason": m_err.group(1)[:80]}
-        if re.search(r"\bcatch\s*\(", apex_code, re.IGNORECASE):
-            return _ai_pending("期待結果は例外なしだが、実行コードが例外を catch しているため、匿名 Apex の成功だけでは"
-                               "例外が起きなかったと言えません。catch した例外が debug 出力に出ていないかを見て判定してください",
-                               "AI判定待ち（例外なし・catch あり）")
-        return {"ok": True, "actual": "AnonApex 実行成功（例外なし）", "reason": ""}
-
     # 匿名 Apex の自己検証出力（auto-evidence-runner Step 3-1: 結果を取り直して比較した結果）は
-    # 値照合より先に判定する（期待結果の文言そのものは証跡に出ないため、値照合に回すと偽 NG になる）。
+    # 値照合・「例外なし」より先に判定する（期待結果の文言そのものは証跡に出ないため、値照合に回すと偽 NG になる）。
+    # 期待結果が `例外なし` だけの TC は比較出力を作らない決まり（auto-evidence-runner Step 3-1）なので、一致・0項目で
+    # 匿名 Apex が成功していれば下の分岐で判定する。期待結果が例外なし系で照らせる値（=・N件・判定語でない引用符の値）が
+    # 無いのに NG なら、期待結果の外を比べた CHECK の可能性があるため AI 判定に回す。
     # 例外の文字列では NG にしない（未処理の例外は anon_apex_runner.py が「判定: NG」の証跡にし、catch した例外が
     # 期待どおりかは CHECK が比べる。例外を確かめる TC はコードや debug に例外の型名が出る）。全項目一致でも catch が
     # あれば、期待しない例外を catch して確認項目が途中で止まった可能性があるため AI 判定に回す
     m_self = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)", scope)
-    if m_self:
+    ran_ok = re.search(r"^成功\s*:\s*True|Executed successfully\.", content, re.MULTILINE | re.IGNORECASE)
+    if m_self and int(m_self.group(1)) > 0 and _mentions_no_error(kiki, judge_method) \
+            and not (re.search(r"[=＝]|\d+\s*件", kiki)
+                     or any(not _mentions_no_error(q, "") for q in re.findall(r"[「『]([^」』]+)[」』]", kiki))):
+        return _ai_pending("期待結果は例外なし系で照らせる値が無いのに、自己検証の出力に NG があります。CHECK の確認項目が"
+                           "観点・期待結果の範囲かを見て判定してください", "AI判定待ち（例外なし系・自己検証 NG）")
+    if m_self and not (ran_ok and _expects_no_error(kiki)):
         ng_c, total_c = int(m_self.group(1)), int(m_self.group(2))
         if ng_c == 0 and total_c > 0:
             m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", scope)
@@ -615,6 +617,28 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         detail = ng_lines[0][:80] if ng_lines else f"NG項目数={ng_c}"
         return {"ok": False, "actual": f"AnonApex 自己検証 NG {ng_c}/{total_c}項目",
                 "reason": f"期待値と不一致: {detail}"}
+
+    # 期待結果が「例外なく完了すること」だけ（`例外なし`）の匿名 Apex 証跡は、値照合より先に例外の有無で判定する
+    # （値照合に回すと「例外なし」という文言自体が証跡に無いため偽 NG になる。値を併記した期待結果は、自己検証の出力が
+    # あれば上が先に判定する）。
+    # 判定語を含むそれ以外の期待結果（値の併記・値そのもの・否定の言い方 等）は、例外の有無だけでは OK/NG を決められず、
+    # 値照合でも判定語の文言で偽 NG になるため AI 判定に回す。
+    # 未処理の例外は anon_apex_runner.py が「判定: NG」の証跡にするため、ここで見るのは TC が catch して debug に出した
+    # 例外と、catch で握りつぶしうるか
+    if _mentions_no_error(kiki, judge_method) and ran_ok:
+        if not _expects_no_error(kiki):
+            return _ai_pending("期待結果・判定方法に例外なし系の判定語があるが、期待結果が `例外なし` だけではなく（値の併記・値の中の"
+                               "判定語・否定の言い方 等）、自己検証の出力（NG項目数=）もないため、例外の有無だけでは判定できません。"
+                               "観点・期待結果の意図に照らして実行ログを判定してください",
+                               "AI判定待ち（例外なし以外の期待結果・自己検証なし）")
+        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", scope)
+        if m_err:
+            return {"ok": False, "actual": "AnonApex 実行エラー", "reason": m_err.group(1)[:80]}
+        if re.search(r"\bcatch\s*\(", apex_code, re.IGNORECASE):
+            return _ai_pending("期待結果は例外なしだが、実行コードが例外を catch しているため、匿名 Apex の成功だけでは"
+                               "例外が起きなかったと言えません。catch した例外が debug 出力に出ていないかを見て判定してください",
+                               "AI判定待ち（例外なし・catch あり）")
+        return {"ok": True, "actual": "AnonApex 実行成功（例外なし）", "reason": ""}
 
     # F-3: 否定確認（含まない/非表示/なし確認）: 期待文字列が証跡に存在しないことを確認。
     # 証跡（_result_scope。匿名 Apex の空白ガードは最後の回）自体がほぼ空（=処理が動いていない・結果が採れていない）だと
@@ -676,18 +700,8 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         actual_str = f"「{kiki[:30]}」{'あり' if ok else 'なし'}"
         return {"ok": ok, "actual": actual_str, "reason": "" if ok else f"「{kiki[:30]}」が証跡に含まれない"}
 
-    # auto-evidence-runner 独自フォーマット（成功: True + NG項目数=0 形式）
+    # anon_apex_runner.py の成功証跡で、自己検証の出力（NG項目数=）も「例外なし」の期待も無いもの（どちらも上で判定済み）
     if re.search(r"^成功\s*:\s*True", content, re.MULTILINE):
-        m_ng_zero = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)\s*\(PASS\)", scope)
-        m_ng_fail = re.search(r"NG項目数=([1-9]\d*)\s*/\s*(\d+)", scope)
-        if m_ng_zero:
-            return {"ok": True, "actual": f"AnonApex 実行成功 / 全{m_ng_zero.group(2)}項目確認 PASS", "reason": ""}
-        if m_ng_fail:
-            ng_c = int(m_ng_fail.group(1))
-            return {"ok": False, "actual": f"AnonApex 実行成功 / NG項目 {ng_c}件",
-                    "reason": f"NG項目数={ng_c}（一部項目が期待値と不一致）"}
-        if _expects_no_error(kiki, judge_method):
-            return {"ok": True, "actual": "AnonApex 実行成功（例外なし）", "reason": ""}
         return _ai_pending("匿名 Apex は例外なく終了したが、期待結果を検証するアサーション出力（NG項目数）がありません。"
                            "実行ログの出力値が期待結果を満たすかを判定してください",
                            "AI判定待ち（AnonApex 実行成功・検証出力なし）")
@@ -695,8 +709,6 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
     # Anonymous Apex 実行成功: "Executed successfully." を正として判定
     if re.search(r"Executed successfully\.", content, re.IGNORECASE):
         if not re.search(r"(Error:|FATAL_ERROR|System\.\w+Exception)", content):
-            if _expects_no_error(kiki, judge_method):
-                return {"ok": True, "actual": "AnonApex 実行成功（例外なし）", "reason": ""}
             return _ai_pending("匿名 Apex は例外なく終了したが、期待結果を検証する出力がありません。"
                                "実行ログの出力値が期待結果を満たすかを判定してください",
                                "AI判定待ち（AnonApex 実行成功・検証出力なし）")
