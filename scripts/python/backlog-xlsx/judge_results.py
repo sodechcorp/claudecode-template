@@ -397,16 +397,27 @@ def _expects_no_error(kiki: str, judge_method: str) -> bool:
 
 
 def _split_apex_evidence(content: str) -> tuple:
-    """anon_apex_runner.py の証跡を（実行コード, System.debug 出力）に分ける（auto-evidence-runner 3-3b で
-    末尾に足した2回目の分も含む）。観点・実行コードに書かれた文字列を debug 出力と取り違えないため。
-    この形式でなければ（"", content）を返す。"""
+    """anon_apex_runner.py の証跡を（実行コード, System.debug 出力, 最後の回の System.debug 出力）に分ける
+    （auto-evidence-runner 3-3b で末尾に足した2回目の分も含む）。観点・実行コードに書かれた文字列を debug 出力と
+    取り違えないため。最後の回は否定確認の空白ガードに使う（3-3b で2回に分けた TC の結果は2回目に出る。
+    結果の後に後片付けを足した証跡は最後の回が短くなり AI 判定に回る＝安全側）。
+    この形式でなければ（"", content, None）を返す。"""
     content = content.replace("\r\n", "\n")  # Windows で書かれた証跡は CRLF
     debug = re.findall(r"^--- System\.debug 出力 ---$(.*?)(?=^=+\n匿名 Apex 実行証跡|\Z)",
                        content, re.MULTILINE | re.DOTALL)
     if not debug:
-        return "", content
+        return "", content, None
     code = re.findall(r"^--- 実行コード ---$(.*?)^実際の値\s*[:：]", content, re.MULTILINE | re.DOTALL)
-    return "\n".join(code), "\n".join(debug)
+    return "\n".join(code), "\n".join(debug), debug[-1]
+
+
+def _result_scope(content: str) -> str:
+    """含む・含まない・前後比較の照合範囲: 匿名 Apex の証跡は System.debug 出力、それ以外は「実際の値:」セクション（無ければ全文）。"""
+    _code, text, last = _split_apex_evidence(content)
+    if last is not None:
+        return text
+    m = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", text, re.DOTALL)
+    return m.group(1) if m else text
 
 
 # auto-evidence-runner 3-3b が手で書き足す「判定: 未確認 — {理由}」行（コロン・ダッシュの表記ゆれを許す）
@@ -540,12 +551,16 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         actual_str = "OK — " + reason if ok else "NG — " + reason
         return {"ok": ok, "actual": actual_str, "reason": "" if ok else reason}
 
+    # 照合範囲: 匿名 Apex の証跡（anon_apex_runner.py）は System.debug 出力だけ（観点・実行コードや、3-3b で末尾に足した
+    # 2回目の見出し・実行コードに書いた期待値・NG項目数= に当てない）。それ以外の証跡は全文
+    apex_code, scope, apex_last = _split_apex_evidence(content)
+
     # 件数一致判定 (期待結果が "N 件" 形式)
     m_expected_count = re.search(r"(\d+)\s*件", kiki)
-    m_actual_count = re.search(r"件数\s*:\s*(\d+)\s*件", content)
+    m_actual_count = re.search(r"件数\s*:\s*(\d+)\s*件", scope)
     # sf CLI の "Total number of records retrieved: N." 形式にも対応
     if not m_actual_count:
-        m_actual_count = re.search(r"Total number of records retrieved:\s*(\d+)", content, re.IGNORECASE)
+        m_actual_count = re.search(r"Total number of records retrieved:\s*(\d+)", scope, re.IGNORECASE)
     # 期待件数の指定がない「件数一致」は仕様の不備。取得できただけで OK にすると値の誤りを見逃すため
     # AI 判定に回す（旧: 1件以上取れれば OK にしており偽 OK の原因になっていた）。
     # 期待件数なしの「完全一致」は以降の値照合（含む/完全一致の分岐）で判定する
@@ -567,11 +582,10 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
     # 「判定: NG」の証跡にするため、ここで見るのは TC が catch して debug に出した例外と、catch で握りつぶしうるか
     if _expects_no_error(kiki, judge_method) and re.search(
             r"^成功\s*:\s*True|Executed successfully\.", content, re.MULTILINE | re.IGNORECASE):
-        code, debug = _split_apex_evidence(content)
-        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", debug)
+        m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", scope)
         if m_err:
             return {"ok": False, "actual": "AnonApex 実行エラー", "reason": m_err.group(1)[:80]}
-        if re.search(r"\bcatch\s*\(", code, re.IGNORECASE):
+        if re.search(r"\bcatch\s*\(", apex_code, re.IGNORECASE):
             return _ai_pending("期待結果は例外なしだが、実行コードが例外を catch しているため、匿名 Apex の成功だけでは"
                                "例外が起きなかったと言えません。catch した例外が debug 出力に出ていないかを見て判定してください",
                                "AI判定待ち（例外なし・catch あり）")
@@ -582,13 +596,12 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
     # 例外の文字列では NG にしない（未処理の例外は anon_apex_runner.py が「判定: NG」の証跡にし、catch した例外が
     # 期待どおりかは CHECK が比べる。例外を確かめる TC はコードや debug に例外の型名が出る）。全項目一致でも catch が
     # あれば、期待しない例外を catch して確認項目が途中で止まった可能性があるため AI 判定に回す
-    m_self = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)", content)
+    m_self = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)", scope)
     if m_self:
         ng_c, total_c = int(m_self.group(1)), int(m_self.group(2))
         if ng_c == 0 and total_c > 0:
-            code, debug = _split_apex_evidence(content)
-            m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", debug)
-            if m_err or re.search(r"\bcatch\s*\(", code, re.IGNORECASE):
+            m_err = re.search(r"((?:FATAL_ERROR|System\.\w+Exception).{0,80})", scope)
+            if m_err or re.search(r"\bcatch\s*\(", apex_code, re.IGNORECASE):
                 caught = f"debug 出力に例外（{m_err.group(1)[:60]}）が出ています" if m_err else "実行コードが例外を catch しています"
                 return _ai_pending(f"自己検証は全{total_c}項目一致だが、{caught}。期待結果どおりの例外を確かめたものか、"
                                    "期待しない例外を catch して確認項目が途中で止まっていないかを判定してください"
@@ -598,17 +611,16 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         if total_c == 0:
             return _ai_pending("匿名 Apex の自己検証が0項目でした。期待結果に照らして実行ログを判定してください",
                                "AI判定待ち（自己検証0項目）")
-        ng_lines = re.findall(r"CHECK\|([^\n]*\|NG)", content)
+        ng_lines = re.findall(r"CHECK\|([^\n]*\|NG)", scope)
         detail = ng_lines[0][:80] if ng_lines else f"NG項目数={ng_c}"
         return {"ok": False, "actual": f"AnonApex 自己検証 NG {ng_c}/{total_c}項目",
                 "reason": f"期待値と不一致: {detail}"}
 
     # F-3: 否定確認（含まない/非表示/なし確認）: 期待文字列が証跡に存在しないことを確認。
-    # 証跡（実際の値セクション）自体がほぼ空（=処理が動いていない・結果が採れていない）だと
+    # 証跡（_result_scope。匿名 Apex の空白ガードは最後の回）自体がほぼ空（=処理が動いていない・結果が採れていない）だと
     # 対象文字列も自明に「なし」になり誤 OK になるため、アンカーまたは空白ガードで防ぐ。
     if "含まない" in judge_method or "非表示" in judge_method or "なし確認" in judge_method:
-        m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
-        search_scope = m_actual_section.group(1) if m_actual_section else content
+        search_scope = _result_scope(content)
         anchor, neg_target = _parse_positive_anchor(kiki)
         target_str = neg_target if neg_target else _unquote(kiki)
         table = _parse_soql_table(search_scope)
@@ -634,20 +646,20 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
             actual_str = f"（アンカー確認済）「{target_str[:30]}」{'あり（NG）' if not ok else 'なし（OK）'}"
             return {"ok": ok, "actual": actual_str,
                     "reason": "" if ok else f"「{target_str[:30]}」が証跡に残存（非表示のはずが表示されている）"}
-        if _is_blank_dom(search_scope):
-            visible_len = len(re.sub(r"\s+", "", search_scope))
-            return _ai_pending("証跡がほぼ空でありポジティブアンカー未指定のため、非表示確認を機械判定できません。"
+        blank_scope, where = (search_scope, "証跡") if apex_last is None else (apex_last, "最後の回の debug 出力")
+        if _is_blank_dom(blank_scope):
+            visible_len = len(re.sub(r"\s+", "", blank_scope))
+            return _ai_pending(f"{where}がほぼ空でありポジティブアンカー未指定のため、非表示確認を機械判定できません。"
                                "処理が実行され結果が採れているかを確認して判定してください",
-                               f"AI判定待ち（証跡 {visible_len}文字・空白疑い）")
+                               f"AI判定待ち（{where} {visible_len}文字・空白疑い）")
         ok = target_str.lower() not in search_scope.lower() if target_str else True
         actual_str = f"「{target_str[:30]}」{'あり（NG）' if not ok else 'なし（OK）'}"
         return {"ok": ok, "actual": actual_str,
                 "reason": "" if ok else f"「{target_str[:30]}」が証跡に残存（非表示のはずが表示されている）"}
 
-    # 含む判定 (期待結果に含まれるべき文字列): 「実際の値:」行以降のみを検索し期待値行の誤ヒットを防ぐ
+    # 含む判定 (期待結果に含まれるべき文字列): _result_scope（「実際の値:」以降・匿名 Apex は debug 出力）だけを検索し期待値行の誤ヒットを防ぐ
     if "含む" in judge_method or "存在" in judge_method or "完全一致" in judge_method:
-        m_actual_section = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
-        search_scope = m_actual_section.group(1) if m_actual_section else content
+        search_scope = _result_scope(content)
         table = _parse_soql_table(search_scope)
         pos_pairs = _field_pairs(kiki)
         if table is not None and pos_pairs:
@@ -666,8 +678,8 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
 
     # auto-evidence-runner 独自フォーマット（成功: True + NG項目数=0 形式）
     if re.search(r"^成功\s*:\s*True", content, re.MULTILINE):
-        m_ng_zero = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)\s*\(PASS\)", content)
-        m_ng_fail = re.search(r"NG項目数=([1-9]\d*)\s*/\s*(\d+)", content)
+        m_ng_zero = re.search(r"NG項目数=(\d+)\s*/\s*(\d+)\s*\(PASS\)", scope)
+        m_ng_fail = re.search(r"NG項目数=([1-9]\d*)\s*/\s*(\d+)", scope)
         if m_ng_zero:
             return {"ok": True, "actual": f"AnonApex 実行成功 / 全{m_ng_zero.group(2)}項目確認 PASS", "reason": ""}
         if m_ng_fail:
@@ -740,9 +752,7 @@ def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
     after_ok = False
     after_actual = ""
     for fpath in after_txts:
-        content = _read_text_evidence(fpath)
-        m_sec = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
-        scope = m_sec.group(1) if m_sec else content
+        scope = _result_scope(_read_text_evidence(fpath))
         if exp_after and exp_after.lower() in scope.lower():
             after_ok = True
             after_actual = f"after:「{exp_after[:20]}」あり"
@@ -758,9 +768,7 @@ def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
     if before_txts and exp_before:
         before_ok = False
         for fpath in before_txts:
-            content = _read_text_evidence(fpath)
-            m_sec = re.search(r"実際の値\s*[:：](.+?)(?=判定\s*[:：]|\Z)", content, re.DOTALL)
-            scope = m_sec.group(1) if m_sec else content
+            scope = _result_scope(_read_text_evidence(fpath))
             if exp_before.lower() in scope.lower():
                 before_ok = True
                 before_actual = f"before:「{exp_before[:20]}」確認済"
