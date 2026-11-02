@@ -12,7 +12,7 @@ decisions JSON の形式（配列）:
 ]
 
 使い方:
-  python apply_ai_judgment.py --judgment docs/logs/GF-123/judgment-result.json --decisions docs/logs/GF-123/.tmp/ai-decisions.json
+  python apply_ai_judgment.py --judgment docs/logs/GF-123/judgment-result.json --decisions docs/logs/GF-123/tmp/ai-decisions.json
 """
 import argparse
 import json

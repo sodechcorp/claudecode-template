@@ -351,7 +351,7 @@ exit 2 は判定していない（test-spec.md からテストケースを読め
    - **NG（ng_type `未実行`＝証跡が不十分で再採取が必要）**: 画面が空白・ログイン画面・前提データ未作成・処理が起動していない等で、期待の成否を証跡から判断できない
    - **NG（ng_type `画面エラー`）**: Salesforce のエラー画面が写っている。または匿名 Apex の debug 出力に期待しないエラー文言があり、原因が実装かテスト側（前提データ・テストコード・実行ユーザー）かを証跡から決められない
    - 証跡から確認できないことを推測で OK にしない（「たぶん表示されている」は NG `未実行`）
-4. 判定結果を `{log_dir}/.tmp/ai-decisions.json` に JSON 配列で Write する。`basis` には**証跡のどこを見て判断したか**を具体的に書く（例: 「SOQL 結果の Status__c 列が全2行とも『完了』」「スクショ右上のトーストに『保存しました』」）:
+4. 判定結果を `{log_dir}/tmp/ai-decisions.json` に JSON 配列で Write する。`basis` には**証跡のどこを見て判断したか**を具体的に書く（例: 「SOQL 結果の Status__c 列が全2行とも『完了』」「スクショ右上のトーストに『保存しました』」）:
    ```json
    [{"no": "TC-004", "status": "OK", "basis": "..."}, {"no": "TC-007", "status": "NG", "basis": "...", "ng_type": ""}]
    ```
@@ -359,7 +359,7 @@ exit 2 は判定していない（test-spec.md からテストケースを読め
    ```bash
    python "$(pwd -W)/scripts/python/backlog-xlsx/apply_ai_judgment.py" \
      --judgment "{judgment_path}" \
-     --decisions "{log_dir}/.tmp/ai-decisions.json"
+     --decisions "{log_dir}/tmp/ai-decisions.json"
    echo "反映 exit code: $?"
    ```
    exit 2（反映エラー）の場合は stderr の理由を直して再実行する（`{judgment_path}` が読めないときは手で直さず、`mv "{judgment_path}" "{judgment_path}.broken"` で退けてから Phase D からやり直す）。`AI判定待ちが残っています` が出た場合は残りを判定してから Phase E に進む（AI判定待ちを残したまま Phase E に進まない）
