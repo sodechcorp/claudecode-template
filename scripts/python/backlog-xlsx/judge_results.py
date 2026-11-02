@@ -442,7 +442,8 @@ def _result_scope(content: str) -> str:
     return m.group(1) if m else text
 
 
-# auto-evidence-runner 3-3b が手で書き足す「判定: 未確認 — {理由}」行（コロン・ダッシュの表記ゆれを許す）
+# auto-evidence-runner（3-3b・実行できなかった TC の扱い）・ui-evidence-runner が書き足す「判定: 未確認 — {理由}」行
+# （コロン・ダッシュの表記ゆれを許す）
 _UNCONFIRMED_RE = re.compile(r"^判定\s*[:：]\s*未確認(.*)$", re.MULTILINE)
 
 
@@ -825,6 +826,17 @@ def _judge_transition(tc: dict, after_txts: list, evidence_dir: str) -> dict:
     return {"ok": ok, "actual": actual, "reason": reason}
 
 
+def _add_other_ngs(result: dict, ngs: list) -> dict:
+    """分類（ng_type）はそのままに、他の証跡の実装の NG（ng_type 空）の理由を足す（TC が1つの証跡の分類で決まり、
+    他の証跡の実装の NG が理由に出なくなるのを防ぐ）。同じ理由は1回だけ。"""
+    others = [r for r in dict.fromkeys(n.get("reason") or n.get("actual", "") for n in ngs if not n.get("ng_type"))
+              if r and r != result["reason"]]
+    if others:
+        result["reason"] = (result["reason"] or result.get("actual") or "理由の記載なし") \
+            + f"（他の証跡の NG: {' / '.join(others)[:200]}）"
+    return result
+
+
 def _allows_before(tc: dict) -> bool:
     """before/ の証跡で判定してよい TC（前後比較・Phase3 Before 参照）か。"""
     return "前後比較" in tc.get("判定方法", "") or "Before参照" in tc.get("証跡取得", "")
@@ -874,16 +886,22 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
                     "ng_type": "命名不一致"}
         return {"ok": False, "actual": "", "reason": f"証跡ファイルが見つかりません (No: {no})", "ng_type": "未実行"}
 
-    # auto-evidence-runner 3-3b: 非同期処理の完了を確かめられず2回目を実行しなかった証跡は、
-    # 期待との不一致（実装バグ）ではないため、判定方法によらず未実行に倒す（自動修正ループに入れない）
+    # 「判定: 未確認」の証跡（auto-evidence-runner 3-3b・実行できなかった TC の扱い、ui-evidence-runner が付ける）は
+    # 期待との不一致（実装バグ）ではないため、判定方法によらず TC を未実行に倒す（自動修正ループに入れない）。
+    # 他の証跡の NG は未確認の証跡に依存して起きていることがある（データを作る匿名 Apex が動かなかった等）ので、
+    # 分類は未実行のまま、下で残りの証跡を判定して理由に足す（前後比較は after の .txt のどれかで判定するため、
+    # 未確認の証跡を除いた残りの結果は意味を持たず、すぐ返す）
+    unconfirmed = {}
     for fpath in all_files:
         if fpath.lower().endswith(".txt"):
             m_unconfirmed = _UNCONFIRMED_RE.search(_read_text_evidence(fpath))
             if m_unconfirmed:
-                return {"ok": False, "actual": "未確認", "reason": m_unconfirmed.group(1).strip().strip(" -—–（）()"),
-                        "ng_type": "未実行"}
+                unconfirmed[fpath] = m_unconfirmed.group(1).strip().strip(" -—–（）()")
+    unconfirmed_ng = {"ok": False, "actual": "未確認", "reason": next(iter(unconfirmed.values()), ""), "ng_type": "未実行"}
 
     # F-7: 状態遷移前後比較（before/after DOM テキストを突き合わせる）
+    if unconfirmed and "前後比較" in judge_method:
+        return unconfirmed_ng
     if "前後比較" in judge_method and evidence_dir:
         after_txts = [f for f in all_files if f.lower().endswith(".txt")]
         return _judge_transition(tc, after_txts, evidence_dir)
@@ -897,7 +915,8 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     txt_files = [f for f in all_files if f.lower().endswith(".txt")]
     paired_txt = {re.sub(r'\.png$', '.txt', p, flags=re.IGNORECASE) for p in png_files}
     extra_txt_files = [f for f in txt_files if f not in paired_txt]
-    judge_targets = png_files + extra_txt_files
+    judge_targets = [f for f in png_files + extra_txt_files
+                     if f not in unconfirmed and re.sub(r'\.png$', '.txt', f, flags=re.IGNORECASE) not in unconfirmed]
 
     # 複合種別で証跡ごとに期待値が異なる場合（例: "UI:xxx / SOQL:yyy"）は種別別に振り分ける。
     # 通常の単一期待結果（分岐ラベル "→" 形式含む）は {} が返り、従来どおり kiki 全文を共通適用する。
@@ -920,8 +939,16 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
                     "AI判定待ち（期待値の割当なし）"))
                 continue
             kiki_for_file = matched
-        r = judge_single_evidence(fpath, kiki_for_file, judge_method, no)
+        try:
+            r = judge_single_evidence(fpath, kiki_for_file, judge_method, no)
+        except Exception:
+            if not unconfirmed:  # 未確認の TC の残りは理由に足すためだけに判定するので、例外でも未実行で返す
+                raise
+            continue
         results.append(r)
+
+    if unconfirmed:
+        return _add_other_ngs(unconfirmed_ng, [r for r in results if r.get("ok") is False])
 
     if not results:
         return {"ok": False, "actual": "", "reason": f"判定可能な証跡ファイルがありません (No: {no})"}
@@ -932,10 +959,11 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
     ok_results   = [r for r in results if r.get("ok") is True]
 
     if ng_results:
-        # 最初の NG の理由を採用（ng_type も伝播）
+        # 最初の NG の理由と ng_type を採用し、2件目以降の NG の理由を足す（分類は最初の NG のまま）
         ng = ng_results[0]
         actuals = " / ".join(r["actual"] for r in results)
-        return {"ok": False, "actual": actuals, "reason": ng["reason"], "ng_type": ng.get("ng_type", "")}
+        return _add_other_ngs({"ok": False, "actual": actuals, "reason": ng["reason"], "ng_type": ng.get("ng_type", "")},
+                              ng_results[1:])
 
     if skip_results:
         # ok: None は AI 判定待ちとして伝播（要手動は judge_case 冒頭で返すためここには来ない）
