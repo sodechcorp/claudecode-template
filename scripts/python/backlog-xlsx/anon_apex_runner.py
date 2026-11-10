@@ -198,6 +198,12 @@ def to_text_evidence(apex_result: dict, out_path: str, label: str = "", no: str 
     if apex_code:
         lines.append("--- 実行コード ---")
         lines.append(apex_code[:2000])  # 長すぎる場合は先頭 2000 文字
+        if len(apex_code) > 2000:
+            # judge_results.py は実行コードの catch で AI 判定に回すため、省いた部分の catch 句も書き出す
+            omitted_catches = [re.sub(r"\s+", " ", m.group(0)) for m in re.finditer(r"\bcatch\s*\([^)]*\)", apex_code, re.IGNORECASE)
+                               if m.end() > 2000]
+            lines.append(f"// （先頭 2000 文字。省いた {len(apex_code) - 2000} 文字の catch 句: "
+                         f"{' '.join(omitted_catches) if omitted_catches else 'なし'}）")
         lines.append("")
 
     # judge_results.py の _split_apex_evidence は各回の「--- 実行コード ---」〜「実際の値:」を実行コード、

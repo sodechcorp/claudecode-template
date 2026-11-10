@@ -605,9 +605,12 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
         act = int(m_actual_count.group(1))
         # F-4: 件数デフォルトは完全一致。spec に「以上」と明記した場合のみ >= に緩和
         ok = (act >= exp) if "以上" in judge_method else (exp == act)
-        actual_str = f"{act} 件"
-        reason = "" if ok else f"期待 {exp} 件 / 実際 {act} 件"
-        return {"ok": ok, "actual": actual_str, "reason": reason}
+        # 匿名 Apex の自己検証の出力（NG項目数=）がある証跡は、件数が合っても下の自己検証で判定する
+        # （debug の件数の行だけで OK にすると、ほかの確認項目の NG を見逃す）
+        if not (ok and re.search(r"NG項目数=\d+\s*/\s*\d+", scope)):
+            actual_str = f"{act} 件"
+            reason = "" if ok else f"期待 {exp} 件 / 実際 {act} 件"
+            return {"ok": ok, "actual": actual_str, "reason": reason}
 
     # 匿名 Apex の自己検証出力（auto-evidence-runner Step 3-1: 結果を取り直して比較した結果）は
     # 値照合・「例外なし」より先に判定する（期待結果の文言そのものは証跡に出ないため、値照合に回すと偽 NG になる）。
@@ -632,7 +635,7 @@ def judge_single_evidence(evidence_path: str, kiki: str, judge_method: str, no: 
                 caught = f"debug 出力に例外（{m_err.group(1)[:60]}）が出ています" if m_err else "実行コードが例外を catch しています"
                 return _ai_pending(f"自己検証は全{total_c}項目一致だが、{caught}。期待結果どおりの例外を確かめたものか、"
                                    "期待しない例外を catch して確認項目が途中で止まっていないかを判定してください"
-                                   "（CHECK が try の外にあり、実行コードの CHECK の数と確認数が一致すれば止まっていない）",
+                                   "（CHECK が try の外にあり、debug 出力の CHECK 行の数が期待結果の確認項目の数〔NG項目数= の分母ではない〕と一致すれば止まっていない）",
                                    "AI判定待ち（自己検証一致・例外/catch あり）")
             return {"ok": True, "actual": f"AnonApex 自己検証 全{total_c}項目一致", "reason": ""}
         if total_c == 0:
