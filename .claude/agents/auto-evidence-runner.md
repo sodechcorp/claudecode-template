@@ -68,7 +68,7 @@ mkdir -p "{project_dir}/.sf" && python -c "import json,time; json.dump({'alias':
 
 | 委譲元フェーズ | `{judgment_path}` | 実行 Step | スキップ |
 |---|---|---|---|
-| **Phase C**（証跡採取） | 空/未指定 | Step 0 ＋ Step 0.5 ＋ Step 1（Step 1.5 含む）→ Step 3 → Step 4 → 3-3c → Step 2 ＋ 完了セルフチェック（Step 2「後の TC がデータを変える前に取る SOQL」は Step 3・Step 4 の前か途中で取る） | Step 7 |
+| **Phase C**（証跡採取） | 空/未指定 | Step 0 ＋ Step 0.5 ＋ Step 1（Step 1.5 含む）→ Step 3 → Step 4 → 3-3c → Step 2 → 前提の TC が実行できなかった TC（Step 2 の末尾）＋ 完了セルフチェック（Step 2「後の TC がデータを変える前に取る SOQL」は Step 3・Step 4 の前か途中で取る） | Step 7 |
 | **Phase F**（知見還流） | 指定あり | Step 7 のみ | Step 0・Step 0.5・Step 1〜4（証跡採取を再実行しない） |
 
 > **test-report.md 本体の生成・tmp/ 削除（旧 Step 5・Step 6）はスクリプト化済み**: `/test` Phase F は本エージェントを委譲する**前**に `scripts/python/backlog-xlsx/generate_test_report.py` を直接実行し、`{judgment_path}` から test-report.md を決定論的に生成・tmp/ を削除する（判定列・NG一覧・サマリーの組み立てに LLM 判断を要しないため）。本エージェントが Phase F で委譲されるのは、判断を要する Step 7（知見還流）のみ。Step 7 は `{log_dir}/test-report.md` が**既に存在する前提**で動作する。
@@ -204,6 +204,10 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 | 通信エラー・API 制限・応答の形の異常（`JSON パース失敗`・`想定外の形状`） | 直さずに、その TC だけ再実行する |
 
 再実行は、SOQL は Step 2 のコマンドの `--target-tc` を再実行する TC（カンマ区切り）にし、匿名 Apex は再実行する TC だけを入れた別の cases ファイル（例: `{log_dir}/tmp/anon_retry_cases.json`。`anon_cases.json` は 3-3b が `out` を読むため書き換えない）で 3-3（3-3b）のコマンドを実行する。やり直した後のエラーも同じ表で分け、通算2回やり直しても実行できなければ、証跡（3-3b・3-3c の2回目は1回目の証跡。2回目の出力は足さない）の末尾に最後のエラーで `判定: 未確認 — {エラーの要旨}のため{クエリ／匿名 Apex}を実行できなかった` と1行足す（`judge_results.py` が NG〔未実行〕にする）。匿名 Apex の実行時例外（`Apex 実行時例外`）は、実装の処理で起きた例外と区別できないため対象にしない。
+
+**前提の TC が実行できなかった TC**: Step 2 まで終えたら（Phase C の最後。SOQL の TC が無い回も行う）、今回 Step 2〜4 で実行した TC（Step 1 で依存として足した TC を含む）のうち、前提・データ準備（spec の表より前の実行順の記載を含む）に別の TC（TC-xxx）が作成・変更したデータ・状態を使うと書かれた TC（読み方は Step 1「差分再実行時の依存関係の考慮」と同じ）を、依存先が先になる順に次のとおり扱う（ここで扱った TC も、それに依る TC にとっては実行できなかった前提に数える）。データが無いだけの NG を `judge_results.py` が実装の NG〔ng_type 空〕にして Phase F-2 の自動修正に回すのを防ぐため（TC-xxx 自身の NG は TC-xxx に残る）:
+- 今回の実行中に TC-xxx を要手動（Login As 不可）・対象外にした → その TC の `自動化可否` も `要手動（前提の {TC-xxx} が要手動）`・`対象外（前提の {TC-xxx} が対象外）` に Edit する（Step 4「Login As 降格（要手動）の spec 反映」と同じ。再テストしても前提が変わらないため）
+- 今回実行した TC-xxx の今回の証跡に `成功    : False`（`^成功\s*:\s*False`）か `判定: 未確認` の行がある、または ui-evidence-runner が TC-xxx を NG で返した（備考が `[画面エラー検出: {文言}]` で、その文言が TC-xxx の期待結果に含まれるものは除く） → `printf '%s\n' '判定: 未確認 — 前提の {TC-xxx} が実行できなかったか結果を確かめられず（{TC-xxx の未確認の理由か失敗の要旨}）、前提のデータ・状態が無い' > "{evidence_dir}/after/{その TC の種別の1つ目のフォルダ: soql・apex・screen}/{No}_前提未成立.txt"` で書く（`{…}` は1行にし、`'` は「」に置き換える。撮れた証跡はそのまま残り、`judge_results.py` が未実行にして、残りの証跡の NG を理由に足す）
 
 ---
 
@@ -471,6 +475,7 @@ find "{evidence_dir}/after/screen" -name "*.png" -size -1k 2>/dev/null
 
 - [ ] SOQL ケース: 全件 txt 出力あり（Step 2 の `[WARN]` で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する）
 - [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む。Step 3-3 のコンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する。2回に分けた TC は、1回目が成功していれば 3-3b・3-3c の2回目の出力か `判定: 未確認` の1行が末尾に足されている）
+- [ ] 前提の TC が実行できなかった TC: 依存先が実行できなかった・要手動・対象外になった TC に、`判定: 未確認` の行か `自動化可否` の Edit がある
 - [ ] UI ケース: ui-evidence-runner の返却で対象 TC 全件について結果行（OK / NG / 要手動）が返っている（PNG 各 1KB 以上・DOM スナップショット txt ありは `ok: true` 分のみ対象。**正当な NG（画面エラー検知等）・要手動（Login As 降格）は証跡採取の試行自体は完了しているため、この項目の未充足とはしない**。SOQL/AnonApex 項目と同様「証跡取得を試行し結果が出ているか」を基準とし、OK/NG 自体の最終判定は Phase D `judge_results.py` に委ねる）
 - [ ] （Phase F のみ）`{log_dir}/test-report.md` が存在すること（`generate_test_report.py` の実行漏れがないこと）
 - [ ] （Phase F のみ）Step 7 の追記（還流内容 or スキップ記録）が test-report.md に反映されていること
