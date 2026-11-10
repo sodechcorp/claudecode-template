@@ -31,8 +31,10 @@
 #
 # 永続キャッシュ（manifest/ 配下・.gitignore 対象・run 開始時にクリアしない）:
 #   manifest/.registry-unknown-types.txt  sf CLI のローカルレジストリに未登録と判明した型
+#                                         （作った sf CLI の版を .registry-unknown-types.sf-version に
+#                                          残し、版が変わったら自動で捨てて判定し直す）
 #   manifest/.org-unavailable-types.txt   この組織で未使用/未ライセンスと判明した型
-#   （sf CLI 更新・組織の機能有効化で状況が変わった場合はファイルを削除すれば再判定される）
+#   （組織の機能有効化で状況が変わった場合はファイルを削除すれば再判定される）
 # =============================================================================
 set -euo pipefail
 
@@ -40,25 +42,60 @@ set -euo pipefail
 info()  { echo -e "\033[1;34m[INFO]\033[0m  $*"; }
 ok()    { echo -e "\033[1;32m[OK]\033[0m    $*"; }
 warn()  { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
-error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
+# error は標準エラーに出す。TARGET_ORG=$(get_target_org) のようにコマンド置換の中で
+# 呼ばれると、標準出力では値として飲み込まれ、理由が出ないまま止まる
+error() { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; exit 1; }
 
 # --- 前提チェック ---
 command -v sf >/dev/null 2>&1 || error "Salesforce CLI がインストールされていません"
 [ -f "sfdx-project.json" ] || error "sfdx-project.json が見つかりません。SFDXプロジェクトのルートで実行してください"
 command -v python >/dev/null 2>&1 || error "python がインストールされていません"
 
+# --- 正規表現での抜き出し（ロケールに依存しない）---
+# grep -P は使わない。Git Bash の grep は UTF-8 以外のロケールで
+# 「-P supports only unibyte and UTF-8 locales」を出して失敗する。PowerShell 等から
+# ログインシェルを経ずに bash を起動すると LANG が空になり、この状態になる
+# （target-org が読めずに取得前に止まった。macOS の grep には -P 自体が無い）。
+# 使い方: re_extract <正規表現> [ファイル]        一致ごとに1つ目のグループを1行ずつ出す
+#         re_extract_first <正規表現> [ファイル]  最初の一致だけ出す
+#   ファイルを省略すると標準入力を読む。一致が無い・ファイルが無いときは何も出さず exit 0
+_re_extract() {
+    python -c '
+import re, sys
+mode, pattern = sys.argv[1], sys.argv[2]
+if len(sys.argv) > 3:
+    try:
+        with open(sys.argv[3], "rb") as f:
+            data = f.read()
+    except OSError:
+        sys.exit(0)
+else:
+    data = sys.stdin.buffer.read()
+found = [m.group(1)  # grep と同じく行ごとに照合する（改行をまたいで一致させない）
+         for line in data.decode("utf-8", "replace").splitlines()
+         for m in re.finditer(pattern, line)]
+if mode == "first":
+    found = found[:1]
+sys.stdout.buffer.write("".join(s + "\n" for s in found).encode("utf-8"))
+' "$@"
+}
+re_extract()       { _re_extract all "$@"; }
+re_extract_first() { _re_extract first "$@"; }
+
 # --- sf CLI バージョン確認 ---
 # Entity expansion バグ (1031 > 1000) は sf CLI 2.133.0 未満で発生
 MIN_SF_VERSION_MAJOR=2
 MIN_SF_VERSION_MINOR=133
+SF_CLI_VERSION=""  # check_sf_version が入れる（判定できなければ空のまま）
 
 check_sf_version() {
     local raw major minor rest
-    raw=$(sf --version 2>/dev/null | grep -oP '@salesforce/cli/\K[0-9]+\.[0-9]+\.[0-9]+' | head -1) || true
+    raw=$(sf --version 2>/dev/null | re_extract_first '@salesforce/cli/([0-9]+\.[0-9]+\.[0-9]+)') || true
     if [ -z "$raw" ]; then
         warn "sf CLI バージョンが判定できません。${MIN_SF_VERSION_MAJOR}.${MIN_SF_VERSION_MINOR}.0+ を推奨します"
         return 0
     fi
+    SF_CLI_VERSION="$raw"
     major="${raw%%.*}"
     rest="${raw#*.}"; minor="${rest%%.*}"
     if [ "$major" -lt "$MIN_SF_VERSION_MAJOR" ] || \
@@ -196,7 +233,7 @@ get_folder_type() {
 # --- APIバージョン取得 ---
 get_api_version() {
     local version
-    version=$(grep -oP '"sourceApiVersion"\s*:\s*"\K[^"]+' sfdx-project.json 2>/dev/null || echo "")
+    version=$(re_extract_first '"sourceApiVersion"\s*:\s*"([^"]+)"' sfdx-project.json 2>/dev/null || echo "")
     if [ -z "$version" ]; then
         version="62.0"
     fi
@@ -206,7 +243,7 @@ get_api_version() {
 # --- 接続組織の確認 ---
 get_target_org() {
     local target_org
-    target_org=$(sf config get target-org --json 2>/dev/null | grep -oP '"value"\s*:\s*"\K[^"]+' | head -1 || echo "")
+    target_org=$(sf config get target-org --json 2>/dev/null | re_extract_first '"value"\s*:\s*"([^"]+)"' || echo "")
     if [ -z "$target_org" ]; then
         error "target-org が設定されていません。sf config set target-org <alias> で設定してください"
     fi
@@ -254,6 +291,23 @@ with open(output, "w", encoding="utf-8") as f:
 PYEOF
 }
 
+# --- 前回生成したバッチの package.xml を消す（standard / all の生成の前）---
+# retrieve_standard / retrieve_all は manifest/ のバッチのファイルをファイル名で拾う。
+# 上書きだけだと、前回より数が減ったバッチ（除外する型が増えた・オブジェクトや
+# Lightning ページが減った）や、今回は作らなかった型・フォルダ型のファイルが残り、
+# 同じ型を2回取りにいったり、除外したはずの型をまた取りにいったりする。
+# manifest/package.xml は select・retrieve も使うので消さない（standard は上書きする）。
+_clear_generated_batches() {
+    rm -f manifest/package-all-*.xml \
+          manifest/package-CustomObject-*.xml \
+          manifest/package-FlexiPage-*.xml
+    local t
+    for t in ApexClass Layout Profile Flow Bot BotVersion Community ContentAsset ConnectedApp CustomApplication \
+             Dashboard Report Document EmailTemplate; do
+        rm -f "manifest/package-${t}.xml"
+    done
+}
+
 # --- 標準セット package.xml 生成 ---
 #
 # Entity expansion limit (1000) 対策:
@@ -270,6 +324,7 @@ generate_standard() {
     local api_version="$1"
     local target_org="$2"
     mkdir -p manifest
+    _clear_generated_batches
 
     # 軽い type まとめ（wildcard）
     # ※ EmailTemplate はフォルダ型のため除外済み
@@ -318,11 +373,13 @@ XMLEOF
     <version>${api_version}</version>
 </Package>
 XMLEOF
-        return
+        # return しない（後ろの FlexiPage・フォルダ型の生成まで続ける。
+        # 生成の前に前回のファイルを消しているので、抜けるとそれらが取得されない）
+        objects_json=""
     }
 
-    local n_batches
-    n_batches=$(python - "${api_version}" << PYEOF
+    local n_batches=1
+    [ -n "$objects_json" ] && n_batches=$(python - "${api_version}" << PYEOF
 import json, math, sys
 
 api_version = sys.argv[1]
@@ -428,6 +485,7 @@ generate_all() {
     types_json=$(sf org list metadata-types --json 2>/dev/null) || error "メタデータタイプの取得に失敗しました。組織に接続されているか確認してください"
 
     mkdir -p manifest
+    _clear_generated_batches  # 型の一覧が取れてから消す（取れずに止まったときは前回のファイルを残す）
 
     # EXCLUDED_FROM_WILDCARD と FOLDER_BASED_PAIRS のコンテンツ型を除外
     local excluded_list="" skipped_for_log=()
@@ -457,14 +515,15 @@ generate_all() {
     # sf CLI を更新するまで何度実行しても同じ RegistryError で必ず失敗する。
     # 今回は最初から除外し、無駄な取得試行そのものを発生させない。
     # （retrieve_manifest() がレジストリエラーを検出するたびに追記する永続
-    #  キャッシュ。manifest/.retrieve-status/ と違い run 開始時に消さない）
+    #  キャッシュ。manifest/.retrieve-status/ と違い run 開始時に消さない。
+    #  sf CLI の版が変わったときは _sync_registry_unknown_cache がメインで先に捨てる）
     local registry_unknown_file="manifest/.registry-unknown-types.txt"
     if [ -f "$registry_unknown_file" ]; then
         while IFS= read -r rt; do
             [ -z "$rt" ] && continue
             excluded_list="${excluded_list}${rt},"
-            skipped_for_log+=("${rt} (前回実行でCLIレジストリ未登録と判明済み。sf CLI更新で再取得可能)")
-        done < <(sort -u "$registry_unknown_file")
+            skipped_for_log+=("${rt} (sf CLI ${SF_CLI_VERSION:-（版不明）} のレジストリに未登録と判明済み。sf CLI を更新すると次の実行で判定し直す)")
+        done < <(tr -d '\r' < "$registry_unknown_file" | sort -u)  # Windows のエディタで直した CRLF も読む
     fi
 
     # 過去の実行で「この組織で未使用/未ライセンス」と判明した型も同様に
@@ -477,7 +536,7 @@ generate_all() {
             [ -z "$ut" ] && continue
             excluded_list="${excluded_list}${ut},"
             skipped_for_log+=("${ut} (前回実行でこの組織では未使用/未ライセンスと判明済み)")
-        done < <(sort -u "$org_unavailable_file")
+        done < <(tr -d '\r' < "$org_unavailable_file" | sort -u)
     fi
 
     mkdir -p manifest
@@ -909,7 +968,7 @@ retrieve_manifest() {
         local cur_log="$log_file"
         while [ "$reg_attempt" -lt 15 ]; do
             local bad_type
-            bad_type=$(grep -oP "(?<=Missing metadata type definition in registry for id ')[^']+" "$cur_log" 2>/dev/null | head -1)
+            bad_type=$(re_extract_first "Missing metadata type definition in registry for id '([^']+)'" "$cur_log" 2>/dev/null)
             [ -z "$bad_type" ] && break
 
             registry_removed+=("$bad_type")
@@ -963,7 +1022,7 @@ PYEOF
             done
             [ "$already_removed" -eq 1 ] && continue
             types+=("$type_name")
-        done < <(grep -oP '(?<=<name>)[^<]+' "$manifest")
+        done < <(re_extract '<name>([^<]+)' "$manifest")
 
         local running_r=0
         for type_name in "${types[@]}"; do
@@ -1034,12 +1093,12 @@ XMLEOF
     elif [ "$wildcard_count" -eq 0 ]; then
         # ── 単一型 + 具体 member: member を 1 件ずつ並行リトライ ─────────────
         local type_name
-        type_name=$(grep -oP '(?<=<name>)[^<]+' "$manifest" | head -1)
+        type_name=$(re_extract_first '<name>([^<]+)' "$manifest")
         warn "[${label}] バッチ取得失敗。${type_name} を 1 件ずつ取得します（${SF_RETRIEVE_RETRY_PARALLEL} 並行）..."
         local members=()
         while IFS= read -r mem; do
             members+=("$mem")
-        done < <(grep -oP '(?<=<members>)[^<]+' "$manifest")
+        done < <(re_extract '<members>([^<]+)' "$manifest")
 
         local running_r=0
         for mem in "${members[@]}"; do
@@ -1372,9 +1431,34 @@ retrieve_select() {
     fi
 }
 
+# --- CLI レジストリ未登録型のキャッシュを今の sf CLI の版に合わせる ---
+# 未登録かどうかは sf CLI の版で決まる。キャッシュを作ったときの版と今の版が違えば
+# （CLI を更新した・別の版が PATH で先に来るようになった等）キャッシュを捨てて判定し直す。
+# 版の記録が無いキャッシュ（記録を始める前に作ったもの）も同じ。版が判定できない
+# ときは何もしない。並行バッチが追記を始める前に、メインで1回だけ呼ぶ。
+# 版は `sf --version` の @salesforce/cli の版で見る（sf plugins でプラグインだけ更新した
+# ときは変わらないので、その場合はキャッシュのファイルを消す）。
+_sync_registry_unknown_cache() {
+    [ -n "$SF_CLI_VERSION" ] || return 0
+    local cache="manifest/.registry-unknown-types.txt"
+    local stamp="manifest/.registry-unknown-types.sf-version"
+    local cached_ver=""
+    [ -f "$stamp" ] && cached_ver=$(tr -d '\r\n' < "$stamp")
+    if [ -f "$cache" ] && [ "$cached_ver" != "$SF_CLI_VERSION" ]; then
+        info "sf CLI の版が変わったため（${cached_ver:-記録なし} → ${SF_CLI_VERSION}）、CLI 未対応で除外していた型を取得対象に戻して判定し直します"
+        rm -f "$cache"
+    fi
+    mkdir -p manifest
+    echo "$SF_CLI_VERSION" > "$stamp"
+}
+
 # --- メイン ---
 MODE="${1:-all}"
 API_VERSION=$(get_api_version)
+case "$MODE" in
+    standard|all|generate-only|select|retrieve|retrieve-standard|retrieve-all|retrieve-manifest)
+        _sync_registry_unknown_cache ;;
+esac
 
 case "$MODE" in
     standard)
