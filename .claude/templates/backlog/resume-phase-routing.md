@@ -11,6 +11,7 @@
 
 `prod-release-issue.md` が存在しない場合、以下の分岐（いずれも `/backlog` 内のフェーズへの再開）に進む:
 
+- `validation-report.md` の「## 総合判定」が「再検証待ち」（Phase 3・3.5 を始めた後、Phase 3.5 の判定が出ていない。`release-issue.md`・`test-report.md` があっても下の行より先にこちら） → 「Phase 3.5（実装前検証）から / Phase 3（実装方針）から / 中止 のどれにしますか？」
 - `release-issue.md` 存在 → まず `release-issue.md` を Read し、記録されている差し戻し先 Phase（Phase 4 または Phase 5）を確認したうえで選択肢を出す（**Sandbox リリース段階〔backlog-releaser.md〕の差し戻し専用。本番リリース段階〔release-preparer.md〕の差し戻しは上記 `prod-release-issue.md` を参照**）:
   - 差し戻し先が Phase 4（実装ロジック起因の挙動不良） → 「Phase 4（実装修正）から / Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
   - 差し戻し先が Phase 5（デプロイ失敗等・dry-run で検知可能な問題） → 「Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」

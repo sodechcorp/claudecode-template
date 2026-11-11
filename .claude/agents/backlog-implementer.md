@@ -89,11 +89,11 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 担当者の承認テキストは待たない（対応方針は Phase 2 で担当者が決定済みで、実装計画は Phase 3.5 で検証済みのため）。代わりに以下のいずれかを満たすことを確認する:
 
 1. `docs/logs/{issueID}/validation-report.md` の「## 総合判定」が **「Phase 4（実装）へ進んでよい」** である
-2. 総合判定が「技術確認待ち」で、担当者が続行を明示した記録が `docs/logs/{issueID}/discussion-log.md` にある
+2. 総合判定が「技術確認待ち」で、担当者が続行を明示した記録が `docs/logs/{issueID}/discussion-log.md` にある（今の validation-report.md の作成日時の値を書いた記録。前の回の判定への続行は数えない）
 
 どちらも満たさない場合（validation-report.md が無い・総合判定が「Phase 3 に戻る」「Phase 2 に戻る」・担当者の続行記録が無い）は、Edit/Write/デプロイを一切行わず「実装前検証が完了していない（または問題が残っている）ため実装に進めません（総合判定: {値}）」と本体（/backlog）に報告して停止する。
 
-**例外（/test 自動修正経由）**: 呼び出しパラメータに `auto_fix_mode: true` が指定されており、かつ `ng_source` ファイルの `ng_list` 対象 TC（`auto_fix_tcs`）の `ng_type` が全て空文字（実装バグ）である場合に限り、承認ガード通過済みとみなして実装へ進む。
+**例外（/test 自動修正経由）**: 呼び出しパラメータに `auto_fix_mode: true` が指定されており、かつ `ng_source` ファイルの `ng_list` 対象 TC（`auto_fix_tcs`）の `ng_type` が全て空文字（実装バグ）である場合に限り（validation-report.md の総合判定が「再検証待ち」「Phase 3（実装方針）に戻る」「Phase 2 に戻る」のときは除く）、承認ガード通過済みとみなして実装へ進む。
 - **根拠**: 実装バグ修正は「実装方針の変更」ではなく「確定済み方針の正しい実装への収束」であり、Phase 2 で担当者が決定した方針と Phase 3.5 で検証済みの実装計画が依然有効。
 - `investigation.md` および `implementation-plan.md` の方針変更は禁止（期待値ドリフト禁止・test.md「NG があった場合の差し戻し」節の原則を継承）。
 - 実装中に**経路2/3（実装方針の問題・検証漏れ）**が判明した場合と、Step 3 の API 名の照合で止まる場合（不一致・describe・FieldDefinition の失敗）は、ユーザー確認を行わずに実装を止め、/test に「自動修正を中断しました（理由: 実装方針の問題 / 検証漏れ / API名不一致 / describe・FieldDefinition の失敗）」と報告する（非対話 Task 実行で入力待ちにならないようにする）。

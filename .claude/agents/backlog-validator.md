@@ -173,7 +173,7 @@ validation-report.md の「## 総合判定」セクションには、上記ル�
 
 ## 出力形式
 
-検証完了後、以下の形式で `{project_dir}/docs/logs/{issueID}/validation-report.md` に保存する（project_dir が不明な場合はカレントディレクトリを使用）:
+検証完了後、以下の形式で `{project_dir}/docs/logs/{issueID}/validation-report.md` に保存する（project_dir が不明な場合はカレントディレクトリを使用。既にあれば回を書き足さず、前の回の変更を含む実装計画の全体を対象にした今回の検証でファイル全体を置き換える。「## 総合判定」を1つにして、Phase 4 の着手ガードと再開の振り分けが今回の判定を読むようにする）:
 
 ```markdown
 # 実装前検証レポート: {issueID}
