@@ -24,13 +24,24 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 ## compact 跨ぎの復元
 
-Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順8・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。
+Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順8・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。どちらの場合も Step 0 の Read はやり直す。
 
 ---
 
 ## フェーズ構成
 
 > **Phase B（test-spec-builder）・Phase C（auto-evidence-runner）が完了報告を返さず中断した場合**は、test-spec.md・証跡が途中まで保存されていても完了とみなさず、次の Phase に進まずにその報告を提示して止まる。
+
+### Step 0: 共通 CRITICAL ルールの読込（必須・コマンド起動直後）
+
+以下を **Read で全文読み込む**（CLAUDE.md には要旨のみ・詳細は外出し先）:
+
+1. Read `.claude/templates/common/verify-implementation-spec.md` — 実装裏付けルール。追加ルール記入欄まで読む
+2. Read `.claude/templates/common/verify-source-attribution-spec.md` — 出典確認ルール。追加ルール記入欄まで読む
+3. Read `.claude/templates/common/answer-scope-spec.md` — 回答時のスコープ管理ルール（派生事項の分離・無断リファクタ禁止）
+4. Read `.claude/templates/common/uncertainty-marker-spec.md` — 確証なし時のマーカー規約（[推定]/[要確認]/[出典不明]の使い分け）
+
+**理由**: main thread が Phase D-2（AI 判定）・Phase F-1（Backlog の課題本文・コメントの解釈）・NG の差し戻し案内を行い、ユーザーの質問にも直接応答する。Phase F-2 で起動する backlog-* agent の Step 0c と同じ spec を読み、main thread と agent の知識を揃える（`backlog.md` Step 0 と同一パターン）。Phase B・C の委譲先（test-spec-builder・auto-evidence-runner）は Backlog に接続せず（課題原文は investigation.md から読む）、ユーザーの質問にも答えないため Step 0c を持たない。
 
 ### Phase A: 前提検証・接続確認
 
@@ -63,7 +74,7 @@ fi
 
 # 3. 必須ファイルの存在確認
 if [ ! -f "${LOG_DIR}/implementation-plan.md" ]; then
-  echo "[FATAL] implementation-plan.md が見つかりません。/backlog Phase 3 を先に実行してください。"
+  echo "[FATAL] implementation-plan.md が見つかりません。/backlog Phase 3 を先に実行してください（管理画面操作で対応する課題〔investigation.md の deploy_route: manual-operation〕は /test の対象外）。"
   exit 1
 fi
 if [ ! -f "${LOG_DIR}/investigation.md" ]; then
@@ -201,7 +212,7 @@ fi
 
 > **仕様スキーマ（参考）**: 11 列 — No / 観点 / 種別 / 前提・データ準備 / 実行アクション / テスト手順 / 期待結果 / 判定方法 / 証跡取得 / 自動化可否 / 確認ポイント（着眼点）。`テスト手順` と `確認ポイント（着眼点）` は任意列（詳細は `test-spec-builder.md` §Step 2 参照）。  
 > 詳細な展開ルール・種別選択肢・自動化可否判断基準・網羅性チェック手順は `test-spec-builder.md` に定義されている。  
-> **「観点」列はエビデンス Excel・判定ログ・対応記録に verbatim 転記される**: 自然文1文・ラベル（日本語表示名）優先・接頭ラベル（要求充足=①②…、回帰=`回帰`、共有コンポーネント consumer fan-out=`横展開`）必須。詳細と良い例・悪い例は `test-spec-builder.md` §「観点」列の記述ルールを参照。  
+> **「観点」列はエビデンス Excel・判定ログに verbatim 転記される**: 自然文1文・ラベル（日本語表示名）優先・接頭ラベル（要求充足=①②…、回帰=`回帰`、共有コンポーネント consumer fan-out=`横展開`）必須。詳細と良い例・悪い例は `test-spec-builder.md` §「観点」列の記述ルールを参照。  
 > **網羅性は三軸**（軸1 要求充足／軸2 変更点回帰／軸3 共有コンポーネント consumer fan-out）。軸3は共有データ取得メソッド／共通ユーティリティを変更した場合、その全呼び出し元（入口／画面／フロー）で報告症状が再発しないかを各入口 1 TC で検証する。起動ゲートは `test-spec-builder.md` §軸3 を参照。
 
 既に `test-spec.md` が存在する場合は生成をスキップする（`--force` 指定時は再生成）。スキップ時も軸0（判定方法のフォーマット検証）のみ再実施される（詳細は `test-spec-builder.md` §Step 0 参照）。
@@ -245,19 +256,13 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   #   ∪ 前回の判定後に期待結果・判定方法・種別を書き換えた TC（証跡が書き換え前の期待結果で撮られているため。匿名 Apex の自己検証は期待結果から作る。
   #     書き換えを確かめられない旧版の判定結果〔spec_sig なし〕は全 TC）。
   # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は書き換えていなければ証跡を撮り直さず、Phase D・D-2 で判定だけやり直す。
-  # 書き換えていない前回 OK・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
+  # 書き換えていない前回 OK・AI判定・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
   # 証跡未採取のまま judge_results.py で「証跡ファイルが見つかりません」の偽 NG になるため）。
-  # ng_type=要確認（証跡は正常採取済み・判定方法が機械可読パターンに一致しないだけ）の NG は、
-  # test-spec.md の判定方法を修正すれば既存証跡のまま Phase D が正しく再判定できるため、証跡の
-  # 再採取対象からは除外する（判定パターン未一致だけで Playwright/SOQL/AnonApex を無駄に再実行しない）。
-  # ただし除外した結果リストが空になる場合（残り NG が要確認のみ）は「空リスト＝全件再実行」の
-  # 既存フォールバックに落ちて無関係な OK 済み TC まで巻き込んでしまうため、その場合のみ除外前の
-  # リストにロールバックする（=除外前と同じ挙動に留め、退化させない）。
   TARGET_TC_LIST=$(python "$(pwd -W)/scripts/python/backlog-xlsx/resolve_target_tcs.py" --judgment "$JUDGMENT_PATH" --spec "$SPEC_PATH" 2>/dev/null || echo "")
   if [ -z "$TARGET_TC_LIST" ]; then
     echo "[INFO] 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC なし（前回全件 OK）。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
   else
-    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC。判定パターン未一致=要確認のみだった NG は証跡再採取から除外済み）: $TARGET_TC_LIST"
+    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC）: $TARGET_TC_LIST"
     echo "[INFO] 影響範囲の TC は今回の実行対象には含まれません（Phase F で NG があった場合のみ、次回再テストの判断材料として提示されます）。"
   fi
 else
@@ -310,22 +315,13 @@ if [ -z "{target_tc_list}" ] && [ "$EVIDENCE_COUNT" -gt 0 ]; then rm -f "{eviden
 > **[ハーネス直接実行]**
 
 ```bash
-# 差分再実行時は前回判定を --prev で渡して前回 OK をマージする（.prev は毎回最新 judgment へ更新）
-# 配列で保持する（プレーン文字列 + 非クォート展開だとパスに空白を含む場合に単語分割で壊れる）
-PREV_ARGS=()
-if [ -f "{judgment_path}" ]; then
-  cp "{judgment_path}" "{judgment_path}.prev"
-fi
-if [ -f "{judgment_path}.prev" ]; then
-  PREV_ARGS=(--prev "{judgment_path}.prev")
-fi
-
+# 差分再実行時は前回判定を --prev で渡して前回 OK をマージする（--prev は --out の書き込み前に読まれるため同じパスでよい。無ければ無視される）
 python "$(pwd -W)/scripts/python/backlog-xlsx/judge_results.py" \
   --issue-id "{issueID}" \
   --spec "{spec_path}" \
   --evidence-dir "{evidence_dir}/after" \
   --out "{judgment_path}" \
-  "${PREV_ARGS[@]}"
+  --prev "{judgment_path}"
 
 # judge_results.py は exit 1 で NG を報告する。同一ブロック内で終了コードを確認（別ブロックだと Bash の新シェル起動により $? が無効化される）
 RC=$?
@@ -541,6 +537,8 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 dry-run �
 - **条件付きPASS（NoTestRun フォールバック発生）** → 自動再デプロイしない（FAIL と同様に扱う）。対応テストクラス未整備でカバレッジ未検証である旨を提示し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
 - **FAIL** → 自動再デプロイしない。backlog-tester が返した NG 原因（dry-run のエラー内容等）を提示し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
 
+条件付きPASS・FAIL の差し戻しでは、`AUTO_FIX_TCS` を「NG があった場合の差し戻し」の手順1の表の `""`（実装差し戻し）として扱い、同じ節の手順5の NG の原因に dry-run の NG 原因（条件付きPASS はテストクラス未整備）も書く（自動修正の変更は force-app に入ったまま Sandbox には未反映）。
+
 #### F-2 Step 3: backlog-releaser（軽量再デプロイ・確認なし）
 
 Task tool で `backlog-releaser` を起動する:
@@ -588,7 +586,6 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    |---|---|---|
    | `"未実行"` | 証跡が採取されていない・結果を確かめられなかった（環境起因・実行漏れ・デプロイ後キャッシュ遅延・テスト側のクエリ／匿名 Apex を実行できなかった） | **再テスト**: 差分再実行（`/test {issueID}` のみ・実装修正不要。テスト側のクエリの誤りは理由のエラーを見て test-spec.md を直してから。理由に「他の証跡の NG」があり、未確認の理由が再テストで変わらないもの〔完了を確かめる手段が無い等。Login As の相手が書かれていないものは書いてから再テスト〕は、その NG が未確認の証跡の結果に依るかを人が見て、依らなければ実装差し戻し。理由が「前提の TC-xxx が実行できなかったか…」なら TC-xxx の NG を先に片付ける。TC-xxx の未確認が再テストで変わらないものなら、依る TC も証跡を人が見て判定する） |
    | `"証跡不正"`・`"命名不一致"` | 証跡の PNG が画像として開けない・証跡のファイル名の `TC-` の有無が No 列と違う（証跡採取側の不備） | **再テスト**: 差分再実行（`/test {issueID}` のみ・実装修正不要） |
-   | `"要確認"` | （旧版の判定結果のみ。現在は機械照合できない TC は Phase D-2 で AI が判定するため発生しない） | Phase D・D-2 をやり直す |
    | `"画面エラー"` | Salesforce の標準エラー画面が撮影された（「問題が発生しました」「Record ID is malformed」「関連リストはレイアウトにありません」等。Phase D-2 で原因を決められなかった匿名 Apex の debug 出力のエラー文言を含む） | **要調査**: 実装/設定の不備（レイアウトへの関連リスト未追加等）か、テスト手順・前提データの誤り（不正な ID 参照・前提レコード未作成等）かを確認し、該当する方に差し戻す |
    | `""` (空) | 証跡あり・実装が期待値と一致しない（実装バグ） | **実装差し戻し**: 実装修正→ `/test {issueID}` 再実行 |
 
@@ -689,8 +686,10 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 
 ## 完了報告フォーマット
 
+[completion-report-spec.md](../templates/common/completion-report-spec.md) の適用対象。
+
 ```
-=== /test {issueID} 完了 ===
+=== /test {issueID} 完了（{alias} Sandbox・本番未反映） ===
 
 確認環境: Sandbox（{alias}）
 本番反映状況: 未 ⚠️（Sandbox 検証までの完了。本番反映は別セッションで /release {issueID} を実施）
@@ -741,7 +740,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 {総合判定が受入基準再確認待ちの場合（Phase F-1 未完了）}
 要対応: 受入基準再確認（Phase F-1）が完了していません。Backlog に接続できる状態で Phase F-1 と Phase G だけをやり直し、この完了報告を出し直してください（別セッションでは /backlog {issueID} の再開で F-1 と Phase G だけを実施できます。/test 全体の再実行は不要）。
 
-{手動対応が必要な NG がある場合（ng_type あり〔OTHER_NG〕/ 自動修正のガードで止まった場合 / dry-run FAIL の場合）}
+{手動対応が必要な NG がある場合（ng_type あり〔OTHER_NG〕/ 自動修正のガードで止まった場合 / implementer の中断・dry-run の条件付きPASS・FAIL で止まった場合）}
 NG 一覧:
   - TC-00X: {観点} — {理由}（種別: `ng_type` の値。空欄の場合は「実装バグ」と表示する）
 
@@ -756,6 +755,7 @@ NG 一覧:
     確認対象: {ラベル（日本語表示名）} / URL: {instance_url}/lightning/r/{SObject}/{Id}/view または {画面URL（クエリ除去済み）} / 操作手順: {test-spec.mdの「テスト手順」列 or 要約}
     ※ 対象レコード・URLが特定できない TC は URL 行を省略する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）
 
+確認方法: 担当者がエビデンス.xlsx の「テスト結果」シートの判定と、証跡シートのエビデンスの TC・NG の TC（test-report.md に「🔎 目視確認のご案内」があればそのレコード URL・操作手順）を開き、期待結果どおりなら OK
 未確認事項: {Phase B（test-spec-builder）返却の [WARN] 行があれば列挙 ＋ 要手動確認 TC があれば「上記「要手動確認」参照（Playwright では機械判定できない画面のため目視確認が必要）」を追記 / いずれもなければ「未確認事項なし」}
 ```
 
