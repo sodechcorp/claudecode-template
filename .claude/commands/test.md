@@ -762,10 +762,10 @@ NG 一覧:
     ※ 対象レコード・URLが特定できない TC は URL 行を省略する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）
 
 確認方法: 担当者がエビデンス.xlsx の「テスト結果」シートの判定と、証跡シートのエビデンスの TC・NG の TC（test-report.md に「🔎 目視確認のご案内」があればそのレコード URL・操作手順）を開き、期待結果どおりなら OK
-未確認事項: {Phase B（test-spec-builder）返却の [WARN] 行があれば列挙 ＋ 要手動確認 TC があれば「上記「要手動確認」参照（Playwright では機械判定できない画面のため目視確認が必要）」を追記 / いずれもなければ「未確認事項なし」}
+未確認事項: {Phase B（test-spec-builder）返却の [WARN] 行があれば列挙 ＋ 要手動確認 TC があれば「上記「要手動確認」参照」を追記 / いずれもなければ「未確認事項なし」}
 ```
 
-test-report.md の「🔎 目視確認のご案内」に全対象の一覧（レコードURL・操作手順つき）がまとまっている。要手動・NG（画面エラー含む）ともにここから直接開いて確認できる。
+test-report.md の「🔎 目視確認のご案内」に Claude が操作した対象の一覧（レコードURL・操作手順つき）がまとまっている。NG（画面エラー含む）はここから直接開いて確認できる（要手動は通常含まれない）。
 
 ---
 
