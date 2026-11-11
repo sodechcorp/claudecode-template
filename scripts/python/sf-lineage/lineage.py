@@ -5,8 +5,10 @@
   python scripts/python/sf-lineage/lineage.py who <対象...> [--value 値] [--depth 3] [--all] [--json]
   python scripts/python/sf-lineage/lineage.py save <オブジェクト> [--depth 3]
   python scripts/python/sf-lineage/lineage.py label <表示ラベルの一部>
+  python scripts/python/sf-lineage/lineage.py export --repo <識別子> --name-ja <日本語名> [--json 書き出し先]
+                                                                    # 項目リネージの共通基盤（Neo4j で見る用）に渡す中間JSON
 
-who・save・label は、地図が無いか force-app より古いときに自動で作り直してから引く。
+who・save・label・export は、地図が無いか force-app より古いときに自動で作り直してから引く。
 対象の書き方: Obj__c.Field__c ／ LWC:名前 ／ QuickAction:Obj.名前 ／ EmailTemplate:フォルダ/名前 ／ EmailAlert:Obj.名前 ／ Label:名前 ／ クラス名 ／ フロー名 ／ オブジェクト名
 共通の引数: --root <プロジェクトのルート>（既定は今のフォルダ）・--out <地図のフォルダ>（既定は <root>/.lineage）
 """
@@ -114,6 +116,22 @@ def main() -> None:
         sys.argv = ["save_chain.py", out, out] + rest
         try:
             save_chain.main()
+        finally:
+            sys.argv = argv
+    elif cmd == "export":
+        # 項目リネージの共通基盤（DDD-Ontology の lineage-core）に渡す中間JSONを書き出す
+        if "--repo" not in rest or "--name-ja" not in rest:
+            sys.exit("使い方: lineage.py export --repo <システムの識別子> --name-ja <システムの日本語名> [--json <書き出し先>]")
+        ensure(root, out)
+        repo = rest[rest.index("--repo") + 1]
+        dest = os.path.join(out, f"intermediate-{repo}.json")
+        if "--json" in rest:
+            i = rest.index("--json"); dest = os.path.abspath(rest[i + 1]); del rest[i:i + 2]
+        import to_intermediate
+        argv = sys.argv
+        sys.argv = ["to_intermediate.py", "--root", root, "--map", out, "--out", dest] + rest
+        try:
+            to_intermediate.main()
         finally:
             sys.argv = argv
     else:

@@ -13,7 +13,7 @@ import os
 import re
 import sys
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 from typing import Iterable
 
 NS = "{http://soap.sforce.com/2006/04/metadata}"
@@ -126,13 +126,23 @@ class Index:
         return self.field_owner.get(field, set())
 
     # ---------- 項目の一覧（最初に作る） ----------
+    def renamed_label(self, obj: str) -> str | None:
+        """標準オブジェクトの名前の変更（「タブと表示ラベルの名前変更」）は、日本語の翻訳の caseValues に入る。"""
+        root = parse(os.path.join(self.root, "objectTranslations", f"{obj}-ja", f"{obj}-ja.objectTranslation-meta.xml"))
+        if root is None:
+            return None
+        for cv in root.iter(NS + "caseValues"):
+            if txt(cv, "plural") != "true" and txt(cv, "value"):
+                return txt(cv, "value")
+        return None
+
     def load_objects(self) -> None:
         odir = os.path.join(self.root, "objects")
         if os.path.isdir(odir):
             for obj in os.listdir(odir):
                 self.objects.add(obj)
                 om = parse(os.path.join(odir, obj, f"{obj}.object-meta.xml"))
-                self.object_labels[obj] = txt(om, "label") if om is not None else None
+                self.object_labels[obj] = (txt(om, "label") if om is not None else None) or self.renamed_label(obj)
                 fdir = os.path.join(odir, obj, "fields")
                 self.fields.setdefault(obj, {})
                 if not os.path.isdir(fdir):
@@ -935,6 +945,25 @@ def is_test_class(text: str) -> bool:
     return re.search(r"@isTest\b|\btestMethod\b", text, re.I) is not None
 
 
+def mark_test_helpers(refs: list[Ref]) -> list[Ref]:
+    """テストからしか呼ばれず、名前に Test を含むクラス（@isTest の付かないテストデータ作成用の部品）もテストとして扱う。
+    名前で絞るのは、スケジュール・バッチ等は画面の設定から動かすのでメタデータ上はテストからしか呼ばれないため。
+    権限での参照は数えない。どこからも呼ばれないクラスは本番の部品のまま。"""
+    tests = {r.src_name for r in refs if r.src_type == "ApexTest"}
+    while True:
+        callers: dict[str, set[tuple[str, str]]] = {}
+        for r in refs:
+            if r.tkind == "class" and r.role == "call" and r.target != r.src_name:
+                callers.setdefault(r.target, set()).add((r.src_type, r.src_name))
+        new = {c for c, s in callers.items()
+               if c not in tests and "test" in c.lower() and s and all(t == "ApexTest" for t, _ in s)}
+        new &= {r.src_name for r in refs if r.src_type == "ApexClass"}
+        if not new:
+            return refs
+        tests |= new
+        refs = [replace(r, src_type="ApexTest") if r.src_type == "ApexClass" and r.src_name in new else r for r in refs]
+
+
 def drop_ambiguous_mentions(refs: list[Ref]) -> list[Ref]:
     """同じ部品に、同じ項目名への型の分かる参照（出現以外）があれば、その項目名の確度「低」の出現（他のオブジェクトに付けたもの）を捨てる。"""
     typed: dict[tuple[str, str, str], set[str]] = {}
@@ -1042,7 +1071,7 @@ def main() -> None:
                         rs = an.analyze(st, fn[: -len(ext)], fp)
                         apex_n += len(rs)
                         ix.refs += rs
-    ix.refs = drop_ambiguous_mentions(ix.refs)
+    ix.refs = drop_ambiguous_mentions(mark_test_helpers(ix.refs))
     uniq = {}
     for r in ix.refs:
         k = (r.src_type, r.src_name, r.role, r.tkind, r.target, r.via)
