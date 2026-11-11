@@ -16,6 +16,7 @@ implementation-plan.md の「変更対象ファイル」と実装方針を確認
 
 - **UI 影響あり**: 変更対象に LWC `.html`/`.js`、Aura `.cmp`、VF `.page` が含まれる、または実装方針に「画面・ラベル・文言・表示・UI」の語が含まれる
 - **UI 影響なし（SOQL/Apex/Flow/設定のみ）**: Before スクリーンショットは「該当なし（非UI変更）」として記録し、Step C へスキップ
+- 組織の地図があれば、項目・Apex・フローの変更でも `python scripts/python/sf-lineage/lineage.py who <変更した項目・部品…>` の「画面・帳票」区分（その項目・部品を出すレイアウト・Lightning ページ・LWC・画面フロー）を見る。画面に出る値・表示が変わるなら **UI 影響あり** とし、そこに出た画面を撮る画面の候補にする（[option-lineage-map.md](option-lineage-map.md)）
 
 ### B. Before スクリーンショット自動採取（UI 影響ありの場合のみ）
 

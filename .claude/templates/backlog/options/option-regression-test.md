@@ -9,6 +9,7 @@
 1. 変更が影響する可能性のある既存機能を特定する:
    - option-reverse-grep の結果（変更対象を参照している全コンポーネント）
    - 共通ユーティリティを変更した場合: そのユーティリティを使う全機能
+   - **組織の地図があれば**: `python scripts/python/sf-lineage/lineage.py who <変更した部品・項目…>` の「処理」「画面・帳票」区分（呼び出し元の画面・ボタン・フロー、値を写した先・数式・積み上げで再計算される項目）と、`save <変更したオブジェクト>`（保存で動くもの・波及先）。手で操作して確かめる機能の候補にする（[option-lineage-map.md](option-lineage-map.md)）
 2. 既存テストを一括実行する（dry-run のため変更後のコードで実行され、Sandbox には永続化されない。`CI=true` は進捗表示の再描画で出力が数MBに膨らむのを防ぐ。Bash の timeout は 600000 を指定し、時間切れの場合は `sf project deploy report --use-most-recent --target-org {sandbox-alias}` で結果を取得する）:
    ```bash
    CI=true sf project deploy start --dry-run --source-dir force-app --target-org {sandbox-alias} \

@@ -82,6 +82,8 @@ Grep pattern: {新規 API 名 / メソッド名}
 対象: force-app/
 ```
 
+   組織の地図があれば、先に `python scripts/python/sf-lineage/lineage.py who <新規・変更した API 名…>` で参照元（レイアウト・権限・レポート・呼び出し元の2〜3段目を含む）を出し、grep はメソッド名と地図の確かめに使う。地図は force-app より古ければ自動で作り直す（[option-lineage-map.md](option-lineage-map.md)）
+
 4. ヒット箇所を確認して影響を評価する
 
 ---

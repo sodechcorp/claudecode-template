@@ -16,6 +16,7 @@ from collections import defaultdict
 
 ON_SAVE_TYPES = ("ApexTrigger", "Flow", "WorkflowRule", "ValidationRule", "DuplicateRule", "AssignmentRule")
 APPROVAL_FU: dict[str, set] = defaultdict(set)   # obj -> {(項目自動更新, 承認プロセス)}（保存では動かない）
+RAW: dict[tuple, str] = {}   # (種類, 表示の名前) -> 元の名前
 
 
 def load(paths):
@@ -26,9 +27,45 @@ def load(paths):
     return refs
 
 
+def side_effects(refs) -> dict:
+    """部品ごとの、組織の外に出る動き（メール・外部呼び出し・イベント）。呼ぶクラス・フローの分も3段まで足す。"""
+    direct = defaultdict(set)
+    calls = defaultdict(set)
+    for r in refs:
+        k = (r["src_type"], r["src_name"])
+        if r["src_type"] == "ApexTest":
+            continue
+        if r["role"] in ("send_email", "callout"):
+            direct[k].add("✉メール" if r["role"] == "send_email" else "⇄外部呼び出し" if "外部" in r["target"] else "⇄イベント発行")
+        elif r["role"] == "call" and r["target"].startswith("EmailAlert:"):
+            direct[k].add("✉メール")
+        elif r["role"] == "call" and r["tkind"] in ("class", "flow"):
+            calls[k].add(("ApexClass" if r["tkind"] == "class" else "Flow", r["target"]))
+    out = {}
+    for k in set(direct) | set(calls):
+        seen, frontier, eff = {k}, [k], set(direct.get(k, set()))
+        for _ in range(3):
+            nxt = []
+            for c in frontier:
+                for t in calls.get(c, set()):
+                    if t not in seen:
+                        seen.add(t)
+                        eff |= direct.get(t, set())
+                        nxt.append(t)
+            frontier = nxt
+        if eff:
+            out[k] = eff
+    return out
+
+
 def build(refs, fields):
     on_save = defaultdict(set)      # obj -> {(種類, 名前)}
     writes_obj = defaultdict(set)   # (種類, 名前) -> {書き込むオブジェクト}
+    eff = side_effects(refs)
+
+    def mark(st, sn):
+        e = eff.get((st, sn))
+        return f" {'・'.join(sorted(e))}" if e else ""
     # 項目自動更新は、ワークフローのルールから呼ばれるものだけが保存で動く。承認プロセスから呼ばれるものは、申請・承認・却下・取り下げのときに動く
     fu_by_rule = {r["target"].split(":", 1)[1] for r in refs
                   if r["src_type"] == "WorkflowRule" and r["role"] == "call" and r["target"].startswith("WorkflowFieldUpdate:")}
@@ -44,6 +81,8 @@ def build(refs, fields):
                 ttype, rtype, order = (r["via"].split("|") + ["", "", ""])[:3]
                 phase = {"RecordBeforeSave": "保存前", "RecordAfterSave": "保存後", "RecordBeforeDelete": "削除前"}.get(ttype, ttype)
                 label = f"{sn}〔{phase}{'・' + rtype if rtype else ''}{'・順番' + order if order else ''}〕"
+            label += mark(st, sn)
+            RAW[(st, label)] = sn   # 表示の名前 → 元の名前（書き込み先を引くため）
             on_save[r["target"]].add((st, label))
         if st == "ValidationRule":
             on_save[sn.split(".", 1)[0]].add((st, sn))
@@ -92,7 +131,7 @@ def chain(obj, on_save, writes_obj, rollup_parent, depth, seen=None, indent=""):
                      + ", ".join(sorted(f"{fu}〔{ap}〕" for fu, ap in APPROVAL_FU[obj])))
     nexts = set()
     for st, sn in autos:
-        for o2 in writes_obj.get((st, sn), set()):
+        for o2 in writes_obj.get((st, RAW.get((st, sn), sn)), set()):
             if o2 != obj:
                 nexts.add((o2, f"{st}:{sn} が書き込む"))
     for parent, fld in rollup_parent.get(obj, set()):

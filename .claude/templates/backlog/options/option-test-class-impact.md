@@ -12,6 +12,7 @@
    Grep pattern: {クラス名 or メソッド名}
    ファイル: force-app/**/*Test*.cls, force-app/**/*_Test*.cls
    ```
+   **組織の地図があれば足す**: `python scripts/python/sf-lineage/lineage.py who <変更したクラス・項目・オブジェクト…>` の「テストクラス」区分。名前の規則に合わないテストクラスと、変更する項目・オブジェクトのデータを作る（入力規則の追加などで壊れうる）テストクラスも出る（[option-lineage-map.md](option-lineage-map.md)）
 3. 特定したテストクラスを Read して以下を確認する:
    - テスト対象メソッド（どの処理をテストしているか）
    - テストデータの作り方（変更後も同じデータで動くか）

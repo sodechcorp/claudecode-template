@@ -450,19 +450,57 @@ def metadata_props(fa: str) -> dict[str, dict]:
     return out
 
 
+QN_OF = {"ApexClass": "apex", "ApexTrigger": "trigger", "Visualforce": "vf", "LWC": "lwc", "Aura": "aura", "Flow": "flow",
+         "QuickAction": "action", "ValidationRule": "vr", "WorkflowFieldUpdate": "wf"}
+
+
+def modified_props(mapdir: str | None) -> tuple[dict[str, dict], list[dict]]:
+    """lineage.py modified で取った最終更新 → 部品（qualifiedName）ごと・項目ごとの性質。"""
+    if not mapdir:
+        return {}, []
+    sys.path.insert(0, SF_LINEAGE)
+    from modified import load_all, org_label
+    fn_p: dict[str, dict] = {}
+    col_p: dict[tuple, dict] = {}
+    for d in load_all(mapdir):
+        key = f"最終更新（{org_label(d)}）"
+        for k, x in d["items"].items():
+            if not x.get("lastModifiedDate"):
+                continue
+            st, name = k.split(":", 1)
+            val = f"{x['lastModifiedDate'][:10]} {x.get('lastModifiedByName') or ''}".strip()
+            if st in QN_OF:
+                fn_p.setdefault(f"{QN_OF[st]}:{name}", {})[key] = val
+            elif st == "CustomField" and "." in name:
+                for kind in ("formula", "rollup"):
+                    fn_p.setdefault(f"{kind}:{name}", {})[key] = val
+                o, f = name.split(".", 1)
+                col_p.setdefault((o, f), {})[key] = val
+    return fn_p, [{"o": o, "f": f, "p": p} for (o, f), p in col_p.items()]
+
+
 def cmd_props(env: Env, argv: list[str]) -> None:
-    """部品（メソッド）に、Salesforce の自動処理としての性質を足す（Neo4j にだけ。取り込み直すと消えるので load の最後に毎回足す）。"""
+    """部品（メソッド）に、Salesforce の自動処理としての性質と、組織での最終更新（lineage.py modified で取ってあれば）を足す。
+    項目にも最終更新を足す。Neo4j にだけ足す（取り込み直すと消えるので load の最後に毎回足す）。"""
     root, repo = opt(argv, "--root"), opt(argv, "--repo")
     if not (root and repo):
-        sys.exit("使い方: onto_env.py props --root <プロジェクトのルート> --repo <識別子>")
+        sys.exit("使い方: onto_env.py props --root <プロジェクトのルート> --repo <識別子> [--map <地図のフォルダ>]")
     props = metadata_props(os.path.join(root, "force-app", "main", "default"))
+    fn_mod, col_rows = modified_props(opt(argv, "--map"))
+    for qn, p in fn_mod.items():
+        props.setdefault(qn, {}).update(p)
     rows = [{"qn": k, "p": v} for k, v in props.items()]
     need_neo4j_driver(argv, env)
     with driver(env) as d:
         res = d.execute_query(
             "UNWIND $rows AS x MATCH (fn:cod__Function) WHERE fn.uri STARTS WITH $sys AND head(fn.cod__qualifiedName) = x.qn "
             "SET fn += x.p RETURN count(fn) AS n", rows=rows, sys=f"{env.base}code-data/{repo}/").records
-    print(f"自動処理の性質を {res[0]['n']} 個の部品に足した（メタデータから作った {len(rows)} 件のうち、地図に入っている部品）")
+        cres = d.execute_query(
+            "UNWIND $rows AS x MATCH (t:cod__Table)-[:cod__hasColumn]->(c:cod__Column) "
+            "WHERE t.uri STARTS WITH $db AND head(t.cod__physicalName) = x.o AND head(c.cod__physicalName) = x.f "
+            "SET c += x.p RETURN count(c) AS n", rows=col_rows, db=f"{env.base}code-data/db/{repo}/").records
+    print(f"自動処理の性質を {res[0]['n']} 個の部品に足した（メタデータから作った {len(rows)} 件のうち、地図に入っている部品）"
+          + (f"。組織での最終更新を項目 {cres[0]['n']} 個にも足した" if col_rows else "。組織での最終更新は未取得（lineage.py modified）"))
 
 
 # ---------- reset-db ----------
@@ -523,7 +561,7 @@ def cmd_load(env: Env, argv: list[str]) -> None:
                        env=dict(py_env, **{PASS_ENV: password()}), capture_output=True, text=True, encoding="utf-8", errors="replace")
     print("[関係] " + ((r.stdout.strip().splitlines() or [""])[-1] if r.returncode == 0 else (r.stdout + r.stderr)[-500:]))
     # 自動処理の性質（いつ動くか・有効か・開始条件など）を足す
-    r = subprocess.run([env.python, os.path.abspath(__file__), "--env", env.path, "props", "--root", root, "--repo", repo],
+    r = subprocess.run([env.python, os.path.abspath(__file__), "--env", env.path, "props", "--root", root, "--repo", repo, "--map", mapdir],
                        env=dict(py_env, **{PASS_ENV: password()}), capture_output=True, text=True, encoding="utf-8", errors="replace")
     print("[性質] " + ((r.stdout.strip().splitlines() or [""])[-1] if r.returncode == 0 else (r.stdout + r.stderr)[-500:]))
 

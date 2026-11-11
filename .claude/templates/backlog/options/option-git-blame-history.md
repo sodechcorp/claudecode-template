@@ -26,7 +26,8 @@ git blame で変更対象ファイルの過去変更履歴と変更理由を確�
    - 過去の変更コメントに意図的な設計選択の記録があるか
    - 同じ箇所が繰り返し修正されていないか（問題の再発パターン）
    - 現在のバグ・問題が過去の修正によって引き起こされた可能性
-4. 重要な知見があれば investigation.md に追記する
+4. **force-app が git で管理されていない・履歴が浅い場合（標準の構成では force-app は .gitignore 対象）**: git blame・log は空になるので、組織での最終更新で代える。`python scripts/python/sf-lineage/lineage.py modified --target-org <本番> [--target-org <Sandbox>]`（読み取りだけ）のあと `lineage.py who <対象>` を引くと、部品ごとに「最終更新 本番 日付 更新者／Sandbox 日付 更新者」が付く。不具合の出始めた時期と、そのころに更新された部品・更新者を突き合わせる（変更理由は分からないので、課題・作業ログで確かめる。[option-lineage-map.md](option-lineage-map.md)）
+5. 重要な知見があれば investigation.md に追記する
 
 ## 出力
 

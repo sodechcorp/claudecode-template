@@ -19,10 +19,14 @@ import os
 import sys
 from collections import defaultdict
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from modified import load_all as load_mods, stamp  # noqa: E402
+
+MODS: list[dict] = []
 LOGIC = {"Flow", "ApexClass", "ApexTrigger", "WorkflowRule", "WorkflowFieldUpdate", "WorkflowAlert", "ValidationRule",
          "CustomField", "ApprovalProcess", "AssignmentRule", "AutoResponseRule", "EscalationRule", "DuplicateRule",
          "MatchingRule", "QuickAction", "LeadConvertSetting", "LWC", "Aura", "Visualforce", "CustomMetadata"}
-DISPLAY = {"Layout", "FlexiPage", "ListView", "CompactLayout", "FieldSet", "PathAssistant", "ReportType", "Report",
+DISPLAY = {"Layout", "FlexiPage", "ListView", "CompactLayout", "FieldSet", "PathAssistant", "ReportType", "Report", "Dashboard",
            "EmailTemplate", "FieldTranslation"}
 # 参照元の部品 → それを呼ぶ側から見た名前（target）
 def component_key(st: str, sn: str) -> list[str]:
@@ -31,11 +35,14 @@ def component_key(st: str, sn: str) -> list[str]:
         "QuickAction": [f"QuickAction:{sn}"], "WorkflowAlert": [f"EmailAlert:{sn}"],
         "WorkflowFieldUpdate": [f"WorkflowFieldUpdate:{sn}"], "EmailTemplate": [f"EmailTemplate:{sn}"],
         "Visualforce": [f"VF:{sn}"], "Layout": [f"LayoutsOf:{sn.split('-', 1)[0]}"],
+        "ReportType": [f"ReportType:{sn}"], "Report": [f"Report:{sn}"],
     }.get(st, [])
 
 
 # 当たったら、その呼び出し元（画面・フロー・アクションなどの入口）まで辿る部品
-FOLLOW_CALLERS = {"ApexClass", "Flow", "LWC", "Aura", "QuickAction", "WorkflowAlert", "EmailTemplate", "Visualforce", "Layout"}
+# （レポートタイプ → それを使うレポート → それを載せたダッシュボード）
+FOLLOW_CALLERS = {"ApexClass", "Flow", "LWC", "Aura", "QuickAction", "WorkflowAlert", "EmailTemplate", "Visualforce", "Layout",
+                  "ReportType", "Report"}
 
 
 WIDE_ROLES = {"read_all", "read_dynamic", "write_dynamic"}   # 全項目・どの項目か不明の読み書き
@@ -133,7 +140,7 @@ def show(rows, show_all: bool, targets: list[str] | None = None):
             limit = None if (show_all or full) else 8
             for name, e in lst[:limit]:
                 via = f" ← {e['via']}" if e["via"] else ""
-                print(f"    [{e['level']}段] {name}: {', '.join(sorted(e['roles']))}{via}")
+                print(f"    [{e['level']}段] {name}: {', '.join(sorted(e['roles']))}{via}{stamp(MODS, st, name)}")
             if limit is not None and len(lst) > limit:
                 print(f"    … ほか {len(lst) - limit}（--all で全部）")
     tset = {t.lower() for t in (targets or [])}
@@ -158,6 +165,7 @@ def main() -> None:
     args = sys.argv[1:]
     out = args.pop(0)
     refs, fields, by_target, copies = load(out)
+    MODS[:] = load_mods(out)   # 部品の最終更新（lineage.py modified で取ったもの。無ければ出さない）
     if args and args[0] == "--label":
         q = args[1]
         olabels = {}

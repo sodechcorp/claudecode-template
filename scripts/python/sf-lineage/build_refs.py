@@ -342,6 +342,7 @@ class Index:
             if root is not None:
                 self._leadconvert("LeadConvertSetting", p, text, root, "")
         self._reports()
+        self._dashboards()
         self._email_templates()
         self._translations()
 
@@ -414,8 +415,9 @@ class Index:
                 continue
             self._loose_field("ReportType", name, p, text, o, f.split(".")[-1] if "." in f else f, "display")
 
-    def _reports(self):
-        dp = os.path.join(self.root, "reports")
+    def _reports(self, base: str | None = None):
+        """レポート（force-app か、lineage.py reports が地図のフォルダに取ったもの）。項目の表示・絞り込みと、使うレポートタイプ。"""
+        dp = os.path.join(base or self.root, "reports")
         if not os.path.isdir(dp):
             return
         for dirpath, _, files in os.walk(dp):
@@ -426,12 +428,33 @@ class Index:
                 root, text = parse_with_text(p)
                 if root is None:
                     continue
-                name = self.rel(p)[len("reports/"):-len(".report-meta.xml")]
+                name = os.path.relpath(p, dp).replace("\\", "/")[:-len(".report-meta.xml")]
+                rt = txt(root, "reportType")
+                if rt:   # カスタムレポートタイプなら、そのレポートタイプを使うレポートとして辿れるようにする
+                    self.add("Report", name, p, text, rt, "read", "component", f"ReportType:{rt}")
                 for tag in ("field", "columns", "groupingsDown", "groupingsAcross", "column"):
                     for el in root.iter(NS + tag):
                         v = el.text if tag in ("field", "column") else txt(el, "field")
-                        if v and ("__c" in v or "." in v):
+                        if v and ("__c" in v or "." in v or "$" in v):
                             self._loose_field("Report", name, p, text, None, v, "display")
+
+    def _dashboards(self, base: str | None = None):
+        """ダッシュボード → 載せているレポート（Report:フォルダ/名前）。"""
+        dp = os.path.join(base or self.root, "dashboards")
+        if not os.path.isdir(dp):
+            return
+        for dirpath, _, files in os.walk(dp):
+            for fn in files:
+                if not fn.endswith(".dashboard-meta.xml"):
+                    continue
+                p = os.path.join(dirpath, fn)
+                root, text = parse_with_text(p)
+                if root is None:
+                    continue
+                name = os.path.relpath(p, dp).replace("\\", "/")[:-len(".dashboard-meta.xml")]
+                for el in root.iter(NS + "report"):
+                    if el.text and "/" in el.text:
+                        self.add("Dashboard", name, p, text, el.text.split("/")[-1], "call", "component", f"Report:{el.text.strip()}")
 
     def _quickaction(self, name, p, text, root, d):
         obj = txt(root, "targetObject") or (name.split(".", 1)[0] if "." in name else None)
@@ -750,6 +773,9 @@ class Index:
                 self.add(st, name, p, text, an, "call", "class", an)
             elif at == "emailAlert" and an:
                 self.add(st, name, p, text, an, "call", "component", f"EmailAlert:{an}")
+                self.add(st, name, p, text, an, "send_email", "action", "メール（メールアラート）")
+            elif at == "emailSimple":
+                self.add(st, name, p, text, "emailSimple", "send_email", "action", "メール（メール送信アクション）")
             elif at == "quickAction" and an:
                 self.add(st, name, p, text, an, "call", "component", f"QuickAction:{an}")
             elif at == "flow" and an:
@@ -762,6 +788,16 @@ class Index:
             ref_of(f"{m.group(1)}.{m.group(2)}", "read")
 
     # ---------- コード ----------
+    def _side_effects(self, st, name, p, text) -> None:
+        """組織の外に出る動き: メール送信・外部呼び出し・プラットフォームイベントの発行（Sandbox での誤送信の確認に使う）。"""
+        code = re.sub(r"//[^\n]*|/\*.*?\*/", "", text, flags=re.S)
+        for pat, target in ((r"Messaging\s*\.\s*(sendEmail|SingleEmailMessage|MassEmailMessage|sendEmailMessage)", "メール（Apex の Messaging）"),
+                            (r"\bHttpRequest\b|\bHttp\s*\(\s*\)|callout\s*=\s*true|\bWebServiceCallout\b", "外部呼び出し（HTTP・Web サービス）"),
+                            (r"EventBus\s*\.\s*publish", "プラットフォームイベントの発行")):
+            m = re.search(pat, code)
+            if m:
+                self.add(st, name, p, text, m.group(0), "send_email" if target.startswith("メール") else "callout", "action", target)
+
     def scan_code(self, parser) -> None:
         for d, ext, st0 in (("classes", ".cls", "ApexClass"), ("triggers", ".trigger", "ApexTrigger")):
             dp = os.path.join(self.root, d)
@@ -782,6 +818,7 @@ class Index:
                     self._soql(st, name, p, text, parser)
                 self._dynamic_soql(st, name, p, text)
                 self._code_mentions(st, name, p, text)
+                self._side_effects(st, name, p, text)
         for d, st in (("lwc", "LWC"), ("aura", "Aura")):
             dp = os.path.join(self.root, d)
             if not os.path.isdir(dp):
@@ -1055,6 +1092,11 @@ def main() -> None:
     ix.load_objects()
     ix.scan_objects()
     ix.scan_simple()
+    extra = os.path.join(out, "extra", "_proj", "retrieved")   # lineage.py reports が組織から取ったレポート・ダッシュボード
+    if os.path.isdir(extra):
+        for sub in ("", os.path.join("main", "default")):
+            ix._reports(os.path.join(extra, sub))
+            ix._dashboards(os.path.join(extra, sub))
     ix.scan_code(parser)
     apex_n = 0
     if parser is not None:   # 段階2: Apex の項目の読み書き・DML・写す連鎖

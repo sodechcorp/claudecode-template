@@ -7,7 +7,8 @@
 ## 実行手順
 
 1. 変更するフィールド名・オブジェクト名を確定する（変更対象が Apex・Flow の場合は、その処理が更新するオブジェクト・項目名をアンカーにする）
-2. 以下を順番に Grep で確認する:
+2. **組織の地図があれば先に引く**: `python scripts/python/sf-lineage/lineage.py who <Obj__c.Field__c>` の「処理」区分（入力規則・承認プロセス・割り当てルール・重複ルール）と、`save <オブジェクト>`（保存で動くもの）。地図があれば下の Grep は項目名だけで足りる（オブジェクト名での Grep は拾いすぎる）。地図の結果も Read で確かめる（[option-lineage-map.md](option-lineage-map.md)）
+3. 以下を順番に Grep で確認する:
 
    **入力規則（Validation Rule）**:
    ```
@@ -28,8 +29,8 @@
    ファイル: *.assignmentRules-meta.xml
    ```
 
-3. ヒットした各箇所を Read して影響を判定する
-4. **「無効だから影響なし」と判定する場合のみ、組織で現在も無効か確認する**: ローカル XML の `<active>false</active>` 等は最後に retrieve した時点のスナップショットであり、組織側で後から有効化されている可能性がある（Flow と同じ鮮度リスク。[option-flow-trigger-trace.md](./option-flow-trigger-trace.md) 参照）。ローカルで有効/影響ありと判定する分には追加確認不要だが、**無効を根拠に対応不要と結論づける場合**は対象組織の Setup（オブジェクトマネージャ > 入力規則 / 割り当てルール、または Process Automation > フロー）で現在の有効/無効を確認してから investigation.md に記載する。確認できない場合は「無効」と断定せず `**[要確認: 有効/無効未確認]**` を付ける
+4. ヒットした各箇所を Read して影響を判定する
+5. **「無効だから影響なし」と判定する場合のみ、組織で現在も無効か確認する**: ローカル XML の `<active>false</active>` 等は最後に retrieve した時点のスナップショットであり、組織側で後から有効化されている可能性がある（Flow と同じ鮮度リスク。[option-flow-trigger-trace.md](./option-flow-trigger-trace.md) 参照）。ローカルで有効/影響ありと判定する分には追加確認不要だが、**無効を根拠に対応不要と結論づける場合**は対象組織の Setup（オブジェクトマネージャ > 入力規則 / 割り当てルール、または Process Automation > フロー）で現在の有効/無効を確認してから investigation.md に記載する。確認できない場合は「無効」と断定せず `**[要確認: 有効/無効未確認]**` を付ける
 
 ## 出力
 

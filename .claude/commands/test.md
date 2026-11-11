@@ -192,6 +192,16 @@ python -c "import PIL" 2>/dev/null || {
 
 ### Phase B: テスト仕様の展開
 
+**B-0: 組織の地図で回帰の候補を出す（main thread。地図の部品があるときだけ。`test-spec.md` が既にあり再生成しないときは省く）**: `{impl_plan_path}`（無ければ investigation.md）の変更対象のうち、項目・クラス・LWC・フローを地図の書き方（`Obj__c.Field__c`・クラス名・`LWC:名前`・フロー名）にして引き、`{log_dir}/lineage-regression.md` に保存する。test-spec-builder は Bash を持たないので、ここで引いて渡す（引き方・読み方の決まりは [option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。
+```bash
+if [ -f scripts/python/sf-lineage/lineage.py ]; then
+  { python scripts/python/sf-lineage/lineage.py who {変更した部品・項目…} --depth 2
+    python scripts/python/sf-lineage/lineage.py save {変更したオブジェクト…} --depth 1; } > "{log_dir}/lineage-regression.md" 2>&1 \
+    || echo "[WARN] 地図を引けませんでした（軸2・軸3は従来どおり）"
+fi
+```
+引けなかった・部品が無いときは `lineage_path` を渡さない（軸2・軸3は従来どおり）。
+
 > **[test-spec-builder へ委譲]**
 
 `test-spec-builder` への委譲パラメータ:
@@ -205,6 +215,7 @@ python -c "import PIL" 2>/dev/null || {
 - `force`: `${FORCE_SPEC:-false}`（`--force` 指定時は true）
 - `validation_report_path`: `{log_dir}/validation-report.md`（Phase 3.5 regression-guard の逆参照結果。軸3消費者リスト source・省略可）
 - `evidence_dir`: `{evidence_dir}`（`/backlog` Phase 3.5 の Before 証跡 `before/` の有無確認に使う）
+- `lineage_path`: `{log_dir}/lineage-regression.md`（B-0 で作れたときだけ。軸2の回帰 TC・軸3の消費者リストの候補。省略可）
 
 `test-spec-builder` が `test-spec.md` を生成し、網羅性セルフチェックを完了させる。返却に `[WARN]` 行（investigation.md 不在による軸1・軸3スキップ、軸3 消費者リスト source 不在等）が含まれる場合は内容を保持し、完了報告の「未確認事項」欄に転記する。
 

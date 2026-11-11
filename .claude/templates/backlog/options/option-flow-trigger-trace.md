@@ -7,6 +7,7 @@
 ## 実行手順
 
 1. 変更対象のオブジェクト・フィールドに関連するフロー・トリガーを特定する:
+   - **組織の地図があれば先に引く**: `python scripts/python/sf-lineage/lineage.py save <オブジェクト>` で、保存で動くフロー・トリガー・入力規則・ワークフロー（保存前／保存後・作成時／更新時・順番）、書き込み・積み上げ集計による別オブジェクトへの波及、メール送信（✉）・外部呼び出し（⇄）の印が出る。項目なら `who <Obj__c.Field__c>` の「処理」区分も見る。これを手順2〜3の対象にし、全件の Glob は地図が無いときだけにする（[option-lineage-map.md](option-lineage-map.md)）
    ```bash
    Glob: force-app/main/default/flows/*.flow-meta.xml
    Glob: force-app/main/default/triggers/*.trigger

@@ -6,7 +6,7 @@
 
 ## 実行手順
 
-1. 変更対象のオブジェクト・フィールドを確定する
+1. 変更対象のオブジェクト・フィールドを確定する（組織の地図があれば、`python scripts/python/sf-lineage/lineage.py who <Obj__c.Field__c>` の「権限・レコードタイプなど」区分で、その項目に触れる権限セット・プロファイルの候補が先に出る。値（readable / editable）は下の手順で確かめる。[option-lineage-map.md](option-lineage-map.md)）
 2. FLS 設定を確認する（`<field>` タグでオブジェクト・フィールドを一意に絞り込み、前後の `editable`/`readable` を一緒に見る）:
    ```bash
    Grep pattern: <field>{オブジェクト API 名}\.{フィールド API 名}</field>

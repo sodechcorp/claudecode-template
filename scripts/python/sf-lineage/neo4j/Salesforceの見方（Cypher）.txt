@@ -287,10 +287,12 @@ WITH es, apoc.map.fromPairs(collect([elementId(n), apoc.create.vNode(
              WHEN n:cod__OtherFeature AND n.表示名 CONTAINS '承認プロセス' THEN '承認プロセス'
              WHEN n:cod__OtherFeature THEN '保存' WHEN n:cod__Batch THEN 'バッチ' WHEN n:cod__ApiEndpoint THEN 'API'
              ELSE '画面・ボタン' END],
-       apoc.map.clean({name: CASE WHEN t IS NULL THEN n.表示名 ELSE t.表示名 + '.' + n.表示名 END,
+       apoc.map.merge(apoc.map.clean({name: CASE WHEN t IS NULL THEN n.表示名 ELSE t.表示名 + '.' + n.表示名 END,
                        物理名: CASE WHEN t IS NULL THEN head(coalesce(n.cod__qualifiedName, n.cod__physicalName)) ELSE head(t.cod__physicalName) + '.' + head(n.cod__physicalName) END,
                        種類: n.種類, 動く時: n.動く時, 状態: n.状態, 開始条件: n.開始条件, 設定する値: n.設定する値, 呼ばれ方: n.呼ばれ方,
-                       説明: n.説明, データ型: head(n.cod__dataType), ファイル: head(n.cod__sourceFile)}, [], [null]))])) AS vm
+                       説明: n.説明, データ型: head(n.cod__dataType), ファイル: head(n.cod__sourceFile)}, [], [null]),
+       // 組織での最終更新（lineage.py modified で取ってあれば。キーは「最終更新（本番）」「最終更新（Sandbox の別名）」）
+       apoc.map.fromPairs([k IN keys(n) WHERE k STARTS WITH '最終更新' | [k, n[k]]])))])) AS vm
 UNWIND es AS e
 RETURN vm[elementId(e[0])] AS a, apoc.create.vRelationship(vm[elementId(e[0])], e[1], {}, vm[elementId(e[2])]) AS rel, vm[elementId(e[2])] AS b
 

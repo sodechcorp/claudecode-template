@@ -5,8 +5,16 @@
   python scripts/python/sf-lineage/lineage.py who <対象...> [--value 値] [--depth 3] [--all] [--json]
   python scripts/python/sf-lineage/lineage.py save <オブジェクト> [--depth 3]
   python scripts/python/sf-lineage/lineage.py label <表示ラベルの一部>
+  python scripts/python/sf-lineage/lineage.py uses <部品...>        # 順方向: その部品が使っている項目・オブジェクト・部品・ラベル・外への動き
+  python scripts/python/sf-lineage/lineage.py deps --manifest <package.xml>
+                                                                    # リリースの資材の外にある依存（本番の一覧を取ってあれば、本番に無く資材にも無いもの＝デプロイ失敗の候補）
   python scripts/python/sf-lineage/lineage.py export --repo <識別子> --name-ja <日本語名> [--json 書き出し先]
                                                                     # 項目リネージの共通基盤（Neo4j で見る用）に渡す中間JSON
+  python scripts/python/sf-lineage/lineage.py modified --target-org <別名> [--target-org <別名2>]
+                                                                    # 部品の最終更新日・更新者を組織から読み取りで取る（組織は変えない）。
+                                                                    # 取り直しが要る部品・本番より Sandbox が新しい部品も出す。以後 who に最終更新が付く
+  python scripts/python/sf-lineage/lineage.py reports --target-org <別名>
+                                                                    # レポート・ダッシュボードの本体を組織から読み取りで取り（.lineage/extra。force-app は変えない）、地図を作り直す
 
 who・save・label・export は、地図が無いか force-app より古いときに自動で作り直してから引く。
 対象の書き方: Obj__c.Field__c ／ LWC:名前 ／ QuickAction:Obj.名前 ／ EmailTemplate:フォルダ/名前 ／ EmailAlert:Obj.名前 ／ Label:名前 ／ クラス名 ／ フロー名 ／ オブジェクト名
@@ -98,6 +106,14 @@ def main() -> None:
         src = os.path.join(root, "force-app", "main", "default")
         stale = os.path.isdir(src) and newest_mtime(src) > meta.get("force_app_latest", 0) + 1
         print(f"地図の作成: {meta.get('built_at')}（{meta.get('seconds')} 秒）／ force-app より{'古い（作り直しが要る）' if stale else '新しい'}")
+        import modified   # 組織での最終更新を取ってあれば、手元の force-app が組織より古い部品の数も出す（組織にはつながない）
+        mods = modified.load_all(out)
+        if mods:
+            modified.report(src, mods, brief=True)
+        else:
+            print("組織での最終更新は未取得（lineage.py modified --target-org <別名> で取ると、手元が組織より古い部品が分かる）")
+        rep = os.path.join(out, "extra", "_proj", "retrieved", "reports")
+        print("レポート本体: " + ("取得済み" if os.path.isdir(rep) else "未取得（lineage.py reports --target-org <本番> で取ると、項目を使うレポート・ダッシュボードも出る）"))
     elif cmd in ("who", "label"):
         ensure(root, out)
         import who_uses
@@ -116,6 +132,36 @@ def main() -> None:
         sys.argv = ["save_chain.py", out, out] + rest
         try:
             save_chain.main()
+        finally:
+            sys.argv = argv
+    elif cmd in ("uses", "deps"):
+        ensure(root, out)
+        import deps
+        argv = sys.argv
+        sys.argv = ["deps.py", out, os.path.join(root, "force-app", "main", "default"), cmd] + rest
+        try:
+            deps.main()
+        finally:
+            sys.argv = argv
+    elif cmd == "reports":
+        if "--target-org" not in rest:
+            sys.exit("使い方: lineage.py reports --target-org <別名>（レポートは本番で作られることが多いので、ふつうは本番）")
+        import reports
+        argv = sys.argv
+        sys.argv = ["reports.py", out] + rest
+        try:
+            reports.main()
+        finally:
+            sys.argv = argv
+        build(root, out)   # 取ったレポートを地図に入れる
+    elif cmd == "modified":
+        if "--target-org" not in rest:
+            sys.exit("使い方: lineage.py modified --target-org <別名> [--target-org <別名2>]（本番と Sandbox を両方渡すと、本番に未リリースの変更の候補も出る）")
+        import modified
+        argv = sys.argv
+        sys.argv = ["modified.py", out, os.path.join(root, "force-app", "main", "default")] + rest
+        try:
+            modified.main()
         finally:
             sys.argv = argv
     elif cmd == "export":

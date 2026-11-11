@@ -21,7 +21,7 @@ release-preparer Phase 1 のマニフェスト確定を待たず、以下の手�
 
 **1. 対象スコープを次の和集合で確定する（全量比較はしない）**:
 1. release-preparer Phase 1 で確定した資材マニフェスト
-2. マニフェスト対象と**同一 LWC バンドル**、および**相互に参照し合うコンポーネント**（親が子を `modal.open({...})` / `<c-child prop=…>` で呼ぶ関係。実例: preCheck ⇄ preCheckModal）。特定方法: マニフェスト対象 LWC の `.js`/`.html` を Grep し、`import ... from 'c/{other}'` のインポート文・`<c-{kebab-case}` タグ・`{Something}Modal.open(` 等の呼び出しパターンから、参照先/参照元の LWC バンドルを双方向に洗い出してスコープへ追加する
+2. マニフェスト対象と**同一 LWC バンドル**、および**相互に参照し合うコンポーネント**（組織の地図があれば、`python scripts/python/sf-lineage/lineage.py who LWC:<名前>` で親（それを埋め込む・開く部品）、`lineage.py uses LWC:<名前>` で子・呼ぶ Apex が出る。文章からの抜き出しより漏れと雑音が少ない。[option-lineage-map.md](option-lineage-map.md)）（親が子を `modal.open({...})` / `<c-child prop=…>` で呼ぶ関係。実例: preCheck ⇄ preCheckModal）。特定方法: マニフェスト対象 LWC の `.js`/`.html` を Grep し、`import ... from 'c/{other}'` のインポート文・`<c-{kebab-case}` タグ・`{Something}Modal.open(` 等の呼び出しパターンから、参照先/参照元の LWC バンドルを双方向に洗い出してスコープへ追加する
 3. [unreleased-component-scan.md](../_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出してスコープへ追加する（release-preparer Phase 1 1a-1/2a-1 で抽出済みの場合はそれを再利用し、再走査しない）
 
 **2. UAT（Sandbox）と本番の双方から Tooling API 経由で実体を取得する**（`$SF_ALIAS` = [sandbox-alias-check.md](../../common/sandbox-alias-check.md) で確認済みの Sandbox/UAT エイリアス、`$PROD_ALIAS` = [prod-readonly-check.md](../../common/prod-readonly-check.md) で確認済みの本番エイリアス。`force-app/` への retrieve は行わない。取得結果は一時ディレクトリ `{tmp_dir}/org-drift-tier0/` に保存し、比較にのみ使う）:
@@ -74,6 +74,7 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
    - 最終更新者が **今回のリリース担当者・実装者以外**
    **base コミット日時が確定できない場合**（release-preparer Phase 1 で 1a フォールバックを使った標準経路。`.gitignore` 対象のため git diff ベースの base コミットが存在しない）: 上記の日時比較は行わず、資材マニフェストの全コンポーネントを「痕跡あり」として扱う（安全側フォールバック。見逃しより誤検知〔Tier 2 での無駄な深掘り〕を許容する）
 4. 痕跡なしのコンポーネントは Tier 2 をスキップして「ドリフトなし」と記録する（上記フォールバック時は全件が痕跡ありのため本項は適用されない）
+5. **資材の周りにも広げる（組織の地図があれば）**: `python scripts/python/sf-lineage/lineage.py modified --target-org "$PROD_ALIAS" --target-org "$SF_ALIAS"`（両方とも読み取りだけ）で、主な種類の一覧を一度に取る（手順2の種類ごとの取得の代わりにもなる）。「Sandbox のほうが本番より新しい部品」のうち、資材の部品を使う・資材の部品が使う部品（`lineage.py who` / `uses` で出る）は、資材の漏れ（未リリースの積み残し）の候補として Tier 0 のスコープに足す。以後 `who` の出力に本番と Sandbox の最終更新が付く（[option-lineage-map.md](option-lineage-map.md)）
 
 ### Tier 2: 深掘り（Tier 1 で痕跡ありのコンポーネントのみ）
 
