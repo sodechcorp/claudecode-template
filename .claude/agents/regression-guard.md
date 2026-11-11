@@ -85,6 +85,8 @@ grep -rn "{シンボル名}" "{プロジェクトルート}/force-app/" --includ
 
 変更対象ファイル自身がヒットした行（シンボルの定義元）は依存先ではないため結果から除外する。
 
+**組織の地図で補う**: 変更対象の項目・部品を、組織の地図（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md) の `who`）でも引く。上の grep の対象拡張子に入らない種類（ページレイアウト・Lightning ページ・パス・レポートタイプ・レポート・リストビュー・レコードタイプ・権限セット・プロファイル・メールテンプレート・アクション）と、値を写した先・呼び出し元（2〜3段目）は地図で拾い、grep の結果に加える。地図だけに出た部品は、ソースの該当箇所を確かめてから依存先に入れる（確度が低い候補・テストクラスの区分は、確かめて関係があるものだけ）。
+
 > **exit code 注記**: grep が一致なし（exit 1）の場合はエラーではなく「該当なし」として扱い処理を続行する。
 
 ### Step 2: 既存テストのカバレッジ確認
@@ -101,7 +103,7 @@ grep -rn "{シンボル名}" "{プロジェクトルート}/force-app/" --includ
 
 ### Step 3: 影響範囲の再走査
 
-Step 0 で読込済みの implementation-plan.md の内容から、変更ファイル以外への副作用（Trigger 起動・Flow 連携・外部 API 呼び出し）を grep で確認する:
+Step 0 で読込済みの implementation-plan.md の内容から、変更ファイル以外への副作用（Trigger 起動・Flow 連携・外部 API 呼び出し）を確認する。保存で動く処理（保存前・保存後のフローと順番・トリガー・入力規則・ワークフロー）と、積み上げ集計・書き込みによる親や別オブジェクトへの波及は、組織の地図の `save <更新するオブジェクト>`（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）で引き、地図に無いものを grep で補う:
 ```bash
 grep -rn "{変更対象の主要API名}" "{プロジェクトルート}/force-app/" --include="*.cls" --include="*.trigger" --include="*.flow-meta.xml"
 ```

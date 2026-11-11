@@ -76,6 +76,12 @@ curl -sSL https://raw.githubusercontent.com/sodechcorp/claudecode-template/main/
 pip install -r scripts/python/sf-doc-mcp/requirements.txt
 ```
 
+`/backlog` の影響調査で組織の地図（`scripts/python/sf-lineage`。force-app から「この項目・部品を使っている部品」「保存で動くもの」を数秒で引く）を使うために、共通の Python ライブラリも入れる（Apex の解析に `tree-sitter-language-pack` を使う。無くても XML の分は作れる）:
+
+```bash
+pip install -r scripts/python/requirements.txt
+```
+
 ### 既存プロジェクトに参加する
 
 ```bash
