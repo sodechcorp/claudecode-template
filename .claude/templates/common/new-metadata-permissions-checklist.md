@@ -12,6 +12,8 @@
 
 ## カスタム項目（CustomField）を作成したとき
 
+> **付与先・配置先の候補**: 組織の地図があれば、同じオブジェクトの似た既存項目（同じ用途・同じ画面に出る項目）で `python scripts/python/sf-lineage/lineage.py who <Obj__c.似た項目>` を引き、「権限・レコードタイプなど」区分（その項目を持つプロファイル・権限セット）と「画面・帳票」区分（置いているレイアウト・Lightning ページ・リストビューなど）を、下の FLS・配置の候補にする（[option-lineage-map.md](../backlog/options/option-lineage-map.md)。付与の値〔readable・editable〕は XML で確かめる。その他プロファイルの付与方針を伝える決まりは変わらない）。
+
 - [ ] **FLS（項目レベルセキュリティ）— システム管理者**: `fieldPermissions` に `readable: true / editable: true` を追加（必須）
 - [ ] **FLS — その他プロファイル**: 付与方針を一言ユーザーに伝えてから設定する（Sandbox内での実施自体は確認不要）
   - `readable: true`（参照許可）

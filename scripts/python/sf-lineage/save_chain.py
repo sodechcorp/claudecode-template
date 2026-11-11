@@ -35,8 +35,9 @@ def side_effects(refs) -> dict:
         k = (r["src_type"], r["src_name"])
         if r["src_type"] == "ApexTest":
             continue
-        if r["role"] in ("send_email", "callout"):
-            direct[k].add("✉メール" if r["role"] == "send_email" else "⇄外部呼び出し" if "外部" in r["target"] else "⇄イベント発行")
+        if r["role"] in ("send_email", "callout", "async"):
+            direct[k].add("✉メール" if r["role"] == "send_email" else "⏱非同期" if r["role"] == "async"
+                          else "⇄外部呼び出し" if "外部" in r["target"] else "⇄イベント発行")
         elif r["role"] == "call" and r["target"].startswith("EmailAlert:"):
             direct[k].add("✉メール")
         elif r["role"] == "call" and r["tkind"] in ("class", "flow"):

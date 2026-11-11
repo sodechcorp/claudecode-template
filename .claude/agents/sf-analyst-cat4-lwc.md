@@ -107,6 +107,8 @@ sf data query -q "SELECT DeveloperName FROM AuraDefinitionBundle WHERE Namespace
 - VF: `force-app/main/default/pages/{Name}.page` + 対応する `*Controller.cls`
 - Aura: `force-app/main/default/aura/{name}/{name}.cmp` + `{name}Controller.js`
 
+**配置先・親子関係（組織の地図があれば）**: 設計書の「表示場所」と「どのコンポーネントからこのLWCが使われるか」の候補を、プロジェクトのルートで `python scripts/python/sf-lineage/lineage.py who LWC:{name}`（Aura も `LWC:` で書く）で引く。「画面・帳票」区分に置いている Lightning ページ・タブ・レイアウト（アクション経由）、「処理」区分に埋め込む親の LWC・Aura・フロー（画面フロー）・それを呼ぶアクションが出る。子の部品・呼ぶ Apex は `uses LWC:{name}`（Aura は `uses Aura:{name}`）。VF ページは `who VF:{Name}` で、開くボタン・リンク・タブ・アクション・サイトと、`Page.名前` で使う Apex が出る。地図は候補なので、`.js-meta.xml` の `<targets>` と出た部品のソースで確かめてから書く（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。
+
 > Salesforce 組織生成時の自動配備クラス（Communities / Site / SelfReg / AnswersHome / IdeasHome 等）は設計書テンプレートの「短縮版 MD ルール」に従い簡略版で生成する。
 
 既存設計書がある場合はそのファイルも Read してアップデートモードで更新する。

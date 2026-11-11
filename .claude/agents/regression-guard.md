@@ -24,7 +24,7 @@ tools:
 - 影響範囲の再走査
 - 過去修正履歴の確認（`option-git-blame-history` 相当）
 
-**Write ツールを持たない**（validation-report.md への記録は backlog-validator が行う）。**Bash は grep/git log 等の読み取り専用コマンドに限定し、ファイルの作成・書き込みには使用しない**（Write を持たない設計方針を Bash 経由で回避しない）。
+**Write ツールを持たない**（validation-report.md への記録は backlog-validator が行う）。**Bash は grep/git log 等の読み取り専用コマンドに限定し、ファイルの作成・書き込みには使用しない**（Write を持たない設計方針を Bash 経由で回避しない）。例外は組織の地図（`lineage.py`）が古いときに自分で作り直す `.lineage/`（Git で追跡しない地図の置き場）への書き込みだけ（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)「守ること」）。
 
 ---
 

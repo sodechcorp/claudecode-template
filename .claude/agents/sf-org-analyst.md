@@ -193,6 +193,7 @@ Phase 1 で読み込んだ `org-profile.md` の用語集（業務での呼び方
 | catalog/ の「用途（推定）」（Step 1-2 で未解消分） | usecases.md / requirements.md の関連UC・FR |
 | design/ の「要件番号 TBD」 | requirements.md の FR-XXX と機能名を突き合わせ |
 | design/ の「関連UC 不明」 | usecases.md の related_objects とコンポーネントの担当オブジェクトを突き合わせ |
+| design/ の「呼び出し元」が空・`**[要確認]**` | 組織の地図があれば、プロジェクトのルートで `python scripts/python/sf-lineage/lineage.py who <API名>`（LWC・Aura は `LWC:名前`、VF は `VF:名前`）の「処理」区分の `[1段]`（直接の呼び出し元）と「画面・帳票」区分。候補なのでソースで確かめ、`feature_list.json` の id で書く（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)） |
 | data/ の「用途（推定）」 | usecases.md でこのマスタを参照しているUCを確認 |
 | feature_groups.yml の「推定」割り当て | design/ の「関連UC」フィールドで確認 |
 

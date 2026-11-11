@@ -30,6 +30,8 @@ $ARGUMENTS
 
 ## Step 2: 実行
 
+**取得の前に（組織の地図があれば・2回目以降）**: `scripts/python/sf-lineage/lineage.py` があり `force-app/main/default/` がある場合、取得の前に `python scripts/python/sf-lineage/lineage.py modified --target-org <取得する組織の別名（sf config get target-org の値）>` を実行し、出力の「手元の force-app より組織のほうが新しい部品」「組織にあって手元に無い部品」を控える（組織には読み取りだけ。書くのは `.lineage/` だけ）。これが今回の取得で変わる部品の候補（部品の最終更新日・更新者付き）になり、Step 3b で使う（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。
+
 ### 「all」の場合
 
 ```bash
@@ -132,6 +134,8 @@ AskUserQuestion で以下を表示する:
 メタデータ取得完了。force-app/ は Git 管理対象外のため変更内容の自動検出はできません。
 ドキュメント更新（/sf-memory・/sf-design・/sf-doc）が必要か、対応内容に応じて手動でご確認ください。
 ```
+
+> **組織の地図で Step 2 の前に `modified` を取ってある場合**: 上のメッセージの代わりに、控えた「手元の force-app より組織のほうが新しい部品」「組織にあって手元に無い部品」を下の種別表で分け、下の管理対象内の通知と同じ形（【変更検出】の見出しに「組織の最終更新から。ファイルの更新日時との比較なので推定」と添える。部品名に最終更新日・更新者を付ける）で伝える。あわせて `python scripts/python/sf-lineage/lineage.py status` を実行し、取得の後に残った「手元より組織のほうが新しい部品」の件数（0 に近ければ取り込めた。残ったものは取得の対象外か取得の漏れ）を1行添える。控えた部品が0件なら「メタデータ取得完了。組織の最終更新から見て、前回の取得の後に変わった部品はありません。」とだけ伝える。
 
 **管理対象内（force-app を Git 管理下に置くようカスタマイズした非標準プロジェクト）の場合**: 取得後に git diff で変更内容を確認し、変更の種別に応じて以下を通知する:
 

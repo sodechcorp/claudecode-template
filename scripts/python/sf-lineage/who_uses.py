@@ -26,7 +26,7 @@ MODS: list[dict] = []
 LOGIC = {"Flow", "ApexClass", "ApexTrigger", "WorkflowRule", "WorkflowFieldUpdate", "WorkflowAlert", "ValidationRule",
          "CustomField", "ApprovalProcess", "AssignmentRule", "AutoResponseRule", "EscalationRule", "DuplicateRule",
          "MatchingRule", "QuickAction", "LeadConvertSetting", "LWC", "Aura", "Visualforce", "CustomMetadata"}
-DISPLAY = {"Layout", "FlexiPage", "ListView", "CompactLayout", "FieldSet", "PathAssistant", "ReportType", "Report", "Dashboard",
+DISPLAY = {"Layout", "FlexiPage", "ListView", "CompactLayout", "FieldSet", "PathAssistant", "ReportType", "Report", "Dashboard", "Tab", "WebLink", "Site",
            "EmailTemplate", "FieldTranslation"}
 # 参照元の部品 → それを呼ぶ側から見た名前（target）
 def component_key(st: str, sn: str) -> list[str]:

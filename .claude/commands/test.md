@@ -597,10 +597,13 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 
 #### F-2 完了報告
 
+報告の前に、backlog-implementer の完了の返却（主な変更点）で今回直した部品について、下の「NG があった場合の差し戻し」手順4 と同じく影響範囲の候補 TC を出す（`AUTO_FIX_TCS` は除く。組織の地図が無ければ行ごと省略）。
+
 ```
 === 自動修正・再デプロイ完了 ===
 修正した NG : {auto_fix_tcs}
 再デプロイ  : Sandbox ({alias}) に再デプロイ完了
+影響範囲の候補 TC : {上で出した TC。無ければ行ごと省略}
 派生事項    : {backlog-implementer が返した派生事項。無ければ行ごと省略}
 
 次のステップ（別セッションで実施）:
@@ -641,7 +644,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 3. `test-report.md` の「NG 一覧」と `.claude/templates/backlog/test-fail-routing.md` で戻り先 Phase を確定する。戻り先が Phase 3・2・3.5・1（ガード②）のときは、`validation-report.md` があればその「## 総合判定」で始まる見出し（回ごとに複数あれば全て）の判定の行を、Phase 3 は `**Phase 3（実装方針）に戻る**`、Phase 2・1 は `**Phase 2 に戻る（決定方針に問題）**`、Phase 3.5 は `**再検証待ち**` に「（/test の NG: {TC}）」（Phase 1 は「（/test: investigation.md なし。Phase 1 から）」）を添えて書き換え、Phase 3・2 は discussion-log.md の改版履歴に `Phase3-戻り`／`Phase2-戻り` の行（discussion-log-spec.md の書式。発生Phase は `/test`、理由は NG の TC・原因と、force-app に途中の変更が残っていればそのファイル）と、本文の末尾に同じ内容の `[test] 変更:` の1行を書く（/backlog の再開がその Phase を出し、Phase 4 の着手ガードが古い判定で通らないように。planner と /backlog Phase 2 は discussion-log.md から戻り理由を読み、Phase 3 戻りの通算にも入る）。判定が既に「（/test の NG」付きの同じ値なら改版履歴の行は足さない。手順6で担当者が戻り先を変えたら変えた先で書き直し、Phase 4・テスト仕様の修正に変えたときは判定の行を元の値に戻して、本文の末尾に `[test] 変更: 担当者の判断で戻り先を {変えた先} に変更` を書く（今回改版履歴の行を足していれば「（直前の {Phase3-戻り／Phase2-戻り} は取り消し）」を添える。Phase 3 と Phase 2 の間で変えたときも同じ）（元の値が「Phase 4（実装）へ進んでよい」・続行の記録がある「技術確認待ち」以外なら、手順7 の A の1. は「Phase 3.5（今の計画のまま再判定）から Phase 4 まで」にする）
 
 4. **影響範囲の TC を提示候補として洗い出す**（修正コンポーネントが変わった場合の回帰漏れ防止）:
-   `implementation-plan.md` の改版履歴（最新行）から変更コンポーネント・オブジェクトを読み取り、`test-spec.md` の TC（観点・期待結果）と突き合わせて再テスト候補 TC を列挙する。
+   `implementation-plan.md` の改版履歴（最新行）から変更コンポーネント・オブジェクトを読み取り、`test-spec.md` の TC（観点・期待結果）と突き合わせて再テスト候補 TC を列挙する。組織の地図があれば、先に `python scripts/python/sf-lineage/lineage.py who <修正する部品・項目> --depth 2` を引き、出た部品・項目（「処理」「画面・帳票」区分）が観点・前提・期待結果に出てくる TC も候補に入れる（差分モードは書き換えていない前回 OK の TC を撮り直さないため。[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)。地図はクラス単位なので、メソッドで絞るときはファイルで確かめる）。
 
 5. **NGの原因と修正方針を `implementation-plan.md` の改版履歴に追記する**（実装・設定・方針を直す NG、または test-spec.md の期待結果・シナリオ・前提を直す NG があるときだけ。修正に着手する前に必ず実施。撮り直すだけで済む NG だけなら書かない。test-spec.md を直すものは修正方針に「test-spec.md の {TC} の {期待結果/前提} を〜に直す（理由）」と書く）:
    ```

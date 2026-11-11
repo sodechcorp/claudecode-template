@@ -141,6 +141,8 @@ ls force-app/main/default/triggers/ 2>/dev/null
 - **Flow**: `docs/.sf/_flow_index.json` の該当フローエントリから `objects` を読む。キャッシュまたは該当エントリがない場合のみ `flow-meta.xml` を Read する
 - **LWC**: `docs/.sf/_lwc_skeletons.json` の該当コンポーネントエントリの `_parser_meta.apex_imports`（呼び出す Apex クラス.メソッド名）から、その Apex の operated_objects を辿る。キャッシュまたは該当エントリがない場合と、スケルトンに含まれない `@salesforce/schema` のような直接 SObject 参照が必要な場合は `.js` を直接 Read する
 
+- **組織の地図での補い**（地図があれば）: プロジェクトのルートで `python scripts/python/sf-lineage/lineage.py uses <部品...>`（クラス名・フロー名・`LWC:名前`・`Aura:名前`。複数まとめて渡せる）の「読むオブジェクト」「書き込むオブジェクト」「保存で動く対象」と、項目（`Obj.Field`）のオブジェクトを operated_objects の候補に足す（LWC の `@salesforce/schema` の項目も出る）。上のスケルトンは1段だけなので、「呼ぶ・埋め込む部品」に出た Apex（Service・Selector 等）も同じく `uses` で辿り、その操作オブジェクトを補う（多くの部品から呼ばれる共通のユーティリティの分は、割り当て先が広がるので足さない）。地図は候補なので、足すオブジェクトは `.lineage/refs.jsonl` の file・line でソースを確かめる（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）
+
 結果として各コンポーネントの `operated_objects: [SobjectAPI名, ...]` マップを作成する。
 
 > **コード読み取り失敗時のフォールバック**: ファイルが存在しない・構文エラー・取得不能の場合は `operated_objects: []` として記録し、割り当て結果を `**[要確認]**` コメント付きで `FG-CMN（共通基盤）` に仮置きする。完了報告の「要確認事項」に列挙する。

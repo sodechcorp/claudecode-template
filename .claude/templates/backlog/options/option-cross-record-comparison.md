@@ -29,7 +29,7 @@ sf data query --query "SELECT {調査対象フィールドリスト} FROM {Objec
 **調査対象フィールドリスト の選び方**:
 1. 課題本文・コメントで言及されたフィールド
 2. investigation.md の「使用中のフィールドAPI名」セクションにあるフィールド
-3. Step C で読んだコードで条件分岐に使われているフィールド
+3. Step C で読んだコードで条件分岐に使われているフィールド（組織の地図があれば、先に `python scripts/python/sf-lineage/lineage.py uses <症状が出る処理（クラス名・フロー名・LWC:名前）>` の「条件に使う項目」〔SOQL の WHERE・Apex の if・while・三項演算子の条件・フローの条件・入力規則の式など〕と「読む・表示する項目」で候補を出す。変数に入れてから条件に使う項目は「読む」側に入るので、条件かはコードで確かめる。[option-lineage-map.md](option-lineage-map.md)）
 4. 不明な場合は `FIELDS(ALL)` を使うが LIMIT 5 以下にする
 
 ### Step 3: フィールド差分の比較

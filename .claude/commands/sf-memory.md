@@ -44,6 +44,17 @@ test -f "$(pwd)/.claude/spec/sf-memory-quality.md" && echo OK || echo MISSING
 
 ---
 
+**変わった部品からカテゴリの候補を出す（2回目以降・組織の地図があれば）**: `docs/logs/changelog.md`・`scripts/python/sf-lineage/lineage.py`・`force-app/main/default/` がある場合、1回目の質問の前に次を実行する。地図の部品が無い・`modified` が失敗した場合は飛ばす（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。
+
+```bash
+python scripts/python/sf-lineage/lineage.py modified --target-org <組織の別名（sf config get target-org の値）>
+python scripts/python/sf-lineage/lineage.py changed --since auto
+```
+
+- 1行目は組織の部品の最終更新日・更新者を読み取りで取る（組織は変えない。書くのは `.lineage/` だけ）。2行目は、changelog の直近の `/sf-memory` の日付以降に組織で更新された部品を種類ごとに数える（changelog に記録が無ければ候補なし）。種類をカテゴリに当てる: 2=CustomObject・CustomField・ValidationRule・RecordType、3=WorkflowRule・WorkflowAlert・WorkflowFieldUpdate・ApprovalProcess、4=ApexClass・ApexTrigger・Flow・LWC・Aura・Visualforce（テストクラスも ApexClass に入るので、名前で除いて数える）
+- 数は、該当カテゴリの選択肢の description の末尾に `（前回の /sf-memory 後に組織で更新: ApexClass 3・Flow 1）` のように添える。既定の選択はしない（選ぶのはユーザー）。Apex・トリガー・フローの追加・削除・操作するオブジェクトの変更なら、下の「2回目以降の選択目安」どおりカテゴリ2・5 も対象になる
+- 1行目の出力に「手元の force-app より組織のほうが新しい部品」があれば、cat2・cat4 は force-app を読むので、先に /sf-retrieve で取り直すよう1行添える
+
 AskUserQuestion ツールを **3回、順番に** 呼び出す（[共通ルール](../CLAUDE.md#askuserquestion-ルール厳守)の「1質問1回答」に従う。1回のコールに複数質問をまとめない）。各回で提示する質問は以下の通り。
 
 **1回目の質問**（`multiSelect: true`）:

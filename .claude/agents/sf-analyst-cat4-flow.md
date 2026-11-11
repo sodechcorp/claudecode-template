@@ -69,6 +69,8 @@ python {output_dir}/.tmp/build_flow_index.py
 
 Phase 2 の設計書生成では `_flow_index.json` の `objects` を「担当オブジェクト」欄の確定に使う。
 
+組織の地図があれば、索引の補いとして、プロジェクトのルートで `python scripts/python/sf-lineage/lineage.py uses <フロー名>` で、そのフローが書き込む項目・条件に使う項目・読み書きするオブジェクト・保存で動く対象（レコードトリガーフローの対象）・呼ぶ部品（Apex・サブフロー・メールアラート・画面部品）・外への動き（メール・外部呼び出し・スケジュール済みパスの非同期）を引き、Pass 2 の確定値の突き合わせに使う。地図は候補なので、設計書に書くのは XML で確かめた値だけにする（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。`_flow_index.json` は cat5 も読むので、形式は変えず置き換えない。
+
 ---
 
 ## Phase 1: 対象コンポーネントの収集（Flow 種別固有）

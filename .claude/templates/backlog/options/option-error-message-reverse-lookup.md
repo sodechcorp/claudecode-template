@@ -35,6 +35,8 @@ grep -r --include="*.validationRule-meta.xml" --include="*.flow-meta.xml" -n "<�
 grep -r --include="*.md-meta.xml" -n "<エラー文言の固有部分>" force-app/
 ```
 
+カスタムラベル（3.）にヒットしたら、組織の地図があれば `python scripts/python/sf-lineage/lineage.py who Label:<ラベル名>` でそのラベルを使う Apex・LWC・Aura・フローなどを出し、Step 3 で読む発生源の候補にする（[option-lineage-map.md](option-lineage-map.md)。地図はクラス単位なので、どのメソッド・どの条件で出すかはファイルで確かめる）。
+
 **ヒットしない場合の対処**:
 1. 日本語メッセージは部分文字列に絞って再試行（助詞「が」「で」「を」等で分割）
 2. カスタムラベル経由の可能性 → `System.Label.` を grep してラベル名を特定 → ラベルファイルで対応する文言を確認

@@ -50,6 +50,8 @@ echo "INSTANCE_URL=$INSTANCE_URL"
 | 承認プロセス | `*.approvalProcess-meta.xml`（申請・承認・却下で通知が飛ぶ） |
 | 自動レスポンス | `*.autoResponseRules-meta.xml`（ケース・リードの作成時） |
 
+組織の地図があれば、Grep の前に `python scripts/python/sf-lineage/lineage.py save <操作で保存するオブジェクト>` を引く。保存で動く処理（そこから呼ぶクラス・フローの分も3段まで）と、書き込み・積み上げ集計で波及した先のオブジェクトの保存で動く処理のうち、メールを送るものに ✉ が付く（親への積み上げの先のワークフローが送るメールなど、Grep で見落としやすい連鎖も出る）。✉ の付いた処理は「該当あり」の候補にして Step 2 に進む。承認プロセス・自動レスポンスの通知は `save` には出ないので、上の表の Grep で確かめる。地図に ✉ が無くても Grep は省かない（地図は候補。[option-lineage-map.md](../backlog/options/option-lineage-map.md)）
+
 - **該当なし** → 「メール送信処理なし」と記録し、確認なしで進む
 - 保存時に連動するフロー・承認プロセスが force-app に取得されていない可能性がある場合（`investigation.md`「## スコープ」で組織側に存在を確認済みのものが force-app に無い等）は、「該当あり」として Step 2 に進む（安全側）
 
@@ -101,6 +103,8 @@ Sandbox の接続先（URL・認証情報）は本番からコピーされたま
 |---|---|
 | Apex | `HttpRequest` / `WebServiceCallout` / `ExternalService.`（非同期処理の中も含む） |
 | フロー | `*.flow-meta.xml` の `<actionType>externalService</actionType>`（HTTP コールアウト・外部サービス） |
+
+組織の地図があれば、メール到達安全確認の Step 1 で引いた `save` の出力の ⇄（外部呼び出し・プラットフォームイベントの発行。Apex の HttpRequest・WebServiceCallout・callout=true・ExternalService・EventBus.publish、フローの外部サービス・送信メッセージのアクション、ワークフローのルールの送信メッセージを、呼ぶクラス・フローの分も含めて拾う）を候補に足す。管理パッケージの送信メッセージは地図に出ないので、下の Sandbox への問い合わせで確かめる。地図に ⇄ が無くても上の表の Grep は省かない（[option-lineage-map.md](../backlog/options/option-lineage-map.md)）
 
 送信メッセージ（ワークフロー・フローから送るもの。管理パッケージのものを含む）は force-app ではなく Sandbox に問い合わせる: Tooling API の `SELECT Id, Name, EntityDefinitionId FROM WorkflowOutboundMessage` のうち、今回の操作で作成・更新されるオブジェクトのもの（EntityDefinitionId が Id なら `SELECT QualifiedApiName FROM EntityDefinition WHERE DurableId = '{Id}'` で名前にする）を該当とする。起動条件（その送信メッセージを使うワークフロールールとフロー）が今回の操作に該当しないと force-app で確かめられたものは除く。
 

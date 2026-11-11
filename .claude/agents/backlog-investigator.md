@@ -376,7 +376,7 @@ B-1 で取得済みのファイルを除く以下の `docs/` を横断して読�
 
 **逆参照 grep・FLS 確認・Flow/Trigger の深い連鎖追跡**は Phase 1 では原則行わない（_index-phase1.md「Phase 1 で実行しないオプション」）。例外は、原因・方針の判断にそれが要る場合だけ:
 - 根本原因が共有・再利用コンポーネントのバグ → option-reverse-grep を root-cause-anchor モードで実行し、兄弟入口を判定する（Step C-2）
-- 課題そのものが「見えない・編集できない・操作できない」系 → 原因の特定に option-permission-fls-check・option-sharing-rule-check を使う
+- 課題そのものが「見えない・編集できない・操作できない」系 → 原因の特定に option-permission-fls-check・option-sharing-rule-check を使う（組織の地図があれば先に `python scripts/python/sf-lineage/lineage.py who <対象項目・部品>` の「権限・レコードタイプなど」区分〔プロファイル・権限セット・レコードタイプ〕と「画面・帳票」区分〔ページレイアウト・Lightning ページ〕で、(1) の表のスコープ内⑥の候補を出す。付与の値・配置の有無は XML・組織で確かめる。[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）
 - 原因がフロー・トリガーの連鎖にありうるバグ → option-flow-trigger-trace
 
 **読んだファイル一覧を investigation.md の末尾「参照ファイル一覧」セクションに記録すること**（`- {ファイルパス}: {読んだ目的 1 行}` 形式）。backlog-planner が重複読みを避けるために参照する。
@@ -445,6 +445,8 @@ Step C で収集した情報をもとに、報告された症状の原因仮説�
 ### Step E: フィールド・API名の確認（メタデータが正）
 
 課題や関連コードで登場するフィールド名・API名のうち、**現状・原因・論点の説明に使うもの**を**メタデータの定義から確認**する。推測・記憶に頼らない。変更する項目・新しく作る項目の API 名の確認は、方針決定後に backlog-planner が行う（backlog-planner.md B-1 2.）。
+
+課題・添付に表示ラベルしか書かれていない項目は、組織の地図があれば先に `python scripts/python/sf-lineage/lineage.py label <表示ラベルの一部>` で API 名の候補を出し、下の順で定義を確かめる（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。
 
 **確認順序:**
 

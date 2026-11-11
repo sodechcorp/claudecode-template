@@ -169,6 +169,17 @@ class ApexAnalyzer:
                 target = obj
             refs.append(Ref(st, name, rel, line, role, tkind, target, conf))
 
+        def in_condition(node) -> bool:
+            """if・while・do・for の条件、三項演算子の条件の中にあるか（分岐の判定に使う項目）。"""
+            cur = node.parent
+            while cur is not None and cur.type not in ("method_declaration", "constructor_declaration", "class_body"):
+                if cur.type in ("if_statement", "while_statement", "do_statement", "for_statement", "ternary_expression"):
+                    cond = cur.child_by_field_name("condition")
+                    if cond is not None and cond.start_byte <= node.start_byte and node.end_byte <= cond.end_byte:
+                        return True
+                cur = cur.parent
+            return False
+
         # 項目への代入・読み
         for fa in iter_type(root, "field_access"):
             parent = fa.parent
@@ -192,7 +203,7 @@ class ApexAnalyzer:
             if not o or not f:
                 continue
             is_left = parent is not None and parent.type == "assignment_expression" and parent.child_by_field_name("left") == fa
-            add(fa, "write" if is_left else "read", o, f, "mid" if c == "high" else c)
+            add(fa, "write" if is_left else "condition" if in_condition(fa) else "read", o, f, "mid" if c == "high" else c)
             for ho, hf in hops:
                 add(fa, "read", ho, hf, "mid")
             if is_left:   # 写す連鎖: a.X = b.Y なら、Y から X へ写した

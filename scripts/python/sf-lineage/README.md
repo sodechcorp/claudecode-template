@@ -10,6 +10,7 @@ python scripts/python/sf-lineage/lineage.py save Obj__c                         
 python scripts/python/sf-lineage/lineage.py label 金額                                       # 表示ラベルで項目を探す
 python scripts/python/sf-lineage/lineage.py uses <部品...>                                   # その部品が使っているもの（順方向）
 python scripts/python/sf-lineage/lineage.py deps --manifest <package.xml>                    # リリースの資材の外にある依存（デプロイの依存漏れ）
+python scripts/python/sf-lineage/lineage.py unused [--type field|apex|flow|lwc|vf]            # 使われていない部品の候補（棚卸し・削除の影響確認）
 python scripts/python/sf-lineage/lineage.py status                                           # 地図の作成日時・古いか・組織との比較・レポートの取得状況
 python scripts/python/sf-lineage/lineage.py build                                            # 作り直す
 python scripts/python/sf-lineage/lineage.py modified --target-org <本番> [--target-org <Sandbox>]   # 部品の最終更新日・更新者（組織から読み取り）
@@ -25,10 +26,11 @@ python scripts/python/sf-lineage/lineage.py export --repo <識別子> --name-ja 
 
 | ファイル | 役割 |
 |---|---|
-| `lineage.py` | 入口（build / status / who / save / label / uses / deps / modified / reports / export） |
+| `lineage.py` | 入口（build / status / who / save / label / uses / deps / unused / modified / reports / export） |
 | `modified.py` | 部品の最終更新日・更新者を組織から取る（取り直しが要る部品・本番に未リリースの変更の候補も出す） |
 | `reports.py` | レポート・ダッシュボードの本体を組織から取る |
 | `deps.py` | 順方向の依存（uses）と、資材の外にある依存の確かめ（deps） |
+| `unused.py` | 使われていない部品の候補（項目・Apex・フロー・LWC・VF。入口・保存で動くフローは除く） |
 | `build_refs.py` | XML のメタデータ（項目・入力規則・画面・帳票・権限・設定・フロー・ワークフロー・メール）と、Apex・LWC・Aura・VF の参照を作る |
 | `apex_refs.py` | Apex の項目の読み書き・DML・写す連鎖（変数の型の宣言から追う） |
 | `who_uses.py` | 使っている部品を引く（数式・積み上げ集計、値を写した先、部品の呼び出し元・レポートタイプ → レポート → ダッシュボードを辿る。最終更新を付ける） |

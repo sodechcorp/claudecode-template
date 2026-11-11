@@ -193,8 +193,38 @@ def report(fa: str, mods: list[dict], brief: bool = False) -> None:
             print(f"    … ほか {len(newer) - 15}")
 
 
+def changed(mapdir: str, root: str, since: str) -> None:
+    """保存済みの最終更新から、since（YYYY-MM-DD。auto は docs/logs/changelog.md の直近の /sf-memory の日付）以降に組織で更新された部品を種類ごとに出す。"""
+    import re
+    if since == "auto":
+        p = os.path.join(root, "docs", "logs", "changelog.md")
+        dates = re.findall(r"(\d{4}-\d{2}-\d{2})\D{0,20}/sf-memory", open(p, encoding="utf-8").read()) if os.path.exists(p) else []
+        if not dates:
+            print("changelog に /sf-memory の記録が無いので、前回からの変化は出せません")
+            return
+        since = max(dates)
+    mods = load_all(mapdir)
+    if not mods:
+        print("組織の最終更新が未取得（lineage.py modified --target-org <別名>）")
+        return
+    d = max(mods, key=lambda x: x.get("fetched_at", ""))
+    by_type: dict[str, list[str]] = {}
+    for k, x in d["items"].items():
+        if (x.get("lastModifiedDate") or "")[:10] >= since:
+            st, name = k.split(":", 1)
+            by_type.setdefault(st, []).append(f"{name}（{x['lastModifiedDate'][:10]} {x.get('lastModifiedByName') or ''}）")
+    print(f"{since} 以降に組織 {org_label(d)}（{d['org']}）で更新された部品（{d['fetched_at'][:16]} 取得の一覧から）:")
+    if not by_type:
+        print("  なし")
+    for st, names in sorted(by_type.items(), key=lambda kv: -len(kv[1])):
+        print(f"  {st} {len(names)}: " + ", ".join(sorted(names)[:8]) + (" …" if len(names) > 8 else ""))
+
+
 def main() -> None:
     args = sys.argv[1:]
+    if len(args) >= 3 and args[2] == "--since":   # changed: <地図のフォルダ> <プロジェクトのルート> --since <日付|auto>
+        changed(args[0], args[1], args[3])
+        return
     if len(args) < 2 or "--target-org" not in args:
         print(__doc__)
         sys.exit(1)

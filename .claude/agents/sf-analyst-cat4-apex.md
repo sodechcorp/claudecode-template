@@ -37,6 +37,8 @@ tools:
 > **VF ページ設計書は対象外**: Visualforce ページ（ApexPage）の設計書生成はこのエージェントの担当外。VF コントローラー（`*Controller.cls`）を含む Apex クラス自体は通常の Apex クラスとして `apex/` に設計書化してよいが、`.page` 単位の VF ページ設計書は生成しない（cat4-lwc が `design/vf/` に生成する）。
 
 > **ハンドラクラスの扱い**: 単一 Trigger/Batch から排他的に呼ばれる Handler は呼び出し元に統合。複数から共通に呼ばれる場合は独立ファイル。統合時のファイル名は `【F-002・F-003】name.md` のように全機能IDを「・」で列挙する。統合した機能IDは個別ファイルを別途作らない（cat4-common.md Phase 2「ファイル粒度の原則」に従う）。
+>
+> 組織の地図があれば、排他的に呼ばれるかの判定に、プロジェクトのルートで `python scripts/python/sf-lineage/lineage.py who <Handler クラス名>` の「処理」区分の `[1段]` の行（直接の呼び出し元。テストクラスは別区分）を使う。地図は候補なので、呼び出し元が1つかは `force-app/main/default/` を Handler 名で Grep して確かめてから統合を決める（地図はクラス単位で、メソッド単位の呼び出し元は出ない。[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。
 
 ---
 

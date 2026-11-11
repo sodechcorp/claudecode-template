@@ -153,6 +153,8 @@ sf data query -q "SELECT Name, Subject, Body, HtmlValue, Encoding FROM EmailTemp
 
 記録内容: テンプレート名・件名・フォルダ・タイプ・利用UC（推定）
 
+**使用元（組織の地図があれば）**: プロジェクトのルートで `python scripts/python/sf-lineage/lineage.py who EmailTemplate:<フォルダ>/<DeveloperName>`（フォルダ・名前は `force-app/main/default/email/` のフォルダ名・ファイル名）で、テンプレートを使うメールアラート・割り当て/自動応答/エスカレーションルールと、その先（アラートを呼ぶワークフロー・フロー・承認プロセス、フローを呼ぶアクション）を引き、利用UC を推定する手がかりにする。使用元が出たテンプレートは使用元の部品名を記録する（地図は候補なのでソースで確かめる）。地図は取得した force-app の分だけで、Apex から送るメールのテンプレートは出ないので、使用元が出ないテンプレートは従来どおり推定する（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。
+
 **セクション番号の付与（厳守）**: 各メールテンプレートを `## N. {テンプレート名}` の形式で番号付き H2 として列挙する場合、番号は **1 から連番で自動付与**し重複させない。差分更新（追記）モードでは既存 `email-templates.md` の**末尾セクション番号を確認し、その +1 から開始**する（`## 9.` の重複のような採番ミスを防ぐ）。
 
 **Body・HtmlValue の扱い（厳守）**: 取得した `Body` / `HtmlValue` には個人情報（実名・実顧客番号・担当者名等）が運用事故でハードコードされている可能性がある。**本文テキストそのものを docs/data/email-templates.md に書き出さない**。代わりに `{!Recipient.FirstName}` のような差し込み項目（merge field）の**変数名だけを抽出して列挙する**。本文の要約・抜粋・例示も禁止。
@@ -165,6 +167,8 @@ sf data query -q "SELECT Title, DeveloperName, FolderName, Description, LastView
 ```
 
 記録内容: 名前・フォルダ（用途分類）・最終実行日（使用頻度の目安）・どのUCで参照されるか（推定）
+
+**用途の手がかり（組織の地図があれば）**: `force-app/main/default/reports/` が無く、プロジェクトのルートで `python scripts/python/sf-lineage/lineage.py status` が「レポート本体: 未取得」と出すときは、`python scripts/python/sf-lineage/lineage.py reports --target-org <上の SOQL と同じ組織の別名>` で本体を取る（組織には読み取りだけ。置き先は `.lineage/` で force-app は変えない。管理パッケージのものは取らない）。各レポートは `uses Report:<フォルダ>/<DeveloperName>`（フォルダは API 名。取ったファイルの `reports/` の下のパス）で使っている項目・レポートタイプを、`who Report:<フォルダ>/<DeveloperName>` で載せているダッシュボードを引き、どのオブジェクト・項目を見るレポートかから「どのUCで参照されるか（推定）」を決める手がかりにする（件数が多いときは `.lineage/refs.jsonl` を `"src_type": "Report"`・`"src_type": "Dashboard"` で Grep するとまとめて見られる）。カスタムレポートタイプを使うレポートは `who ReportType:<名前>` でも引ける（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。
 
 ### Phase 4: 自動化・ワークフロー設定の収集（automation-config.md）
 

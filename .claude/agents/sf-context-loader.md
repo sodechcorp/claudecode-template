@@ -103,6 +103,11 @@ tools:
 
 `{project_dir}/docs/knowledge/sf-standard.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（Salesforce 標準仕様の基盤知識として。ただし該当セクションのみ抽出し全文読込は避ける）。
 
+**組織の地図でキーワードを補う**（`{project_dir}/.lineage/refs.jsonl` がある場合だけ。このエージェントは Bash を持たないので `lineage.py` は実行せず、Grep で引く。地図は最後に作った時点の候補）:
+- **日本語の表示ラベルしか無いとき**: `.lineage/objects.json`（オブジェクトの表示名）と `.lineage/fields.json`（項目。1行の JSON）を、`-o` 付きの Grep でキーワードを含むラベルを引いて API 名を得る（パターン例: オブジェクトは `"\w+": "[^"]*{キーワード}[^"]*"`、項目は `"\w+": \{"label": "[^"]*{キーワード}[^"]*"`。項目のオブジェクトは `.lineage/refs.jsonl` を `"target": "\w+\.{項目}"` で Grep して得る）。得た API 名で上の表の `\w+__c`・オブジェクト名の行に当てる
+- **項目・オブジェクトの API 名があるとき**: `.lineage/refs.jsonl` を `"target": "{Obj}.{Field}"`（オブジェクトなら `"target": "{Obj}"`）で Grep し、`src_type`・`src_name` から使っている部品（ApexClass・Flow・LWC など。`ApexTest` は除く）を得て、`docs/.sf/feature_list.json` の api_name のマッチ（F-ID の行）に回す
+- 地図のファイルは Grep だけで Read しないので、Phase 3 の読込上限（合計7ファイル）には数えない。地図から回したマッチで読む設計書・定義書は、通常どおり上限と優先順位に従う（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）
+
 > **自課題除外ルール（issueID マッチ適用時）**: `task_description` の中心テーマとして扱われている issueID（現在処理中の自課題）は、issueID マッチの「類似過去課題」対象から **除外する**。自課題の `investigation.md` / `approach-plan.md` は呼び出し元エージェントが直接参照する現タスクの作業コンテキストであり、loader 経由で再注入すると循環参照・重複になるため。
 > - **除外判定**: `task_description` 冒頭や `「{issueID} の対応をする/実装する/調査する」` のように、処理主体として言及されている ID が自課題。
 > - **除外しない**: `focus_hints` で明示された別の課題ID、または `task_description` 中で「過去に GF-xxx で同様の問題が…」のように明確に過去事例として言及されている別の課題ID は従来どおり過去課題として読む。

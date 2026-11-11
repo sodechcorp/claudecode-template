@@ -102,6 +102,12 @@ grep -rE "FROM\s+\w+|INSERT\s+\w+|UPDATE\s+\w+|UPSERT\s+\w+|DELETE\s+\w+" force-
 
 > **grep ベース検出の制約**: 上記 grep は正規表現マッチのみのため、`Database.query('SELECT ... FROM ...')` のような動的 SOQL や `.getSObjectType().getDescribe()` 等の反射系は拾えない。検出漏れが疑われる場合は、各コンポーネント定義書で `**[要確認]**` を付けてユーザーに確認を促す。
 
+組織の地図があれば（`scripts/python/sf-lineage/lineage.py` がある）、grep に加えて地図からも拾う。プロジェクトのルートで `python scripts/python/sf-lineage/lineage.py build` で地図を作り直し（書くのは `.lineage/` だけ）、次で Apex・トリガー・フロー・LWC・Aura・VF が読み書きする標準オブジェクトと、使っている部品の数・例を出す（テストクラス・確度の低い候補は除く）（`head -100` の打ち切りが無く、フローの対象オブジェクト・文字列の SOQL・LWC の `@salesforce/schema` も入る）。grep の結果と合わせて下の定義書化の基準に当てはめ、地図にだけ出たものはソースで確かめる（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。作り直しで「Apex の解析部品が使えない」と出た場合、Apex の静的 SOQL・DML のオブジェクトは地図に入らないので、Apex の分は grep を正とする。
+
+```bash
+python scripts/python/sf-lineage/lineage.py objects --standard
+```
+
 **標準オブジェクトを定義書化する基準（いずれか1つ）**:
 - カスタム項目が追加されている
 - force-app/ の Apex / Flow / LWC で直接参照されている

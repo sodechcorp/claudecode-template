@@ -325,6 +325,7 @@ class Index:
             "profiles": (".profile-meta.xml", self._perm),
             "flows": (".flow-meta.xml", self._flow),
             "customMetadata": (".md-meta.xml", self._custom_md),
+            "tabs": (".tab-meta.xml", self._tab),
         }
         for d, (ext, h) in handlers.items():
             dp = os.path.join(self.root, d)
@@ -343,8 +344,54 @@ class Index:
                 self._leadconvert("LeadConvertSetting", p, text, root, "")
         self._reports()
         self._dashboards()
+        self._weblinks()
+        self._sites_and_vf_includes()
         self._email_templates()
         self._translations()
+
+    def _tab(self, name, p, text, root, d):
+        """タブ: LWC・Aura・VF・Lightning ページを開くもの。"""
+        for tag, key in (("lwcComponent", "LWC:{}"), ("auraComponent", "LWC:{}"), ("page", "VF:{}")):
+            v = txt(root, tag)
+            if v:
+                self.add("Tab", name, p, text, v, "display", "component", key.format(v.split(":")[-1]))
+
+    def _weblinks(self) -> None:
+        """ボタン・リンク: VF を開くもの（<page> と、URL の /apex/名前）。"""
+        od = os.path.join(self.root, "objects")
+        for obj in (os.listdir(od) if os.path.isdir(od) else []):
+            wd = os.path.join(od, obj, "webLinks")
+            for fn in (os.listdir(wd) if os.path.isdir(wd) else []):
+                if not fn.endswith(".webLink-meta.xml"):
+                    continue
+                p = os.path.join(wd, fn)
+                root, text = parse_with_text(p)
+                if root is None:
+                    continue
+                name = f"{obj}.{fn[: -len('.webLink-meta.xml')]}"
+                pages = [txt(root, "page")] + re.findall(r"/apex/([\w]+)", txt(root, "url") or "")
+                for pg in {x for x in pages if x}:
+                    self.add("WebLink", name, p, text, pg, "call", "component", f"VF:{pg}")
+
+    def _sites_and_vf_includes(self) -> None:
+        """サイト（Sites）の設定が使う VF（ログイン・エラー画面など）と、VF どうしの参照（テンプレート・埋め込み）。"""
+        pd = os.path.join(self.root, "pages")
+        pages = {fn[:-5] for fn in os.listdir(pd) if fn.endswith(".page")} if os.path.isdir(pd) else set()
+        sd = os.path.join(self.root, "sites")
+        for fn in (os.listdir(sd) if os.path.isdir(sd) else []):
+            if fn.endswith(".site-meta.xml"):
+                p = os.path.join(sd, fn)
+                root, text = parse_with_text(p)
+                for el in (root.iter() if root is not None else []):
+                    v = (el.text or "").strip()
+                    if v in pages:
+                        self.add("Site", fn[: -len(".site-meta.xml")], p, text, f">{v}<", "display", "component", f"VF:{v}")
+        for pg in pages:
+            p = os.path.join(pd, f"{pg}.page")
+            text = read(p)
+            for m in re.finditer(r'(?:template|pageName)\s*=\s*"\s*(?:\{!\$Site\.Template\}|([\w]+))\s*"', text):
+                if m.group(1) and m.group(1) in pages and m.group(1) != pg:
+                    self.add("Visualforce", pg, p, text, m.group(0), "call", "component", f"VF:{m.group(1)}")
 
     def _actions_in(self, st, name, p, text, obj):
         """レイアウト・Lightning ページの中のアクション（クイックアクション）の配置。"""
@@ -379,6 +426,8 @@ class Index:
             self.add_field("FlexiPage", name, p, text, o, f, "condition", c, needle=m.group(0))
         for m in re.finditer(r"<componentName>(?:c:|c__)([\w]+)</componentName>", text):
             self.add("FlexiPage", name, p, text, m.group(0), "display", "component", f"LWC:{m.group(1)}")
+        for m in re.finditer(r"<name>flowName</name>\s*<value>([\w]+)</value>", text):   # ページに置いた画面フロー
+            self.add("FlexiPage", name, p, text, m.group(1), "call", "flow", m.group(1))
         if obj and ("force:detailPanel" in text or "force:recordDetailPanelMobile" in text):
             # ページレイアウトをそのまま表示する部品 → そのオブジェクトのレイアウトに置いた項目は、このページにも出る
             self.add("FlexiPage", name, p, text, "force:detailPanel", "display", "component", f"LayoutsOf:{obj}")
@@ -507,6 +556,8 @@ class Index:
                     self.add("WorkflowRule", rn, p, text, an, "call", "component", f"EmailAlert:{obj}.{an}")
                 elif an and at == "FieldUpdate":
                     self.add("WorkflowRule", rn, p, text, an, "call", "component", f"WorkflowFieldUpdate:{obj}.{an}")
+                elif an and at == "OutboundMessage":
+                    self.add("WorkflowRule", rn, p, text, an, "callout", "action", "外部呼び出し（送信メッセージ）")
 
     def _criteria_item(self, st, sname, p, text, ci):
         v = txt(ci, "field")
@@ -635,6 +686,8 @@ class Index:
         st = "Flow"
         start = root.find(NS + "start")
         sobj = txt(start, "object") if start is not None else None
+        if start is not None and start.find(NS + "scheduledPaths") is not None:   # 保存のあと、時間をおいて動く経路
+            self.add(st, name, p, text, "scheduledPaths", "async", "action", "非同期（スケジュール済みパス）")
         if sobj:
             ttype = txt(start, "triggerType") or ""
             role = "trigger_on" if ttype in ("RecordBeforeSave", "RecordAfterSave", "RecordBeforeDelete") else "read"
@@ -776,6 +829,8 @@ class Index:
                 self.add(st, name, p, text, an, "send_email", "action", "メール（メールアラート）")
             elif at == "emailSimple":
                 self.add(st, name, p, text, "emailSimple", "send_email", "action", "メール（メール送信アクション）")
+            elif at in ("externalService", "outboundMessage"):
+                self.add(st, name, p, text, at, "callout", "action", "外部呼び出し（フローの外部サービス・送信メッセージ）")
             elif at == "quickAction" and an:
                 self.add(st, name, p, text, an, "call", "component", f"QuickAction:{an}")
             elif at == "flow" and an:
@@ -791,12 +846,17 @@ class Index:
     def _side_effects(self, st, name, p, text) -> None:
         """組織の外に出る動き: メール送信・外部呼び出し・プラットフォームイベントの発行（Sandbox での誤送信の確認に使う）。"""
         code = re.sub(r"//[^\n]*|/\*.*?\*/", "", text, flags=re.S)
+        for m in re.finditer(r"(?<![\w.])Page\.(\w+)", code):   # Page.名前（PDF の出力・画面の移動で VF を使う）
+            if m.group(1) not in ("setRedirect", "getParameters", "getContent", "getContentAsPDF", "getUrl"):
+                self.add(st, name, p, text, m.group(0), "call", "component", f"VF:{m.group(1)}")
         for pat, target in ((r"Messaging\s*\.\s*(sendEmail|SingleEmailMessage|MassEmailMessage|sendEmailMessage)", "メール（Apex の Messaging）"),
-                            (r"\bHttpRequest\b|\bHttp\s*\(\s*\)|callout\s*=\s*true|\bWebServiceCallout\b", "外部呼び出し（HTTP・Web サービス）"),
-                            (r"EventBus\s*\.\s*publish", "プラットフォームイベントの発行")):
-            m = re.search(pat, code)
+                            (r"\bHttpRequest\b|\bHttp\s*\(\s*\)|callout\s*=\s*true|\bWebServiceCallout\b|\bExternalService\s*\.", "外部呼び出し（HTTP・Web サービス・外部サービス）"),
+                            (r"EventBus\s*\.\s*publish", "プラットフォームイベントの発行"),
+                            (r"@future\b|System\s*\.\s*enqueueJob|Database\s*\.\s*executeBatch|System\s*\.\s*schedule(Batch)?\s*\(", "非同期（future・Queueable・バッチ・スケジュール）")):
+            m = re.search(pat, code, re.I if target.startswith("非同期") else 0)
             if m:
-                self.add(st, name, p, text, m.group(0), "send_email" if target.startswith("メール") else "callout", "action", target)
+                role = "send_email" if target.startswith("メール") else "async" if target.startswith("非同期") else "callout"
+                self.add(st, name, p, text, m.group(0), role, "action", target)
 
     def scan_code(self, parser) -> None:
         for d, ext, st0 in (("classes", ".cls", "ApexClass"), ("triggers", ".trigger", "ApexTrigger")):

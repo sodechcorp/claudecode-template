@@ -154,6 +154,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
       |---|---|---|---|
       | {ラベル（日本語表示名）} | {INSTANCE_URL}/lightning/r/{SObject}/{Id}/view | {Id} | ①…→②… |
       ```
+      - 操作手順で開く画面（4. の `{確認画面}` も）は、組織の地図があれば `python scripts/python/sf-lineage/lineage.py who <変更した項目・部品>` の「画面・帳票」区分（レイアウト・Lightning ページ・リストビューなど。LWC・Aura は「処理」区分に出て、それを置く画面は `← 経由` 付きの行に出る）から候補を出し、ファイルで確かめて決める（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）
    4. 対象レコードが特定できない場合（設定変更のみ・データ非依存の変更等）:
       - **権限・FLS・レイアウト・RecordType・共有ルール変更を含む場合**: レコードURL方式の代わりに、対象ユーザーと確認手順を明記した代替ブロックを提示する（[test-pattern-map.md](../templates/backlog/test-pattern-map.md) §権限・ユーザ切り替えテストのアーキテクチャ 準拠。accessToken 付き URL は生成しない）:
         ```markdown
@@ -535,7 +536,7 @@ Step 5（議論モード: ユーザーの自由テキスト応答を待ち、質
 
 > **catalog/design 更新確認の実施手順**（2a. Sandbox の場合のみ。2b. 管理画面直接操作の場合と、`docs/logs/{issueID}/implementation-start.md` が無い場合〔Phase 4 が force-app を編集していない〕はスキップ — Claude が実装していないため確認対象がない）:
 > 1. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）の「関連コンポーネント一覧（変更対象ファイル）」の各ファイルを、[docs-driven-behavior.md](../spec/docs-driven-behavior.md)「実装後のドキュメント更新マッピング」の更新対象が「—」でない行に当てはめる（行はファイルの種別で決める。権限セット・プロファイルは「変更概要」で CRUD・FLS の変更かを見る。レコードタイプと、Apex / トリガー・フロー等のコンポーネントは「変更種別」と「変更概要」で当たる行を決める）。Step 0d で「不在」と判定されている場合、または当たるファイルが0件の場合はこの確認自体をスキップする。
-> 2. 各ファイルの期待ファイルパスを、同マッピングの「更新対象」「更新方法」で反映先になっている `docs/catalog/`・`docs/design/` のファイルとして算出する。定義書のオブジェクトは計画書の括弧書き・変更概要から取り、書かれていなければ `Glob 'force-app/**/{ファイル名}'`（変更種別が削除のファイルは `Glob 'docs/logs/{issueID}/before-snapshot/force-app/**/{ファイル名}'`）の `objects/` 直下のフォルダ名を使う（Glob で1つに決まらない・見つからないファイルは期待パスに入れず、完了報告の「未確認事項」に `⚠ catalog/design 未確認（オブジェクト未特定）: {ファイル名}` と書く）。Apex クラス・トリガー・フローの操作するオブジェクトは、変更概要に無ければ、同じ Glob で見つけたファイルのトリガーの `on`・フローの `<object>`・Apex の SOQL の `FROM` と DML するレコードの型を全部使う（変更は before-snapshot の写しと比べて増えた・外れたものだけ）。参照先は field-meta.xml の `<referenceTo>`。値セットの行は、force-app の field-meta.xml を `<valueSetName>{値セット名}</valueSetName>` で Grep して当たったオブジェクトを全部使う（標準値セットは対応する標準項目）。定義書・設計書が無いものは期待パスに入れない。
+> 2. 各ファイルの期待ファイルパスを、同マッピングの「更新対象」「更新方法」で反映先になっている `docs/catalog/`・`docs/design/` のファイルとして算出する。定義書のオブジェクトは計画書の括弧書き・変更概要から取り、書かれていなければ `Glob 'force-app/**/{ファイル名}'`（変更種別が削除のファイルは `Glob 'docs/logs/{issueID}/before-snapshot/force-app/**/{ファイル名}'`）の `objects/` 直下のフォルダ名を使う（Glob で1つに決まらない・見つからないファイルは期待パスに入れず、完了報告の「未確認事項」に `⚠ catalog/design 未確認（オブジェクト未特定）: {ファイル名}` と書く）。Apex クラス・トリガー・フローの操作するオブジェクトは、変更概要に無ければ、同じ Glob で見つけたファイルのトリガーの `on`・フローの `<object>`・Apex の SOQL の `FROM` と DML するレコードの型を全部使う（変更は before-snapshot の写しと比べて増えた・外れたものだけ）。組織の地図があれば、変更後の分は先に `python scripts/python/sf-lineage/lineage.py uses <クラス名・トリガー名・フロー名>` の「書き込むオブジェクト」「読むオブジェクト」「保存で動く対象」で拾い、ファイルで確かめる（地図は今の force-app から作るので、before-snapshot の側と削除したファイルは上の読み方で見る。[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。参照先は field-meta.xml の `<referenceTo>`。値セットの行は、force-app の field-meta.xml を `<valueSetName>{値セット名}</valueSetName>` で Grep して当たったオブジェクトを全部使う（標準値セットは対応する標準項目）。定義書・設計書が無いものは期待パスに入れない。
 > 3. 以下で `implementation-start.md`（Phase 4 が force-app の編集を始めるときに作る）より後に更新されたファイル一覧を取得する（Step 2a-2 と同型の `-newer` 判定）:
 >    ```bash
 >    find docs/catalog docs/design -type f -newer docs/logs/{issueID}/implementation-start.md 2>/dev/null

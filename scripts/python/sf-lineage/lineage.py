@@ -6,6 +6,9 @@
   python scripts/python/sf-lineage/lineage.py save <オブジェクト> [--depth 3]
   python scripts/python/sf-lineage/lineage.py label <表示ラベルの一部>
   python scripts/python/sf-lineage/lineage.py uses <部品...>        # 順方向: その部品が使っている項目・オブジェクト・部品・ラベル・外への動き
+  python scripts/python/sf-lineage/lineage.py unused [--type field|apex|flow|lwc|vf] [--all]   # 使われていない部品の候補（棚卸し・削除の影響確認）
+  python scripts/python/sf-lineage/lineage.py objects [--standard]   # Apex・フロー・画面部品が読み書きするオブジェクトと使っている部品
+  python scripts/python/sf-lineage/lineage.py changed --since <YYYY-MM-DD|auto>   # その日以降に組織で更新された部品（modified の一覧から。auto は changelog の直近の /sf-memory）
   python scripts/python/sf-lineage/lineage.py deps --manifest <package.xml>
                                                                     # リリースの資材の外にある依存（本番の一覧を取ってあれば、本番に無く資材にも無いもの＝デプロイ失敗の候補）
   python scripts/python/sf-lineage/lineage.py export --repo <識別子> --name-ja <日本語名> [--json 書き出し先]
@@ -134,7 +137,19 @@ def main() -> None:
             save_chain.main()
         finally:
             sys.argv = argv
-    elif cmd in ("uses", "deps"):
+    elif cmd == "unused":
+        ensure(root, out)
+        import unused
+        argv = sys.argv
+        sys.argv = ["unused.py", out, os.path.join(root, "force-app", "main", "default")] + rest
+        try:
+            unused.main()
+        finally:
+            sys.argv = argv
+    elif cmd == "changed":
+        import modified
+        modified.changed(out, root, rest[rest.index("--since") + 1] if "--since" in rest else "auto")
+    elif cmd in ("uses", "deps", "objects"):
         ensure(root, out)
         import deps
         argv = sys.argv

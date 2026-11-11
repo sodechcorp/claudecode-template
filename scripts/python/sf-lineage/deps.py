@@ -87,7 +87,7 @@ def cmd_uses(mapdir: str, specs: list[str]) -> None:
                 if (r["src_type"], r["src_name"]) != (st, sn) or r["conf"] == "low":
                     continue
                 role, tk, t = r["role"], r["tkind"], r["target"]
-                key = ("外への動き" if role in ("send_email", "callout")
+                key = ("外への動き" if role in ("send_email", "callout", "async")
                        else "書き込む項目" if tk == "field" and (role == "write" or role.startswith("copy") or role == "write_dynamic")
                        else "条件に使う項目" if tk == "field" and role == "condition"
                        else "読む・表示する項目" if tk == "field"
@@ -187,12 +187,33 @@ def cmd_deps(mapdir: str, fa: str, manifest: str, show_all: bool = False) -> Non
         print("✗（本番に無く資材にも無い依存）はありません")
 
 
+def cmd_objects(mapdir: str, standard_only: bool) -> None:
+    """Apex・トリガー・フロー・LWC・Aura・VF が読み書きするオブジェクトと、使っている部品（テストクラス・確度の低い候補は除く）。"""
+    refs = load_refs(mapdir)
+    c: dict[str, set[str]] = defaultdict(set)
+    for r in refs:
+        if r["src_type"] not in ("ApexClass", "ApexTrigger", "Flow", "LWC", "Aura", "Visualforce") or r["conf"] == "low":
+            continue
+        if r["tkind"] not in ("object", "field") or r["target"].startswith("?"):
+            continue
+        o = r["target"].split(".")[0]
+        if standard_only and o.endswith(("__c", "__mdt", "__e", "__b", "__x")):
+            continue
+        c[o].add(f"{r['src_type']}:{r['src_name']}")
+    print(f"{'標準' if standard_only else ''}オブジェクト {len(c)} 件（使っている部品の数・先頭3つ）")
+    for o, s in sorted(c.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        print(f"{o}\t{len(s)}\t{', '.join(sorted(s)[:3])}")
+
+
 def main() -> None:
     args = sys.argv[1:]
     if len(args) < 3:
         print(__doc__)
         sys.exit(1)
     mapdir, fa, cmd = args[0], args[1], args[2]
+    if cmd == "objects":
+        cmd_objects(mapdir, "--standard" in args)
+        return
     if cmd == "uses":
         cmd_uses(mapdir, [a for a in args[3:] if not a.startswith("--")])
     elif cmd == "deps":
