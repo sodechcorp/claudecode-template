@@ -205,7 +205,7 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
     lines.append("### 総合判定")
     ai_nos = ", ".join(a.get("no", "") for a in judgment.get("ai_list", []))
     if judgment.get("ng", 0):
-        lines.append("FAIL — Phase 4/3/2 に差し戻し")
+        lines.append("FAIL — 実装・設定・方針を直す NG は Phase 4/3/2 に差し戻し、再テストだけで済む NG は /test を再実行（/test「NG があった場合の差し戻し」）")
     elif judgment.get("ai_pending", 0):
         lines.append(f"AI判定待ちあり{f'（{ai_nos}）' if ai_nos else ''} — /test Phase D-2 で判定してから Phase E からやり直します")
     else:
