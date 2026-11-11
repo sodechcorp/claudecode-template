@@ -11,7 +11,7 @@
 
 `prod-release-issue.md` が存在しない場合、以下の分岐（いずれも `/backlog` 内のフェーズへの再開）に進む:
 
-- `validation-report.md` の「## 総合判定」が「再検証待ち」（Phase 3・3.5 を始めた後、Phase 3.5 の判定が出ていない。`release-issue.md`・`test-report.md` があっても下の行より先にこちら） → 「Phase 3.5（実装前検証）から / Phase 3（実装方針）から / 中止 のどれにしますか？」
+- `validation-report.md` の「## 総合判定」が「再検証待ち」「Phase 3（実装方針）に戻る」「Phase 2 に戻る」のどれか（Phase 3・3.5 を始めた後で Phase 3.5 の判定が出ていない、または Phase 3.5・`/test` の差し戻しで戻ると決まった後で Phase 3 を始めていない。`release-issue.md`・`test-report.md` があっても下の行より先にこちら） → 再検証待ちは「Phase 3.5（実装前検証）から / Phase 3（実装方針）から / 中止 のどれにしますか？」、それ以外は総合判定と理由（`/test` の差し戻しなら discussion-log.md の戻り理由も）を添えて「Phase 2（対応方針の決定）から / Phase 3（実装方針）から / 中止 のどれにしますか？」（判定に「（/test の NG」が付いていれば「Phase 3.5（今の計画のまま再判定）から」も出し、選んだら /test の判断と違うと考える担当者の理由を discussion-log.md に `[user → main] 指摘:` で書いてから進む。`investigation.md` のフロントマターの `deploy_route` が `manual-operation` ならこの行は飛ばす）
 - `release-issue.md` 存在 → まず `release-issue.md` を Read し、記録されている差し戻し先 Phase（Phase 4 または Phase 5）を確認したうえで選択肢を出す（**Sandbox リリース段階〔backlog-releaser.md〕の差し戻し専用。本番リリース段階〔release-preparer.md〕の差し戻しは上記 `prod-release-issue.md` を参照**）:
   - 差し戻し先が Phase 4（実装ロジック起因の挙動不良） → 「Phase 4（実装修正）から / Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
   - 差し戻し先が Phase 5（デプロイ失敗等・dry-run で検知可能な問題） → 「Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
@@ -27,7 +27,7 @@
 - `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `再テスト待ち` で始まる（Phase 4 で再実装を始めた、または /test が途中で止まった） → `## スモーク確認結果` の `### 総合判定` が `再テスト待ち` 以外なら、その値で上の FAIL／条件付きPASS／PASS の行を当てはめる。それ以外は「Phase 4（実装）から / Phase 5（スモーク確認）から / `/test {issueID}` を再実行（再実装していない場合）/ 中止 のどれにしますか？」（`/test` の再実行を選んだ場合は `/backlog` を再開せず、`/test {issueID}` の起動を案内して終える）
 - `validation-report.md` 存在（test-report.md なし） → 「## 総合判定」を確認してから提示する:
   - 「Phase 4（実装）へ進んでよい」→ 「Phase 4（実装）から / Phase 3.5（実装前検証）から / 中止 のどれにしますか？」
-  - 「Phase 3 に戻る」「Phase 2 に戻る」「技術確認待ち」→ 総合判定と理由を添えて「Phase 2（対応方針の決定）から / Phase 3（実装方針）から / 中止 のどれにしますか？」（判定が Phase 4 以外のまま実装に入らない）
+  - 「技術確認待ち」→ 総合判定と理由を添えて「Phase 2（対応方針の決定）から / Phase 3（実装方針）から / 中止 のどれにしますか？」（判定が Phase 4 以外のまま実装に入らない）
 - `implementation-plan.md` 存在（validation-report.md なし） → 「Phase 3.5（実装前検証）から / Phase 3（実装方針確定）から / 中止 のどれにしますか？」
 - `approach-plan.md` 存在（implementation-plan.md なし） → 「Phase 3（実装方針）から / Phase 2（対応方針の決定）から / 中止 のどれにしますか？」
 - `investigation.md` のみ存在 → `investigation.md` フロントマターの `issue_type` を確認し、以下の通り選択肢を提示する:
