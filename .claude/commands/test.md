@@ -520,7 +520,7 @@ task_description: 「/test 自動修正起動: {issueID} の実装バグ NG（{a
 
 **backlog-implementer が中断を報告した場合（経路2/3〈実装方針の問題・検証漏れ〉、非対話停止点〈API名不一致・describe・FieldDefinition の失敗〉、または承認ガード例外の条件不成立のいずれか）**: 自動修正ループを中断し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する（実装バグのつもりが方針問題や前提未確認 → 人間判断に委ねる）。
 
-**backlog-implementer 完了後（上記いずれの中断も発生していない場合）**: F-2 Step 2 へ進む。
+**backlog-implementer 完了後（上記いずれの中断も発生していない場合）**: F-2 Step 2 へ進む。完了の返却（変更ファイル数・主な変更点）を返さずに終わった場合は中断と同じに扱う（変えたファイルは「不明」として差し戻しに書く）。
 
 #### F-2 Step 2: backlog-tester（dry-run 検証）
 
@@ -593,7 +593,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 
    NG 種類が混在している場合は、実装バグ（ng_type 空）を最優先で修正してから再テストする。
 
-   Phase F-2 の Step 2（条件付きPASS・FAIL）・Step 3（再デプロイの失敗）で止まった場合は、`AUTO_FIX_TCS` をこの表の `""` として扱い、手順5の NG の原因に dry-run の NG 原因（条件付きPASS はテストクラス未整備）・再デプロイのエラーを、修正方針の先頭に「自動修正で force-app に反映済み・Sandbox 未反映（時間切れで返ったときは未確認）」を書く（Phase 4 で同じ修正をやり直さないため）。
+   Phase F-2 の Step 2（条件付きPASS・FAIL）・Step 3（再デプロイの失敗）で止まった場合は、`AUTO_FIX_TCS` をこの表の `""` として扱い、手順5の NG の原因に dry-run の NG 原因（条件付きPASS はテストクラス未整備）・再デプロイのエラーを、修正方針の先頭に「自動修正で force-app に反映済み・Sandbox 未反映（時間切れで返ったときは未確認）」を書く（Phase 4 で同じ修正をやり直さないため）。Step 1 の backlog-implementer の中断で止まった場合は、`AUTO_FIX_TCS` の戻り先を手順3で中断の理由から決め（実装方針の問題は Phase 3、検証漏れは Phase 3.5 で、この2つは `""` でも Phase 4 にしない。API名不一致・describe・FieldDefinition の失敗は Phase 4〔名前を決めてから・接続を直してから〕。承認ガード例外の条件不成立は validation-report.md の総合判定と理由で決める。完了の返却が無いまま終わったものは Phase 4）、implementer が返した force-app の変更ファイルがあれば（返却が無ければ「不明」として）修正方針の先頭に「自動修正の途中の変更が force-app に残っている（{ファイル}）・Sandbox 未反映」を書く（戻すかは方針を見直すときに決める）。
 
 2. **ループ回次を確認する**（`judgment-result.R{N}.json` の最大回次番号 N = これまでの NG 修正回数。欠番があってもファイル数ではなく最大値を基準にする＝ Phase F-2 ガード①の `PREV_ROUND_F2` と同一の算出方法。`test-fail-routing.md` §「ループ上限」のセッション跨ぎ通算カウント基準と同一）:
    ```bash
@@ -752,6 +752,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 NG 一覧:
   - TC-00X: {観点} — {理由}（種別: `ng_type` の値。空欄の場合は「実装バグ」と表示する）
 {Phase F-2 の Step 2・3 で止まった場合}自動修正: force-app に反映済み・Sandbox 未反映（{止まった段と理由。時間切れで返ったときは「反映は未確認」}）
+{Phase F-2 の Step 1 の中断で止まった場合}自動修正: 中断（{理由}）{force-app に変更があれば（不明を含む）「。途中の変更が force-app に残っている・Sandbox 未反映（{ファイル}）」}
 
 {「NG があった場合の差し戻し」手順7で案内した A（修正手順。NG 原因・修正方針は手順5で implementation-plan.md に記録済み）または B（再テスト手順）をそのまま書く}
 
