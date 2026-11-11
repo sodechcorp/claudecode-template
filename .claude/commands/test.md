@@ -15,7 +15,7 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 | 前提 | 確認方法 |
 |---|---|
-| `/backlog` Phase 6（Sandbox デプロイ）完了後であること（デプロイ済み Sandbox 前提） | `implementation-plan.md` の存在を確認（※これは Phase 3 成果物。デプロイ完了自体は自動検査されない前提条件） |
+| `/backlog` Phase 6（Sandbox デプロイ）完了後であること（デプロイ済み Sandbox 前提） | Phase A でデプロイの記録 `{log_dir}/.sandbox-deployed`（backlog-releaser がデプロイの成功時に書く）の有無と、その後に force-app が変わっていないかを確かめる（外れたら `[WARN]`。止めないが Phase F-2 の自動修正はしない） |
 | Sandbox org に認証済みであること | `sf auth list` でログイン状態を確認 |
 | `docs/logs/{issueID}/test-spec.md` が存在すること | Phase B で自動生成（不在は許容・`--force` で再生成）。事前の手動用意は不要 |
 | Pillow インストール | Phase A で自動インストール実行。失敗時は手動貼付にフォールバック |
@@ -81,6 +81,13 @@ if [ ! -f "${LOG_DIR}/investigation.md" ]; then
   echo "[WARN] investigation.md が見つかりません。テスト仕様の展開精度が下がる可能性があります。"
 fi
 
+# 3.5. Sandbox へのデプロイの記録（backlog-releaser が /backlog Phase 6・F-2 の再デプロイの成功時に書く）
+if [ ! -f "${LOG_DIR}/.sandbox-deployed" ]; then
+  echo "[WARN] Sandbox へのデプロイの記録（.sandbox-deployed）がありません。/backlog Phase 6 を終えていなければ、今の force-app を反映していない Sandbox をテストします。"
+elif [ -n "$(find force-app -type f -newer "${LOG_DIR}/.sandbox-deployed" 2>/dev/null | head -1)" ]; then
+  echo "[WARN] Sandbox へのデプロイ（$(cat "${LOG_DIR}/.sandbox-deployed")）の後に force-app が変わっています。再デプロイしていなければ、今の force-app を反映していない Sandbox をテストします。"
+fi
+
 # 4. sandbox-alias-check（本番保護。共通手順 .claude/templates/common/sandbox-alias-check.md の
 # 「エイリアス取得」「Sandbox 判定」を、Phase A 全体が単一 bash フェンスのハーネス直接実行で
 # 変数（SF_ALIAS 等）を後続ステップと共有する制約上、意図的にインライン複製している。
@@ -138,6 +145,8 @@ fi
 # 書き込み失敗は無視・後続処理をブロックしない）
 python -c "import json; json.dump({'issue_id':'$ISSUE_ID','project_dir':r'$PROJECT_DIR','log_dir':r'$LOG_DIR','xlsx_folder':r'$XLSX_FOLDER','evidence_dir':r'$EVIDENCE_DIR','spec_path':r'$SPEC_PATH','judgment_path':r'$JUDGMENT_PATH','alias':'$SF_ALIAS','instance_url':'$INSTANCE_URL'}, open(r'${LOG_DIR}/.test-context.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=2)" 2>/dev/null || true
 ```
+
+手順3.5 の `[WARN]` が出たら控えて、完了報告の「未確認事項」に写す。
 
 `{log_dir}/test-report.md` に `## テスト結果:` 見出しがあれば、その見出しより後の最初の `### 総合判定` の次の行を `再テスト待ち — テストの完了で確定します` に Edit で書き換える（今回の /test が途中で止まったとき、前回の判定が完了扱いされないようにするため。test-report.md は Phase F で作り直される）。
 
@@ -499,6 +508,10 @@ echo "これまでの NG 修正回数（退避済み R{N}.json の最大回次�
 PLAN_EXISTS=$([ -f "{log_dir}/implementation-plan.md" ] && echo "true" || echo "false")
 INVEST_EXISTS=$([ -f "{log_dir}/investigation.md" ] && echo "true" || echo "false")
 echo "implementation-plan.md: ${PLAN_EXISTS} / investigation.md: ${INVEST_EXISTS}"
+
+# Sandbox が今の force-app を反映しているか（Phase A 手順3.5 と同じ確かめ方）
+DEPLOYED=$([ -f "{log_dir}/.sandbox-deployed" ] && [ -z "$(find force-app -type f -newer "{log_dir}/.sandbox-deployed" 2>/dev/null | head -1)" ] && echo "true" || echo "false")
+echo "Sandbox へのデプロイの記録（その後 force-app の変更なし）: ${DEPLOYED}"
 ```
 
 **ガード①: ループ上限到達（`PREV_ROUND_F2 >= 3`）**:
@@ -506,6 +519,9 @@ echo "implementation-plan.md: ${PLAN_EXISTS} / investigation.md: ${INVEST_EXISTS
 
 **ガード②: 前提ファイル欠落**（`PLAN_EXISTS` または `INVEST_EXISTS` が false）:
 → 自動修正不可。「`implementation-plan.md` / `investigation.md` が見つかりません。`/backlog` Phase 1〜3 を先に完了させてください。」を提示し、後続の手動案内に移行する（implementation-plan.md は Phase A で確かめ済みなので、欠けているのは investigation.md。差し戻しの戻り先は Phase 1）。
+
+**ガード③: デプロイの記録が無い・その後に force-app が変わった（`DEPLOYED` が false）**:
+→ 自動修正しない（NG が Sandbox に反映されていない変更のせいかもしれないため）。後続「NG があった場合の差し戻し」に移るが、`AUTO_FIX_TCS` は手順1・3・5・7の対象にせず（戻り先を決めない・validation-report.md・discussion-log.md・implementation-plan.md を書き換えない）、手順6・7で `OTHER_NG` の案内に添えて「{AUTO_FIX_TCS} は Sandbox が今の force-app を反映していない可能性があります（デプロイの記録なし／その後に force-app を変更）。デプロイしていなければ /backlog {issueID} 再開 → Phase 6（再デプロイだけ）から → /test {issueID} を再実行してください（再デプロイ後も NG なら、その /test が自動修正します。implementation-plan.md の改版履歴の最新の「/test NG差し戻し」の行に自動修正の途中の変更が残っていると書かれていれば、Phase 6 ではなく validation-report.md の総合判定が示す戻り先〔無ければ Phase 4〕から）」と案内する（デプロイ済みだと担当者が答えたら、手順1からの通常の扱いに戻す）。
 
 **ガードを全て通過した場合**: 以下の順で agent を直列 Task 起動して自動修正・再デプロイを実施する。
 
@@ -527,7 +543,7 @@ task_description: 「/test 自動修正起動: {issueID} の実装バグ NG（{a
   ng_source: {judgment_path}
 ```
 
-**backlog-implementer が中断を報告した場合（経路2/3〈実装方針の問題・検証漏れ〉、非対話停止点〈API名不一致・describe・FieldDefinition の失敗〉、または承認ガード例外の条件不成立のいずれか）**: 自動修正ループを中断し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する（実装バグのつもりが方針問題や前提未確認 → 人間判断に委ねる）。
+**backlog-implementer が中断を報告した場合（経路2/3〈実装方針の問題・検証漏れ〉、非対話停止点〈API名不一致・describe・FieldDefinition の失敗〉、テスト仕様の誤りの疑い〈期待結果が実装計画と食い違う〉、または承認ガード例外の条件不成立のいずれか）**: 自動修正ループを中断し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する（実装バグのつもりが方針・テスト仕様の問題や前提未確認 → 人間判断に委ねる）。
 
 **backlog-implementer 完了後（上記いずれの中断も発生していない場合）**: F-2 Step 2 へ進む。完了の返却（変更ファイル数・主な変更点）を返さずに終わった場合は中断と同じに扱う（変えたファイルは「不明」として差し戻しに書く）。
 
@@ -602,7 +618,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 
    NG 種類が混在している場合は、実装バグ（ng_type 空）を最優先で修正してから再テストする。
 
-   Phase F-2 の Step 2（条件付きPASS・FAIL）・Step 3（再デプロイの失敗）で止まった場合は、`AUTO_FIX_TCS` をこの表の `""` として扱い、手順5の NG の原因に dry-run の NG 原因（条件付きPASS はテストクラス未整備）・再デプロイのエラーを、修正方針の先頭に「自動修正で force-app に反映済み・Sandbox 未反映（時間切れで返ったときは未確認）」を書く（Phase 4 で同じ修正をやり直さないため）。Step 1 の backlog-implementer の中断で止まった場合は、`AUTO_FIX_TCS` の戻り先を手順3で中断の理由から決め（実装方針の問題は Phase 3、検証漏れは Phase 3.5 で、この2つは `""` でも Phase 4 にしない。API名不一致・describe・FieldDefinition の失敗は Phase 4〔名前を決めてから・接続を直してから〕。承認ガード例外の条件不成立は validation-report.md の総合判定と理由で決める。完了の返却が無いまま終わったものは Phase 4）、implementer が返した force-app の変更ファイルがあれば（返却が無ければ「不明」として）修正方針の先頭に「自動修正の途中の変更が force-app に残っている（{ファイル}）・Sandbox 未反映」を書く（戻すかは方針を見直すときに決める）。
+   Phase F-2 の Step 2（条件付きPASS・FAIL）・Step 3（再デプロイの失敗）で止まった場合は、`AUTO_FIX_TCS` をこの表の `""` として扱い、手順5の NG の原因に dry-run の NG 原因（条件付きPASS はテストクラス未整備）・再デプロイのエラーを、修正方針の先頭に「自動修正で force-app に反映済み・Sandbox 未反映（時間切れで返ったときは未確認）」を書く（Phase 4 で同じ修正をやり直さないため）。Step 1 の backlog-implementer の中断で止まった場合は、`AUTO_FIX_TCS` の戻り先を手順3で中断の理由から決め（実装方針の問題は Phase 3、検証漏れは Phase 3.5 で、この2つは `""` でも Phase 4 にしない。テスト仕様の誤りの疑いは、implementer が挙げた TC を test-fail-routing.md の「テスト仕様・期待値・シナリオ自体の誤り」の行で、その条件を満たさなければ「判断できない・複合原因」の行で決め、残りの TC は `""` として扱う。API名不一致・describe・FieldDefinition の失敗は Phase 4〔名前を決めてから・接続を直してから〕。承認ガード例外の条件不成立は validation-report.md の総合判定と理由で決める。完了の返却が無いまま終わったものは Phase 4）、implementer が返した force-app の変更ファイルがあれば（返却が無ければ「不明」として）修正方針の先頭に「自動修正の途中の変更が force-app に残っている（{ファイル}）・Sandbox 未反映」を書く（戻すかは方針を見直すときに決める）。
 
 2. **ループ回次を確認する**（`judgment-result.R{N}.json` の最大回次番号 N = これまでの NG 修正回数。欠番があってもファイル数ではなく最大値を基準にする＝ Phase F-2 ガード①の `PREV_ROUND_F2` と同一の算出方法。`test-fail-routing.md` §「ループ上限」のセッション跨ぎ通算カウント基準と同一）:
    ```bash
@@ -763,7 +779,7 @@ NG 一覧:
 {Phase F-2 の Step 2・3 で止まった場合}自動修正: force-app に反映済み・Sandbox 未反映（{止まった段と理由。時間切れで返ったときは「反映は未確認」}）
 {Phase F-2 の Step 1 の中断で止まった場合}自動修正: 中断（{理由}）{force-app に変更があれば（不明を含む）「。途中の変更が force-app に残っている・Sandbox 未反映（{ファイル}）」}
 
-{「NG があった場合の差し戻し」手順7で案内した A（修正手順。NG 原因・修正方針は手順5で implementation-plan.md に記録済み）または B（再テスト手順）をそのまま書く}
+{「NG があった場合の差し戻し」手順7で案内した A（修正手順。NG 原因・修正方針は手順5で implementation-plan.md に記録済み）または B（再テスト手順）と、Phase F-2 のガード③で止まった場合はその再デプロイの案内をそのまま書く}
 
 {要手動がある場合}
 要手動確認:
@@ -772,7 +788,7 @@ NG 一覧:
     ※ 対象レコード・URLが特定できない TC は URL 行を省略する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) 準拠）
 
 確認方法: 担当者がエビデンス.xlsx の「テスト結果」シートの判定と、証跡シートのエビデンスの TC・NG の TC（test-report.md に「🔎 目視確認のご案内」があればそのレコード URL・操作手順）を開き、期待結果どおりなら OK
-未確認事項: {Phase B（test-spec-builder）返却の [WARN] 行があれば列挙 ＋ 要手動確認 TC があれば「上記「要手動確認」参照」を追記 / いずれもなければ「未確認事項なし」}
+未確認事項: {Phase A 手順3.5・Phase B（test-spec-builder）返却の [WARN] 行があれば列挙 ＋ 要手動確認 TC があれば「上記「要手動確認」参照」を追記 / いずれもなければ「未確認事項なし」}
 ```
 
 test-report.md の「🔎 目視確認のご案内」に Claude が操作した対象の一覧（レコードURL・操作手順つき）がまとまっている。NG（画面エラー含む）はここから直接開いて確認できる（要手動は通常含まれない）。

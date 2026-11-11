@@ -17,9 +17,9 @@
   - 差し戻し先が Phase 5（デプロイ失敗等・dry-run で検知可能な問題） → 「Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
   - 分岐を提示する前に `docs/logs/{issueID}/` 配下の `release-issue.R{N}.md` の最大回次番号 N（＝ Phase 6 からの過去の差し戻し回数。欠番があってもファイル数ではなく最大値を基準にする）を確認する。現在の `release-issue.md`（今回分）を含めた通算差し戻し回数（N + 今回分）が4回目以上に達している場合は「Phase 6 からの差し戻しが繰り返されています。業務担当者との打ち合わせを推奨します」を添えて提示する。
   - 選択後: 把握済みの差し戻し理由・現象・ログを踏まえて該当フェーズを実施する
-- `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `FAIL` で始まる → 「Phase 4（/test NG 修正）から / `/test {issueID}` を再実行（実装・設定・方針を直さない NG だけの場合）/ 中止 のどれにしますか？」（`judgment-result.json` の `ng_list` の `ng_type` が `未実行`・`証跡不正`・`命名不一致` だけで、`未実行` の `reason` に「他の証跡の NG」を含むものが無ければ `/test` の再実行を推奨として添える。`/test` の再実行を選んだ場合は `/backlog` を再開せず、`/test {issueID}` の起動〔test-spec.md を直す TC があれば直してから〕を案内して終える）
+- `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `FAIL` で始まる → 「Phase 4（/test NG 修正）から / Phase 6（再デプロイだけ。今の force-app を Sandbox にデプロイしていない場合）から / `/test {issueID}` を再実行（実装・設定・方針を直さない NG だけの場合）/ 中止 のどれにしますか？」（`judgment-result.json` の `ng_list` の `ng_type` が `未実行`・`証跡不正`・`命名不一致` だけで、`未実行` の `reason` に「他の証跡の NG」を含むものが無ければ `/test` の再実行を推奨として添える。`/test` の再実行を選んだ場合は `/backlog` を再開せず、`/test {issueID}` の起動〔test-spec.md を直す TC があれば直してから〕を案内して終える）
   - 分岐を提示する前に `test-fail-routing.md §ループ上限` のループ回次を確認する（`docs/logs/{issueID}/` 配下の `judgment-result.R{N}.json` の最大回次番号 N = これまでの NG 修正回数。欠番があってもファイル数ではなく最大値を基準にする）。既に上限（3回）に達している場合は「差し戻し上限に達しています。業務担当者との打ち合わせを推奨します」を添えて提示する。
-  - 選択後: Phase 4 で修正 → Phase 5（dry-run）→ Phase 6（Sandbox 再デプロイ）→ `/test` 再実行
+  - 選択後: Phase 4 で修正 → Phase 5（dry-run）→ Phase 6（Sandbox 再デプロイ）→ `/test` 再実行（Phase 6 を選んだ場合は Phase 6 → `/test` 再実行）
 - `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `条件付きPASS` で始まる → 「Phase 4（受入基準再確認を踏まえた再実装）から / Phase 6（リリース、要確認を許容して進める）から / 中止 のどれにしますか？」
 - `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `PASS` で始まる → 「Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
 - `test-report.md` 存在 **かつ** `### 総合判定` の直後の行が `AI判定待ちあり` で始まる → `/test` の AI 判定（Phase D-2）が完了していない。[test.md](../../commands/test.md) の Phase D-2 から Phase G まで（D-2・E・F・F-1・F-2・G）だけを、`docs/logs/{issueID}/.test-context.json` の値で実施し、test.md の「完了報告フォーマット」で報告して終える（`/test` 全体は再実行しない。`/backlog` の再開は行わない。`.test-context.json` が無ければ `/test {issueID}` の再実行を案内する）
