@@ -10,7 +10,7 @@
 | ファイル | 目的 | 正本 |
 |---|---|---|
 | `agent-phase0-template.md` | 新規エージェント追加時の Phase 0 + Step 0c 冒頭ブロックのテンプレート | ○ |
-| `sf-context-load-phase0.md` | `sf-context-loader` 呼び出し仕様（パラメータ・結果解釈・不確実マーカー運用） | ○ |
+| `sf-context-load-phase0.md` | `sf-context-loader` 呼び出し仕様（ダイジェスト優先・パラメータ・結果解釈・不確実マーカー運用） | ○ |
 | `step-0c-template.md` | SF系エージェント共通の Step 0c（実装裏付け・出典確認・スコープ管理・不確実マーカーの要約＋各 spec への索引） | △（§1 実装裏付けは `.claude/CLAUDE.md` が正本。§2-5 は自己完結） |
 | `agent-cleanup-template.md` | `tmp_dir` を使うエージェントの Phase 最終クリーンアップ実装パターン | ○ |
 
@@ -29,7 +29,7 @@
 | ファイル | 目的 | 正本 |
 |---|---|---|
 | `backlog-mcp-hygiene.md` | Backlog MCP の取得の作法（count 指定・ページング・転記するフィールドの絞り込み） | ○ |
-| `knowledge-reflux-formats.md` | `backlog-releaser.md` / `backlog.md §中断時の知見還流` が共有する追記フォーマット | ○ |
+| `knowledge-reflux-formats.md` | 知見還流（`docs/decisions.md`・`docs/logs/`・`docs/knowledge/` への追記）のフォーマット | ○ |
 | `manual-steps-todo-handoff.md` | 手順書の Todo 化・逐次ハンドオフ共通仕様（`/release` Step 4・Step 5・`/backlog` Phase 6 が使用） | ○ |
 | `cases-format.md` | `docs/knowledge/cases/<案件キー>.md` の出力構造 | ○ |
 | `completion-report-spec.md` | SF環境の状態に関わる完了報告のフォーマット | ○ |

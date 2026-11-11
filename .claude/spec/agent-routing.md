@@ -41,7 +41,7 @@
 | Phase 3.5 → backlog.md（本体）から直接 Task 委譲（二段ネスト回避のため validator 経由にしない） | `regression-guard` | 変更ファイルの依存先・テストカバレッジ・影響再走査・過去修正履歴を一括確認。Write 持たない |
 | Phase 3.5（UI 影響時のみ）→ backlog.md（本体）から直接 Task 委譲 | `ui-evidence-runner`（`mode: before-capture`） | 実装前の現状画面を自動撮影 |
 
-> **investigator / planner の残存ネスト構造（意図的に据え置き）**: investigator は `backlog-blind-second-opinion`（option-second-opinion。Phase 1 再入モードのみ）を、planner は `sf-context-loader`（context-digest.md が無い場合のみ）をそれぞれ単発・非並列で Task 委譲する。いずれも「同一メッセージでの並列発行」を伴わない単発ネストであり、`auto-evidence-runner → ui-evidence-runner`（`/test`）と同型の安定パターンのため main thread への引き上げ対象外とした。不安定化が確認されているのは「サブエージェント内からの同一メッセージでの複数 Agent/Task 同時発行」（旧 backlog-validator Step1+Step2-3、investigator 旧 Step0a+B-1）であり、こちらは解消済み（メインスレッドからの同時発行は該当しない）。
+> **investigator / planner の残存ネスト構造（意図的に据え置き）**: investigator は `backlog-blind-second-opinion`（option-second-opinion。Phase 1 再入モードのみ）を、planner は `sf-context-loader`（context-digest.md が無いか足りない場合のみ）をそれぞれ単発・非並列で Task 委譲する。いずれも「同一メッセージでの並列発行」を伴わない単発ネストであり、`auto-evidence-runner → ui-evidence-runner`（`/test`）と同型の安定パターンのため main thread への引き上げ対象外とした。不安定化が確認されているのは「サブエージェント内からの同一メッセージでの複数 Agent/Task 同時発行」（旧 backlog-validator Step1+Step2-3、investigator 旧 Step0a+B-1）であり、こちらは解消済み（メインスレッドからの同時発行は該当しない）。
 
 ## コマンド専用エージェント（内部処理からのみ起動・ユーザーの直接指示不可）
 

@@ -98,7 +98,7 @@ grep -rn "{シンボル名}" "{プロジェクトルート}/force-app/" --includ
    ```bash
    grep -rli "testMethod\|@IsTest" "{プロジェクトルート}/force-app/" --include="*.cls" | wc -l
    ```
-2. 変更クラス・トリガーに対応するテストクラスを特定する。**候補: `{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls` を grep で探す**（トリガーはファイル名（拡張子除く）を `{ClassName}` として同じ規則を適用する。backlog-tester.md Step 2・release-preparer.md Phase 1 と同一パターン）。**候補が1件も見つからない場合は「対応テストクラスなし」と確定し、返却フォーマットの「テストカバレッジ」欄に明記する**
+2. 変更クラス・トリガーに対応するテストクラスを特定する。**候補を [命名規則](../templates/backlog/_partials/test-class-naming-patterns.md) の名前で grep で探す**。**候補が1件も見つからない場合は「対応テストクラスなし」と確定し、返却フォーマットの「テストカバレッジ」欄に明記する**
 3. テストクラスの `@IsTest` メソッドと assert 内容を Read して確認
 
 ### Step 3: 影響範囲の再走査

@@ -311,7 +311,7 @@ Step B（コード調査）に進む前に、課題に紐づく周辺情報を�
 
 #### B-1.5: コンテキストダイジェスト書き出し（下流フェーズへの引き継ぎ）
 
-Step 0a（knowledge 層）と Step B-1（設計層）の取得結果を統合し、`docs/logs/{issueID}/context-digest.md` に書き出す。下流エージェント（planner / validator / implementer / tester / releaser）はこのファイルを Read することで sf-context-loader の再起動を省略できる（最大 6 回の loader 起動を削減）。
+Step 0a（knowledge 層）と Step B-1（設計層）の取得結果を統合し、`docs/logs/{issueID}/context-digest.md` に書き出す。下流のエージェントはこのファイルを Read して sf-context-loader の起動を省く（[sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md)「ダイジェスト優先」）。
 
 `docs/logs/{issueID}/context-digest.md` に以下の構造で保存する（Write ツール使用）:
 

@@ -21,7 +21,7 @@ tools:
 
 > **絶対原則**: 本番組織に対しては **read-only 操作のみ**。`sf project deploy`（`--dry-run` 含む）・DML・`force-app/` への書き込みは一切行いません。あなたの成果物は「人間が実行する手順書」であり、あなた自身がデプロイを実行することはありません。
 >
-> **read-only で自分で実行するもの（人間に渡さない）**: 本番の現行資材の取得（バックアップ兼・差分の帰属確認）、データへの影響がある場合の対象データの CSV 退避、リリース後の確認（資材の一致・有効化状態・削除の反映。本番の画面確認は `prod-ui-verifier` が `release.md` Step 5 から別途実施する）。いずれも [prod-readonly-check.md](../templates/common/prod-readonly-check.md) で許可された `sf project retrieve start`（force-app 以外への取得）・`sf org list metadata`・`sf sobject describe`・`sf data query`（SELECT）だけで行う。本番に対するコマンドは `cd "{project_dir}" &&` を付けて実行する（`docs/logs/...` の相対パスと SFDX プロジェクトを前提にするため）。この原則は hook（`pre-operation.js`）・settings.json の deny リストでも機械的にブロックされていますが、そもそも実行を試みないこと。
+> **read-only で自分で実行するもの（人間に渡さない）**: 本番の現行資材の取得（バックアップ兼・差分の帰属確認）、データへの影響がある場合の対象データの CSV 退避、リリース後の確認（資材の一致・有効化状態・削除の反映。本番の画面確認は `prod-ui-verifier` が `release.md` Step 5 から別途実施する）。いずれも [prod-readonly-check.md](../templates/common/prod-readonly-check.md) で許可された `sf project retrieve start`（force-app 以外への取得）・`sf org list metadata`・`sf sobject describe`・`sf data query`（SELECT）だけで行う。本番に対するコマンドは `cd "{project_dir}" &&` を付けて実行する（`docs/logs/...` の相対パスと SFDX プロジェクトを前提にするため）。prod-readonly-check.md の禁止一覧の sf のコマンド（デプロイ・`sf data` の書き込み・`sf apex run` 等）は hook（`pre-operation.js`）・settings.json の deny でも止まる（本番かどうかは接続先のエイリアス名で判定する）が、`force-app/` への書き込みと一覧に無いコマンドは止まらない。どれも、そもそも実行を試みないこと。
 >
 > **スクリプト呼び出しはフルパスで行うこと**。エージェント実行時は CWD が不定のため、`python "{project_dir}/scripts/..."` 形式を使用する。
 >
@@ -51,9 +51,7 @@ Step 0a・Step 0b・Phase 1〜3・Phase 5〜6 はスキップする。Step 0c �
 
 まず `docs/logs/{issueID}/investigation.md` を **方式B**（[CLAUDE.md §中間成果物の分割読込](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通) 準拠。本ファイルは「## Step 0b オプション判定結果」「## 既存テストクラスへの影響」「## 影響ユーザー調査」（いずれも Phase 1/2 で参照）を含め消費するセクションが3個以上のため方式Bを選択）で読む。ここでは「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Grep で先に検索し、該当箇所のみ Read する（Phase 1/2 で参照する残りのセクションは、各所が実際にそのセクションを必要とする時点で同様に Grep → 該当箇所のみ Read する。Step0a でまとめて先読みはしない＝実行経路によっては参照されないセクションを無駄読みしないため）。件名 + 課題サマリー + 要件理解と対象 F-番号・オブジェクト名・機能名を抽出する。同時にフロントマターを `^deploy_route:` で Grep し `{deploy_route}` を取得する（Step 0b の test-report.md 判定で使用。investigation.md 自体が無い場合、または該当行が無い場合は `{deploy_route}` は未確定として Step 0b の通常分岐に従う）。investigation.md が無い場合は `docs/logs/{issueID}/implementation-plan.md` の実装方針まとめ（**判断ポイントが0件のケース**〔backlog-planner B-3 の設計により「### 実装方針まとめ」の代わりに「### 判断ポイントなし（全カテゴリ一意確定）」が出力されている場合〕は代わりに「## 関連コンポーネント一覧（変更対象ファイル）」を使う）→ 呼び出し元から渡された課題タイトルの順でフォールバックする。
 
-> **ダイジェスト優先（高速化）**: `docs/logs/{issueID}/context-digest.md` が存在する場合は Read してコンテキストを再利用し、Task tool の sf-context-loader 起動を省略する。
-
-Task tool で `sf-context-loader` を起動する（ダイジェストがない場合のみ）:
+次に、呼び出し仕様の「ダイジェスト優先」に従い、起動する場合だけ Task tool で `sf-context-loader` を起動する:
 
 ```
 task_description: 「{課題タイトル + investigation.md の課題サマリー + 要件理解}」
@@ -146,7 +144,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 4. [deploy-skip-judgment.md](../templates/backlog/deploy-skip-judgment.md) の考え方を適用し、ソースデプロイ不可・管理画面手動操作が必要な資材があれば分離して記録する
 5. **デプロイ元は常に `force-app` 本体**。他チケットとの競合解消やマージ検証のためにバックアップ/作業用フォルダ（例: `release-backup/{issueID}/...`）を作った場合でも、そこを Phase 5 のデプロイコマンドの参照先に指定しない。競合解消後の変更は必ず `force-app` にマージしてから 1. の diff 抽出・Phase 5 のデプロイコマンドに反映する。**Phase 5 の dry-run・本番デプロイ（Step 2/3）は `--source-dir force-app`（全量）ではなく、資材マニフェストのうち変更種別が「新規/変更」の項目に絞った `--metadata`（削除がある場合は同じ項目を列挙した `--manifest`。2b の `profile-delta/` にファイルがある場合は、同じ項目を force-app から変換してプロファイル・翻訳を差し替えたメタデータ形式のパッケージ `--metadata-dir`）を使う**（削除は `destructiveChanges.xml` で同じデプロイに付ける。詳細は Phase 5 の手順書生成時）。**バックアップ（Phase 4 の4.）は「削除」を含む本番に存在する全項目が対象のため Step 2/3 とは範囲が異なる**（適用範囲〔Step 2/3 の新規/変更と削除〕と退避範囲を一致させる。`--source-dir force-app` のままだと、force-app 配下に紛れ込んだ他チケットの未レビュー変更や、資材マニフェストに含まれない変更まで黙って本番に混入しうる）
 6. **`apex_in_scope: true` の場合、`--test-level` 判定用にテストクラスを確定する**（目的: 無関係な既存テストを全件実行する `RunLocalTests` を既定にせず、Salesforce 公式仕様上カバレッジ要件が「デプロイ対象クラス単位」で完結する `RunSpecifiedTests` をデフォルトにするため。根拠: RunSpecifiedTests は対象クラス/トリガーごとに個別カバレッジ75%が要件で無関係な既存テストの合否を問わないが、RunLocalTests は組織内の全ローカルテストの実行・合格が要件になる）:
-   - デプロイ対象（Step 2/3 でデプロイする、変更種別が新規/変更のもの。以下同じ）の各 `.cls` / `.trigger` について、命名規則（`{ClassName}Test.cls` / `{ClassName}_Test.cls` / `Test{ClassName}.cls`）で専用テストクラスを Glob/Grep で特定する（regression-guard.md Step 2 の候補パターンと一致）。デプロイ対象に含まれるテストクラス（`@isTest`）自体はカバレッジの計算対象外のため探さず、テストメソッドを持つものを `target_test_classes` に加える
+   - デプロイ対象（Step 2/3 でデプロイする、変更種別が新規/変更のもの。以下同じ）の各 `.cls` / `.trigger` について、[命名規則](../templates/backlog/_partials/test-class-naming-patterns.md)で専用テストクラスを Glob/Grep で特定する。デプロイ対象に含まれるテストクラス（`@isTest`）自体はカバレッジの計算対象外のため探さず、テストメソッドを持つものを `target_test_classes` に加える
    - デプロイ対象のクラス名で `force-app/**/*Test*.cls` を Grep し（単語単位・大文字小文字を区別しない）、ヒットしたクラスのうちテストメソッドを持つもの（変更対象を呼ぶ既存テストクラス。[option-test-class-impact.md](../templates/backlog/options/option-test-class-impact.md) 実行手順2のクラス名での探し方）も `target_test_classes` に加える（下記の `test_coverage_risk` の判定には含めない）
    - `docs/logs/{issueID}/investigation.md` の「## 既存テストクラスへの影響」（option-test-class-impact.md が `/backlog` Phase 1 で作成済みの場合）に追加で挙がっているテストクラスがあれば取り込む
    - 専用テストクラスを探した全クラス・トリガーに見つかった場合（探す対象が無い＝デプロイ対象の Apex がテストクラスだけの場合を含む） → `test_coverage_risk: false`、上記で特定・追加したテストクラス一覧を `target_test_classes` として記録

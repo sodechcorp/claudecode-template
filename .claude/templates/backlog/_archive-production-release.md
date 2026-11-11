@@ -53,7 +53,7 @@ sf project deploy start --source-dir force-app --target-org <本番エイリア�
 
 ## オプション: option-rollback-readiness
 
-本番デプロイ前にロールバック手順を最終確認するオプション。Phase 6 インデックス（`_index-phase6.md`）から除去済みだが、将来の本番リリースコマンドで再利用できるよう内容を保全する。
+本番デプロイ前にロールバック手順を最終確認するオプション。Phase 6 インデックス（`_index-phase6.md`）から除去済みで、/release（release-preparer.md Phase 5）で再利用中。
 
 元の定義ファイル: `.claude/templates/backlog/options/option-rollback-readiness.md`
 

@@ -24,6 +24,6 @@ options:
     estimated-cost: 中
 
   # option-rollback-readiness は Phase 6 から除去（Phase 6 は Sandbox 専用のため常に auto-skip になるため）。
-  # 将来の本番リリース専用コマンドで再利用予定。資産は _archive-production-release.md に退避済み。
+  # /release（release-preparer.md Phase 5）で再利用中。資産は _archive-production-release.md に退避済み。
   # オプション定義ファイル自体は options/option-rollback-readiness.md に残存。
 ```

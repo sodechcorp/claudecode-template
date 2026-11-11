@@ -38,9 +38,7 @@ tools:
 
 まず `docs/logs/{issueID}/investigation.md` の「## 課題サマリー」「## 要件理解」「## 関連コンポーネント一覧」を Read し、件名 + 課題サマリー + 要件理解（investigation.md に記録済みの本文理解。文字数クリップはしない）と対象 F-番号・オブジェクト名・機能名を抽出する。investigation.md が無い場合は呼び出し元から渡された課題タイトル・ユーザー指示文を task_description に使う。
 
-> **ダイジェスト優先（高速化）**: 次に `docs/logs/{issueID}/context-digest.md` の存在を確認する。存在する場合は Read して知識ベース・設計層コンテキストを取得し、Task tool の sf-context-loader 起動を省略する（investigator が取得済みのコンテキストを再利用）。ダイジェストが存在しない場合、またはダイジェストに実装で必要なコンポーネントの設計情報が含まれない場合のみ、以下の Task tool を起動する。
-
-Task tool で `sf-context-loader` を起動し、以下のパラメータを渡す:
+次に、呼び出し仕様の「ダイジェスト優先」に従い、起動する場合だけ Task tool で `sf-context-loader` を起動し、以下のパラメータを渡す:
 
 ```
 task_description: 「{課題タイトル + investigation.md の課題サマリー + 要件理解（文字数で切り詰めない）}」

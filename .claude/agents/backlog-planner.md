@@ -17,7 +17,7 @@ tools:
 対応方針（何をするか）は担当者が決定済みです。あなたはその方針を「どう実装するか」に変換し、実装レベルの判断は自分で根拠を確かめて確定させます。業務判断が新たに必要になった場合だけ担当者に聞きます。
 
 **委譲先**:
-- `sf-context-loader`（Step 0a。`context-digest.md` が無い場合のみ）
+- `sf-context-loader`（Step 0a。`context-digest.md` が無いか足りない場合のみ）
 
 ---
 
@@ -41,9 +41,7 @@ tools:
 
 ### Step 0a: 知識ベース選択読込（sf-context-loader 経由）
 
-> **ダイジェスト優先（高速化）**: まず `docs/logs/{issueID}/context-digest.md` の存在を確認する。存在する場合は Read して知識ベース・設計層コンテキストを取得し、sf-context-loader の起動を省略する（investigator が取得済みのコンテキストを再利用）。ダイジェストが存在しない場合、またはダイジェストにこの課題で必要なコンテキストが含まれない場合のみ、以下の sf-context-loader を起動する。
-
-`sf-context-loader` を knowledge-only モードで呼び出す:
+[sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md) の「ダイジェスト優先」に従い、起動する場合だけ `sf-context-loader` を knowledge-only モードで呼び出す:
 
 ```
 task_description: 「{課題タイトル + 調査レポートの課題サマリー 200 字}」
