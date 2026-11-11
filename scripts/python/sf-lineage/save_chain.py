@@ -2,7 +2,7 @@
 
 Salesforce の実行順序（Apex 開発者ガイド「Triggers and Order of Execution」）のうち、静的に分かるものを「起こり得る」連鎖として出す:
 - 保存で動くもの: 入力規則（有効なものはすべて再評価）・before/after のトリガー・レコードトリガーフロー・ワークフロールール・重複ルール
-- ワークフローの項目自動更新 → 同じレコードの update のトリガーがもう1回動く
+- ワークフローの項目自動更新 → 同じレコードの update のトリガーがもう1回動く（ワークフローのルールから呼ばれるものだけ。承認プロセスから呼ばれるものは保存では動かないので、別に出す）
 - 積み上げ集計・他オブジェクトを更新するワークフロー → 親のレコードの保存（親でも同じことが起きる）
 - フロー・Apex の作成・更新・削除 → 書き込んだオブジェクトの保存
 使い方: python save_chain.py <参照の層の出力フォルダ> <Apex の段階2の出力フォルダ> Obj__c [--depth 3]
@@ -15,6 +15,7 @@ import sys
 from collections import defaultdict
 
 ON_SAVE_TYPES = ("ApexTrigger", "Flow", "WorkflowRule", "ValidationRule", "DuplicateRule", "AssignmentRule")
+APPROVAL_FU: dict[str, set] = defaultdict(set)   # obj -> {(項目自動更新, 承認プロセス)}（保存では動かない）
 
 
 def load(paths):
@@ -28,6 +29,13 @@ def load(paths):
 def build(refs, fields):
     on_save = defaultdict(set)      # obj -> {(種類, 名前)}
     writes_obj = defaultdict(set)   # (種類, 名前) -> {書き込むオブジェクト}
+    # 項目自動更新は、ワークフローのルールから呼ばれるものだけが保存で動く。承認プロセスから呼ばれるものは、申請・承認・却下・取り下げのときに動く
+    fu_by_rule = {r["target"].split(":", 1)[1] for r in refs
+                  if r["src_type"] == "WorkflowRule" and r["role"] == "call" and r["target"].startswith("WorkflowFieldUpdate:")}
+    for r in refs:
+        if r["src_type"] == "ApprovalProcess" and r["role"] == "call" and r["target"].startswith("WorkflowFieldUpdate:"):
+            fu = r["target"].split(":", 1)[1]
+            APPROVAL_FU[fu.split(".", 1)[0]].add((fu, r["src_name"]))
     for r in refs:
         st, sn = r["src_type"], r["src_name"]
         if r["tkind"] == "object" and r["role"] == "trigger_on" and st in ON_SAVE_TYPES:
@@ -46,7 +54,8 @@ def build(refs, fields):
             writes_obj[(st, sn)].add(r["target"])
         if st == "WorkflowFieldUpdate" and r["role"] == "write" and r["tkind"] == "field":
             writes_obj[(st, sn)].add(r["target"].split(".", 1)[0])
-            on_save[sn.split(".", 1)[0]].add((st, sn))
+            if sn in fu_by_rule:
+                on_save[sn.split(".", 1)[0]].add((st, sn))
     # 積み上げ集計: 子の保存 → 親の保存
     rollup_parent = defaultdict(set)  # 子 -> {(親, 集計項目)}
     for obj, fs in fields.items():
@@ -78,6 +87,9 @@ def chain(obj, on_save, writes_obj, rollup_parent, depth, seen=None, indent=""):
             lines.append(f"{indent}  - {st}: " + ", ".join(sorted(set(groups[st]))))
     if groups.get("WorkflowFieldUpdate"):
         lines.append(f"{indent}  ※ ワークフローの項目自動更新があるので、update のトリガーがもう1回動く（公式の実行順序）")
+    if APPROVAL_FU.get(obj):
+        lines.append(f"{indent}  ※ 保存では動かないが、承認プロセスの申請・承認・却下・取り下げで動く項目自動更新: "
+                     + ", ".join(sorted(f"{fu}〔{ap}〕" for fu, ap in APPROVAL_FU[obj])))
     nexts = set()
     for st, sn in autos:
         for o2 in writes_obj.get((st, sn), set()):

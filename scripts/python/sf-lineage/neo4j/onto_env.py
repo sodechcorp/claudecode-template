@@ -280,6 +280,191 @@ def cmd_relations(env: Env, argv: list[str]) -> None:
     print(f"オブジェクトの関係の線 {res[0]['n']} 本（参照・主従の項目 {len(rows)} 件のうち、両方のオブジェクトが入っているもの）")
 
 
+# ---------- props（自動処理の性質） ----------
+MNS = "{http://soap.sforce.com/2006/04/metadata}"
+
+
+def _x(path: str):
+    import xml.etree.ElementTree as ET
+    try:
+        return ET.parse(path).getroot()
+    except (ET.ParseError, OSError):
+        return None
+
+
+def _t(el, tag: str) -> str | None:
+    if el is None:
+        return None
+    c = el.find(MNS + tag)
+    return c.text.strip() if c is not None and c.text and c.text.strip() else None
+
+
+def _short(s: str | None, n: int = 300) -> str | None:
+    return " ".join(s.split())[:n] if s else None
+
+
+STATUS = {"Active": "有効", "Draft": "下書き", "Obsolete": "無効", "InvalidDraft": "下書き（エラーあり）", "Inactive": "無効",
+          "Deleted": "削除済み", "true": "有効", "false": "無効"}
+RTT = {"Create": "作成時", "Update": "更新時", "CreateAndUpdate": "作成・更新時", "Delete": "削除時"}
+
+
+def metadata_props(fa: str) -> dict[str, dict]:
+    """force-app から、部品（qualifiedName）ごとの性質を作る。値は文字列だけ（空は入れない）。"""
+    out: dict[str, dict] = {}
+
+    def put(qn, **kv):
+        out.setdefault(qn, {}).update({k: v for k, v in kv.items() if v})
+
+    # フロー
+    d = os.path.join(fa, "flows")
+    for fn in (os.listdir(d) if os.path.isdir(d) else []):
+        if not fn.endswith(".flow-meta.xml"):
+            continue
+        r = _x(os.path.join(d, fn))
+        if r is None:
+            continue
+        name, st = fn[: -len(".flow-meta.xml")], r.find(MNS + "start")
+        pt, tt, rt = _t(r, "processType"), _t(st, "triggerType"), _t(st, "recordTriggerType")
+        kind = ("画面フロー" if pt == "Flow" else "プロセスビルダー" if pt == "Workflow"
+                else "レコードトリガーフロー" if tt in ("RecordBeforeSave", "RecordAfterSave", "RecordBeforeDelete")
+                else "スケジュールトリガーフロー" if tt == "Scheduled" else "プラットフォームイベントトリガーフロー" if tt == "PlatformEvent"
+                else "自動起動フロー（呼ばれたときに動く）")
+        when = {"RecordBeforeSave": "保存前", "RecordAfterSave": "保存後", "RecordBeforeDelete": "削除前"}.get(tt)
+        if when:
+            when += f"（{_t(st, 'object')}・{RTT.get(rt, rt or '')}）"
+        elif tt == "Scheduled":
+            sc = st.find(MNS + "schedule")
+            when = f"スケジュール（{_t(sc, 'frequency')}・{_t(sc, 'startDate')} {_t(sc, 'startTime') or ''}）".strip()
+        conds = []
+        for f in (st.iter(MNS + "filters") if st is not None else []):
+            v = f.find(MNS + "value")
+            val = next((c.text for c in v) if v is not None else iter([]), None)
+            conds.append(f"{_t(f, 'field')} {_t(f, 'operator')} {val}")
+        cond = _t(st, "filterFormula") or ((f" {_t(st, 'filterLogic') or 'and'} ".join(conds)) if conds else None)
+        put(f"flow:{name}", 種類=kind, 動く時=when, 順番=_t(r, "triggerOrder"), 状態=STATUS.get(_t(r, "status"), _t(r, "status")),
+            開始条件=_short(cond), 説明=_short(_t(r, "description")), APIバージョン=_t(r, "apiVersion"))
+    # Apex トリガ・クラス
+    for sub, ext, meta in (("triggers", ".trigger", ".trigger-meta.xml"), ("classes", ".cls", ".cls-meta.xml")):
+        d = os.path.join(fa, sub)
+        for fn in (os.listdir(d) if os.path.isdir(d) else []):
+            if not fn.endswith(ext):
+                continue
+            name = fn[: -len(ext)]
+            src = open(os.path.join(d, fn), encoding="utf-8", errors="ignore").read()
+            m = _x(os.path.join(d, name + meta))
+            if sub == "triggers":
+                h = re.search(r"trigger\s+\w+\s+on\s+(\w+)\s*\(([^)]*)\)", src, re.I)
+                ev = []
+                for e in (h.group(2).split(",") if h else []):
+                    w = e.strip().lower().split()
+                    if len(w) == 2:
+                        ev.append({"before": "保存前", "after": "保存後"}.get(w[0], w[0]) + "・"
+                                  + {"insert": "作成", "update": "更新", "delete": "削除", "undelete": "復元"}.get(w[1], w[1]))
+                put(f"trigger:{name}", 種類="Apex トリガ", 動く時=(f"{h.group(1)}: " + "、".join(ev)) if h else None,
+                    状態=STATUS.get(_t(m, "status"), _t(m, "status")), APIバージョン=_t(m, "apiVersion"))
+            else:
+                how = [lab for pat, lab in ((r"@AuraEnabled", "画面（LWC・Aura）"), (r"@InvocableMethod", "フロー・プロセス"),
+                                            (r"implements\s+[^{]*\bSchedulable\b", "スケジュール"), (r"Database\.Batchable", "バッチ"),
+                                            (r"@RestResource", "REST API"), (r"\bwebservice\b", "SOAP API"),
+                                            (r"@future", "非同期（future）"), (r"implements\s+[^{]*\bQueueable\b", "非同期（Queueable）"))
+                       if re.search(pat, src, re.I)]
+                put(f"apex:{name}", 種類="Apex クラス", 呼ばれ方="・".join(how), 状態=STATUS.get(_t(m, "status"), _t(m, "status")),
+                    APIバージョン=_t(m, "apiVersion"))
+    # 入力規則・数式項目・積み上げ集計
+    od = os.path.join(fa, "objects")
+    for obj in (os.listdir(od) if os.path.isdir(od) else []):
+        vd = os.path.join(od, obj, "validationRules")
+        for fn in (os.listdir(vd) if os.path.isdir(vd) else []):
+            r = _x(os.path.join(vd, fn))
+            name = fn.split(".")[0]
+            put(f"vr:{obj}.{name}", 種類="入力規則", 動く時=f"保存前（{obj}・作成・更新時）", 状態=STATUS.get(_t(r, "active"), _t(r, "active")),
+                説明=_short(_t(r, "description")), エラーの表示先=_t(r, "errorDisplayField"))
+        fd = os.path.join(od, obj, "fields")
+        for fn in (os.listdir(fd) if os.path.isdir(fd) else []):
+            r = _x(os.path.join(fd, fn))
+            name = fn.split(".")[0]
+            if _t(r, "summaryOperation"):
+                put(f"rollup:{obj}.{name}", 種類="積み上げ集計項目", 動く時=f"子（{_t(r, 'summaryForeignKey') or ''}）の保存のあと",
+                    説明=_short(_t(r, "description")), ヘルプ=_short(_t(r, "inlineHelpText")))
+            elif _t(r, "formula"):
+                put(f"formula:{obj}.{name}", 種類="数式項目", 動く時="読むたびに計算（保存はしない）", データ型=_t(r, "type"),
+                    説明=_short(_t(r, "description")), ヘルプ=_short(_t(r, "inlineHelpText")))
+    # 項目自動更新（ワークフローのルールから＝保存時／承認プロセスから＝申請・承認・却下・取り下げ時）
+    wd = os.path.join(fa, "workflows")
+    calls: dict[str, list[str]] = {}
+    for fn in (os.listdir(wd) if os.path.isdir(wd) else []):
+        r = _x(os.path.join(wd, fn))
+        obj = fn.split(".")[0]
+        for ru in (r.iter(MNS + "rules") if r is not None else []):
+            for a in ru.iter(MNS + "actions"):
+                if _t(a, "type") == "FieldUpdate":
+                    calls.setdefault(f"{obj}.{_t(a, 'name')}", []).append(
+                        f"ワークフロールール「{_t(ru, 'fullName')}」（{STATUS.get(_t(ru, 'active'), '')}）の保存時")
+    ad = os.path.join(fa, "approvalProcesses")
+    for fn in (os.listdir(ad) if os.path.isdir(ad) else []):
+        r = _x(os.path.join(ad, fn))
+        obj = fn.split(".")[0]
+        lab = _t(r, "label") or fn
+        for sec, when in (("initialSubmissionActions", "申請時"), ("finalApprovalActions", "最終承認時"), ("finalRejectionActions", "最終却下時"),
+                          ("recallActions", "取り下げ時")):
+            for s in (r.iter(MNS + sec) if r is not None else []):
+                for a in s.iter(MNS + "action"):
+                    if _t(a, "type") == "FieldUpdate":
+                        calls.setdefault(f"{obj}.{_t(a, 'name')}", []).append(f"承認プロセス「{lab}」の{when}")
+        for step in (r.iter(MNS + "approvalStep") if r is not None else []):
+            for sec, when in (("approvalActions", "承認時"), ("rejectionActions", "却下時")):
+                for s in step.iter(MNS + sec):
+                    for a in s.iter(MNS + "action"):
+                        if _t(a, "type") == "FieldUpdate":
+                            calls.setdefault(f"{obj}.{_t(a, 'name')}", []).append(f"承認プロセス「{lab}」のステップ「{_t(step, 'label')}」の{when}")
+    for fn in (os.listdir(wd) if os.path.isdir(wd) else []):
+        r = _x(os.path.join(wd, fn))
+        obj = fn.split(".")[0]
+        for fu in (r.iter(MNS + "fieldUpdates") if r is not None else []):
+            name, op = _t(fu, "fullName"), _t(fu, "operation")
+            val = _t(fu, "formula") if op == "Formula" else _t(fu, "literalValue") if op == "Literal" else _t(fu, "lookupValue") or op
+            put(f"wf:{obj}.{name}", 種類="項目自動更新", 動く時="、".join(dict.fromkeys(calls.get(f"{obj}.{name}", []))) or "（呼んでいるものが見つからない）",
+                設定する項目=_t(fu, "field"), 設定する値=_short(val), 説明=_short(_t(fu, "description")),
+                設定後にワークフローを再評価="する" if _t(fu, "reevaluateOnChange") == "true" else None)
+    # 画面・ボタン
+    qd = os.path.join(fa, "quickActions")
+    for fn in (os.listdir(qd) if os.path.isdir(qd) else []):
+        r = _x(os.path.join(qd, fn))
+        name = fn[: -len(".quickAction-meta.xml")]
+        put(f"action:{name}", 種類=f"クイックアクション（{_t(r, 'type')}）",
+            開くもの=_t(r, "flowDefinition") or _t(r, "lightningComponent") or _t(r, "page") or _t(r, "targetObject"))
+    ld = os.path.join(fa, "lwc")
+    for name in (os.listdir(ld) if os.path.isdir(ld) else []):
+        r = _x(os.path.join(ld, name, f"{name}.js-meta.xml"))
+        if r is None:
+            continue
+        tg = r.find(MNS + "targets")
+        targets = [t.text.replace("lightning__", "") for t in (tg if tg is not None else []) if t.text]
+        put(f"lwc:{name}", 種類="LWC", 置ける場所="・".join(targets), 公開="する" if _t(r, "isExposed") == "true" else "しない",
+            説明=_short(_t(r, "description")), APIバージョン=_t(r, "apiVersion"))
+    pd = os.path.join(fa, "pages")
+    for fn in (os.listdir(pd) if os.path.isdir(pd) else []):
+        if fn.endswith(".page-meta.xml"):
+            r = _x(os.path.join(pd, fn))
+            put(f"vf:{fn[: -len('.page-meta.xml')]}", 種類="Visualforce ページ", 説明=_short(_t(r, "description")), APIバージョン=_t(r, "apiVersion"))
+    return out
+
+
+def cmd_props(env: Env, argv: list[str]) -> None:
+    """部品（メソッド）に、Salesforce の自動処理としての性質を足す（Neo4j にだけ。取り込み直すと消えるので load の最後に毎回足す）。"""
+    root, repo = opt(argv, "--root"), opt(argv, "--repo")
+    if not (root and repo):
+        sys.exit("使い方: onto_env.py props --root <プロジェクトのルート> --repo <識別子>")
+    props = metadata_props(os.path.join(root, "force-app", "main", "default"))
+    rows = [{"qn": k, "p": v} for k, v in props.items()]
+    need_neo4j_driver(argv, env)
+    with driver(env) as d:
+        res = d.execute_query(
+            "UNWIND $rows AS x MATCH (fn:cod__Function) WHERE fn.uri STARTS WITH $sys AND head(fn.cod__qualifiedName) = x.qn "
+            "SET fn += x.p RETURN count(fn) AS n", rows=rows, sys=f"{env.base}code-data/{repo}/").records
+    print(f"自動処理の性質を {res[0]['n']} 個の部品に足した（メタデータから作った {len(rows)} 件のうち、地図に入っている部品）")
+
+
 # ---------- reset-db ----------
 def cmd_reset_db(env: Env, argv: list[str], pass_env: str) -> None:
     if "--yes" not in argv:
@@ -337,6 +522,10 @@ def cmd_load(env: Env, argv: list[str]) -> None:
     r = subprocess.run([env.python, os.path.abspath(__file__), "--env", env.path, "relations", "--repo", repo, "--map", mapdir],
                        env=dict(py_env, **{PASS_ENV: password()}), capture_output=True, text=True, encoding="utf-8", errors="replace")
     print("[関係] " + ((r.stdout.strip().splitlines() or [""])[-1] if r.returncode == 0 else (r.stdout + r.stderr)[-500:]))
+    # 自動処理の性質（いつ動くか・有効か・開始条件など）を足す
+    r = subprocess.run([env.python, os.path.abspath(__file__), "--env", env.path, "props", "--root", root, "--repo", repo],
+                       env=dict(py_env, **{PASS_ENV: password()}), capture_output=True, text=True, encoding="utf-8", errors="replace")
+    print("[性質] " + ((r.stdout.strip().splitlines() or [""])[-1] if r.returncode == 0 else (r.stdout + r.stderr)[-500:]))
 
 
 # ---------- open / query ----------
@@ -420,6 +609,17 @@ def cmd_show(env: Env, argv: list[str]) -> None:
     if not env.running():
         cmd_start(env)
     url = f"http://localhost:{env.http_port}/browser/?dbms=neo4j://neo4j@localhost:{env.bolt_port}"
+    n_nodes = 0
+    if text:   # 先に読み取りで流して、0 件なら開かない。丸の数で見せ方（拡大）を決める
+        try:
+            from neo4j import READ_ACCESS
+            with driver(env) as d, d.session(database="neo4j", default_access_mode=READ_ACCESS) as s:
+                res = list(s.run(text))
+            if not res:
+                sys.exit("結果が 0 件なので開きませんでした（名前の書き方を確かめる。Cypher 集の⓪で探せる）")
+            n_nodes = len({(tuple(sorted(x.labels)), x.get("name") or x.element_id) for r in res for x in r.values() if hasattr(x, "labels")})
+        except ImportError:
+            pass
     if not port_up(CDP_PORT):
         exe = next((b for b in BROWSERS if os.path.isfile(b)), None)
         if not exe:
@@ -442,10 +642,11 @@ def cmd_show(env: Env, argv: list[str]) -> None:
         try:   # 窓を前に出して最大化する（一度しまってから戻すと、ほかの窓の後ろにあっても前に出る）
             cdp = ctx.new_cdp_session(page)
             wid = cdp.send("Browser.getWindowForTarget")["windowId"]
-            cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {"windowState": "minimized"}})
-            cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {"windowState": "maximized"}})
-        except Exception:  # noqa: BLE001
-            pass
+            # 最小化から直接は最大化できない（Chrome の決まり）ので、通常に戻してから最大化する
+            for state in ("minimized", "normal", "maximized"):
+                cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {"windowState": state}})
+        except Exception as e:  # noqa: BLE001
+            print(f"（窓を前に出せませんでした: {str(e)[:120]}）")
         page.wait_for_load_state("domcontentloaded")
         pwd = page.locator("input[type=password]")
         try:
@@ -484,11 +685,26 @@ def cmd_show(env: Env, argv: list[str]) -> None:
             page.keyboard.press("Control+A")
             page.keyboard.press("Delete")
             page.wait_for_timeout(800)
+            # 丸が多いと縮小されて名前が消えるので、右の一覧の欄を閉じて広げ、1段拡大する（はみ出した所は本人がドラッグ・ホイールで見る）
+            if n_nodes > 15:
+                ov = page.get_by_text("Results overview", exact=True)   # 開け閉めの状態はブラウザが覚えているので、開いているときだけ閉じる
+                if ov.count() and ov.first.is_visible():
+                    page.get_by_role("button", name="Toggle graph details panel", exact=True).first.click()
+                    page.wait_for_timeout(700)
+                zi = page.get_by_role("button", name="Zoom in", exact=True)
+                if zi.count() and zi.first.is_visible():
+                    zi.first.click()
+                    page.wait_for_timeout(700)
+            top = page.get_by_role("button", name="Remove frame", exact=True)   # 結果の枠の頭を見える位置に戻す
+            if top.count():
+                top.first.scroll_into_view_if_needed()
+                page.wait_for_timeout(300)
         shot = opt(argv, "--shot")
         if shot:
             page.screenshot(path=shot)
         b.close()   # 接続を切るだけ。窓はそのまま残る
-    print(("実行しました" if text else "開きました") + f"（Claude 用のブラウザの窓。{url}）" + (f"。画面: {shot}" if shot else ""))
+    print(("実行しました" if text else "開きました") + f"（Claude 用のブラウザの窓。{url}）" + (f"・丸 {n_nodes} 個" if n_nodes else "")
+          + (f"。画面: {shot}" if shot else ""))
 
 
 def cypher_text(argv: list[str]) -> str | None:
@@ -568,6 +784,8 @@ def main() -> None:
         cmd_relations(env, argv)
     elif cmd == "show":
         cmd_show(env, argv)
+    elif cmd == "props":
+        cmd_props(env, argv)
     else:
         print(__doc__)
         sys.exit(f"知らないコマンドです: {cmd}")

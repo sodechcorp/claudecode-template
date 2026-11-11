@@ -45,7 +45,7 @@ ORDER BY 項目 LIMIT 100
 // ⓪-2 機能（画面・ボタン・保存・バッチ）の名前を探す（表で出る）
 // ▼ 調べたい内容に合わせて変える
 WITH 'my_project' AS システム, '商談' AS 探す言葉,
-     {cod__Screen: '画面・ボタン', cod__Batch: 'バッチ・スケジュール', cod__ApiEndpoint: 'API', cod__OtherFeature: '保存'} AS 種類名
+     {cod__Screen: '画面・ボタン', cod__Batch: 'バッチ・スケジュール', cod__ApiEndpoint: 'API', cod__OtherFeature: '保存・承認プロセス'} AS 種類名
 MATCH (f)-[:cod__hasEntryPoint]->()
 WHERE f.uri STARTS WITH 'https://ontology.sodech.co.jp/code-data/' + システム + '/' AND f.表示名 CONTAINS 探す言葉
 RETURN DISTINCT f.表示名 AS 機能, 種類名[head([l IN labels(f) WHERE 種類名[l] IS NOT NULL])] AS 種類
@@ -241,4 +241,56 @@ RETURN vm[elementId(e.a)] AS a,
          {項目: apoc.text.join([c IN e.cs | c.表示名 + '（' + head(c.cod__physicalName) + '）'], '、'), 本数: size(e.cs)},
          vm[elementId(e.b)]) AS rel,
        vm[elementId(e.b)] AS b
+
+
+================================================================
+⑥ 項目まわりの地図（その項目を書く・読む・条件に使う自動処理と画面、それが動く場所、値の出どころと波及先の項目）
+（処理の丸をクリックすると、いつ動くか・有効か・開始条件・設定する値・呼ばれ方などが出る。性質は onto_env.py load が取り込みのあとに足したもの）
+================================================================
+
+// ⑥ 項目まわりの地図（その項目を書く・読む・条件に使う自動処理と画面、それが動く場所、値の出どころと波及先の項目。処理の丸をクリックすると、いつ動くか・有効か・開始条件などが出る）
+// ▼ 調べたい内容に合わせて、この2つを変える（項目は「オブジェクトの表示ラベル.項目の表示ラベル」）
+WITH 'my_project' AS システム, '商談.金額' AS 項目
+MATCH (s:cod__Table)-[:cod__hasColumn]->(c:cod__Column)
+WHERE c.uri CONTAINS '/code-data/db/' + システム + '/' AND s.表示名 + '.' + c.表示名 = 項目
+// この項目に触る演算と、その使い方
+CALL (c) {
+  MATCH (op)-[:cod__outputTo]->(c) RETURN op, '書く' AS how
+  UNION
+  MATCH (c)-[r]->(op) WHERE type(r) IN ['cod__sourceOf', 'cod__lookupSourceOf'] RETURN op, '読む' AS how
+  UNION
+  MATCH (c)-[:cod__operandOf]->(op) RETURN op, '計算に使う' AS how
+  UNION
+  MATCH (c)-[r]->(op) WHERE type(r) IN ['cod__conditionOf', 'cod__lookupConditionOf', 'cod__lookupKeyOf'] RETURN op, '条件に使う' AS how
+}
+MATCH (op)-[:cod__definedIn]->(fn:cod__Function)
+// 値の出どころ（この項目に書く演算の写し元）と、波及先（この項目を使う演算が書く、ほかの項目）
+OPTIONAL MATCH (src:cod__Column)-[:cod__sourceOf|cod__operandOf]->(op) WHERE how = '書く' AND src <> c
+OPTIONAL MATCH (op)-[:cod__outputTo]->(dst:cod__Column) WHERE how IN ['読む', '計算に使う'] AND dst <> c
+WITH c, fn, collect(DISTINCT how) AS hows, collect(DISTINCT src) AS srcs, collect(DISTINCT dst) AS dsts
+OPTIONAL MATCH (fn)-[:cod__usedInFeature]->(f)
+WITH c, fn, hows, srcs, dsts, collect(DISTINCT f) AS fs
+WITH c, collect({fn: fn, hows: hows, srcs: srcs, dsts: dsts, fs: fs}) AS rows
+// 線（同じ丸は1つにまとめる）
+WITH c, apoc.coll.flatten([r IN rows | r.dsts]) AS dsts, apoc.coll.toSet(apoc.coll.flatten([r IN rows |
+       [CASE WHEN r.hows = ['書く'] THEN [r.fn, '書く', c] ELSE [c, apoc.text.join(r.hows, '・'), r.fn] END]
+       + [f IN r.fs | [r.fn, '動く場所', f]] + [x IN r.srcs | [x, '値の出どころ', r.fn]] + [x IN r.dsts | [r.fn, '書く', x]]], false)) AS es
+WITH c, dsts, es, apoc.coll.toSet(apoc.coll.flatten([e IN es | [e[0], e[2]]])) AS ns
+UNWIND ns AS n
+OPTIONAL MATCH (t:cod__Table)-[:cod__hasColumn]->(n)
+WITH c, dsts, es, n, t
+WITH es, apoc.map.fromPairs(collect([elementId(n), apoc.create.vNode(
+       [CASE WHEN n = c THEN '起点の項目'
+             WHEN n:cod__Function THEN split(coalesce(n.種類, '処理'), '（')[0]
+             WHEN n:cod__Column AND n IN dsts THEN '波及先の項目'
+             WHEN n:cod__Column THEN '値の出どころの項目'
+             WHEN n:cod__OtherFeature AND n.表示名 CONTAINS '承認プロセス' THEN '承認プロセス'
+             WHEN n:cod__OtherFeature THEN '保存' WHEN n:cod__Batch THEN 'バッチ' WHEN n:cod__ApiEndpoint THEN 'API'
+             ELSE '画面・ボタン' END],
+       apoc.map.clean({name: CASE WHEN t IS NULL THEN n.表示名 ELSE t.表示名 + '.' + n.表示名 END,
+                       物理名: CASE WHEN t IS NULL THEN head(coalesce(n.cod__qualifiedName, n.cod__physicalName)) ELSE head(t.cod__physicalName) + '.' + head(n.cod__physicalName) END,
+                       種類: n.種類, 動く時: n.動く時, 状態: n.状態, 開始条件: n.開始条件, 設定する値: n.設定する値, 呼ばれ方: n.呼ばれ方,
+                       説明: n.説明, データ型: head(n.cod__dataType), ファイル: head(n.cod__sourceFile)}, [], [null]))])) AS vm
+UNWIND es AS e
+RETURN vm[elementId(e[0])] AS a, apoc.create.vRelationship(vm[elementId(e[0])], e[1], {}, vm[elementId(e[2])]) AS rel, vm[elementId(e[2])] AS b
 

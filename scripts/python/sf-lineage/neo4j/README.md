@@ -15,13 +15,14 @@
    | 〇〇（項目）を変えたらどこを見る？ | ③ | 項目 |
    | 〇〇ボタン・画面で何が動く？ | ④ | 機能 |
    | 〇〇とつながっているオブジェクトは？・全体の関係図 | ⑤ | オブジェクト（'' で全体）・段数 |
+   | 〇〇（項目）に関係する自動処理を全部・項目まわりの地図 | ⑥ | 項目 |
 
    `python onto_env.py show --query ⑤ --set オブジェクト=商談 --shot <スクラッチパッド>/show.png`
 3. **当てはまらないとき**は Cypher を組み立てる（下の「グラフの形」「図の Cypher の型」）。スクラッチパッドにファイルで書き、`query --file` で丸と線の数を確かめてから `show --cypher-file <ファイル> --shot <png>`
 4. `--shot` の画面を Read で見て、図が出ているか・読める大きさかを確かめる（線が束になって読めないときは、同じ丸どうしの線をまとめる・段数を減らして出し直す）
 5. 本人には「Claude 用のブラウザの窓に出した」と、何が出ているか（丸 N 個・線 M 本、見どころ）を一言で添える
 
-`show` がすること: Claude 用のブラウザの窓（Chrome。専用のプロファイル `<作業環境>/browser-profile`・リモートデバッグのポート 9333。普段のブラウザとは別）を開く（無ければ起動。会話が終わっても残る）→ 窓を前に出して最大化 → ログイン画面ならパスワードを環境変数から入れて接続 → 左の欄を閉じる → 前の結果を片付ける（`--keep` で残す）→ Cypher を入力して実行 → 入力欄を空にして図を見せる。Python の `playwright` が要る（`pip install playwright`。ブラウザの取得は要らない）。無いときは `open`（クリップボードに入れて普段のブラウザで開く。本人が Ctrl+V → Ctrl+Enter）
+`show` がすること: Claude 用のブラウザの窓（Chrome。専用のプロファイル `<作業環境>/browser-profile`・リモートデバッグのポート 9333。普段のブラウザとは別）を開く（無ければ起動。会話が終わっても残る）→ 窓を前に出して最大化 → ログイン画面ならパスワードを環境変数から入れて接続 → 左の欄を閉じる → 前の結果を片付ける（`--keep` で残す）→ Cypher を入力して実行 → 入力欄を空にして図を見せる（先に読み取りで流して 0 件なら開かない。丸が 15 個を超えるときは、縮小で名前が消えないよう右の一覧の欄を閉じて1段拡大する）。Python の `playwright` が要る（`pip install playwright`。ブラウザの取得は要らない）。無いときは `open`（クリップボードに入れて普段のブラウザで開く。本人が Ctrl+V → Ctrl+Enter）
 
 `query` で確かめること:
 
@@ -38,7 +39,7 @@
 | `cod__Repository` | システム（URI `https://ontology.sodech.co.jp/code-data/<識別子>/repository`） | 表示名 |
 | `cod__Table` / `cod__Column` | オブジェクト / 項目（URI は `…/code-data/db/<識別子>/…`） | cod__physicalName（API 名）・cod__dataType（Lookup・MasterDetail・Currency など） |
 | `cod__Program` → `cod__Function` | 部品。`cod__qualifiedName` の頭で種類が分かる | `apex:` `trigger:` `flow:` `lwc:` `aura:` `vf:` `action:Obj.名前` `vr:Obj.規則` `wf:Obj.名前` `formula:Obj.項目` `rollup:Obj.項目` |
-| `cod__Screen` / `cod__Batch` / `cod__ApiEndpoint` / `cod__OtherFeature` | 機能（画面・ボタン / バッチ / API / 保存）。保存は 表示名 が「<オブジェクト>の保存（保存時に動く処理）」 | 表示名 |
+| `cod__Screen` / `cod__Batch` / `cod__ApiEndpoint` / `cod__OtherFeature` | 機能（画面・ボタン / バッチ / API / 保存・承認プロセス）。保存は 表示名 が「<オブジェクト>の保存（保存時に動く処理）」、承認プロセスは「<ラベル>（承認プロセス）」（承認プロセスから動く項目自動更新の入口。保存では動かない） | 表示名 |
 | `cod__Transfer` / `cod__Calculation` / `cod__Aggregation` / `cod__Validation` | 演算（転記・計算・集計・入力チェック） | cod__ruleText・cod__formula・cod__sourceFile・cod__lineStart |
 | `cod__ScreenField` / `cod__InterfaceField` | 画面・処理で使う項目（読むだけの項目の行き先。**組織への書き込みではない**。「書く項目」を出すときは `cod__outputTo` の先を `cod__Column` に絞る） | 表示名 |
 | `cod__Unresolved` | 解析しきれなかった所（全項目を読む SOQL・項目名を変数で渡す put/get） | |
@@ -52,6 +53,17 @@
 | `cod__sourceOf` / `cod__operandOf` / `cod__conditionOf` / `cod__lookupKeyOf` など（項目→演算）、`cod__outputTo`（演算→項目） | 値の流れ |
 | `cod__definedIn`（演算→Function） | その演算を書いている部品 |
 | `sf__referenceTo`（参照・主従の Column→参照先の Table） | オブジェクトの関係。共通基盤の語彙に無いので、`onto_env.py load` が取り込みのあとに足している |
+
+**自動処理の性質**（`cod__Function` の値。共通基盤の語彙に無いので、`onto_env.py load` が取り込みのあとにメタデータから足している。値は文字列で、配列ではない）:
+
+| 値 | 中身（例） |
+|---|---|
+| `種類` | レコードトリガーフロー・画面フロー・スケジュールトリガーフロー・自動起動フロー・Apex トリガ・Apex クラス・入力規則・項目自動更新・数式項目・積み上げ集計項目・クイックアクション（Flow）・LWC・Visualforce ページ |
+| `動く時` | 保存前（Quote__c・作成・更新時）／保存後（…）／FeedComment: 保存後・作成／承認プロセス「〇〇承認」の最終承認時／ワークフロールール「…」（有効）の保存時／読むたびに計算（保存はしない）／子（…）の保存のあと／スケジュール（…） |
+| `順番` `状態` `開始条件` | フローの triggerOrder／有効・無効・下書き／フローの開始条件の数式・条件 |
+| `設定する項目` `設定する値` | 項目自動更新の項目と値（数式・固定値） |
+| `呼ばれ方` | Apex クラスの入口（画面（LWC・Aura）・フロー・プロセス・スケジュール・バッチ・REST API・非同期） |
+| `置ける場所` `開くもの` `データ型` `説明` `ヘルプ` `エラーの表示先` `APIバージョン` | LWC の置ける場所／クイックアクションが開くフロー・画面／数式の型／説明・ヘルプの文 など |
 
 ## 図の Cypher の型
 

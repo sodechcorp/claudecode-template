@@ -329,6 +329,16 @@ class Exporter:
                         "object": txt(start, "object") if start is not None else None,
                         "schedule": (txt(start.find(NS + "schedule"), "frequency") if start is not None and start.find(NS + "schedule") is not None else None),
                     }
+        # 項目自動更新を呼ぶもの: ワークフローのルール（保存で動く）か、承認プロセス（申請・承認・却下・取り下げで動く）か
+        fu_rule, fu_approval = set(), defaultdict(set)
+        for r in self.refs:
+            if r["role"] == "call" and r["target"].startswith("WorkflowFieldUpdate:"):
+                fu = r["target"].split(":", 1)[1]
+                if r["src_type"] == "WorkflowRule":
+                    fu_rule.add(fu)
+                elif r["src_type"] == "ApprovalProcess":
+                    fu_approval[r["src_name"]].add(fu)
+        self.fu_rule = fu_rule
         # 1) 全参照から、部品ごとに集める
         per = defaultdict(lambda: {"file": None, "line": 1, "write": [], "copy": [], "cond": [], "read": [], "objs": [], "calls": [], "wide": []})
         for r in self.refs:
@@ -444,7 +454,7 @@ class Exporter:
                 if txt(vr, "active") != "false":
                     save_entry[obj].append(fk)
                 continue
-            if st == "WorkflowFieldUpdate":
+            if st == "WorkflowFieldUpdate" and sn in fu_rule:   # 承認プロセスから呼ばれるものは保存では動かない（下で承認プロセスの機能にする）
                 save_entry[sn.split(".", 1)[0]].append(fk)
             # 値を写す → 転記
             written_by_copy = set()
@@ -530,6 +540,13 @@ class Exporter:
                 lab = self.olabels.get(obj) or obj
                 self.feature("other", f"save_{obj}", sorted(set(entries)), f"{lab}の保存（保存時に動く処理）",
                              self.stores.get(f"table:{self.db}.{obj}", {}).get("sourceFile"))
+        # 承認プロセス: 申請・承認・却下・取り下げのときに動く項目自動更新の入口
+        for ap, fus in fu_approval.items():
+            entries = [f"function:wf:{fu}" for fu in sorted(fus) if f"function:wf:{fu}" in self.functions]
+            if entries:
+                src = f"approvalProcesses/{ap}.approvalProcess-meta.xml"
+                lab = txt(parse(os.path.join(self.fa, *src.split("/"))), "label") or ap
+                self.feature("other", f"approval_{ap}", entries, f"{lab}（承認プロセス）", self.rel(src))
         for name, m in self.flow_meta.items():
             fk = f"function:flow:{name}"
             if fk not in self.functions:
