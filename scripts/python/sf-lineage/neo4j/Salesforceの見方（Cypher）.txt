@@ -214,7 +214,7 @@ RETURN vm[elementId(e[0])] AS a,
 （線は onto_env.py load が取り込みのあとに足したもの。共通基盤の語彙にはオブジェクトどうしの参照が無いため）
 ================================================================
 
-// ⑤ オブジェクトの関係図（参照・主従。矢印は「参照する側 → 参照先」）
+// ⑤ オブジェクトの関係図（参照・主従。矢印は「参照する側 → 参照先」。同じオブジェクトどうしの線は1本にまとめ、線をクリックすると全部の項目が出る）
 // ▼ 調べたい内容に合わせて、この3つを変える（オブジェクトは表示ラベル。'' にするとシステム全体。段数 = 何つ先のオブジェクトまで出すか）
 WITH 'my_project' AS システム, '商談' AS オブジェクト, 1 AS 段数
 WITH 'https://ontology.sodech.co.jp/code-data/db/' + システム + '/' AS 系, オブジェクト, 段数
@@ -226,16 +226,19 @@ CALL (s, 段数) {
 }
 MATCH (t:cod__Table)-[:cod__hasColumn]->(c:cod__Column)-[:sf__referenceTo]->(t2:cod__Table)
 WHERE t.uri STARTS WITH 系 AND (オブジェクト = '' OR (t IN ns AND t2 IN ns AND (段数 > 1 OR t = s OR t2 = s)))
-WITH s, collect([t, c, t2]) AS es
-WITH s, es, apoc.coll.toSet(apoc.coll.flatten([e IN es | [e[0], e[2]]])) AS tables
+WITH s, t, t2, collect(c) AS cs
+WITH s, collect({a: t, b: t2, cs: cs}) AS es
+WITH s, es, apoc.coll.toSet(apoc.coll.flatten([e IN es | [e.a, e.b]])) AS tables
 WITH es, apoc.map.fromPairs([t IN tables | [elementId(t), apoc.create.vNode(
        [CASE WHEN t = s THEN '起点のオブジェクト' ELSE 'オブジェクト' END],
        {name: t.表示名, 物理名: head(t.cod__physicalName)})]]) AS vm
 UNWIND es AS e
-RETURN vm[elementId(e[0])] AS a,
-       apoc.create.vRelationship(vm[elementId(e[0])],
-         e[1].表示名 + CASE head(e[1].cod__dataType) WHEN 'MasterDetail' THEN '（主従）' WHEN 'Hierarchy' THEN '（階層）' ELSE '（参照）' END,
-         {項目: head(e[1].cod__physicalName)}, vm[elementId(e[2])]) AS rel,
-       vm[elementId(e[2])] AS b
-
+WITH vm, e, apoc.coll.sort([c IN e.cs | c.表示名]) AS names, any(c IN e.cs WHERE head(c.cod__dataType) = 'MasterDetail') AS md
+RETURN vm[elementId(e.a)] AS a,
+       apoc.create.vRelationship(vm[elementId(e.a)],
+         CASE WHEN size(names) <= 2 THEN apoc.text.join(names, '・') ELSE names[0] + ' ほか' + toString(size(names) - 1) + '項目' END
+           + CASE WHEN md THEN '（主従）' ELSE '（参照）' END,
+         {項目: apoc.text.join([c IN e.cs | c.表示名 + '（' + head(c.cod__physicalName) + '）'], '、'), 本数: size(e.cs)},
+         vm[elementId(e.b)]) AS rel,
+       vm[elementId(e.b)] AS b
 

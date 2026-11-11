@@ -1,6 +1,6 @@
 # Neo4j で組織の地図を図にする（Claude が会話から出す手順）
 
-本人に頼まれたとき（「〇〇の関係を図で見せて」「〇〇を変えたらどこに響くか見せて」）と、説明に図があると早いときに、Claude がこの手順で Neo4j Browser に図を出す。操作はすべて [onto_env.py](onto_env.py)。作業環境の作り方・ソデック用にした経緯は [../README.md](../README.md) の「Neo4j で見る」。
+本人に頼まれたとき（「〇〇の関係を図で見せて」「〇〇を変えたらどこに響くか見せて」）と、説明に図があると早いときに、Claude がこの手順で Neo4j Browser に図を出す。**作成・入力・実行まで Claude が行い、本人は窓を見るだけ**。操作はすべて [onto_env.py](onto_env.py)。作業環境の作り方・ソデック用にした経緯は [../README.md](../README.md) の「Neo4j で見る」。
 
 ## 出す手順
 
@@ -16,9 +16,12 @@
    | 〇〇ボタン・画面で何が動く？ | ④ | 機能 |
    | 〇〇とつながっているオブジェクトは？・全体の関係図 | ⑤ | オブジェクト（'' で全体）・段数 |
 
-   `python onto_env.py query --file <枠を書き出したファイル>` で丸と線の数を確かめてから `python onto_env.py open --query ⑤ --set オブジェクト=商談`
-3. **当てはまらないとき**は Cypher を組み立てる（下の「グラフの形」「図の Cypher の型」）。スクラッチパッドにファイルで書き、`query --file` で確かめてから `open --cypher-file <ファイル>`
-4. 本人には「ブラウザの入力欄に Ctrl+V → Ctrl+Enter」と、何が出るか（丸 N 個・線 M 本、見どころ）を一言で添える。初回だけ Browser にパスワードでログインが要る（本人が入れる）
+   `python onto_env.py show --query ⑤ --set オブジェクト=商談 --shot <スクラッチパッド>/show.png`
+3. **当てはまらないとき**は Cypher を組み立てる（下の「グラフの形」「図の Cypher の型」）。スクラッチパッドにファイルで書き、`query --file` で丸と線の数を確かめてから `show --cypher-file <ファイル> --shot <png>`
+4. `--shot` の画面を Read で見て、図が出ているか・読める大きさかを確かめる（線が束になって読めないときは、同じ丸どうしの線をまとめる・段数を減らして出し直す）
+5. 本人には「Claude 用のブラウザの窓に出した」と、何が出ているか（丸 N 個・線 M 本、見どころ）を一言で添える
+
+`show` がすること: Claude 用のブラウザの窓（Chrome。専用のプロファイル `<作業環境>/browser-profile`・リモートデバッグのポート 9333。普段のブラウザとは別）を開く（無ければ起動。会話が終わっても残る）→ 窓を前に出して最大化 → ログイン画面ならパスワードを環境変数から入れて接続 → 左の欄を閉じる → 前の結果を片付ける（`--keep` で残す）→ Cypher を入力して実行 → 入力欄を空にして図を見せる。Python の `playwright` が要る（`pip install playwright`。ブラウザの取得は要らない）。無いときは `open`（クリップボードに入れて普段のブラウザで開く。本人が Ctrl+V → Ctrl+Enter）
 
 `query` で確かめること:
 
@@ -55,7 +58,7 @@
 - 丸は `apoc.create.vNode(['日本語の種類'], {name: n.表示名, 物理名: head(n.cod__physicalName), ファイル: head(n.cod__sourceFile)})`、線は `apoc.create.vRelationship(a, '日本語の線', {}, b)` で作り直し、`RETURN a, rel, b` で返す。丸の見出しは `name` に入れる（見出しに出ないときは、Browser の丸の見た目の設定で `name` を選ぶ）。Cypher 集の①④が手本
 - 起点は 表示名 で引く（`t.表示名 + '.' + c.表示名 = '商談.金額'`）。システムは URI の頭で絞る（`n.uri STARTS WITH 'https://ontology.sodech.co.jp/code-data/' + システム + '/'`、オブジェクト・項目は `…/code-data/db/' + システム + '/'`）
 - 広く辿るときは可変長（`*1..12`）を深くしない。経路の数が増えすぎるので、`apoc.path.subgraphNodes` / `subgraphAll` を使う（⑤が手本）
-- 値を変える所は先頭の `WITH '…' AS 名前` にまとめる（`open --set` で差し替えられる）
+- 値を変える所は先頭の `WITH '…' AS 名前` にまとめる（`show --set`・`open --set` で差し替えられる）
 
 ## 守ること
 

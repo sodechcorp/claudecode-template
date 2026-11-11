@@ -6,7 +6,9 @@
   python onto_env.py status                     # 起動しているか・入っているシステムと件数
   python onto_env.py reset-db --yes [--password-env 名前]   # Neo4j の中身を全部消し、n10s の設定だけ作り直す
   python onto_env.py load --root <プロジェクト> --repo <識別子> --name-ja <日本語名>   # 地図 → 中間JSON → TTL → 取り込み → 検証
-  python onto_env.py open [--query ② --set 項目=<オブジェクト.項目> --set システム=<識別子>]   # Cypher 集の枠をクリップボードに入れて Neo4j Browser を開く
+  python onto_env.py show --query ⑤ --set オブジェクト=<表示ラベル> [--shot <png>] [--keep]   # Claude 用のブラウザの窓で、ログイン・入力・実行まで行う（図がそのまま出る）
+  python onto_env.py show --cypher-file <ファイル> [--shot <png>]   # その場で組み立てた Cypher を同じように実行する
+  python onto_env.py open [--query ② --set 項目=<オブジェクト.項目> --set システム=<識別子>]   # （playwright が無いとき）枠をクリップボードに入れて普段のブラウザで開く
   python onto_env.py open --cypher-file <ファイル>   # その場で組み立てた Cypher をクリップボードに入れて開く（--cypher "<文>" でも可）
   python onto_env.py query "<Cypher>" | --file <ファイル> [--limit 200]   # 読み取り専用で問い合わせる（図の Cypher は「丸 -線-> 丸」で出る）
   python onto_env.py relations --repo <識別子> --map <地図のフォルダ>   # オブジェクトの関係（参照・主従）の線を足す（load が最後に行う）
@@ -394,6 +396,117 @@ def cmd_open(env: Env, argv: list[str]) -> None:
     print(f"開きました: {url}（初回だけパスワードでログイン）")
 
 
+# ---------- show（Claude 用のブラウザで、入力・実行まで行う） ----------
+CDP_PORT = 9333
+BROWSERS = [r"C:\Program Files\Google\Chrome\Application\chrome.exe", r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe", r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"]
+
+
+def port_up(port: int) -> bool:
+    with socket.socket() as s:
+        s.settimeout(1)
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def cmd_show(env: Env, argv: list[str]) -> None:
+    """Claude 用のブラウザの窓（専用のプロファイル。普段のブラウザとは別）で Neo4j Browser を開き、ログイン・Cypher の入力・実行まで行う。
+    パスワードは環境変数から読んでログイン欄に入れるだけで、表示しない。--shot <png> で実行後の画面を保存する（Claude が見て確かめる用）。"""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        sys.exit("Python の playwright がありません（pip install playwright）。代わりに onto_env.py open（クリップボードに入れて開く）を使う")
+    text = cypher_text(argv)
+    if not env.running():
+        cmd_start(env)
+    url = f"http://localhost:{env.http_port}/browser/?dbms=neo4j://neo4j@localhost:{env.bolt_port}"
+    if not port_up(CDP_PORT):
+        exe = next((b for b in BROWSERS if os.path.isfile(b)), None)
+        if not exe:
+            sys.exit("Chrome も Edge も見つかりません")
+        profile = os.path.join(env.path, "browser-profile")
+        subprocess.Popen([exe, f"--remote-debugging-port={CDP_PORT}", f"--user-data-dir={profile}", "--no-first-run",
+                          "--no-default-browser-check", "--new-window", url], creationflags=0x00000008)  # 会話と切り離して動かす
+        for _ in range(40):
+            if port_up(CDP_PORT):
+                break
+            time.sleep(0.5)
+    with sync_playwright() as p:
+        b = p.chromium.connect_over_cdp(f"http://127.0.0.1:{CDP_PORT}")
+        ctx = b.contexts[0]
+        page = next((pg for pg in ctx.pages if f":{env.http_port}/browser" in pg.url), None)
+        if page is None:
+            page = ctx.pages[0] if ctx.pages and ctx.pages[0].url in ("about:blank", "chrome://newtab/") else ctx.new_page()
+            page.goto(url)
+        page.bring_to_front()
+        try:   # 窓を前に出して最大化する（一度しまってから戻すと、ほかの窓の後ろにあっても前に出る）
+            cdp = ctx.new_cdp_session(page)
+            wid = cdp.send("Browser.getWindowForTarget")["windowId"]
+            cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {"windowState": "minimized"}})
+            cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {"windowState": "maximized"}})
+        except Exception:  # noqa: BLE001
+            pass
+        page.wait_for_load_state("domcontentloaded")
+        pwd = page.locator("input[type=password]")
+        try:
+            pwd.first.wait_for(state="visible", timeout=4000)
+        except Exception:  # noqa: BLE001  ログイン済み
+            pass
+        if pwd.count() and pwd.first.is_visible():
+            pwd.first.fill(password())
+            page.get_by_role("button", name="Connect", exact=True).click()
+            page.locator("input[type=password]").first.wait_for(state="hidden", timeout=15000)
+        for _ in range(3):   # はじめて開いたときの案内を閉じる
+            d = page.get_by_role("button", name="Dismiss", exact=True)
+            if d.count() and d.first.is_visible():
+                d.first.click()
+                page.wait_for_timeout(300)
+        sb = page.get_by_role("button", name="Collapse Sidebar", exact=True)   # 左の欄を閉じて図を広くする
+        if sb.count() and sb.first.is_visible():
+            sb.first.click()
+        if text and "--keep" not in argv:   # 前の結果を片付ける（--keep で残す。前の問い合わせは History から開ける）
+            rm = page.get_by_role("button", name="Remove frame", exact=True)
+            for _ in range(rm.count()):
+                if rm.count() and rm.first.is_visible():
+                    rm.first.click()
+                    page.wait_for_timeout(150)
+        if text:
+            ed = page.locator(".cm-editor .cm-content").first
+            ed.wait_for(state="visible", timeout=10000)
+            ed.click()
+            page.keyboard.press("Control+A")
+            page.keyboard.press("Delete")
+            page.keyboard.insert_text(text.strip())
+            page.keyboard.press("Control+Enter")
+            page.wait_for_timeout(int(float(opt(argv, "--wait", "6")) * 1000))
+            # 入力欄を空にして小さくし、結果の図が見えるようにする（問い合わせ文は結果の枠の見出しに残る）
+            ed.click()
+            page.keyboard.press("Control+A")
+            page.keyboard.press("Delete")
+            page.wait_for_timeout(800)
+        shot = opt(argv, "--shot")
+        if shot:
+            page.screenshot(path=shot)
+        b.close()   # 接続を切るだけ。窓はそのまま残る
+    print(("実行しました" if text else "開きました") + f"（Claude 用のブラウザの窓。{url}）" + (f"。画面: {shot}" if shot else ""))
+
+
+def cypher_text(argv: list[str]) -> str | None:
+    """--cypher / --cypher-file / --query（＋--set）から Cypher を作る。"""
+    if opt(argv, "--cypher-file"):
+        return open(opt(argv, "--cypher-file"), encoding="utf-8-sig").read()
+    if opt(argv, "--cypher"):
+        return opt(argv, "--cypher")
+    q = opt(argv, "--query")
+    if q:
+        blocks = cypher_blocks()
+        key = next((k for k in blocks if k == q or k.startswith(q)), None)
+        if not key:
+            sys.exit(f"Cypher 集に「{q}」がありません（あるもの: {'、'.join(blocks)}）")
+        return fill(blocks[key], [argv[i + 1] for i, a in enumerate(argv) if a == "--set" and i + 1 < len(argv)])
+    return None
+
+
 def show(v) -> str:
     """ノード・関係（仮のものも）を読める形にする。"""
     if hasattr(v, "labels"):
@@ -453,6 +566,8 @@ def main() -> None:
         cmd_query(env, argv)
     elif cmd == "relations":
         cmd_relations(env, argv)
+    elif cmd == "show":
+        cmd_show(env, argv)
     else:
         print(__doc__)
         sys.exit(f"知らないコマンドです: {cmd}")
