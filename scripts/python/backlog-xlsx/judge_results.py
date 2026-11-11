@@ -907,6 +907,14 @@ def judge_case(tc: dict, evidence_path: str, evidence_dir: str = "") -> dict:
         return unconfirmed_ng
     if "前後比較" in judge_method and evidence_dir:
         after_txts = [f for f in all_files if f.lower().endswith(".txt")]
+        # 匿名 Apex の実行失敗の証跡（anon_apex_runner.py の「成功    : False」。auto-evidence-runner が前提の匿名 Apex の
+        # 失敗を写したものを含む）があれば、その証跡で判定する（前後比較は after のどれかの一致で OK にするため、
+        # 変更が取り消されて値が変わらない TC を OK にしないよう、一致を見る前に返す）
+        failed = [f for f in after_txts
+                  if re.search(r"^匿名 Apex 実行証跡", _read_text_evidence(f), re.MULTILINE)
+                  and re.search(r"^成功[ \t]*:[ \t]*False", _read_text_evidence(f), re.MULTILINE)]
+        if failed:
+            return judge_single_evidence(failed[0], kiki, judge_method, no)
         return _judge_transition(tc, after_txts, evidence_dir)
 
     # PNG は内部で同名の .txt（DOM スナップショット）を参照して判定するため、

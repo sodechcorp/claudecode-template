@@ -286,12 +286,12 @@ echo "TARGET_TC_LIST=$TARGET_TC_LIST"
 
 **実行の流れ**（`auto-evidence-runner` 内部・証跡採取モード）:
 1. 種別仕分け＋差分対象 TC の絞り込み
-2. AnonApex → コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列。UI の操作の後を確かめる・使う TC は 3 の後）
+2. AnonApex（UI・SOQL の TC の前提の匿名 Apex を含む）→ コード生成（LLM）→ `anon_apex_runner.py run-batch --max-workers 3`（内部並列。2回に分ける TC・前提の匿名 Apex の後を確かめる SOQL の TC を含む逐次の TC は1件ずつ2回目・SOQL まで済ませて次へ。UI の操作の後を確かめる・使う TC は 3 の後）
 3. UI → `ui-evidence-runner` に委譲（種別=UI が 0 件なら起動しない）。読み取り専用ケースは複数コンテキスト並列（max_workers_ui=3）、データ更新/Login As ケースは逐次
-4. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列。匿名 Apex・UI の操作の後に取る。後の TC がデータを変える前に取るものは 2・3 の前か途中で取る）
+4. SOQL → `soql_evidence.py --queries-file --max-workers 4`（内部並列。匿名 Apex・UI の操作の後に取る。保存で動く非同期処理の結果は完了を待って取る。後の TC がデータを変える前に取るものは 2・3 の前か途中で取る）
 5. 証跡存在確認（後始末・test-report.md 生成は Phase F が担当）
 
-auto-evidence-runner が完了報告を返したら、証跡ファイルの存在を確認する（0件ゲート・早期検知）:
+auto-evidence-runner の完了報告に「戻し・後片付けに失敗:」の行があれば控えて、/test の完了報告の「要対応」に写す。完了報告を返したら、証跡ファイルの存在を確認する（0件ゲート・早期検知）:
 ```bash
 echo "=== 証跡ファイル一覧 ==="
 ls -lhR "{evidence_dir}/after/" 2>/dev/null | grep -E "\.(txt|png)$"
@@ -702,6 +702,9 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
   共有フォルダ    : {Phase G の結果: 保存済み（{SHARE_FILE}・evidence/before/ {N} 件。退避した場合は「上書き前のものは {退避先} に退避。手で貼ったスクショはそこから貼り直してください」） / 保存済み（変更なし） / 保存済み（evidence/before/ {N} 件。エビデンス.xlsx は共有フォルダで変更があったため上書きせず残した） / 保存先の入力待ち / 保存しない（{理由}） / 保存失敗（{理由}。退避した場合は退避先も）。入力待ち・保存失敗のときは「後から /test の Phase G だけを実行すれば保存できます」を添える}
   test-report.md  : {log_dir}/test-report.md
   証跡ファイル    : {evidence_dir}/ 配下 {N} ファイル
+
+{auto-evidence-runner が「戻し・後片付けに失敗:」を返した場合}
+要対応: 戻し・後片付けに失敗した TC があり、Sandbox のデータが戻っていません（{No}・{要旨}）。手で戻してください
 
 {総合判定が PASS または 条件付きPASS（要確認）の場合}
 本番リリースを準備する場合は、別セッション（クリーンな会話）で以下を起動してください（/release が独立して本番リリース準備を担当します。/test 自身は本番へのデプロイ・準備を行いません）:

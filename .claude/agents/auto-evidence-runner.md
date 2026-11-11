@@ -68,7 +68,7 @@ mkdir -p "{project_dir}/.sf" && python -c "import json,time; json.dump({'alias':
 
 | 委譲元フェーズ | `{judgment_path}` | 実行 Step | スキップ |
 |---|---|---|---|
-| **Phase C**（証跡採取） | 空/未指定 | Step 0 ＋ Step 0.5 ＋ Step 1（Step 1.5 含む）→ Step 3 → Step 4 → 3-3c → Step 2 → 前提の TC が実行できなかった TC（Step 2 の末尾）＋ 完了セルフチェック（Step 2「後の TC がデータを変える前に取る SOQL」は Step 3・Step 4 の前か途中で取る） | Step 7 |
+| **Phase C**（証跡採取） | 空/未指定 | Step 0 ＋ Step 0.5 ＋ Step 1（Step 1.5 含む）→ Step 3（3-3 → 3-3b → 3-3d）→ Step 4 → 3-3c → Step 2 → 前提の TC が実行できなかった TC（Step 2 の末尾）＋ 完了セルフチェック（Step 2「後の TC がデータを変える前に取る SOQL」は Step 3・Step 4 の前か途中で取る） | Step 7 |
 | **Phase F**（知見還流） | 指定あり | Step 7 のみ | Step 0・Step 0.5・Step 1〜4（証跡採取を再実行しない） |
 
 > **test-report.md 本体の生成・tmp/ 削除（旧 Step 5・Step 6）はスクリプト化済み**: `/test` Phase F は本エージェントを委譲する**前**に `scripts/python/backlog-xlsx/generate_test_report.py` を直接実行し、`{judgment_path}` から test-report.md を決定論的に生成・tmp/ を削除する（判定列・NG一覧・サマリーの組み立てに LLM 判断を要しないため）。本エージェントが Phase F で委譲されるのは、判断を要する Step 7（知見還流）のみ。Step 7 は `{log_dir}/test-report.md` が**既に存在する前提**で動作する。
@@ -155,13 +155,14 @@ mkdir -p "{evidence_dir}/before"
 今回 Step 2〜4 で実行する TC（上の依存で足した TC を含む）の前の回の証跡を消す（証跡の名前は観点やエージェントが付ける名前から作るため回ごとに変わりうる。残すと今回の証跡と一緒に判定され、今回撮れなかった TC は前の回の証跡で判定される。前の回の分は Step 0.5 で退避済み）:
 ```bash
 python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[2].split(',') if no.strip() for d in ('after/soql','after/apex','after/screen','before') for f in glob.glob(os.path.join(sys.argv[1], d, no.strip() + '_*'))]" "{evidence_dir}" "{その TC の No をカンマ区切り。{target_tc_list} が空のときも全件を並べる}"
+python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[2].split(',') if no.strip() for f in glob.glob(os.path.join(sys.argv[1], no.strip() + '_setup*.txt'))]" "{log_dir}/tmp" "{同じ No}"
 ```
 
 ---
 
 ## Step 1.5: メール到達安全確認・外部システム呼び出しの確認（AnonApex または UI ケースがある場合のみ）
 
-種別 = AnonApex または UI のケースが1件以上ある場合（＝ Step 3/4 で実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作が発生しうる場合）に実施する。SOQL のみの場合はスキップする。**判定母集団は今回実際に Step 3/4 で実行する TC（`{target_tc_list}` による差分絞込後の集合。差分再実行モードでない場合は spec 全体）とする**（差分再実行で SOQL の TC のみが対象の回は、spec 全体に AnonApex/UI の TC が存在しても本ステップは不要）。
+種別 = AnonApex または UI のケース（SOQL の TC で、3-1 の前提の匿名 Apex〔`{No}_setup.apex`・`{No}_setup2.apex`〕を作るものを含む）が1件以上ある場合（＝ Step 3/4 で実データへの DML・匿名Apex 実行・UI 上での登録/更新/削除/承認操作が発生しうる場合）に実施する。それ以外の SOQL のみの場合はスキップする。**判定母集団は今回実際に Step 3/4 で実行する TC（`{target_tc_list}` による差分絞込後の集合。差分再実行モードでない場合は spec 全体）とする**（差分再実行でそれ以外の SOQL の TC のみが対象の回は、spec 全体に AnonApex/UI の TC が存在しても本ステップは不要）。
 
 > [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「メール到達安全確認」「外部システム呼び出しの確認」を Read して実施する（メールは送信処理の有無 → 送信先の判定 → 自動回避 の順で、お客様に届く可能性があり、かつ回避できない場合だけ担当者に確認する。外部システム呼び出しは、接続先が本番と同じ（または特定できない）で、許可された接続先でない場合だけ担当者に確認する。判断を得るまで Step 3/4 に進まない）。自動回避でテストデータ・通知先ユーザーを差し替えた場合は、差し替えた内容を該当 TC の証跡と test-report に記録する。
 
@@ -185,9 +186,15 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 
 `{serial}` が true の場合は `--serial` を追加する（`--max-workers` は無視され逐次動作）。
 
-`{target_tc_list}` が空文字でもそのまま渡してよい（soql_evidence.py は空文字を全件実行として扱う）。下の段落の1つ目の TC を先に取って除くときだけ、`--target-tc` に残りの SOQL を含む自動の TC の No を並べる。
+`{target_tc_list}` が空文字でもそのまま渡してよい（soql_evidence.py は空文字を全件実行として扱う）。「後の TC がデータを変える前に取る SOQL」の1つ目の箇条の TC か 3-3d・3-3c で取った TC を除くときだけ、`--target-tc` に残りの SOQL を含む自動の TC の No を並べる。
 
-**後の TC がデータを変える前に取る SOQL**: データを変える後の TC（TC-yyy）も今回実行する場合に限り、次の SOQL は TC-yyy のデータを変える部分を実行する段（UI の操作は Step 4、匿名 Apex は 3-3〔3-3c で実行する部分は 3-3c〕）の前に、上のコマンドの `--target-tc` をその TC にして先に取る（TC-yyy を実行しない回は、Step 3・Step 4 の後にほかの TC と一緒に取る）。取るデータが TC-yyy より前の UI の操作（その TC 自身の UI の操作を含む）でできるもので、TC-yyy も UI なら、ui-evidence-runner への委譲を TC-yyy の前で2回に分け（1回目は No が TC-yyy より前の UI の TC と「TC-yyy 実行前」の UI の TC。続きの TC は続き元と同じ回）、その間に取る:
+**保存で動く処理の結果を確かめる SOQL**: 確かめるデータが、今回実行する UI の TC（種別に UI を含む当該 TC を含む）の保存か前提の匿名 Apex（3-1 の `{No}_setup.apex`・`{No}_setup2.apex`）で動く、トランザクションの外の処理（future・Queueable・Batch・プラットフォームイベントの購読側・レコードトリガーフローの非同期パスとスケジュール済みパス。`{log_dir}/investigation.md`「## スコープ」と force-app で確かめる）の結果を含む SOQL の TC は、その処理の完了を待ってから取る（匿名 Apex の TC で動く処理は 3-1「2回に分けて実行する TC」で待つ）。待ちは Bash の timeout に 600000 を指定し、条件付きのループの中で `sleep` する:
+- future・Queueable・Batch: 3-3b 1. のループで待つ。打ち切ったら `判定: 未確認 — 非同期処理が時間内に完了せず、結果を確認していない`
+- AsyncApexJob に出ない処理: その処理が書き込む項目（その保存自体が書き込む項目は除く）を `sf data query` で30秒おきに取り直し、保存の直後の値（既にあるレコードはその保存の直前〔UI の保存は Step 4 の委譲（分けるときはその回）の前、前提の匿名 Apex はその実行の前〕に SOQL で控えた値、UI の TC が新しく作るレコードは force-app の項目定義の既定値か空、前提の匿名 Apex が作るレコードは作成時の値）から変わったら取る（期待した値かどうかでは決めない。5分で打ち切り）。5分たっても変わらなければ `判定: 未確認 — 購読側・非同期パス・スケジュール済みパスの処理を時間内に確かめられなかった`、その処理が書き込む項目が無いか、書き込む値が保存の直後と同じ（否定側の期待等）か、控えた後で対象の保存の前に今回の別の TC が同じ項目を書くなら、待たずに取って `判定: 未確認 — 購読側・非同期パス・スケジュール済みパスの完了を確かめる手段が無く、結果を確認していない`
+
+`判定: 未確認` の行は、下の「実行できなかった TC の扱い」を済ませた後で、取った証跡の末尾に1行足す（`judge_results.py` が NG〔未実行〕にする）。
+
+**後の TC がデータを変える前に取る SOQL**: データを変える後の TC（TC-yyy）も今回実行する場合に限り、次の SOQL は TC-yyy のデータを変える部分を実行する段（UI の操作は Step 4、匿名 Apex は 3-3〔3-3d・3-3c で実行する部分は 3-3d・3-3c のその TC、委譲を分けた間で実行する前提の匿名 Apex はその間で、それより先〕）の前に、上のコマンドの `--target-tc` をその TC にして先に取る（TC-yyy を実行しない回は、Step 3・Step 4 の後にほかの TC と一緒に取る）。取るデータが TC-yyy より前の UI の操作（その TC 自身の UI の操作を含む）でできるもので、TC-yyy も UI なら、ui-evidence-runner への委譲を TC-yyy の前で2回に分け（1回目は No が TC-yyy より前の UI の TC と「TC-yyy 実行前」の UI の TC。続きの TC は続き元と同じ回）、その間に取る:
 - 確かめるデータが TC-yyy の保存の前のものと書かれた TC（「TC-yyy 実行前」「TC-yyy より前に実施し、保存した直後に SOQL を採取」等。判定方法が `前後比較` の TC は次の箇条）。先に取った TC は Step 3・Step 4 の後の実行から除く
 - 判定方法が `前後比較` で、TC-yyy の実行前後を比べる TC の before。`--out-dir` を `"{evidence_dir}/before/"` にする（`judge_results.py` が before/ の証跡と比べる）。after は Step 3・Step 4 の後の実行で取る（同じ TC を before と after の2回取る）
 
@@ -200,12 +207,13 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 | エラーの原因 | 扱い |
 |---|---|
 | 今回の実装で追加・変更した項目・メソッド・クラス（`{log_dir}/implementation-plan.md` の変更対象）を、implementation-plan.md か force-app のとおりに使っている（回帰 TC が変更前の使い方を確かめている場合を含む）のに通らない（項目が無い・参照できない・書けない、メソッドが無い・引数が合わない等） | 直さない（実装・デプロイ・権限の不足として NG のまま Phase F-2 に回す） |
-| それ以外のテスト側の誤り（存在しない・書けない項目、implementation-plan.md にも force-app にも合わない呼び方、記法・型の誤り等） | 直して、その TC だけ再実行する。SOQL は `{spec_path}` の「実行アクション」のクエリ、匿名 Apex は `{No}_anon.apex`（3-3b・3-3c の2回目は `{No}_check.apex`）を直す。確かめる対象・条件と期待結果は変えない |
+| それ以外のテスト側の誤り（存在しない・書けない項目、implementation-plan.md にも force-app にも合わない呼び方、記法・型の誤り等） | 直して、その TC だけ再実行する。SOQL は `{spec_path}` の「実行アクション」のクエリ、匿名 Apex は `{No}_anon.apex`（3-3b・3-3c の2回目は `{No}_check.apex`、前提の匿名 Apex は `{No}_setup.apex`・`{No}_setup2.apex`）を直す。確かめる対象・条件と期待結果は変えない |
 | 通信エラー・API 制限・応答の形の異常（`JSON パース失敗`・`想定外の形状`） | 直さずに、その TC だけ再実行する |
 
-再実行は、SOQL は Step 2 のコマンドの `--target-tc` を再実行する TC（カンマ区切り）にし、匿名 Apex は再実行する TC だけを入れた別の cases ファイル（例: `{log_dir}/tmp/anon_retry_cases.json`。`anon_cases.json` は 3-3b が `out` を読むため書き換えない）で 3-3（3-3b）のコマンドを実行する。やり直した後のエラーも同じ表で分け、通算2回やり直しても実行できなければ、証跡（3-3b・3-3c の2回目は1回目の証跡。2回目の出力は足さない）の末尾に最後のエラーで `判定: 未確認 — {エラーの要旨}のため{クエリ／匿名 Apex}を実行できなかった` と1行足す（`judge_results.py` が NG〔未実行〕にする）。匿名 Apex の実行時例外（`Apex 実行時例外`）は、実装の処理で起きた例外と区別できないため対象にしない。
+再実行は、SOQL は Step 2 のコマンドの `--target-tc` を再実行する TC（カンマ区切り）にし、匿名 Apex は再実行する TC だけを入れた別の cases ファイル（例: `{log_dir}/tmp/anon_retry_cases.json`。`anon_cases.json` は 3-3b が `out` を読むため書き換えない）で 3-3（3-3b）のコマンドを実行する。やり直した後のエラーも同じ表で分け、通算2回やり直しても実行できなければ、証跡（3-3b・3-3c・3-3d の2回目は1回目の証跡。2回目の出力は足さない。前提の匿名 Apex は `{log_dir}/tmp/{No}_setup*.txt`）の末尾に最後のエラーで `判定: 未確認 — {エラーの要旨}のため{クエリ／匿名 Apex}を実行できなかった` と1行足す（`judge_results.py` が NG〔未実行〕にする）。匿名 Apex の実行時例外（`Apex 実行時例外`）は、実装の処理で起きた例外と区別できないため対象にしない。
 
-**前提の TC が実行できなかった TC**: Step 2 まで終えたら（Phase C の最後。SOQL の TC が無い回も行う）、今回 Step 2〜4 で実行した TC（Step 1 で依存として足した TC を含む）のうち、前提・データ準備（spec の表より前の実行順の記載を含む）に別の TC（TC-xxx）が作成・変更したデータ・状態を使うと書かれた TC（読み方は Step 1「差分再実行時の依存関係の考慮」と同じ）を、依存先が先になる順に次のとおり扱う（ここで扱った TC も、それに依る TC にとっては実行できなかった前提に数える）。データが無いだけの NG を `judge_results.py` が実装の NG〔ng_type 空〕にして Phase F-2 の自動修正に回すのを防ぐため（TC-xxx 自身の NG は TC-xxx に残る）:
+**前提の TC が実行できなかった TC**: Step 2 まで終えたら（Phase C の最後。SOQL の TC が無い回も行う）、今回 Step 2〜4 で実行した TC（Step 1 で依存として足した TC を含む）のうち、前提・データ準備（spec の表より前の実行順の記載を含む）に別の TC（TC-xxx）が作成・変更したデータ・状態を使うと書かれた TC（読み方は Step 1「差分再実行時の依存関係の考慮」と同じ）と、前提の匿名 Apex（3-1 の `{No}_setup.apex`・`{No}_setup2.apex`）を持つ TC を、依存先が先になる順に次のとおり扱う（ここで扱った TC も、それに依る TC にとっては実行できなかった前提に数える）。データが無いだけの NG を `judge_results.py` が実装の NG〔ng_type 空〕にして Phase F-2 の自動修正に回すのを防ぐため（TC-xxx 自身の NG は TC-xxx に残る）:
+- その TC の前提の匿名 Apex の出力 `{log_dir}/tmp/{No}_setup*.txt`（UI の TC の `{No}_setup2.txt`〔戻し・後片付け〕は除く。`成功    : False` か `判定: 未確認` の行があれば〔実行しなかったものを含む〕完了報告に「戻し・後片付けに失敗: {No}・{要旨}（Sandbox のデータが戻っていない）」の行を書く。/test が完了報告に写す）に `判定: 未確認` の行がある → 最後の箇条と同じ形で `{No}_前提未成立.txt` に `判定: 未確認 — 前提の匿名 Apex が実行できなかったか完了を確かめられず（{未確認の理由}）、前提のデータが無い` を書く。`判定: 未確認` が無く `成功    : False` の行がある（「実行できなかった TC の扱い」で直さない失敗・実行時例外） → その出力を `{evidence_dir}/after/{その TC の種別の1つ目のフォルダ}/{No}_前提の匿名Apex.txt` に `cp` する（`judge_results.py` がその `判定: NG` の行で NG にする）
 - 今回の実行中に TC-xxx を要手動（Login As 不可）・対象外にした → その TC の `自動化可否` も `要手動（前提の {TC-xxx} が要手動）`・`対象外（前提の {TC-xxx} が対象外）` に Edit する（Step 4「Login As 降格（要手動）の spec 反映」と同じ。再テストしても前提が変わらないため）
 - 今回実行した TC-xxx の今回の証跡に `成功    : False`（`^成功\s*:\s*False`）か `判定: 未確認` の行がある、または ui-evidence-runner が TC-xxx を NG で返した（備考が `[画面エラー検出: {文言}]` で、その文言が TC-xxx の期待結果に含まれるものは除く） → `printf '%s\n' '判定: 未確認 — 前提の {TC-xxx} が実行できなかったか結果を確かめられず（{TC-xxx の未確認の理由か失敗の要旨}）、前提のデータ・状態が無い' > "{evidence_dir}/after/{その TC の種別の1つ目のフォルダ: soql・apex・screen}/{No}_前提未成立.txt"` で書く（`{…}` は1行にし、`'` は「」に置き換える。撮れた証跡はそのまま残り、`judge_results.py` が未実行にして、残りの証跡の NG を理由に足す）
 
@@ -216,6 +224,11 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 #### 3-1: 匿名 Apex コードの一括生成（全 TC を 1 パスで生成・LLM 判断・このエージェントが担当）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 全 AnonApex 種別 TC の「前提・データ準備」と「実行アクション」を一度にまとめて読み、**1 回の LLM 生成で全 TC 分の匿名 Apex コードを一括出力する**（TC ごとに往復しない）。**`{target_tc_list}` が指定されている場合（差分再実行）はリストに含まれる TC のみを対象とする**（Step 1「差分再実行モード」の方針どおり。対象外 TC のコードを再生成しない）。
+
+**前提の匿名 Apex（種別に AnonApex を含まない TC）**: UI・SOQL の TC の「前提・データ準備」「実行アクション」で、その TC のために作る・変えると書かれたデータ（UI の TC は匿名 Apex で行うと書かれたもの、SOQL だけの TC は書き方によらない。`test-prerequisites.md` § 2 のレシピの参照を含む。別の TC が作ったデータを使うだけのものは除く）は、同じ生成で匿名 Apex にする。自己検証の CHECK・`NG項目数=` は出さず、2回に分けず、rollback せずに `CREATED_RECORD` を出す（ほかの生成指針と「データ競合と実行順の確認」は AnonApex の TC と同じ）。その TC の画面の操作・SOQL の前に済ませる部分は `{log_dir}/tmp/{No}_setup.apex` に、後で行う部分（SOQL の TC の前後比較で before の後に行う実行アクション、UI の TC の画面の操作の後の戻し・後片付け）は `{log_dir}/tmp/{No}_setup2.apex` に書き（前に済ませる部分が無ければ setup2 だけ）、出力は証跡と分けて `{log_dir}/tmp/{No}_setup.txt`・`{No}_setup2.txt` に置く（3-2）。実行する段:
+- `{No}_setup.apex`: 3-3（下の「データ競合と実行順の確認」で 3-3d に回すものは 3-3d）。ほかの UI の TC の操作の後のデータを使うものは、SOQL の TC なら 3-3c、UI の TC なら Step 4 で ui-evidence-runner への委譲をその TC の前で2回に分けた間
+- `{No}_setup2.apex`: SOQL の TC はその TC の before の後（3-3d。ほかの UI の TC の操作の後のデータを使うものは 3-3c）、UI の TC は 3-3c（その TC が SOQL も持つなら、先にその SOQL を Step 2 のコマンドの `--target-tc` で取り、Step 2 のまとめての実行から除く）。setup が作ったレコード・戻す値は、setup で `CREATED_RECORD` 行と debug に出し、実行の前に setup の出力から埋める（setup が失敗した TC では実行しない）
+- 画面の操作の途中で行う匿名 Apex（画面の前後比較の before と after の間の更新等）は作らない。spec に画面の操作でも行えると書かれた TC（「または画面編集」等）は、そのまま ui-evidence-runner に渡して画面で行わせる。それ以外は ui-evidence-runner に渡さずに、Step 2 末尾の最後の箇条と同じ形で `{evidence_dir}/after/screen/{No}_前提未成立.txt` に `判定: 未確認 — 画面の操作の途中で匿名 Apex を実行する TC で、自動では行えない（test-spec.md で TC を分ける）` を書く
 
 **生成指針**:
 - **各 TC のコードは独立生成する**（TC 間でロジックを混ぜない。1 ファイル = 1 TC に完結させる）。
@@ -235,11 +248,11 @@ python "{project_dir}/scripts/python/backlog-xlsx/soql_evidence.py" \
 mkdir -p "{log_dir}/tmp"
 ```
 
-**データ競合と実行順の確認**: 同一既存レコードを複数 TC が UPDATE/参照する場合と、別の匿名 Apex の TC（TC-xxx）の実行後のデータ・状態で行う TC（「TC-xxx 実行後」「TC-xxx で作成した〜」等。「TC-xxx と同じ手順で」のように手順が同じなだけのものは含めない）は、該当 TC 番号を `serial_nos` に列挙して逐次化し、cases ファイルに依存先が先になる順で並べる（`serial_nos` の TC は並列の TC の後に cases ファイルの順で1件ずつ動く。依存先が作ったレコードは、前の回の同名のレコードと分けるため CreatedDate の新しい順で取る）。「前提・データ準備」列の対象レコード識別子（Id・外部キー等）だけでは複数 TC 間の重複有無を特定できない場合（記載が曖昧、または実行時に動的採番されるレコードで事前特定不能な場合）は個別の `serial_nos` 指定を諦め、`--serial` で全体を逐次化する。
+**データ競合と実行順の確認**: 同一既存レコードを複数 TC が UPDATE/参照する場合と、別の匿名 Apex の TC（TC-xxx）の実行後のデータ・状態で行う TC（「TC-xxx 実行後」「TC-xxx で作成した〜」等。「TC-xxx と同じ手順で」のように手順が同じなだけのものは含めない）は、該当する TC（依存先と依存する TC の両方）の番号を `serial_nos` に列挙して逐次化し、cases ファイルに依存先が先になる順で並べる（`serial_nos` の TC は並列の TC の後に cases ファイルの順で1件ずつ動く。依存先が作ったレコードは、前の回の同名のレコードと分けるため CreatedDate の新しい順で取る）。「前提・データ準備」列の対象レコード識別子（Id・外部キー等）だけでは複数 TC 間の重複有無を特定できない場合（記載が曖昧、または実行時に動的採番されるレコードで事前特定不能な場合）は個別の `serial_nos` 指定を諦め、`--serial` で全体を逐次化する（このときは全ての TC を `serial_nos` の TC として下を判断する）。`serial_nos` の TC のうち 3-3 で実行するもの（全体を 3-3c で実行する TC は 3-3c のまま）に、2回に分けて実行する TC か、自分の前提の匿名 Apex の後のデータ（UI の TC の操作〔種別に UI を含む当該 TC の操作を含む〕の後のものではない）を確かめる SOQL の TC があるときは、`serial_nos` の TC のうち 3-3 で実行するものを全部（2回に分けない TC・前提の匿名 Apex を含む）3-3 で実行せず、3-3d で依存先が先になる順に1件ずつ、その TC の2回目・SOQL まで済ませてから次の TC に進む（3-3 で全部の1回目・前提を実行してから 3-3b・Step 2 で確かめると、後の TC が変えた後のデータを確かめるか、2回目の結果の前に後の TC が動くため）。前提の匿名 Apex を `{No}_setup2.apex` に分けた SOQL の TC は、`serial_nos` に無くても 3-3d で実行する（UI の TC の操作の後のデータを使うものは 3-3c）。
 
 #### 3-2: cases ファイル生成 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
-全 AnonApex ケース（全体を 3-3c で実行する TC を除く）を JSON にまとめて `{log_dir}/tmp/anon_cases.json` に Write する:
+全 AnonApex ケース（全体を 3-3c で実行する TC・3-3d で実行する TC を除く）を JSON にまとめて `{log_dir}/tmp/anon_cases.json` に Write する:
 ```json
 [
   {
@@ -251,13 +264,13 @@ mkdir -p "{log_dir}/tmp"
 ]
 ```
 
-2回に分けて実行する TC（全体を 3-3c で実行する TC を除く）の `{No}_check.apex` は、同じ形式で `{log_dir}/tmp/anon_check_cases.json`（AsyncApexJob に出ない処理〔プラットフォームイベントの購読側・非同期パス・スケジュール済みパス〕を待つ TC は `{log_dir}/tmp/anon_check_pe_cases.json`）に Write する（`out` は `{log_dir}/tmp/{No}_check.txt`）。3-3c で実行する分は、同じ形式で `{log_dir}/tmp/anon_late_cases.json` に依存先が先になる順で Write する（`{No}_check.apex` の `out` は `{log_dir}/tmp/{No}_check.txt`。全体を `{No}_anon.apex` にした TC は `anon_cases.json` と同じ `{evidence_dir}/after/apex/{No}_{観点}.txt` にし、`anon_cases.json` には入れない。その TC が2回目〔`{No}_check.apex`〕も持つなら、2回目は `anon_late_cases.json` に入れず 3-3c で1回目の後に実行する）。
+2回に分けて実行する TC（全体を 3-3c で実行する TC・3-3d で実行する TC を除く）の `{No}_check.apex` は、同じ形式で `{log_dir}/tmp/anon_check_cases.json`（AsyncApexJob に出ない処理〔プラットフォームイベントの購読側・非同期パス・スケジュール済みパス〕を待つ TC は `{log_dir}/tmp/anon_check_pe_cases.json`）に Write する（`out` は `{log_dir}/tmp/{No}_check.txt`）。3-3c で実行する分は、同じ形式で `{log_dir}/tmp/anon_late_cases.json` に依存先が先になる順で Write する（`{No}_check.apex` の `out` は `{log_dir}/tmp/{No}_check.txt`。全体を `{No}_anon.apex` にした TC は `anon_cases.json` と同じ `{evidence_dir}/after/apex/{No}_{観点}.txt` にし、`anon_cases.json` には入れない。その TC が2回目〔`{No}_check.apex`〕も持つなら、2回目は `anon_late_cases.json` に入れず 3-3c で1回目の後に実行する）。前提の匿名 Apex は、3-3 で実行する `{No}_setup.apex` を `anon_cases.json` に、3-3c で実行する `{No}_setup.apex` と UI の TC の `{No}_setup2.apex` を `anon_late_cases.json` に同じ形式で入れ、`out` を `{log_dir}/tmp/{No}_setup.txt`・`{No}_setup2.txt` にする（SOQL の TC の `{No}_setup2.apex` と委譲を分けた間に実行する `{No}_setup.apex` は cases ファイルに入れず、実行するときにそれだけを入れた cases ファイルを作る。UI の TC の `{No}_setup2.apex` は同じ TC の `{No}_setup.apex` を含む段の後）。3-3d で実行する TC（前提の匿名 Apex を含む）は `anon_cases.json` に入れず、同じ形式で `{log_dir}/tmp/anon_serial_cases.json` に依存先が先になる順で Write する（入れるのは1回目〔`{No}_anon.apex`・`{No}_setup.apex`〕だけ）。SOQL の TC の `{No}_setup2.apex` は項目にせず、3-3d・3-3c のその TC の番に before を取った後で、それだけを入れた cases ファイルで1回だけ実行する（setup2 だけを持つ TC も、依存先が先になる順の中にその TC の番を置く）。
 
 #### 3-3: 一括並列実行 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 Step 2「後の TC がデータを変える前に取る SOQL」のうち TC-yyy のデータを変える部分を 3-3 で実行するものは、この実行の前に取る。
 
-非同期処理を投入する TC がある場合は、最初の実行の前に `date -u -d '-1 min' +%Y-%m-%dT%H:%M:%SZ` の出力を `{T}` として控える（3-3b 1. で使う。端末と組織の時計のずれを見込んで1分前にする）。
+Step 3・Step 4 で最初に実行する前（この 3-3。3-3 で実行する TC が無ければ 3-3d か Step 4 の委譲の前）に1回、`date -u -d '-1 min' +%Y-%m-%dT%H:%M:%SZ` の出力を `{T}` として控え（3-3b 1.・3-3c・3-3d・Step 4・Step 2 の待ちで使う。端末と組織の時計のずれを見込んで1分前にする。やり直しの実行で控え直さない）。前提の匿名 Apex で動く処理を Step 2「保存で動く処理の結果を確かめる SOQL」・Step 4 の冒頭のとおり待つ TC で、AsyncApexJob に出ない処理が既にあるレコードに書き込むものは、その前提の匿名 Apex の実行の前にその項目の値を SOQL で控える。
 
 ```bash
 python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch \
@@ -276,11 +289,11 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 
 **exit code 1 は想定内（異常終了ではない）**: `run-batch` は対象 TC に 1 件でも失敗（コンパイルエラー・Apex 実行時例外・NG）があると exit code 1 を返す仕様。これは「1件以上 NG があった」ことを表すだけで、コマンド自体の失敗ではない。**exit code を理由に処理を中断せず、Step 2「実行できなかった TC の扱い」を済ませてから次に進む**（NG の内容は標準出力の `[NG] {No} ({観点}): {error}` 行で確認できる。コンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した証跡 txt が生成されるため、`judge_results.py` が自動で NG 判定する）。exit code 2（`[ERROR] {cases ファイル}（または apex_file）を読み込めません`）は cases ファイルか、そこに書いた `.apex` を読めず1件も実行していないので、それを直して同じコマンドを再実行する（3-3b・再実行の cases ファイルも同じ）。
 
-#### 3-3b: 2回目の実行（2回に分けて実行する TC〔全体を 3-3c で実行する TC を除く〕がある場合のみ）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
+#### 3-3b: 2回目の実行（2回に分けて実行する TC〔全体を 3-3c で実行する TC・3-3d で実行する TC を除く〕がある場合のみ）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
 3-3 で1回目が失敗した TC（Step 2「実行できなかった TC の扱い」を済ませた後も `[NG]` の TC）は cases ファイルから外し、1回目がレコードを作った TC は `{No}_check.apex` に1回目の証跡の `CREATED_RECORD` 行の Id を埋める。2回目の出力は TC ごとに1回目の証跡（`anon_cases.json` のその TC の `out`）の末尾に1回だけ足す（`judge_results.py` は TC の証跡ファイルを全て判定し、`NG項目数=` は最初の1行を読むため、別ファイルにしたり重ねて足したりすると判定を誤る）。以下のコードは Bash の timeout に 600000 を指定して実行する。
 
-1. 2回に分けた TC のうち非同期処理を投入するものがある場合は、先に完了を待つ（future・Queueable・Batch は、3-3 の前に控えた `{T}` 以降に作られた未完了のものが 0 件になるまで。8分で打ち切る。`{T}` より前からある他の作業のジョブは数えず、作成者では絞らない〔購読側（Automated Process）が投入したものも数えるため〕）。0 件にならなければ、その TC は2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 非同期処理が時間内に完了せず、結果を確認していない` と1行足す（`judge_results.py` が NG〔未実行〕にする）:
+1. 2回に分けた TC のうち非同期処理を投入するものがある場合は、先に完了を待つ（future・Queueable・Batch は、3-3 の冒頭で控えた `{T}` 以降に作られた未完了のものが 0 件になるまで。8分で打ち切る。`{T}` より前からある他の作業のジョブは数えず、作成者では絞らない〔購読側（Automated Process）が投入したものも数えるため〕）。0 件にならなければ、その TC は2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 非同期処理が時間内に完了せず、結果を確認していない` と1行足す（`judge_results.py` が NG〔未実行〕にする）:
 
 ```bash
 SECONDS=0
@@ -323,9 +336,15 @@ done
 
    示す項目が無い場合（否定側の期待で何も変えない等）は、2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 購読側・非同期パス・スケジュール済みパスの完了を確かめる手段が無く、結果を確認していない` と1行足す。
 
+#### 3-3d: 1件ずつ確かめながら進む実行（3-1「データ競合と実行順の確認」で 3-3d に回した TC がある場合のみ）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
+
+3-3b の後（Step 4 の前）に、`{log_dir}/tmp/anon_serial_cases.json` の項目と、3-3d で実行する `{No}_setup2.apex` だけを持つ SOQL の TC を、依存先が先になる順に1件ずつ扱う。項目はその項目だけを入れた cases ファイルで 3-3 のコマンドを実行し（setup2 だけを持つ TC は、その番に下の SOQL の箇条だけを行う）（`{serial}`・exit code・その前に取る SOQL は 3-3 と同じ）、次の TC に進む前に、その TC の次を済ませる（Step 2「実行できなかった TC の扱い」の再実行もここで済ませる）:
+- 2回目（`{No}_check.apex`。3-3c で実行する2回目は除く）: 外す TC・`CREATED_RECORD` の Id の埋め方・完了の待ち・出力の足し方（足す先は `anon_serial_cases.json` のその TC の `out`）を 3-3b と同じにする
+- SOQL の TC で、確かめるデータがその TC の前提の匿名 Apex の後のもの（UI の TC の操作の後のものではない）: Step 2 のコマンドの `--target-tc` をその TC にして取る（保存で動く処理の結果なら Step 2「保存で動く処理の結果を確かめる SOQL」のとおり待ってから。`{No}_setup2.apex` を持つ TC は、`--out-dir` を `"{evidence_dir}/before/"` にして before を取り、`{No}_setup2.apex` だけを入れた cases ファイルで 3-3 のコマンドを実行してから after を取る。setup が失敗した TC は setup2 を実行せず、before・after も取らない）。ここで取った TC は Step 2 のまとめての実行から除く
+
 #### 3-3c: Step 4 の後の実行（3-3c で実行する TC か、3-1 で 3-3c の部分を作らなかった TC がある場合のみ）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
-Step 4 の後に、`{log_dir}/tmp/anon_late_cases.json` の TC を順に1件ずつ、その TC だけを入れた cases ファイルで 3-3 のコマンドを実行する（`{serial}`・exit code・その前に取る SOQL・Step 2「実行できなかった TC の扱い」は 3-3 と同じ）。`{No}_check.apex` に分けた TC と、全体を 3-3c で実行する TC の2回目は、外す TC・`CREATED_RECORD` の Id の埋め方・完了の待ち・出力の足し方（足す先はその TC の1回目の `out`）を 3-3b と同じにし、その TC の2回目まで済ませてから次の TC に進む。3-1 で 3-3c の部分を作らなかった TC（3-3b の2回目も持つ TC）は、ここで 3-1 の `判定: 未確認` の行を足す。終わったら 3-4 をもう一度行う。
+UI の TC の保存で動く future・Queueable・Batch の結果を確かめる・使う TC があれば、先に 3-3b 1. のループで待つ。打ち切ったら、その TC は実行せず、`printf '%s\n' '判定: 未確認 — 非同期処理が時間内に完了せず、結果を確認していない' >> "{その TC の1回目の証跡。全体を 3-3c で実行する TC は anon_late_cases.json のその TC の out、前提の匿名 Apex は実行しなかった {log_dir}/tmp/{No}_setup.txt・{No}_setup2.txt のそれぞれ}"` で書く。Step 4 の後に、`{log_dir}/tmp/anon_late_cases.json` の項目と、3-3c で実行する `{No}_setup2.apex` だけを持つ SOQL の TC を、依存先が先になる順に1件ずつ扱い、項目はその項目だけを入れた cases ファイルで 3-3 のコマンドを実行する（setup2 だけを持つ TC は、その番に下の SOQL の TC の扱いだけを行う）（`{serial}`・exit code・その前に取る SOQL・Step 2「実行できなかった TC の扱い」は 3-3 と同じ）。`{No}_check.apex` に分けた TC と、全体を 3-3c で実行する TC の2回目は、外す TC・`CREATED_RECORD` の Id の埋め方・完了の待ち・出力の足し方（足す先はその TC の1回目の `out`）を 3-3b と同じにし、その TC の2回目まで済ませてから次の TC に進む。SOQL の TC で前提の匿名 Apex をここで実行したものは、3-3d と同じく次の TC に進む前に取る（`{No}_setup2.apex` に分けた TC は before・setup2・after の順。ここで取った TC は Step 2 のまとめての実行から除く）。UI の TC の `{No}_setup2.apex`（戻し・後片付け）の項目は、その TC が SOQL も持つなら、実行の前にその SOQL を Step 2 のコマンドの `--target-tc` で取る（保存で動く処理の結果なら Step 2「保存で動く処理の結果を確かめる SOQL」のとおり待ってから。ここで取った TC は Step 2 のまとめての実行から除く）。3-1 で 3-3c の部分を作らなかった TC（3-3b の2回目も持つ TC）は、ここで 3-1 の `判定: 未確認` の行を足す。終わったら 3-4 をもう一度行う。
 
 #### 3-4: 作成レコードの目視URL集約 — **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
@@ -339,10 +358,10 @@ if [ -f "{log_dir}/repro/logs/created_records.txt" ]; then
 fi
 ```
 
-3-3 で書き出された `{evidence_dir}/after/apex/*.txt` から `CREATED_RECORD|{SObject}|{Id}|{Name}|{No}` 行を収集し、`{log_dir}/created_records.txt` に追記する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 のフォーマット。`|` 区切り）。**差分再実行（NG修正ループ）で同一 TC を再収集する場合、単純追記だと目視ハンドオフ表に同一 TC の行が重複表示されるため、収集した TC（`{No}`）の既存行を除去してから追記する**（TC 単位の dedup。同一 TC が複数レコードを作成するケースは今回収集分がまとめて残るため欠落しない）:
+3-3 で書き出された `{evidence_dir}/after/apex/*.txt` と前提の匿名 Apex の出力 `{log_dir}/tmp/*_setup*.txt` から `CREATED_RECORD|{SObject}|{Id}|{Name}|{No}` 行を収集し、`{log_dir}/created_records.txt` に追記する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §5 のフォーマット。`|` 区切り）。**差分再実行（NG修正ループ）で同一 TC を再収集する場合、単純追記だと目視ハンドオフ表に同一 TC の行が重複表示されるため、収集した TC（`{No}`）の既存行を除去してから追記する**（TC 単位の dedup。同一 TC が複数レコードを作成するケースは今回収集分がまとめて残るため欠落しない）:
 
 ```bash
-grep -h "^CREATED_RECORD|" "{evidence_dir}"/after/apex/*.txt 2>/dev/null \
+grep -h "^CREATED_RECORD|" "{evidence_dir}"/after/apex/*.txt "{log_dir}"/tmp/*_setup*.txt 2>/dev/null \
   | sed 's/^CREATED_RECORD|//' > "{log_dir}/tmp/created_records_new.txt"
 if [ -s "{log_dir}/tmp/created_records_new.txt" ]; then
   python "{project_dir}/scripts/python/backlog-xlsx/dedup_append_lines.py" \
@@ -360,7 +379,7 @@ fi
 
 ## Step 4: UI 証跡（種別 = UI）— ui-evidence-runner に委譲
 
-種別 = UI のケースが1件以上ある場合のみ、`ui-evidence-runner` に委譲する（0件なら起動しない）。Step 2「後の TC がデータを変える前に取る SOQL」のうち TC-yyy が UI のものは、委譲の前（委譲を2回に分けるときはその間）に取る。
+種別 = UI のケースが1件以上ある場合のみ、`ui-evidence-runner` に委譲する（0件なら起動しない）。Step 2「後の TC がデータを変える前に取る SOQL」のうち TC-yyy が UI のものは、委譲の前（委譲を2回に分けるときはその間）に取る。3-3・3-3d で `{T}` を控えていなければ（匿名 Apex を実行しない回）、委譲の前に 3-3 の冒頭と同じく控える。UI の TC の操作・前後比較の before:・after: が、その TC の前提の匿名 Apex で動くトランザクションの外の処理の結果に依るときは、委譲の前に Step 2「保存で動く処理の結果を確かめる SOQL」と同じく待つ（`判定: 未確認` の行はその TC の `{log_dir}/tmp/{No}_setup.txt` の末尾に足す。Step 2 の末尾で前提未成立になる）。Step 2「保存で動く処理の結果を確かめる SOQL」で、UI の保存で動く AsyncApexJob に出ない処理が既にあるレコードに書き込むものは、その保存を含む委譲の前にその項目の値を SOQL で控える。3-1 で委譲を分けた間に実行すると決めた前提の匿名 Apex がある UI の TC は、委譲をその TC の前で2回に分け、間で（Step 2「後の TC がデータを変える前に取る SOQL」をその間で取るものは取ってから）実行する（待ちと控える値は上と同じ）。
 
 **実行順序（空撮り防止）**: UI TC が AnonApex TC の作成データに依存する場合（前提・データ準備が同一 No 系統の AnonApex 生成データを参照している等）、必ず Step 3（AnonApex。3-3c を除く）の後に Step 4 を実行する（本エージェントは元々 Step 3 → Step 4 の順で進行するためこの順序は自然に満たされる）。**`{target_tc_list}` を使った差分再実行で UI TC のみを指定した場合の対処**: 依存する AnonApex TC を `{target_tc_list}` に含めて Step 3 の実行対象にする判断は Step 1「差分再実行時の依存関係の考慮」で行う（`{target_tc_list}` をそのまま ui-evidence-runner に委譲メモとして渡すだけでは、Playwright 専任で Sandbox へのデータ作成手段を持たない ui-evidence-runner 側では対処しようがないため。依存元 TC を実際に再実行してデータを作り直すのは本エージェント自身の責務とする）。
 
@@ -371,7 +390,7 @@ fi
 - `log_dir`: `{log_dir}`
 - `evidence_dir`: `{evidence_dir}`
 - `max_workers_ui`: `{serial}` が true の場合は `1`、それ以外は `{max_workers_ui}`（デフォルト 3）
-- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・テスト手順・期待結果・判定方法・証跡取得・分岐ラベル・**確認ポイント（着眼点）**・**対象画面**〔任意列。詳細は [test-spec-builder.md](test-spec-builder.md) 参照〕）。Step 2 の「後の TC がデータを変える前に取る SOQL」で委譲を2回に分けるときは、その回の TC だけを渡す
+- `ui_cases`: `{target_tc_list}` で絞り込んだ UI 種別の TC 情報（No・観点・前提データ準備・実行アクション・テスト手順・期待結果・判定方法・証跡取得・分岐ラベル・**確認ポイント（着眼点）**・**対象画面**〔任意列。詳細は [test-spec-builder.md](test-spec-builder.md) 参照〕）。Step 2 の「後の TC がデータを変える前に取る SOQL」か 3-1 の委譲を分けた間の前提の匿名 Apex で委譲を2回に分けるときは、その回の TC だけを渡す
 
 `ui-evidence-runner` の返却（各 TC の証跡ファイル名・**画面URL**・取得成否・Login As 降格有無）を受け取り、証跡ファイルの存在確認（完了セルフチェック）に使う。**画面URL 列（`ok: true` の行のみ）は `{log_dir}/ui_screen_urls.txt` に `{No}|{観点}|{画面URL}` 形式で追記する**（Phase F で `generate_test_report.py` が目視ハンドオフブロック生成に使う）。**追記は Bash の `>>` で行う（Write ツールでの新規保存は使わない）**。差分再実行モードで一部 TC のみ処理する場合、Write で上書きすると前回 OK 分の画面URLが失われるため、`created_records.txt`（Step 3-4）と同様に既存内容を保持したまま追記する。**ただし単純追記のみだと同一 TC を再実行するたび行が重複するため、追記前に今回処理した TC（`{ui_cases}` の No 一覧）の既存行を除去してから追記する**（TC 単位の dedup）:
 
@@ -474,8 +493,9 @@ find "{evidence_dir}/after/screen" -name "*.png" -size -1k 2>/dev/null
 （`find ... -size -1k` は 1KB 未満の PNG のみを列挙する。出力が空なら全 PNG が 1KB 以上。`ls` はファイル一覧の存在確認用でサイズ検証はできないため、PNG サイズは `find` の結果で判定する。）
 
 - [ ] SOQL ケース: 全件 txt 出力あり（Step 2 の `[WARN]` で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する）
-- [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む。Step 3-3 のコンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する。2回に分けた TC は、1回目が成功していれば 3-3b・3-3c の2回目の出力か `判定: 未確認` の1行が末尾に足されている）
-- [ ] 前提の TC が実行できなかった TC: 依存先が実行できなかった・要手動・対象外になった TC に、`判定: 未確認` の行か `自動化可否` の Edit がある
+- [ ] AnonApex ケース: 全件 txt 出力あり（条件分岐ごとのデバッグ出力含む。Step 3-3 のコンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した txt が生成される。当該 TC は `judge_results.py` が NG 判定する。2回に分けた TC は、1回目が成功していれば 3-3b・3-3c・3-3d の2回目の出力か `判定: 未確認` の1行が末尾に足されている）
+- [ ] 前提の匿名 Apex: 3-1 で `{No}_setup.apex`・`{No}_setup2.apex` を作った TC 全件に `{log_dir}/tmp/{No}_setup.txt`・`{No}_setup2.txt` がある（3-3c の待ちを打ち切って実行しなかったものは `判定: 未確認` の行がある。setup が失敗して実行しなかった setup2 は除く）
+- [ ] 前提の TC が実行できなかった TC: 依存先が実行できなかった・要手動・対象外になった TC と、前提の匿名 Apex の出力（UI の TC の戻し・後片付けは除く）に `判定: 未確認` がある TC に、`判定: 未確認` の行か `自動化可否` の Edit がある。前提の匿名 Apex（UI の TC の戻し・後片付けは除く）が `成功 : False` だけの TC には、その出力の写し（`{No}_前提の匿名Apex.txt`）がある
 - [ ] UI ケース: ui-evidence-runner の返却で対象 TC 全件について結果行（OK / NG / 要手動）が返っている（PNG 各 1KB 以上・DOM スナップショット txt ありは `ok: true` 分のみ対象。**正当な NG（画面エラー検知等）・要手動（Login As 降格）は証跡採取の試行自体は完了しているため、この項目の未充足とはしない**。SOQL/AnonApex 項目と同様「証跡取得を試行し結果が出ているか」を基準とし、OK/NG 自体の最終判定は Phase D `judge_results.py` に委ねる）
 - [ ] （Phase F のみ）`{log_dir}/test-report.md` が存在すること（`generate_test_report.py` の実行漏れがないこと）
 - [ ] （Phase F のみ）Step 7 の追記（還流内容 or スキップ記録）が test-report.md に反映されていること
