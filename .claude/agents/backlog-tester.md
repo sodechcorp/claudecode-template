@@ -96,7 +96,7 @@ focus_hints: ["{関連コンポーネント一覧から抽出したキーワー�
 Step 2（dry-run デプロイ）が `<alias>` を使うため、ここで先に導出・接続確認する。
 
 - `<alias>` は [sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の SF_ALIAS 導出 bash を実行して取得する
-- 同テンプレートの Sandbox 判定を実行し、本番組織でないことを確認する
+- 同テンプレートの Sandbox 判定を実行し、本番組織でないことを確認する（`auto_fix_mode: true` で判定が失敗したときは、ユーザーに確認せず総合判定 FAIL・NG 原因「接続先確認の失敗」として返す）
 - Step 2 は Apex 変更の有無に関わらず必ず実行する（test-level が RunSpecifiedTests/NoTestRun のどちらになるかが変わるのみで、dry-run 自体を省略するケースはない）
 
 ---

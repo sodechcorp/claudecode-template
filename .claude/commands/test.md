@@ -535,9 +535,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 dry-run �
 
 - **PASS** → F-2 Step 3 へ進む。
 - **条件付きPASS（NoTestRun フォールバック発生）** → 自動再デプロイしない（FAIL と同様に扱う）。対応テストクラス未整備でカバレッジ未検証である旨を提示し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
-- **FAIL** → 自動再デプロイしない。backlog-tester が返した NG 原因（dry-run のエラー内容等）を提示し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
-
-条件付きPASS・FAIL の差し戻しでは、`AUTO_FIX_TCS` を「NG があった場合の差し戻し」の手順1の表の `""`（実装差し戻し）として扱い、同じ節の手順5の NG の原因に dry-run の NG 原因（条件付きPASS はテストクラス未整備）も書く（自動修正の変更は force-app に入ったまま Sandbox には未反映）。
+- **FAIL**（総合判定を返さなかった場合も同じ） → 自動再デプロイしない。backlog-tester が返した NG 原因（dry-run のエラー内容等）を提示し、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
 
 #### F-2 Step 3: backlog-releaser（軽量再デプロイ・確認なし）
 
@@ -556,6 +554,8 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 ```
 
 上記で渡した `auto_fix_mode: true` により、releaser のモード判定（`auto_fix_mode: true` → 軽量再デプロイ）が自動適用される（お客様確認・知見還流・目視確認のご案内・完了報告以降を省き、デプロイの成否と alias を返す）。
+
+**releaser が失敗（接続先確認・dry-run・デプロイ）を返した場合**: F-2 完了報告を出さない。エラー内容と「修正は force-app にあるが Sandbox には未反映（デプロイが時間切れで返った場合は反映を未確認）」を伝え、後続「NG があった場合の差し戻し」セクションで手動案内に移行する。
 
 #### F-2 完了報告
 
@@ -590,6 +590,8 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    | `""` (空) | 証跡あり・実装が期待値と一致しない（実装バグ） | **実装差し戻し**: 実装修正→ `/test {issueID}` 再実行 |
 
    NG 種類が混在している場合は、実装バグ（ng_type 空）を最優先で修正してから再テストする。
+
+   Phase F-2 の Step 2（条件付きPASS・FAIL）・Step 3（再デプロイの失敗）で止まった場合は、`AUTO_FIX_TCS` をこの表の `""` として扱い、手順5の NG の原因に dry-run の NG 原因（条件付きPASS はテストクラス未整備）・再デプロイのエラーを、修正方針の先頭に「自動修正で force-app に反映済み・Sandbox 未反映（時間切れで返ったときは未確認）」を書く（Phase 4 で同じ修正をやり直さないため）。
 
 2. **ループ回次を確認する**（`judgment-result.R{N}.json` の最大回次番号 N = これまでの NG 修正回数。欠番があってもファイル数ではなく最大値を基準にする＝ Phase F-2 ガード①の `PREV_ROUND_F2` と同一の算出方法。`test-fail-routing.md` §「ループ上限」のセッション跨ぎ通算カウント基準と同一）:
    ```bash
@@ -740,9 +742,10 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 {総合判定が受入基準再確認待ちの場合（Phase F-1 未完了）}
 要対応: 受入基準再確認（Phase F-1）が完了していません。Backlog に接続できる状態で Phase F-1 と Phase G だけをやり直し、この完了報告を出し直してください（別セッションでは /backlog {issueID} の再開で F-1 と Phase G だけを実施できます。/test 全体の再実行は不要）。
 
-{手動対応が必要な NG がある場合（ng_type あり〔OTHER_NG〕/ 自動修正のガードで止まった場合 / implementer の中断・dry-run の条件付きPASS・FAIL で止まった場合）}
+{手動対応が必要な NG がある場合（ng_type あり〔OTHER_NG〕/ 自動修正のガードで止まった場合 / implementer の中断・dry-run の条件付きPASS・FAIL・再デプロイの失敗で止まった場合）}
 NG 一覧:
   - TC-00X: {観点} — {理由}（種別: `ng_type` の値。空欄の場合は「実装バグ」と表示する）
+{Phase F-2 の Step 2・3 で止まった場合}自動修正: force-app に反映済み・Sandbox 未反映（{止まった段と理由。時間切れで返ったときは「反映は未確認」}）
 
 修正手順（この順番で実施してください。NG原因・修正方針の記録は上記「NG があった場合の差し戻し」手順5〜6で記録済みです）:
   1. /backlog {issueID} 再開 → Phase 4 修正 → Phase 5（dry-run）

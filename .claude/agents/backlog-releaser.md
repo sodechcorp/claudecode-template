@@ -91,7 +91,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 | 状態 | モード | スキップ可能ステップ |
 |---|---|---|
 | `auto_fix_mode` が**未指定 または `false`**（通常の `/backlog` フロー） | **初回リリース** | なし（全ステップ実施） |
-| `auto_fix_mode` が**`true`**（= `/test` F-2 自動修正ループからの再デプロイ） | **軽量再デプロイ** | お客様確認サイン（Step 3.7）・知見還流（Step 3/3.6/3.8/4.5）・全社共有ナレッジ登録（Step 3.9）をスキップ。2a-5 の目視確認のご案内と完了報告以降（Step 4〜6）も行わず、デプロイの成否とデプロイ先 alias を呼び出し元（/test）に返す（確認の問いかけ・ドキュメント更新通知は出さない） |
+| `auto_fix_mode` が**`true`**（= `/test` F-2 自動修正ループからの再デプロイ） | **軽量再デプロイ** | お客様確認サイン（Step 3.7）・知見還流（Step 3/3.6/3.8/4.5）・全社共有ナレッジ登録（Step 3.9）をスキップ。2a-5 の目視確認のご案内と完了報告以降（Step 4〜6）も行わず、デプロイの成否とデプロイ先 alias を呼び出し元（/test）に返す（非対話の Task のため、ユーザーへの確認・問いかけ・ドキュメント更新通知は出さない）。接続先確認・dry-run・デプロイが失敗したときは 2a-5 の差し戻し（ループ上限の確認・release-issue.md の記録・/backlog の再開案内）も行わず、失敗した工程とエラー内容を返して止まる |
 
 軽量再デプロイ時は「再デプロイ（/test NG 修正後）」と冒頭に明示してからリリース手順へ進む。
 
@@ -107,7 +107,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 > 共通手順: [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) を参照してSandbox判定を実施する。
 
-Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作を中断し、ユーザーに確認を取る。同手順で取得した `INSTANCE_URL` は Step 2a-5・3.7 の目視確認ハンドオフ（レコードURL組み立て）に使う。
+Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作を中断し、ユーザーに確認を取る（`auto_fix_mode: true` は確認せず失敗を返す）。同手順で取得した `INSTANCE_URL` は Step 2a-5・3.7 の目視確認ハンドオフ（レコードURL組み立て）に使う。
 
 **PRODUCTION 接続が検出された場合**: Phase 6 は Sandbox リリース専用です。本番リリース準備は `/release {issueID}` で行います（Sandbox リリース・テスト完了後の独立したライフサイクル段階）。Sandbox に切り替えてから再実行してください。フローを中断します。
 
@@ -118,7 +118,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 1. デプロイ対象を一覧化する。base コミットの決定手順は [deploy-manifest-base.md](../templates/backlog/_partials/deploy-manifest-base.md) を参照（Phase 4 は標準フローでコミットしない設計のため実装変更が未コミットの作業ツリーに残る点・option-progressive-commits 採用時は複数コミットに分かれる点の両方を取り逃さない base 決定ロジック）
    - **上記いずれも差分が空の場合、まず `force-app/` が `.gitignore` 対象かを確認する**（`git check-ignore -q force-app/main/default` の終了コード、または `.gitignore` を Grep）:
      - **`.gitignore` 対象の場合（テンプレート既定構成であり、実運用ではこちらが標準経路）**: `implementation-plan.md`（Step 0d で取得済み・再 Read しない）の「## 関連コンポーネント一覧（変更対象ファイル）」をデプロイ対象一覧として採用する（Step 2a-5 で対象レコード特定に使う情報源と同一）。同表はファイル名のみでフォルダパスを含まないため、報告書にパスを記載したい場合のみ `Glob 'force-app/**/{ファイル名}'` で補完する（同名衝突等でパスを一意に特定できない場合はファイル名のみ記載しパス欄を省略してよい）。**この一覧は報告・2a-5 の確認対象の特定・Step 4.6 の catalog/design 更新確認用であり、デプロイ本体（4. の `sf project deploy start --source-dir force-app`）は常に force-app 全体を対象とするため、一覧の精度不足がデプロイ内容に影響することはない**
-     - **`.gitignore` 対象でない場合（force-app を Git 管理対象に含めるようカスタマイズした非標準プロジェクトでのみ発生する例外経路）**: 「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認し、回答内容を（上記の `.gitignore` 対象の場合と同様に）デプロイ対象一覧として採用する。`Glob` での全量フォールバックは行わない
+     - **`.gitignore` 対象でない場合（force-app を Git 管理対象に含めるようカスタマイズした非標準プロジェクトでのみ発生する例外経路）**: 「対象差分が見つかりません。デプロイ範囲を手動指定してください」とユーザに確認し、回答内容を（上記の `.gitignore` 対象の場合と同様に）デプロイ対象一覧として採用する（`auto_fix_mode: true` は一覧を使わないため確認せずに進む）。`Glob` での全量フォールバックは行わない
 2. dry-run 検証（スキップ判定あり）:
 
    **スキップ判定**（本デプロイ前に以下を確認する）:
@@ -138,7 +138,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    - **dry-run を実行して PASS した場合**（2-4: force-app に変更あり、または PASS 記録なし）: 「dry-run PASS（{結果概要}）を確認したため、そのままデプロイを実行します」と1行通知して 4 へ進む
    - **dry-run が FAIL した場合**: デプロイは行わず中断する。dry-run 結果（変更コンポーネント一覧・エラー内容）をテキストで提示し、「dry-run FAIL のためデプロイを中断しました。Phase 4 に戻って修正しますか？」と確認する（これは業務判断ではなく壊れの報告のため、実質 Phase 4 差し戻し一択だが、修正方針をこの場でユーザーと相談したいケースを考慮しテキストで一言添える）
 
-   **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、直前の F-2 Step 2（backlog-tester）で現 force-app に対する dry-run PASS が保証されている（PASS 以外なら F-2 Step 3 は起動されない）。この保証を根拠に上記スキップ判定を**必ず適用**し、`find` の出力が無変更なら再 dry-run を省略して確認省略で 4 へ直接進む。`find` が変更を検知した場合のみ dry-run を実行し 0 errors を確認してから 4 へ進む（**通常の「dry-run を実行した場合」と異なり、この例外では diff があってもテキスト確認は取らない**）。dry-run FAIL 時は例外を無効化して停止し「dry-run FAIL のため自動デプロイを中断しました」と報告する。
+   **例外（/test 自動修正・確認なしデプロイ）**: `auto_fix_mode: true` かつ `redeploy_no_confirm: true` が指定されている場合、直前の F-2 Step 2（backlog-tester）で現 force-app に対する dry-run PASS が保証されている（PASS 以外なら F-2 Step 3 は起動されない）。この保証を根拠に上記スキップ判定を**必ず適用**し、`find` の出力が無変更なら再 dry-run を省略して確認省略で 4 へ直接進む。`find` が変更を検知した場合のみ dry-run を実行し 0 errors を確認してから 4 へ進む（**通常の「dry-run を実行した場合」と異なり、この例外では diff があってもテキスト確認は取らない**）。dry-run FAIL 時はデプロイせず、確認もせずに「dry-run FAIL のため自動デプロイを中断しました」とエラー内容を返して止まる。
 4. デプロイ実行:
    ```bash
    CI=true sf project deploy start --source-dir force-app --target-org "$SF_ALIAS"
@@ -171,6 +171,8 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    - [ ] デプロイ成功確認（`sf project deploy report` の結果記録）
 
    > **Phase 6 は「Sandbox への反映完了」に純化する（2026-09-18）**: UI 動作確認・SOQL によるデータ確認・権限経路の Login As 確認は Phase 6 の完了チェックリストから外し、直後に実行される `/test {issueID}`（test-spec-builder.md が起動経路・変更種別に応じて確実に SOQL/AnonApex/UI のテストケースを生成し、権限・FLS 変更時は必ず UI 種別で Login As 確認まで行う）に一元化した。上記「🔎 目視確認のご案内」ブロックは `/test` 実施までの参考情報として完了報告に引き続き添付するが、ユーザーの確認完了を Phase 6 のブロッキング条件にはしない。
+
+   `auto_fix_mode: true` でデプロイが失敗したときは、以下の差し戻し・ループ上限チェック・release-issue.md の記録を行わず、失敗した工程とエラー内容を返して止まる。
 
    問題があれば、検知内容に応じて差し戻し先を切り替える（Phase 5 は dry-run によるコンパイル・Apex テスト検証のみを行い実データ・実UIでの動作は検証しないため、実装ロジック起因の挙動不良を Phase 5 に戻しても再現・修正されず Phase 5 ⇄ Phase 6 の往復が繰り返される）:
 
