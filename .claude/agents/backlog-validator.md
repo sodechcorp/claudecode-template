@@ -228,7 +228,7 @@ validation-report.md の「## 総合判定」セクションには、上記ル�
 
 **Phase 4（実装）へ進んでよい** / **Phase 3（実装方針）に戻る** / **Phase 2 に戻る（決定方針に問題）** / **技術確認待ち**
 
-**Phase 3 戻り時のループカウント確認**: 「Phase 3 戻り」と判定した場合は `docs/logs/{issueID}/discussion-log.md` の改版履歴から Phase 3 戻り回数を確認し、backlog.md のカウント上限処理（最大 2 回まで通算カウント・3 回目以降はユーザー確認）に従う。
+**Phase 3 戻り時のループカウント確認**: 「Phase 3 戻り」と判定した場合は `docs/logs/{issueID}/discussion-log.md` の改版履歴から Phase 3 戻り回数（数え方は backlog.md Phase 3.5 のとおり。行は本体が足す）を確認し、backlog.md のカウント上限処理（最大 2 回まで通算カウント・3 回目以降はユーザー確認）に従う。
 
 ※ option ファイル未検出によるスキップは NG 扱いではなく記録のみ。NG は各 Step の検証結果が実質的に問題を示した場合のみ。
 

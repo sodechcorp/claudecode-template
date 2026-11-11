@@ -6,7 +6,7 @@
 
 ## 実行手順
 
-1. 影響するプロファイル・権限セットを確認する（option-permission-fls-check の結果）
+1. 影響するプロファイル・権限セットを確認する（validation-report.md「## Step 4: クロスレビュー」の権限/FLS 行と、Phase 1 で option-permission-fls-check を実行していれば investigation.md「影響範囲」「根本原因」のその表）
 2. 以下のユーザーパターンでテストする:
    - システム管理者: 全機能が動作する（ベースライン）
    - 担当ユーザー（主なプロファイル）: 業務フローが動作する

@@ -34,7 +34,7 @@ Read `.claude/templates/common/verify-implementation-spec.md`（backlog 固有 e
 ## 追加ルール記入欄
 
 > 課題対応の精度向上のため、新規ルールはここに追記する。CLAUDE.md は変更しない。
-> フォーマット: `- [日付] {ルール内容}（追加理由）`
+> フォーマット: [knowledge-reflux-formats.md](knowledge-reflux-formats.md) の「verify-*.md / answer-scope-spec.md 追加ルール記入欄への追記フォーマット」
 
 - [2026-06-02] 同一論点への回答を撤回・反転する場合は、必ず該当する実コード/データ/Backlog を Read で再確認し `ファイル名:行番号` を新たに提示してから変える（フリップフロップ防止）
 - [2026-06-02] 課題間の関係性（同一原因か・別か）を必須確認手順表に追加。両課題コードを Read して型・原因レイヤー・修正箇所を比較する（GF-327/347 での即答ミスを受けて）

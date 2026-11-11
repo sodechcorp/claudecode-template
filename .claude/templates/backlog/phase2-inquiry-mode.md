@@ -6,6 +6,8 @@
 
 ```
 モード: 回答ドラフト（Phase Q）
+issueID: {issueID}
+project_dir: {プロジェクトルートパス}
 調査レポート: docs/logs/{issueID}/investigation.md
 出力先: docs/logs/{issueID}/answer-draft.md
 種別: 問い合わせ
@@ -17,10 +19,12 @@
 
 回答本文の提示直後に「質問の要約・回答（結論）・根拠・[要確認]事項・補足は社内レビュー用として `answer-draft.md` に保存済みです（判断根拠を確認したい場合はファイルを参照）」と一言添える（内部レビュー用セクションはチャットに再掲しない）。
 
-ユーザの確認・修正依頼を受け付ける（自由テキスト）。修正依頼があれば `backlog-planner` を以下のパラメータで再起動しドラフトを更新する（`調査レポート`・`出力先`・`種別` は初回と同じ値を引き継ぐ）:
+ユーザの確認・修正依頼を受け付ける（自由テキスト）。修正依頼があれば `backlog-planner` を以下のパラメータで再起動しドラフトを更新する（`issueID`・`project_dir`・`調査レポート`・`出力先`・`種別` は初回と同じ値を引き継ぐ）:
 
 ```
 モード: 回答ドラフト（Phase Q）
+issueID: {issueID}
+project_dir: {プロジェクトルートパス}
 調査レポート: docs/logs/{issueID}/investigation.md
 出力先: docs/logs/{issueID}/answer-draft.md
 種別: 問い合わせ

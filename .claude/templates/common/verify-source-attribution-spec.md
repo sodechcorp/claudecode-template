@@ -39,4 +39,4 @@ Read `.claude/templates/common/verify-source-attribution-spec.md`（出典確認
 ## 追加ルール記入欄
 
 > 課題対応の精度向上のため、新規ルールはここに追記する。CLAUDE.md は変更しない。
-> フォーマット: `- [日付] {ルール内容}（追加理由）`
+> フォーマット: [knowledge-reflux-formats.md](knowledge-reflux-formats.md) の「verify-*.md / answer-scope-spec.md 追加ルール記入欄への追記フォーマット」
