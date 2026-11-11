@@ -25,7 +25,7 @@ DOM テキスト（.txt）・ハイライト実績（.json）・investigation.md
 安全ガード（すべて満たさない場合は削除せず理由を表示して終了する。1・4 は --force でも省略しない。
 2・3 は --force で無視可＝バックフィル用途）:
   1. {issueID}_エビデンス.xlsx が存在する
-  2. judgment-result.json が存在し ng == 0（全件OK。要手動・対象外は許容）
+  2. judgment-result.json が存在し ng == 0 かつ ai_pending == 0（全件OK。要手動・対象外は許容）
   3. エビデンス.xlsx の mtime が evidence 配下の全 PNG の最新 mtime より新しい
      （xlsx が現在の evidence 状態を反映済み＝取りこぼしがないことの確認）
   4. xlsx 内の埋め込み画像数 >= 削除候補 PNG 数（実際に格納されたことの直接検証。
@@ -168,6 +168,9 @@ def main():
         ng = judgment.get("ng", -1)
         if ng != 0:
             print(f"[SKIP] NG={ng} 件が残っています。全件OKになってから実行してください（--force で無視可）。")
+            sys.exit(0)
+        if judgment.get("ai_pending", 0):
+            print(f"[SKIP] AI判定待ちが {judgment['ai_pending']} 件残っています。/test Phase D-2 で判定してから実行してください（--force で無視可）。")
             sys.exit(0)
 
     if not os.path.isdir(evidence_dir):

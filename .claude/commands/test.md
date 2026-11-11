@@ -358,7 +358,7 @@ exit 2 は判定していない（test-spec.md からテストケースを読め
      --decisions "{log_dir}/tmp/ai-decisions.json"
    echo "反映 exit code: $?"
    ```
-   exit 2（反映エラー）の場合は stderr の理由を直して再実行する（`{judgment_path}` が読めないときは手で直さず、`mv "{judgment_path}" "{judgment_path}.broken"` で退けてから Phase D からやり直す）。`AI判定待ちが残っています` が出た場合は残りを判定してから Phase E に進む（AI判定待ちを残したまま Phase E に進まない）
+   exit 2（反映エラー）の場合は stderr の理由を直して再実行する（`{judgment_path}` が読めないときは手で直さず、`mv "{judgment_path}" "{judgment_path}.broken"` で退けてから Phase D からやり直す）。判定サマリーの `AI判定待ち=` が 0 でなければ、残りの TC を判定して反映し直してから Phase E に進む（AI判定待ちを残したまま Phase E に進まない。前に反映した TC を decisions に残したまま再実行してよい）
 6. **期待結果・判定方法の書き方が原因で AI 判定に回った TC**（期待件数なし・`項目=値` なし・判定方法の書き漏れ等）は、次回の機械判定のために `{spec_path}` の該当行を機械判定できる形（`test-pattern-map.md`「判定方法の選択肢」参照）に Edit しておく。期待値の意味は変えない（期待値ドリフト禁止）
 
 ---
@@ -436,7 +436,8 @@ After エビデンスが確定した時点での完了確認。`.claude/template
 
 ```bash
 NG_COUNT=$(python -c "import json; print(json.load(open(r'{judgment_path}', encoding='utf-8')).get('ng', 0))" 2>/dev/null || echo "1")
-echo "NG件数: ${NG_COUNT}"
+AI_PENDING=$(python -c "import json; print(json.load(open(r'{judgment_path}', encoding='utf-8')).get('ai_pending', 0))" 2>/dev/null || echo "1")
+echo "NG件数: ${NG_COUNT} / AI判定待ち: ${AI_PENDING}"
 ```
 
 `{log_dir}/test-report.md` の「### 総合判定」欄を以下で判定する:
@@ -444,8 +445,9 @@ echo "NG件数: ${NG_COUNT}"
 | `NG_COUNT` | 受入基準再確認の最終判定 | 総合判定欄 |
 |---|---|---|
 | ≠ 0 | （不問） | 変更しない（Phase F が書き込んだ「FAIL」を維持） |
-| = 0 | 追加実装要 | 「条件付きPASS」に書き換え |
-| = 0 | リリース可 | `PASS` に書き換え |
+| = 0 で `AI_PENDING` ≠ 0 | （不問） | 変更しない（Phase F が書き込んだ「AI判定待ちあり」を維持。PASS にしない） |
+| = 0 で `AI_PENDING` = 0 | 追加実装要 | 「条件付きPASS」に書き換え |
+| = 0 で `AI_PENDING` = 0 | リリース可 | `PASS` に書き換え |
 
 「条件付きPASS」への書き換え内容:
 ```
@@ -695,8 +697,8 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 
 確認環境: Sandbox（{alias}）
 本番反映状況: 未 ⚠️（Sandbox 検証までの完了。本番反映は別セッションで /release {issueID} を実施）
-テスト結果: {OK=N / NG=N / 要手動=N}（うち AI 判定 {judgment-result.json の ai_judged_count。キーの無い古い判定結果は results の ai_judged が true の件数} 件）
-総合判定: {実際の判定結果に応じて次の1つを選んで記載: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認で指摘あり） / FAIL ❌ （NG が {N} 件） / 受入基準再確認待ち ⏸（Phase F-1 未完了）}
+テスト結果: {OK=N / NG=N / 要手動=N。AI判定待ちがあれば / AI判定待ち=N}（うち AI 判定 {judgment-result.json の ai_judged_count。キーの無い古い判定結果は results の ai_judged が true の件数} 件）
+総合判定: {実際の判定結果に応じて次の1つを選んで記載: PASS ✅ / 条件付きPASS ⚠️（要確認: 受入基準再確認で指摘あり） / FAIL ❌ （NG が {N} 件） / AI判定待ちあり ⏸（Phase D-2 未完了） / 受入基準再確認待ち ⏸（Phase F-1 未完了）}
 
 成果物:
   エビデンス.xlsx : {xlsx_folder}/{issueID}_エビデンス.xlsx
@@ -738,6 +740,9 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 要確認: 受入基準再確認で指摘があります。
   詳細: test-report.md の「## 受入基準再確認」を参照してください。
   対応: 業務判断が必要なため自動修正はしていません。指摘内容を確認し、必要なら implementation-plan.md に追記してから /backlog Phase 4 で再実装してください。
+
+{総合判定が AI判定待ちありの場合（Phase D-2 未完了）}
+要対応: AI 判定していない TC が残っています（{judgment-result.json の ai_list の No}）。Phase D-2 で判定してから Phase E からやり直してください（別セッションでは /backlog {issueID} の再開で Phase D-2 から Phase G までだけを実施できます。/test 全体の再実行は不要）。
 
 {総合判定が受入基準再確認待ちの場合（Phase F-1 未完了）}
 要対応: 受入基準再確認（Phase F-1）が完了していません。Backlog に接続できる状態で Phase F-1 と Phase G だけをやり直し、この完了報告を出し直してください（別セッションでは /backlog {issueID} の再開で F-1 と Phase G だけを実施できます。/test 全体の再実行は不要）。

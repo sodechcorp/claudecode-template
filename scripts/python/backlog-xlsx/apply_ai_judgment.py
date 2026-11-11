@@ -3,6 +3,7 @@
 
 judge_results.py が機械判定できなかった TC（status = "AI判定"）について、AI が証跡と期待結果を
 読んで下した OK/NG を書き戻し、件数・一覧（ok / ng / ai_pending / ng_list / ai_list）を再計算する。
+前に AI 判定で反映した TC（ai_judged）も受け付けて上書きする（反映エラーの後に全件で再実行する・判定を見直すため）。
 
 decisions JSON の形式（配列）:
 [
@@ -27,6 +28,7 @@ def apply(judgment: dict, decisions: list) -> list:
     """decisions を judgment に反映する。反映できなかった理由のリストを返す（空なら全件反映）。"""
     errors = []
     by_no = {r.get("no"): r for r in judgment.get("results", [])}
+    nos = [d.get("no") for d in decisions if isinstance(d, dict)]
     for d in decisions:
         if not isinstance(d, dict) or not all(isinstance(d.get(k) or "", str) for k in ("no", "status", "basis", "ng_type")):
             errors.append(f"{d}: 1件ごとに no・status・basis・ng_type（省略可）を文字列で持つオブジェクトにしてください")
@@ -39,8 +41,11 @@ def apply(judgment: dict, decisions: list) -> list:
         if r is None:
             errors.append(f"{no}: judgment-result.json に存在しない TC です")
             continue
-        if r.get("status") != "AI判定":
-            errors.append(f"{no}: status が AI判定 ではありません（現在: {r.get('status')}）")
+        if nos.count(no) > 1:
+            errors.append(f"{no}: decisions に同じ TC が {nos.count(no)} 件あります。1件にしてください")
+            continue
+        if r.get("status") != "AI判定" and not r.get("ai_judged"):  # 前に AI 判定で反映した TC は上書き（再実行・見直し）
+            errors.append(f"{no}: status が AI判定 ではありません（現在: {r.get('status')}。AI 判定していない結果は上書きしない）")
             continue
         if status not in _VALID_STATUS:
             errors.append(f"{no}: status は OK / NG のいずれかにしてください（指定: {status}）")

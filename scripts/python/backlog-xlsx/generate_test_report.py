@@ -92,7 +92,8 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
     lines.append(f"- Sandbox alias: {alias}")
     lines.append(f"- テストケース合計: {judgment.get('total', 0)} 件")
     lines.append(f"- OK: {judgment.get('ok', 0)} 件 / NG: {judgment.get('ng', 0)} 件 / "
-                 f"要手動: {judgment.get('skip', 0)} 件 / 対象外: {judgment.get('taigaigai', 0)} 件")
+                 f"要手動: {judgment.get('skip', 0)} 件 / 対象外: {judgment.get('taigaigai', 0)} 件"
+                 + (f" / AI判定待ち: {judgment['ai_pending']} 件" if judgment.get("ai_pending") else ""))
     lines.append(f"- テスト実行回数: {round_no} 回目（NG 修正後の再実行回数）")
     lines.append("")
     lines.append("### 自動実行結果")
@@ -202,10 +203,13 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
         lines.append("")
 
     lines.append("### 総合判定")
-    if judgment.get("ng", 0) == 0:
-        lines.append("受入基準再確認待ち — /test Phase F-1 の完了で確定します")
-    else:
+    ai_nos = ", ".join(a.get("no", "") for a in judgment.get("ai_list", []))
+    if judgment.get("ng", 0):
         lines.append("FAIL — Phase 4/3/2 に差し戻し")
+    elif judgment.get("ai_pending", 0):
+        lines.append(f"AI判定待ちあり{f'（{ai_nos}）' if ai_nos else ''} — /test Phase D-2 で判定してから Phase E からやり直します")
+    else:
+        lines.append("受入基準再確認待ち — /test Phase F-1 の完了で確定します")
     lines.append("")
 
     return "\n".join(lines)
