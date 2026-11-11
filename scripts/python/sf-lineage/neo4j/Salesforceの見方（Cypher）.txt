@@ -47,7 +47,7 @@ ORDER BY 項目 LIMIT 100
 WITH 'my_project' AS システム, '商談' AS 探す言葉,
      {cod__Screen: '画面・ボタン', cod__Batch: 'バッチ・スケジュール', cod__ApiEndpoint: 'API', cod__OtherFeature: '保存'} AS 種類名
 MATCH (f)-[:cod__hasEntryPoint]->()
-WHERE f.uri STARTS WITH 'https://ontology.use-ebisu.co.jp/code-data/' + システム + '/' AND f.表示名 CONTAINS 探す言葉
+WHERE f.uri STARTS WITH 'https://ontology.sodech.co.jp/code-data/' + システム + '/' AND f.表示名 CONTAINS 探す言葉
 RETURN DISTINCT f.表示名 AS 機能, 種類名[head([l IN labels(f) WHERE 種類名[l] IS NOT NULL])] AS 種類
 ORDER BY 種類, 機能 LIMIT 100
 
@@ -60,7 +60,7 @@ ORDER BY 種類, 機能 LIMIT 100
 // ① オブジェクトを保存すると動くもの（フロー・トリガ・入力規則・項目自動更新と、その先で書き込むオブジェクト）
 // ▼ 調べたい内容に合わせて、この2つを変える（オブジェクトは表示ラベル）
 WITH 'my_project' AS システム, '商談' AS オブジェクト
-WITH 'https://ontology.use-ebisu.co.jp/code-data/' + システム + '/' AS 系, オブジェクト,
+WITH 'https://ontology.sodech.co.jp/code-data/' + システム + '/' AS 系, オブジェクト,
      {apex: 'Apex', trigger: 'トリガ', flow: 'フロー', vr: '入力規則', wf: '項目自動更新', formula: '数式項目',
       rollup: '積み上げ集計', lwc: 'LWC', aura: 'Aura', vf: 'Visualforce', action: 'クイックアクション'} AS 種類名
 MATCH (f:cod__OtherFeature)-[:cod__hasEntryPoint]->(e)
@@ -179,7 +179,7 @@ RETURN e[0] AS a, apoc.create.vRelationship(e[0], e[1], {}, e[2]) AS rel, e[2] A
 // ▼ 調べたい内容に合わせて、この2つを変える（機能は画面フロー・ボタンの表示ラベル、または LWC・Visualforce の名前）
 WITH 'my_project' AS システム, '商談を作成' AS 機能
 MATCH (f)-[:cod__hasEntryPoint]->(e)
-WHERE f.uri STARTS WITH 'https://ontology.use-ebisu.co.jp/code-data/' + システム + '/' AND f.表示名 = 機能
+WHERE f.uri STARTS WITH 'https://ontology.sodech.co.jp/code-data/' + システム + '/' AND f.表示名 = 機能
 OPTIONAL MATCH (e)-[:cod__calls|cod__possiblyCalls*1..3]->(x:cod__Function)
 WITH f, collect(DISTINCT e) + collect(DISTINCT x) AS fns,
      {apex: 'Apex', trigger: 'トリガ', flow: 'フロー', vr: '入力規則', wf: '項目自動更新', formula: '数式項目',
