@@ -1,0 +1,65 @@
+# Neo4j で組織の地図を図にする（Claude が会話から出す手順）
+
+本人に頼まれたとき（「〇〇の関係を図で見せて」「〇〇を変えたらどこに響くか見せて」）と、説明に図があると早いときに、Claude がこの手順で Neo4j Browser に図を出す。操作はすべて [onto_env.py](onto_env.py)。作業環境の作り方・ソデック用にした経緯は [../README.md](../README.md) の「Neo4j で見る」。
+
+## 出す手順
+
+1. `python onto_env.py status` で起動しているか・入っているシステムと TTL の作成日時を見る。止まっていれば `start`。見たいシステムが入っていない・force-app より古いときは `load --root <プロジェクトのルート> --repo <識別子> --name-ja <日本語名>`（1分半ほど）
+2. **決まった型に当てはまるとき**は Cypher 集（[Salesforceの見方（Cypher）.txt](Salesforceの見方（Cypher）.txt)）の枠を使う
+
+   | 頼まれ方の例 | 枠 | 変える値（`--set 名前=値`） |
+   |---|---|---|
+   | 項目・機能の名前が分からない | ⓪-1・⓪-2（表） | 探す言葉 |
+   | 〇〇を保存すると何が動く？ | ① | オブジェクト |
+   | 〇〇（項目）の値はどこから来てどこへ行く？ | ② | 項目・段数 |
+   | 〇〇（項目）を変えたらどこを見る？ | ③ | 項目 |
+   | 〇〇ボタン・画面で何が動く？ | ④ | 機能 |
+   | 〇〇とつながっているオブジェクトは？・全体の関係図 | ⑤ | オブジェクト（'' で全体）・段数 |
+
+   `python onto_env.py query --file <枠を書き出したファイル>` で丸と線の数を確かめてから `python onto_env.py open --query ⑤ --set オブジェクト=商談`
+3. **当てはまらないとき**は Cypher を組み立てる（下の「グラフの形」「図の Cypher の型」）。スクラッチパッドにファイルで書き、`query --file` で確かめてから `open --cypher-file <ファイル>`
+4. 本人には「ブラウザの入力欄に Ctrl+V → Ctrl+Enter」と、何が出るか（丸 N 個・線 M 本、見どころ）を一言で添える。初回だけ Browser にパスワードでログインが要る（本人が入れる）
+
+`query` で確かめること:
+
+- **0 行**: 名前の書き方の違い（表示ラベルか API 名か）。⓪ で探し直す
+- **丸が 150 個を超える**: 図が読めない。段数を減らす・起点を絞る・表で出す（`query` の結果を会話に表で載せる）
+- 図にしなくても答えが出る問い（件数・一覧）は、Browser を開かずに `query` の結果を会話に載せる
+
+## グラフの形（早見）
+
+値はすべて n10s の配列（`head(n.cod__physicalName)` のように先頭を取る）。日本語の名前は `表示名`（配列ではない）。
+
+| 丸（ラベル） | 中身 | 主な値 |
+|---|---|---|
+| `cod__Repository` | システム（URI `https://ontology.sodech.co.jp/code-data/<識別子>/repository`） | 表示名 |
+| `cod__Table` / `cod__Column` | オブジェクト / 項目（URI は `…/code-data/db/<識別子>/…`） | cod__physicalName（API 名）・cod__dataType（Lookup・MasterDetail・Currency など） |
+| `cod__Program` → `cod__Function` | 部品。`cod__qualifiedName` の頭で種類が分かる | `apex:` `trigger:` `flow:` `lwc:` `aura:` `vf:` `action:Obj.名前` `vr:Obj.規則` `wf:Obj.名前` `formula:Obj.項目` `rollup:Obj.項目` |
+| `cod__Screen` / `cod__Batch` / `cod__ApiEndpoint` / `cod__OtherFeature` | 機能（画面・ボタン / バッチ / API / 保存）。保存は 表示名 が「<オブジェクト>の保存（保存時に動く処理）」 | 表示名 |
+| `cod__Transfer` / `cod__Calculation` / `cod__Aggregation` / `cod__Validation` | 演算（転記・計算・集計・入力チェック） | cod__ruleText・cod__formula・cod__sourceFile・cod__lineStart |
+| `cod__ScreenField` / `cod__InterfaceField` | 画面・処理で使う項目（読むだけの項目の行き先。**組織への書き込みではない**。「書く項目」を出すときは `cod__outputTo` の先を `cod__Column` に絞る） | 表示名 |
+| `cod__Unresolved` | 解析しきれなかった所（全項目を読む SOQL・項目名を変数で渡す put/get） | |
+
+| 線 | 意味 |
+|---|---|
+| `cod__hasFunction`（Program→Function）・`cod__hasColumn`（Table→Column）・`cod__hasField`（画面・処理→その項目） | 持つ |
+| `cod__hasEntryPoint`（機能→Function）・`cod__usedInFeature` / `cod__possiblyUsedInFeature`（Function→機能） | 機能の入口・その部品が動く機能 |
+| `cod__calls` / `cod__possiblyCalls`（Function→Function） | 呼び出す（推定） |
+| `cod__readsFrom` / `cod__writesTo`（Function→Table） | オブジェクトを読む・書く |
+| `cod__sourceOf` / `cod__operandOf` / `cod__conditionOf` / `cod__lookupKeyOf` など（項目→演算）、`cod__outputTo`（演算→項目） | 値の流れ |
+| `cod__definedIn`（演算→Function） | その演算を書いている部品 |
+| `sf__referenceTo`（参照・主従の Column→参照先の Table） | オブジェクトの関係。共通基盤の語彙に無いので、`onto_env.py load` が取り込みのあとに足している |
+
+## 図の Cypher の型
+
+- 丸は `apoc.create.vNode(['日本語の種類'], {name: n.表示名, 物理名: head(n.cod__physicalName), ファイル: head(n.cod__sourceFile)})`、線は `apoc.create.vRelationship(a, '日本語の線', {}, b)` で作り直し、`RETURN a, rel, b` で返す。丸の見出しは `name` に入れる（見出しに出ないときは、Browser の丸の見た目の設定で `name` を選ぶ）。Cypher 集の①④が手本
+- 起点は 表示名 で引く（`t.表示名 + '.' + c.表示名 = '商談.金額'`）。システムは URI の頭で絞る（`n.uri STARTS WITH 'https://ontology.sodech.co.jp/code-data/' + システム + '/'`、オブジェクト・項目は `…/code-data/db/' + システム + '/'`）
+- 広く辿るときは可変長（`*1..12`）を深くしない。経路の数が増えすぎるので、`apoc.path.subgraphNodes` / `subgraphAll` を使う（⑤が手本）
+- 値を変える所は先頭の `WITH '…' AS 名前` にまとめる（`open --set` で差し替えられる）
+
+## 守ること
+
+- 問い合わせは読み取りだけ（`query` は READ_ACCESS、MCP `neo4j-sf` は読み取り専用）。中身を変えるのは `load`・`relations`・`reset-db` だけで、`reset-db` は本人に頼まれたときだけ
+- パスワードを尋ねない・入力しない・表示しない・設定スクリプトを動かさない（`onto_env.py` が環境変数 `SODECH_NEO4J_PASSWORD` を読む）
+- 図は候補。図に出ない＝使っていない、ではない（管理パッケージの中身・動的 SOQL・レコードのデータは入っていない）。結論を言う前にソースで確かめる
+- 原本 `E:\DDD-Ontology` は操作しない

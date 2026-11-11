@@ -27,7 +27,8 @@ python scripts/python/sf-lineage/lineage.py export --repo <識別子> --name-ja 
 | `save_chain.py` | 保存時の暗黙の連鎖（保存で動くものと、書き込み・積み上げ集計による波及） |
 | `to_intermediate.py` | 地図を、項目リネージの共通基盤（DDD-Ontology の lineage-core）の中間JSONに書き出す（Salesforce 用のアダプター） |
 | `neo4j/Salesforceの見方（Cypher）.txt` | Neo4j Browser に貼るだけで、保存で動くもの・項目の流れ・項目を変えるときに見る所・画面/ボタンから動く処理を図で出す |
-| `neo4j/onto_env.py` | Neo4j の作業環境（DDD-Ontology）を会話から操作する（ソデック用にする・起動・停止・取り込み・ブラウザで開く・問い合わせ） |
+| `neo4j/onto_env.py` | Neo4j の作業環境（DDD-Ontology）を会話から操作する（ソデック用にする・起動・停止・取り込み・オブジェクトの関係の線・ブラウザで開く・問い合わせ） |
+| `neo4j/README.md` | Claude が会話から図を出す手順（決まった型・その場で組み立てる Cypher）とグラフの形の早見 |
 
 出力の `refs.jsonl` は1行1参照（参照元の種類・名前・ファイル・行・役割・対象・確度）。
 

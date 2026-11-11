@@ -6,8 +6,10 @@
   python onto_env.py status                     # 起動しているか・入っているシステムと件数
   python onto_env.py reset-db --yes [--password-env 名前]   # Neo4j の中身を全部消し、n10s の設定だけ作り直す
   python onto_env.py load --root <プロジェクト> --repo <識別子> --name-ja <日本語名>   # 地図 → 中間JSON → TTL → 取り込み → 検証
-  python onto_env.py open [--query ② --set 項目=見積明細.単価 --set システム=gf_uat]   # Cypher 集の枠をクリップボードに入れて Neo4j Browser を開く
-  python onto_env.py query "<Cypher>"           # 読み取り専用で問い合わせて表で出す
+  python onto_env.py open [--query ② --set 項目=<オブジェクト.項目> --set システム=<識別子>]   # Cypher 集の枠をクリップボードに入れて Neo4j Browser を開く
+  python onto_env.py open --cypher-file <ファイル>   # その場で組み立てた Cypher をクリップボードに入れて開く（--cypher "<文>" でも可）
+  python onto_env.py query "<Cypher>" | --file <ファイル> [--limit 200]   # 読み取り専用で問い合わせる（図の Cypher は「丸 -線-> 丸」で出る）
+  python onto_env.py relations --repo <識別子> --map <地図のフォルダ>   # オブジェクトの関係（参照・主従）の線を足す（load が最後に行う）
 
 共通の引数: --env <作業環境のフォルダ>（既定: 環境変数 ONTO_ENV、無ければ E:\\Onto-sf-lineage）
 
@@ -17,6 +19,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import socket
@@ -49,6 +52,8 @@ class Env:
         self.http_port = int(re.search(r"^server\.http\.listen_address=.*?:(\d+)", conf, re.M).group(1))
         self.bolt_port = int(re.search(r"^server\.bolt\.listen_address=.*?:(\d+)", conf, re.M).group(1))
         self.bolt = f"bolt://localhost:{self.bolt_port}"
+        m = re.search(r"^baseIri:\s*(\S+)", open(os.path.join(self.core, "config.yaml"), encoding="utf-8-sig").read(), re.M)
+        self.base = m.group(1) if m else SODECH
 
     def neo4j_home(self) -> str:
         base = os.path.join(self.path, "neo4j")
@@ -131,7 +136,9 @@ def cmd_setup(env: Env) -> None:
                              ("LINEAGE_NEO4J_PASSWORD is not set", f"{PASS_ENV} is not set"),
                              ("=%LINEAGE_NEO4J_PASSWORD%", f"=%{PASS_ENV}%"),
                              ("REM  LINEAGE_NEO4J_PASSWORD (set it with", f"REM  {PASS_ENV} (set it with")],
-        "mcp-neo4j.cmd": [("/v NEO4J_PASSWORD", f"/v {PASS_ENV}"), ('find "NEO4J_PASSWORD"', f'find "{PASS_ENV}"'),
+        # find は Windows の find.exe を場所まで指定する（PATH に Git の find があると、そちらが呼ばれてパスワードを読めない）
+        "mcp-neo4j.cmd": [("/v NEO4J_PASSWORD", f"/v {PASS_ENV}"), ('^| find "NEO4J_PASSWORD"', f'^| %SystemRoot%\\System32\\find.exe "{PASS_ENV}"'),
+                          (f'^| find "{PASS_ENV}"', f'^| %SystemRoot%\\System32\\find.exe "{PASS_ENV}"'),
                           ("read NEO4J_PASSWORD from", f"read {PASS_ENV} from")],
         "set-neo4j-password.cmd": [("(LINEAGE_NEO4J_PASSWORD / NEO4J_PASSWORD)", f"({PASS_ENV}, for this environment only)")],
         "set-neo4j-password.ps1": [
@@ -237,9 +244,38 @@ def cmd_status(env: Env, argv: list[str]) -> None:
         ns, _, _ = d.execute_query("CALL n10s.nsprefixes.list() YIELD prefix, namespace WHERE prefix = 'cod' RETURN namespace")
     print(f"起動しています（Browser http://localhost:{env.http_port} ・ {env.bolt}）。語彙の名前空間: {ns[0]['namespace'] if ns else '未登録'}")
     for r in rows:
-        print(f"  {r['name']}（{r['uri'].rstrip('/').rsplit('/', 1)[-1]}）: {r['c']} ノード")
+        repo = r["uri"].rstrip("/").rsplit("/", 1)[-1]
+        ttl = os.path.join(env.path, "lineage-output", repo, "ttl", f"code-data-{repo}-latest.ttl")
+        when = time.strftime("%Y-%m-%d %H:%M", time.localtime(os.path.getmtime(ttl))) if os.path.isfile(ttl) else "不明"
+        print(f"  {r['name']}（{repo}）: {r['c']} ノード・TTL の作成 {when}")
     if not rows:
         print("  システムはまだ入っていません")
+
+
+# ---------- relations（オブジェクトの関係） ----------
+def cmd_relations(env: Env, argv: list[str]) -> None:
+    """参照・主従の項目 → 参照先のオブジェクトの線（sf__referenceTo）を足す。共通基盤の語彙にオブジェクトどうしの参照が無いため、
+    取り込みのあとに作業環境の Neo4j にだけ足す（取り込み直すと消えるので load の最後に毎回足す）。"""
+    repo, mapdir = opt(argv, "--repo"), opt(argv, "--map")
+    if not (repo and mapdir):
+        sys.exit("使い方: onto_env.py relations --repo <識別子> --map <地図のフォルダ>")
+    fields = json.load(open(os.path.join(mapdir, "fields.json"), encoding="utf-8"))
+    rows = [{"obj": o, "fld": f, "ref": i["referenceTo"]} for o, fs in fields.items() for f, i in fs.items()
+            if i.get("type") in ("Lookup", "MasterDetail", "Hierarchy") and i.get("referenceTo")]
+    need_neo4j_driver(argv, env)
+    db = f"{env.base}code-data/db/{repo}/"
+    with driver(env) as d:
+        pre = {r["prefix"]: r["namespace"] for r in d.execute_query("CALL n10s.nsprefixes.list() YIELD prefix, namespace RETURN prefix, namespace").records}
+        if "sf" not in pre:
+            d.execute_query("CALL n10s.nsprefixes.add('sf', $ns)", ns=f"{env.base}sf/")
+        d.execute_query("MATCH (t:cod__Table)-[:cod__hasColumn]->(:cod__Column)-[r:sf__referenceTo]->() WHERE t.uri STARTS WITH $db DELETE r", db=db)
+        res = d.execute_query(
+            "UNWIND $rows AS x "
+            "MATCH (t:cod__Table)-[:cod__hasColumn]->(c:cod__Column) "
+            "WHERE t.uri STARTS WITH $db AND head(t.cod__physicalName) = x.obj AND head(c.cod__physicalName) = x.fld "
+            "MATCH (t2:cod__Table) WHERE t2.uri STARTS WITH $db AND head(t2.cod__physicalName) = x.ref "
+            "MERGE (c)-[:sf__referenceTo]->(t2) RETURN count(*) AS n", rows=rows, db=db).records
+    print(f"オブジェクトの関係の線 {res[0]['n']} 本（参照・主従の項目 {len(rows)} 件のうち、両方のオブジェクトが入っているもの）")
 
 
 # ---------- reset-db ----------
@@ -295,6 +331,10 @@ def cmd_load(env: Env, argv: list[str]) -> None:
         if r.returncode != 0:
             print("\n".join(lines[-15:]))
             sys.exit(f"{label}で止まりました")
+    # オブジェクトの関係（参照・主従）の線を足す
+    r = subprocess.run([env.python, os.path.abspath(__file__), "--env", env.path, "relations", "--repo", repo, "--map", mapdir],
+                       env=dict(py_env, **{PASS_ENV: password()}), capture_output=True, text=True, encoding="utf-8", errors="replace")
+    print("[関係] " + ((r.stdout.strip().splitlines() or [""])[-1] if r.returncode == 0 else (r.stdout + r.stderr)[-500:]))
 
 
 # ---------- open / query ----------
@@ -336,7 +376,13 @@ def cmd_open(env: Env, argv: list[str]) -> None:
         cmd_start(env)
     url = f"http://localhost:{env.http_port}/browser/?dbms=neo4j://neo4j@localhost:{env.bolt_port}"
     q = opt(argv, "--query")
-    if q:
+    text = opt(argv, "--cypher")
+    if opt(argv, "--cypher-file"):
+        text = open(opt(argv, "--cypher-file"), encoding="utf-8-sig").read()
+    if text:   # Claude がその場で組み立てた Cypher
+        to_clipboard(text.strip())
+        print("Cypher をクリップボードに入れました。Neo4j Browser の入力欄に Ctrl+V → Ctrl+Enter")
+    elif q:
         blocks = cypher_blocks()
         key = next((k for k in blocks if k == q or k.startswith(q)), None)
         if not key:
@@ -348,21 +394,35 @@ def cmd_open(env: Env, argv: list[str]) -> None:
     print(f"開きました: {url}（初回だけパスワードでログイン）")
 
 
+def show(v) -> str:
+    """ノード・関係（仮のものも）を読める形にする。"""
+    if hasattr(v, "labels"):
+        return f"[{'/'.join(sorted(v.labels))}] {v.get('name') or v.get('表示名') or ''}"
+    if hasattr(v, "type") and hasattr(v, "start_node"):
+        return f"-{v.type}->"
+    return str(v)
+
+
 def cmd_query(env: Env, argv: list[str]) -> None:
-    if len(argv) < 2:
-        sys.exit('使い方: onto_env.py query "<Cypher>"')
+    """読み取り専用。図の Cypher（a・rel・b を返すもの）は「丸 -線-> 丸」の形で出るので、開く前の確かめにも使う。"""
+    q = open(opt(argv, "--file"), encoding="utf-8-sig").read() if opt(argv, "--file") else (argv[1] if len(argv) > 1 else None)
+    if not q:
+        sys.exit('使い方: onto_env.py query "<Cypher>"  または  query --file <Cypherのファイル> [--limit 200]')
+    limit = int(opt(argv, "--limit", "200"))
     need_neo4j_driver(argv, env)
     from neo4j import READ_ACCESS
     with driver(env) as d, d.session(database="neo4j", default_access_mode=READ_ACCESS) as s:
-        res = list(s.run(argv[1]))
+        res = list(s.run(q))
     if not res:
         print("（0 行）")
         return
     keys = list(res[0].keys())
+    # 仮の丸（apoc.create.vNode）は行ごとに ID が変わるので、種類と名前で数える
+    nodes = {(tuple(sorted(x.labels)), x.get("name") or x.get("表示名") or x.element_id) for r in res for x in r.values() if hasattr(x, "labels")}
     print("\t".join(keys))
-    for r in res[:200]:
-        print("\t".join(str(r[k]) for k in keys))
-    print(f"（{len(res)} 行{'。先頭の 200 行だけ表示' if len(res) > 200 else ''}）")
+    for r in res[:limit]:
+        print("\t".join(show(r[k]) for k in keys))
+    print(f"（{len(res)} 行" + (f"・丸 {len(nodes)} 個" if nodes else "") + (f"。先頭の {limit} 行だけ表示" if len(res) > limit else "") + "）")
 
 
 def main() -> None:
@@ -391,6 +451,8 @@ def main() -> None:
         cmd_open(env, argv)
     elif cmd == "query":
         cmd_query(env, argv)
+    elif cmd == "relations":
+        cmd_relations(env, argv)
     else:
         print(__doc__)
         sys.exit(f"知らないコマンドです: {cmd}")

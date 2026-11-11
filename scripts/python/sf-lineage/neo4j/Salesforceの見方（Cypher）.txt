@@ -209,3 +209,33 @@ RETURN vm[elementId(e[0])] AS a,
        vm[elementId(e[2])] AS b
 
 
+================================================================
+⑤ オブジェクトの関係図（参照・主従。矢印は「参照する側 → 参照先」）
+（線は onto_env.py load が取り込みのあとに足したもの。共通基盤の語彙にはオブジェクトどうしの参照が無いため）
+================================================================
+
+// ⑤ オブジェクトの関係図（参照・主従。矢印は「参照する側 → 参照先」）
+// ▼ 調べたい内容に合わせて、この3つを変える（オブジェクトは表示ラベル。'' にするとシステム全体。段数 = 何つ先のオブジェクトまで出すか）
+WITH 'my_project' AS システム, '商談' AS オブジェクト, 1 AS 段数
+WITH 'https://ontology.sodech.co.jp/code-data/db/' + システム + '/' AS 系, オブジェクト, 段数
+OPTIONAL MATCH (s:cod__Table) WHERE s.uri STARTS WITH 系 AND s.表示名 = オブジェクト
+CALL (s, 段数) {
+  WITH s WHERE s IS NOT NULL
+  CALL apoc.path.subgraphNodes(s, {relationshipFilter: 'cod__hasColumn|sf__referenceTo', maxLevel: 段数 * 2}) YIELD node
+  RETURN collect(node) AS ns
+}
+MATCH (t:cod__Table)-[:cod__hasColumn]->(c:cod__Column)-[:sf__referenceTo]->(t2:cod__Table)
+WHERE t.uri STARTS WITH 系 AND (オブジェクト = '' OR (t IN ns AND t2 IN ns AND (段数 > 1 OR t = s OR t2 = s)))
+WITH s, collect([t, c, t2]) AS es
+WITH s, es, apoc.coll.toSet(apoc.coll.flatten([e IN es | [e[0], e[2]]])) AS tables
+WITH es, apoc.map.fromPairs([t IN tables | [elementId(t), apoc.create.vNode(
+       [CASE WHEN t = s THEN '起点のオブジェクト' ELSE 'オブジェクト' END],
+       {name: t.表示名, 物理名: head(t.cod__physicalName)})]]) AS vm
+UNWIND es AS e
+RETURN vm[elementId(e[0])] AS a,
+       apoc.create.vRelationship(vm[elementId(e[0])],
+         e[1].表示名 + CASE head(e[1].cod__dataType) WHEN 'MasterDetail' THEN '（主従）' WHEN 'Hierarchy' THEN '（階層）' ELSE '（参照）' END,
+         {項目: head(e[1].cod__physicalName)}, vm[elementId(e[2])]) AS rel,
+       vm[elementId(e[2])] AS b
+
+

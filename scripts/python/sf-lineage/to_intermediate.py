@@ -514,6 +514,15 @@ class Exporter:
                 self.unresolved.append({"kind": kind, "functionKey": fk, "sourceFile": self.rel(file), "line": max(wref["line"], 1),
                                         "snippet": self.line_text(file, wref["line"]) or wref["target"], "reason": f"{reason}（{wref['target']}）",
                                         "confidence": "Low"})
+        # 参照・主従の項目は、使われていなくても全部書き出す（オブジェクトの関係図の元。線は onto_env.py が取り込みのあとに足す）
+        for obj, flds in self.fields.items():
+            if not self.known_obj(obj):
+                continue
+            for fld, info in flds.items():
+                ref = info.get("referenceTo")
+                if info.get("type") in ("Lookup", "MasterDetail", "Hierarchy") and ref and self.known_obj(ref):
+                    if self.column(f"{obj}.{fld}"):
+                        self.table(ref)
         # 4) 機能
         for obj, entries in save_entry.items():
             if self.known_obj(obj):
