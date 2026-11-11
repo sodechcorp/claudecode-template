@@ -255,12 +255,19 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   # 差分対象 = 前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない TC（test-spec.md に後から追加した TC）
   #   ∪ 前回の判定後に期待結果・判定方法・種別を書き換えた TC（証跡が書き換え前の期待結果で撮られているため。匿名 Apex の自己検証は期待結果から作る。
   #     書き換えを確かめられない旧版の判定結果〔spec_sig なし〕は全 TC）。
-  # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は書き換えていなければ証跡を撮り直さず、Phase D・D-2 で判定だけやり直す。
+  # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は書き換えていなければ証跡を撮り直さず、Phase D・D-2 で判定だけやり直す
+  # （撮り直す TC がほかに無ければ Phase D-2 から続ける。前回の判定の後に証跡採取を始めていた〔after_R{判定の回次} がある〕ときは証跡が消えている場合があり、
+  #   force-app を変えていた〔再実装〕ときは証跡が古いので、全件で撮り直す）。
   # 書き換えていない前回 OK・AI判定・対象外のみ除外する（SKIP を除外すると--full まで解消されず残留し、新規 TC を除外すると
   # 証跡未採取のまま judge_results.py で「証跡ファイルが見つかりません」の偽 NG になるため）。
   TARGET_TC_LIST=$(python "$(pwd -W)/scripts/python/backlog-xlsx/resolve_target_tcs.py" --judgment "$JUDGMENT_PATH" --spec "$SPEC_PATH" 2>/dev/null || echo "")
-  if [ -z "$TARGET_TC_LIST" ]; then
-    echo "[INFO] 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC なし（前回全件 OK）。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
+  PREV_AI=$(python -c "import json; print(json.load(open(r'$JUDGMENT_PATH', encoding='utf-8')).get('ai_pending', 0))" 2>/dev/null || echo "0")
+  JUDGED_ROUND=$(python -c "import glob, re; base = r'$JUDGMENT_PATH'.replace('.json',''); nums = [int(m.group(1)) for f in glob.glob(base + '.R*.json') for m in [re.search(r'\.R(\d+)\.json$', f)] if m]; print(max(nums + [0]) + 1)" 2>/dev/null || echo "1")
+  FA_CHANGED=$(find force-app -type f -newer "$JUDGMENT_PATH" 2>/dev/null | head -1)
+  if [ -z "$TARGET_TC_LIST" ] && [ "$PREV_AI" -gt 0 ] && [ ! -d "${EVIDENCE_DIR}/after_R${JUDGED_ROUND}" ] && [ -z "$FA_CHANGED" ]; then
+    echo "[INFO] 撮り直す TC は無く、前回の判定に AI判定待ちが ${PREV_AI} 件あります。証跡採取（auto-evidence-runner）と Phase D を行わず、前回の判定・証跡のまま Phase D-2 から続けます（前回の判定の後で管理画面の設定を変えた・force-app を変えずに再デプロイした場合は --full で実行し直してください）。"
+  elif [ -z "$TARGET_TC_LIST" ]; then
+    echo "[INFO] 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC なし。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
   else
     echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC）: $TARGET_TC_LIST"
     echo "[INFO] 影響範囲の TC は今回の実行対象には含まれません（Phase F で NG があった場合のみ、次回再テストの判断材料として提示されます）。"
@@ -270,6 +277,8 @@ else
 fi
 echo "TARGET_TC_LIST=$TARGET_TC_LIST"
 ```
+
+`Phase D-2 から続けます` が出たら、auto-evidence-runner を起動せず（下の証跡ファイルの確認も行わない）、Phase D も行わずに Phase D-2 へ進む。
 
 > **[auto-evidence-runner（オーケストレータ）へ委譲]**
 
