@@ -5,7 +5,7 @@ Salesforce の組織の地図を Neo4j で見る（貼るだけの Cypher 集）
   覚える必要はありません。下の枠の中を丸ごと貼って、▼ の行の '…' の中だけ変えます。
 
 ■ 使い方
-  1. 作業環境の Neo4j を起動する（<作業環境>\start-neo4j.cmd。作業環境は DDD-Ontology の原本から new-onto-env.cmd で作る）
+  1. 作業環境の Neo4j を起動する（<作業環境>\start-neo4j.cmd。作業環境は DDD-Ontology の原本から new-onto-env.cmd で作る。Claude Code に頼むときは onto_env.py が自分で起動する）
   2. ブラウザで 作業環境の Neo4j Browser（new-onto-env が表示したポート。例 http://localhost:7574 ）を開き、ユーザー neo4j とパスワードでログインする
      （7474 は原本の Neo4j。Salesforce のデータは入っていない）
   3. 画面上の入力欄に、使いたい番号の枠の中（「// ①」の行から次の「====」の手前まで）を貼り、Ctrl + Enter（または ▶）

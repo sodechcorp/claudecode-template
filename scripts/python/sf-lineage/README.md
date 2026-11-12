@@ -46,12 +46,13 @@ python scripts/python/sf-lineage/lineage.py export --repo <識別子> --name-ja 
 
 普段の課題対応は who・save で引く。つながりを図で見せる・探るときだけ、DDD-Ontology の作業環境（原本から `new-onto-env.cmd` で作ったもの）の Neo4j に入れる。
 
-操作は `neo4j/onto_env.py`（作業環境は `--env` か環境変数 `ONTO_ENV`。既定 `E:\Onto-sf-lineage`）:
+操作は `neo4j/onto_env.py`（作業環境は `--env` か環境変数 `ONTO_ENV`。無ければ `C:\work\Onto-sf-lineage` → `E:\Onto-sf-lineage` の順に探す）:
 
-1. 初回だけ: 原本の Neo4j を止めて `new-onto-env.cmd` で作業環境を作る → `onto_env.py setup`（作業環境の名前空間をソデック用 `https://ontology.sodech.co.jp/` に、パスワードの環境変数を作業環境専用の `SODECH_NEO4J_PASSWORD` にする）→ `onto_env.py start` → `onto_env.py reset-db --yes --password-env LINEAGE_NEO4J_PASSWORD`（原本からコピーした中身を消す）→ **利用者が**作業環境の `set-neo4j-password.cmd` で新しいパスワードを決める
+1. 初回だけ: 原本の Neo4j を止めて `new-onto-env.cmd` で作業環境を作る → `onto_env.py setup`（作業環境の中のパスを実際の場所に、名前空間をソデック用 `https://ontology.sodech.co.jp/` に、パスワードの環境変数を作業環境専用の `SODECH_NEO4J_PASSWORD` にし、show 用の playwright を作業環境の .venv に入れる）→ `onto_env.py start` → `onto_env.py reset-db --yes --password-env LINEAGE_NEO4J_PASSWORD`（原本からコピーした中身を消す）→ **利用者が**作業環境の `set-neo4j-password.cmd` で新しいパスワードを決める
 2. `onto_env.py load --root <プロジェクトのルート> --repo <識別子> --name-ja <日本語名>`（地図 → 中間JSON → TTL → 取り込み → SHACL 検証。識別子は英数字・`_`・`-`。`t_` で始めない）
-3. `onto_env.py show --query ② --set 項目=<オブジェクト.項目>`（Claude 用のブラウザの窓で、ログイン・`neo4j/Salesforceの見方（Cypher）.txt` の枠の入力・実行まで行い、図がそのまま出る。要 `pip install playwright`）。その場で組み立てた Cypher は `show --cypher-file`。`onto_env.py query "<Cypher>"` で表でも引ける
+3. `onto_env.py show --query ② --set 項目=<オブジェクト.項目>`（Claude 用のブラウザの窓で、ログイン・`neo4j/Salesforceの見方（Cypher）.txt` の枠の入力・実行まで行い、図がそのまま出る）。その場で組み立てた Cypher は `show --cypher-file`。`onto_env.py query "<Cypher>"` で表でも引ける
 
+- **E: ドライブ・PC 起動時のコマンドは要らない**。new-onto-env は `E:\<作業環境>`（`subst E: C:\work`。再起動で外れる）を前提にパスを書き込むので、`setup` が中のパス（start-neo4j.cmd・cypher-shell.cmd・tools の config.yaml など）を実際の場所に書き換える。Neo4j は止まっていても `show`・`query`・`load` が自分で起動する（30秒ほど）
 - 名前空間は、設定の baseIri だけ変えると語彙・検証の規則（既定の名前空間で決め打ち）と合わず SHACL が空振りになる。`setup` が作業環境の中の語彙・規則・設定・テスト・ビュー定義をまとめて書き換える
 - パスワードは Claude が尋ねない・入力しない・表示しない（作業環境の決まり）
 - テストクラス・管理パッケージの項目・Id への代入は書き出さない。全項目を読む SOQL・項目名を変数で渡す put/get は「未解決」として残る

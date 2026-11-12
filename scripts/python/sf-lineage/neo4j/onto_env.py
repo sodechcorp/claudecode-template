@@ -1,6 +1,6 @@
 """Salesforce の組織の地図を Neo4j で見る作業環境（DDD-Ontology の原本から new-onto-env.cmd で作ったもの）を、Claude Code の会話から操作する。
 
-  python onto_env.py setup                      # 作業環境をソデック用にする（名前空間・パスワードの環境変数）。何度実行してもよい
+  python onto_env.py setup                      # 作業環境をソデック用にする（置き場所・名前空間・パスワードの環境変数）。何度実行してもよい
   python onto_env.py start                      # Neo4j を別のウィンドウで起動し、つながるまで待つ
   python onto_env.py stop                       # Neo4j を止める
   python onto_env.py status                     # 起動しているか・入っているシステムと件数
@@ -13,7 +13,10 @@
   python onto_env.py query "<Cypher>" | --file <ファイル> [--limit 200]   # 読み取り専用で問い合わせる（図の Cypher は「丸 -線-> 丸」で出る）
   python onto_env.py relations --repo <識別子> --map <地図のフォルダ>   # オブジェクトの関係（参照・主従）の線を足す（load が最後に行う）
 
-共通の引数: --env <作業環境のフォルダ>（既定: 環境変数 ONTO_ENV、無ければ E:\\Onto-sf-lineage）
+共通の引数: --env <作業環境のフォルダ>（既定: 環境変数 ONTO_ENV、無ければ C:\\work\\Onto-sf-lineage → E:\\Onto-sf-lineage の順に探す）
+
+- E: ドライブ（subst E: C:\\work）は不要。setup が作業環境の中のパスを実際の場所に書き換える。
+  Neo4j は PC の起動時に立ち上げておく必要もない（show・open は止まっていれば自分で起動する。start でも可）
 
 - パスワードはユーザー環境変数 SODECH_NEO4J_PASSWORD から読む（画面にもファイルにも出さない）。
   決める・変えるのは利用者が作業環境の set-neo4j-password.cmd で行う（Claude は実行しない）
@@ -41,9 +44,28 @@ GRAPHCONFIG = "{handleVocabUris: 'SHORTEN', handleRDFTypes: 'LABELS', handleMult
 
 
 # ---------- 作業環境 ----------
+# 作業環境の置き場所の候補（--env・環境変数 ONTO_ENV が無いとき、上から順に探す）。
+# new-onto-env は E: ドライブ（subst E: C:\work。PC を再起動すると外れる）を前提に作るので、実際の場所を先に見る
+DEFAULT_ENVS = [r"C:\work\Onto-sf-lineage", r"E:\Onto-sf-lineage"]
+
+
+def real_path(path: str) -> str:
+    """subst で割り当てたドライブのパスを、実際の場所に直す（E:\\x → C:\\work\\x）。"""
+    path = os.path.abspath(path)
+    try:
+        out = subprocess.run(["subst"], capture_output=True, text=True, encoding="cp932", errors="ignore").stdout
+    except OSError:
+        return path
+    for line in out.splitlines():   # 例: E:\: => C:\work
+        m = re.match(r"([A-Za-z]:)\\: => (.+)$", line.strip())
+        if m and path.upper().startswith(m.group(1).upper()):
+            return m.group(2).rstrip("\\") + path[2:]
+    return path
+
+
 class Env:
     def __init__(self, path: str) -> None:
-        self.path = os.path.abspath(path)
+        self.path = real_path(path)
         if not os.path.isfile(os.path.join(self.path, "start-neo4j.cmd")):
             sys.exit(f"作業環境が見つかりません: {self.path}（--env か環境変数 ONTO_ENV で指定する）")
         if os.path.normcase(os.path.basename(self.path)) == os.path.normcase("DDD-Ontology"):
@@ -119,8 +141,50 @@ def rewrite(path: str, pairs: list[tuple[str, str]]) -> bool:
     return True
 
 
+RELOCATE_SKIP_DIRS = {".venv", "__pycache__", ".pytest_cache", "jdk", "data", "logs", "lineage-output",
+                      "browser-profile", "backup", "downloads", "node_modules", ".git"}
+RELOCATE_EXTS = (".cmd", ".bat", ".ps1", ".yaml", ".yml", ".md", ".txt", ".json", ".py", ".toml", ".cfg", ".ini")
+
+
+def baked_root(env: Env) -> str | None:
+    """new-onto-env が作ったときの置き場所（start-neo4j.cmd の NEO4J_HOME から読む。例: E:\\Onto-sf-lineage）。"""
+    text = open(os.path.join(env.path, "start-neo4j.cmd"), encoding="utf-8", errors="ignore").read()
+    m = re.search(r'set "NEO4J_HOME=(.+?)\\neo4j\\neo4j-community-', text)
+    return m.group(1) if m else None
+
+
+def relocate(env: Env) -> list[str]:
+    """作業環境に書き込まれた置き場所（E:\\Onto-sf-lineage など）を、実際の場所に書き換える。
+    E: は subst で割り当てたドライブで PC を再起動すると外れるため、これをしないと Neo4j が起動できない。"""
+    old = baked_root(env)
+    if not old or os.path.normcase(old.rstrip("\\/")) == os.path.normcase(env.path.rstrip("\\/")):
+        return []
+    new = env.path.rstrip("\\/")
+    pairs = [(old.replace("\\", "\\\\"), new.replace("\\", "\\\\")),   # JSON などの \\ 表記
+             (old, new), (old.replace("\\", "/"), new.replace("\\", "/"))]
+    changed = []
+    for dp, dns, fns in os.walk(env.path):
+        dns[:] = [d for d in dns if d not in RELOCATE_SKIP_DIRS]
+        for fn in fns:
+            if not fn.lower().endswith(RELOCATE_EXTS):
+                continue
+            p = os.path.join(dp, fn)
+            try:
+                if rewrite(p, pairs):
+                    changed.append(os.path.relpath(p, env.path))
+            except (UnicodeDecodeError, OSError):
+                pass
+    return changed
+
+
 def cmd_setup(env: Env) -> None:
     changed = []
+    # 0) 置き場所: E: ドライブ（subst）を前提に作られたパスを、実際の場所（例: C:\work\Onto-sf-lineage）に
+    old_root = baked_root(env)
+    moved = relocate(env)
+    if moved:
+        print(f"置き場所を {env.path} に書き換えたファイル {len(moved)} 件")
+        changed += moved
     # 1) 名前空間: 語彙・検証の規則・設定・テスト・ビュー定義をソデック用に
     for sub in (os.path.join("tools", "lineage-core"), os.path.join("tools", "lineage-viewer")):
         top = os.path.join(env.path, sub)
@@ -179,6 +243,12 @@ def cmd_setup(env: Env) -> None:
                     f"tools/lineage-viewer）。パスワードの環境変数を {PASS_ENV} に（config.yaml・cypher-shell.cmd・mcp-neo4j.cmd・"
                     "set-neo4j-password）。onto_env.py setup で実行 |\n")
         changed.append("更新記録.md")
+    mark2 = "置き場所を実際の場所に（E: ドライブ不要）"
+    if moved and os.path.isfile(log) and mark2 not in open(log, encoding="utf-8-sig").read():
+        with open(log, "a", encoding="utf-8") as f:
+            f.write(f"\n| {time.strftime('%Y-%m-%d')} | 変更 | {mark2} | {old_root or '元の場所'} を {env.path} に"
+                    "（start-neo4j.cmd・cypher-shell.cmd・tools の config.yaml・adapter-config.yaml・run-core.ps1・説明書）。"
+                    "subst E: が無くても起動できる。onto_env.py setup で実行 |\n")
     # 確かめる: 作業環境の中に既定の名前空間が残っていないか（lineage-core・viewer）
     left = []
     for sub in (os.path.join("tools", "lineage-core"), os.path.join("tools", "lineage-viewer")):
@@ -193,6 +263,14 @@ def cmd_setup(env: Env) -> None:
                     pass
     print(f"変えたファイル {len(changed)} 件" + ("" if not changed else "：" + "、".join(changed[:12]) + ("…" if len(changed) > 12 else "")))
     print("既定の名前空間の残り: " + ("なし" if not left else "、".join(left)))
+    # 4) show 用の playwright を作業環境の .venv に入れる（show はどの Python から呼んでも、無ければこの .venv で動かし直す。ブラウザの取得は要らない）
+    if os.path.isfile(env.python):
+        has = subprocess.run([env.python, "-c", "import playwright"], capture_output=True).returncode == 0
+        if not has:
+            r = subprocess.run([env.python, "-m", "pip", "install", "-q", "playwright>=1.50"], capture_output=True, text=True,
+                               encoding="utf-8", errors="ignore")
+            has = r.returncode == 0
+        print("show 用の playwright（作業環境の .venv）: " + ("あり" if has else "入れられませんでした（ネットワークを確かめて setup をやり直す）"))
 
 
 # ---------- start / stop / status ----------
@@ -202,7 +280,9 @@ def cmd_start(env: Env) -> None:
         return
     title = f"Neo4j {os.path.basename(env.path)}"
     # 別のウィンドウで動かす（この会話が終わっても止まらない。止めるときはそのウィンドウで Ctrl+C か onto_env.py stop）
-    subprocess.Popen(["cmd", "/c", "start", title, "cmd", "/k", os.path.join(env.path, "start-neo4j.cmd")], cwd=env.path)
+    # 入出力を引き継がない（引き継ぐと、呼んだ側（Claude のコマンド）が Neo4j の窓を閉じるまで終わらない）
+    subprocess.Popen(["cmd", "/c", "start", title, "cmd", "/k", os.path.join(env.path, "start-neo4j.cmd")], cwd=env.path,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
     for _ in range(120):
         if env.running():
             print(f"起動しました（Browser http://localhost:{env.http_port} ・ {env.bolt}。ウィンドウ「{title}」）")
@@ -533,8 +613,6 @@ def cmd_load(env: Env, argv: list[str]) -> None:
     root, repo, name_ja = opt(argv, "--root"), opt(argv, "--repo"), opt(argv, "--name-ja")
     if not (root and repo and name_ja):
         sys.exit("使い方: onto_env.py load --root <プロジェクトのルート> --repo <識別子> --name-ja <日本語名> [--map <地図のフォルダ>]")
-    if not env.running():
-        sys.exit("Neo4j が止まっています。onto_env.py start で起動してから")
     mapdir = os.path.abspath(opt(argv, "--map") or os.path.join(root, ".lineage"))
     dest = os.path.join(mapdir, f"intermediate-{repo}.json")
     py_env = dict(os.environ, PYTHONIOENCODING="utf-8")
@@ -642,7 +720,12 @@ def cmd_show(env: Env, argv: list[str]) -> None:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        sys.exit("Python の playwright がありません（pip install playwright）。代わりに onto_env.py open（クリップボードに入れて開く）を使う")
+        # この Python に無ければ、作業環境の .venv の Python で動かし直す（neo4j ドライバーと playwright を入れてある）
+        if os.path.isfile(env.python) and os.path.normcase(sys.executable) != os.path.normcase(env.python):
+            sys.exit(subprocess.call([env.python, os.path.abspath(__file__), "--env", env.path] + argv,
+                                     env=dict(os.environ, PYTHONIOENCODING="utf-8")))
+        sys.exit(f"Python の playwright がありません（{env.python} -m pip install playwright。ブラウザの取得は要らない）。"
+                 "代わりに onto_env.py open（クリップボードに入れて開く）を使う")
     text = cypher_text(argv)
     if not env.running():
         cmd_start(env)
@@ -686,15 +769,21 @@ def cmd_show(env: Env, argv: list[str]) -> None:
         except Exception as e:  # noqa: BLE001
             print(f"（窓を前に出せませんでした: {str(e)[:120]}）")
         page.wait_for_load_state("domcontentloaded")
-        pwd = page.locator("input[type=password]")
-        try:
-            pwd.first.wait_for(state="visible", timeout=4000)
-        except Exception:  # noqa: BLE001  ログイン済み
-            pass
-        if pwd.count() and pwd.first.is_visible():
+
+        def login(wait_ms: int) -> bool:
+            """ログインの欄が出ていれば、環境変数のパスワードを入れて接続する（表示しない）。ログインしたら True。"""
+            pwd = page.locator("input[type=password]")
+            try:
+                pwd.first.wait_for(state="visible", timeout=wait_ms)
+            except Exception:  # noqa: BLE001  ログイン済み
+                return False
             pwd.first.fill(password())
             page.get_by_role("button", name="Connect", exact=True).click()
             page.locator("input[type=password]").first.wait_for(state="hidden", timeout=15000)
+            page.wait_for_timeout(2500)   # 接続の直後はデータベースの選択が終わっていない（すぐ実行すると No active database）
+            return True
+
+        login(4000)
         for _ in range(3):   # はじめて開いたときの案内を閉じる
             d = page.get_by_role("button", name="Dismiss", exact=True)
             if d.count() and d.first.is_visible():
@@ -712,12 +801,26 @@ def cmd_show(env: Env, argv: list[str]) -> None:
         if text:
             ed = page.locator(".cm-editor .cm-content").first
             ed.wait_for(state="visible", timeout=10000)
-            ed.click()
-            page.keyboard.press("Control+A")
-            page.keyboard.press("Delete")
-            page.keyboard.insert_text(text.strip())
-            page.keyboard.press("Control+Enter")
+
+            def run() -> None:
+                ed.click()
+                page.keyboard.press("Control+A")
+                page.keyboard.press("Delete")
+                page.keyboard.insert_text(text.strip())
+                page.keyboard.press("Control+Enter")
+
+            run()
+            # Neo4j を起動し直したあとの古いタブは、実行して初めてログインの欄が出る。そのときはログインしてやり直す
+            if login(2000):
+                run()
             page.wait_for_timeout(int(float(opt(argv, "--wait", "6")) * 1000))
+            if page.get_by_text("No active database").count():   # それでも間に合わなかったら、失敗の枠を消して 1 回やり直す
+                rm = page.get_by_role("button", name="Remove frame", exact=True)
+                if rm.count():
+                    rm.first.click()
+                page.wait_for_timeout(1500)
+                run()
+                page.wait_for_timeout(int(float(opt(argv, "--wait", "6")) * 1000))
             # 入力欄を空にして小さくし、結果の図が見えるようにする（問い合わせ文は結果の枠の見出しに残る）
             ed.click()
             page.keyboard.press("Control+A")
@@ -794,7 +897,8 @@ def cmd_query(env: Env, argv: list[str]) -> None:
 
 def main() -> None:
     argv = sys.argv[1:]
-    env_path = opt(argv, "--env") or os.environ.get("ONTO_ENV") or r"E:\Onto-sf-lineage"
+    env_path = (opt(argv, "--env") or os.environ.get("ONTO_ENV")
+                or next((p for p in DEFAULT_ENVS if os.path.isfile(os.path.join(p, "start-neo4j.cmd"))), DEFAULT_ENVS[0]))
     if "--env" in argv:
         i = argv.index("--env"); del argv[i:i + 2]
     if not argv:
@@ -802,6 +906,9 @@ def main() -> None:
         return
     env = Env(env_path)
     cmd = argv[0]
+    # Neo4j を使うコマンドは、止まっていれば先に起動する（PC の起動時に立ち上げておかなくてよい）
+    if cmd in ("load", "query", "relations", "props", "open", "show") and not env.running():
+        cmd_start(env)
     if cmd == "setup":
         cmd_setup(env)
     elif cmd == "start":
