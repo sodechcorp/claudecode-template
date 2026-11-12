@@ -38,7 +38,7 @@ Apex テストクラスの回帰確認・カバレッジは `/backlog` Phase 5 �
 |---|---|---|
 | `SOQL` | `sf data query` | データ件数・フィールド値の確認 |
 | `AnonApex` | `sf apex run --file`（匿名Apex） | データ作成・Flow起動・ビジネスロジック直接実行・結果確認 |
-| `UI` | Playwright ヘッドレス | 画面表示・ボタン・遷移・ユーザ別見え方・権限差分（Login As）確認 |
+| `UI` | Playwright | 画面表示・ボタン・遷移・ユーザ別見え方・権限差分（Login As）確認 |
 
 ---
 

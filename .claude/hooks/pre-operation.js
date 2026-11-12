@@ -1,7 +1,7 @@
 // =============================================================================
 // pre-operation.js — Claude Code PreToolUse hook
 //
-// 5つの保護レイヤを提供する:
+// 6つの保護レイヤを提供する:
 //
 // (1) 本番組織へのコマンド: ハードブロック（permissionDecision: deny、Bash・PowerShell）
 //     sf project deploy / data ops / apex run / package / org delete を
@@ -28,6 +28,11 @@
 //     Write / Edit / MultiEdit で .cls / .trigger / .page / lwc配下 .js を書く際、
 //     FLS/CRUD漏れ・SOQLインジェクション・ハードコードID・SOQL in loop を正規表現で簡易スキャン。
 //     処理は止めない（人間のレビュー・reviewer.md の詳細チェックを代替しない簡易検出）。
+//
+// (6) Claude in Chrome（本人のログイン済みの Chrome）で Salesforce・Backlog を開く操作: ハードブロック
+//     入力（navigate の url・browser_batch の中の操作・javascript_tool の text・computer で打つ文字等）に
+//     Salesforce・Backlog のドメインがあれば止める（本人の Chrome での保存・投稿は (1)・(3) を通らないため）。
+//     Google ドキュメント等の資料の確認・編集は通す。資料のリンクから飛ぶ等、入力に URL が出ない経路は止められない
 // =============================================================================
 
 const fs = require('fs');
@@ -237,6 +242,20 @@ function onInput(buf) {
         hookEventName: 'PreToolUse',
         permissionDecision: 'deny',
         permissionDecisionReason: '[HARD-BLOCK] Backlog への書き込み（コメント投稿・課題更新等）はブロックされています。文面案はチャットで提示し、投稿・更新は人間が Backlog UI から手動で実施してください。\n対象ツール: ' + toolName
+      }
+    }));
+    return;
+  }
+
+  // ---- Check 6: Claude in Chrome で Salesforce・Backlog を開く操作のハードブロック ----
+  // ドメインの前にサブドメインを1つ以上求める（製品名・社名の Force.com・Salesforce.com や noreply@salesforce.com で止めないため）
+  if (/^mcp__claude-in-chrome__/i.test(toolName) &&
+      /(?:^|[^\w.-])(?:[\w-]+\.)+(?:(?:salesforce|force|salesforce-setup|salesforce-experience|salesforce-sites|salesforce-scrt|my-salesforce|my-lightning|visualforce|cloudforce|documentforce|site)\.com|backlog\.(?:com|jp)|backlogtool\.com)(?![\w-])/i.test(JSON.stringify(input))) {
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        permissionDecision: 'deny',
+        permissionDecisionReason: '[HARD-BLOCK] Claude in Chrome（本人のログイン済みの Chrome）で Salesforce・Backlog の URL を含む操作はブロックされています（本番組織・Backlog での保存・投稿を止められないため）。Salesforce の画面は Playwright（frontdoor 認証）で、Backlog は MCP の読み取りで、Salesforce の公式ドキュメントは WebSearch か Playwright で扱ってください。資料に URL を書き込む必要があるときは、文字を分けて打つ等で避けず、ユーザーに手で入れてもらってください。\n対象ツール: ' + toolName
       }
     }));
     return;

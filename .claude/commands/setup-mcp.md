@@ -47,14 +47,16 @@ playwright を設定する場合は「その他」を選択して `playwright` �
 
 ### 「playwright」の場合
 
-トークン不要。以下の設定を `.mcp.json` に追加する:
+トークン不要。以下の設定を `.mcp.json` に追加する（既に playwright があり args に `--isolated` が無いときも、この内容で上書きする）:
 
 ```json
 "playwright": {
   "command": "npx",
-  "args": ["-y", "@playwright/mcp@latest"]
+  "args": ["-y", "@playwright/mcp@latest", "--isolated"]
 }
 ```
+
+`--isolated` はブラウザのプロファイルをメモリにだけ置く（既定はディスクに保存する方式で、同じ案件の別のセッションが Playwright を使っていると `Browser is already in use` で起動できない）。Salesforce は毎回 frontdoor でログインするので困らないが、Playwright の窓で手でログインした他のサイトは、ブラウザを閉じると消える。
 
 ### 「github」の場合
 

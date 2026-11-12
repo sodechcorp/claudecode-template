@@ -19,7 +19,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|PowerShell|Write|Edit|MultiEdit|mcp__backlog__.*",
+        "matcher": "Bash|PowerShell|Write|Edit|MultiEdit|mcp__backlog__.*|mcp__claude-in-chrome__.*",
         "hooks": [
           {
             "type": "command",

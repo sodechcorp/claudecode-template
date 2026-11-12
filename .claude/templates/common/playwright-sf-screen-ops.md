@@ -51,6 +51,8 @@ sf org open --target-org "$SF_ALIAS" --url-only --json
 
 JSON の `result.url` を `FRONTDOOR_URL` として取得する。`--path` 指定時は `page.goto(FRONTDOOR_URL)` の1回で1件目の対象画面まで到達するため、直後に続けていた個別ナビゲーションは不要になる。
 
+Playwright の最初の操作が `Browser is already in use … use --isolated` で失敗したら、同じ案件の別のセッション（または残った前回のブラウザ）が Playwright のプロファイルを使っている（`.mcp.json` の playwright に `--isolated` が無い）。下の着地の確認でログインできなかったときと同じ扱いで、理由を「`/setup-mcp` で playwright を設定し直し（`--isolated` が付く）、Claude Code を再起動する」にして返す。
+
 **着地の確認（必須）**: `FRONTDOOR_URL` を開いたら、最初の撮影・操作の前に `frontdoorFailure(page)` を呼ぶ（`browser_navigate` で開いたときは次のコードブロックの冒頭で呼ぶ）。`page.goto` は frontdoor のリダイレクト（`/secur/frontdoor.jsp` → `/secur/contentDoor`）の途中で戻り、`waitSfReady` の後もまだ着地していないことがあるため、`page.url()` をそのまま見ない。理由が返ったらログインできていない。その画面を対象画面として撮影・判定・入力せず、画面操作をやめて理由を呼び出し元に返す。パスワード変更画面なら「{alias} の接続ユーザーのパスワード変更が要る（担当者が Salesforce にログインして変更する）」と伝える（同じセッションでほかの画面を開いてもパスワード変更画面に戻される。パスワードは Claude が変更しない）。
 
 ```javascript
