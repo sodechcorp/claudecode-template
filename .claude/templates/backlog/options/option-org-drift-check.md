@@ -15,7 +15,7 @@ Tier1/2 は release-preparer Phase 1 で確定した資材マニフェストに�
 
 ### Tier 0: 環境間実体差分チェック（マニフェスト非依存・最優先）
 
-> **検査対象の範囲（重要）**: Tier 0 の実体比較は **LWC（LightningComponentResource）/ Apex クラス / Apex トリガーの3種のみ**対応する（Tooling API で本文が取得できる種別に限定されるため）。Flow・カスタム項目・レイアウト等それ以外の種別の未リリース積み残しは Tier 0 では検知できない。これらは Tier 1（`sf org list metadata` の最終更新日時/更新者比較。資材マニフェストに載っている種別のみが対象）でカバーする。Tier 1 も資材マニフェスト外のコンポーネント（今回のマニフェストに現れない積み残し）は検知対象外である点に留意する。
+> **検査対象の範囲（重要）**: Tier 0 の実体比較は **LWC（LightningComponentResource）/ Aura（AuraDefinition）/ Apex クラス / Apex トリガー / Visualforce（ApexPage・ApexComponent）の5種**に対応する（Tooling API で本文が取得できる種別に限定されるため。Aura と Visualforce は ASNO-44 で足した。外していたため、開発環境と本番の Aura の差〔変更セットに入れ忘れた部品〕を検知できなかった）。Flow・カスタム項目・レイアウト等それ以外の種別の未リリース積み残しは Tier 0 では検知できない。これらは Tier 1（`sf org list metadata` の最終更新日時/更新者比較。資材マニフェストに載っている種別のみが対象）でカバーする。Tier 1 も資材マニフェスト外のコンポーネント（今回のマニフェストに現れない積み残し）は検知対象外である点に留意する（`/release` では release-preparer Phase 1 の 2c〔開発環境で変わった部品の棚卸し〕がこれを補う）。
 
 release-preparer Phase 1 のマニフェスト確定を待たず、以下の手順でスコープを独自に決定してから実施する（Phase 1 内で先出し実行される場合もある。詳細: release-preparer.md Phase 1）。
 
@@ -23,6 +23,7 @@ release-preparer Phase 1 のマニフェスト確定を待たず、以下の手�
 1. release-preparer Phase 1 で確定した資材マニフェスト
 2. マニフェスト対象と**同一 LWC バンドル**、および**相互に参照し合うコンポーネント**（組織の地図があれば、`python scripts/python/sf-lineage/lineage.py who LWC:<名前>` で親（それを埋め込む・開く部品）、`lineage.py uses LWC:<名前>` で子・呼ぶ Apex が出る。文章からの抜き出しより漏れと雑音が少ない。[option-lineage-map.md](option-lineage-map.md)）（親が子を `modal.open({...})` / `<c-child prop=…>` で呼ぶ関係。実例: preCheck ⇄ preCheckModal）。特定方法: マニフェスト対象 LWC の `.js`/`.html` を Grep し、`import ... from 'c/{other}'` のインポート文・`<c-{kebab-case}` タグ・`{Something}Modal.open(` 等の呼び出しパターンから、参照先/参照元の LWC バンドルを双方向に洗い出してスコープへ追加する
 3. [unreleased-component-scan.md](../_partials/unreleased-component-scan.md) の手順で暫定候補リストを抽出してスコープへ追加する（release-preparer Phase 1 1a-1/2a-1 で抽出済みの場合はそれを再利用し、再走査しない）
+4. マニフェストの Apex クラスを使う Aura・LWC・Visualforce（組織の地図があれば `cd "{project_dir}" && python scripts/python/sf-lineage/lineage.py who {クラス名}`、無ければ force-app を `controller="{クラス名}"`・`@salesforce/apex/{クラス名}.`・`extensions=` で Grep）。Apex の取得項目を変えたのに表示する部品を入れ忘れた場合、その部品は開発環境と本番で中身が違うので、ここで見つかる（ASNO-44）
 
 **2. UAT（Sandbox）と本番の双方から Tooling API 経由で実体を取得する**（`$SF_ALIAS` = [sandbox-alias-check.md](../../common/sandbox-alias-check.md) で確認済みの Sandbox/UAT エイリアス、`$PROD_ALIAS` = [prod-readonly-check.md](../../common/prod-readonly-check.md) で確認済みの本番エイリアス。`force-app/` への retrieve は行わない。取得結果は一時ディレクトリ `{tmp_dir}/org-drift-tier0/` に保存し、比較にのみ使う）:
 ```bash
@@ -39,12 +40,21 @@ sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{
 ```
 > フィールド名・リレーション名がエラーになる場合は `sf sobject describe --sobject LightningComponentResource --use-tooling-api --target-org "$SF_ALIAS"` で実際のスキーマを確認してから再実行する（API バージョン差異の可能性）。
 
-**3. UAT側・本番側の `Source` / `Body` を比較する**:
+Aura と Visualforce も同じように取る（Aura は1つのバンドルに部品・コントローラー・ヘルパー等の複数の定義があるので、`DefType` ごとに比べる）:
+```bash
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT DefType, Source FROM AuraDefinition WHERE AuraDefinitionBundle.DeveloperName = '{バンドル名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{バンドル名}.aura.uat.json"
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT DefType, Source FROM AuraDefinition WHERE AuraDefinitionBundle.DeveloperName = '{バンドル名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{バンドル名}.aura.prod.json"
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Markup FROM ApexPage WHERE Name = '{ページ名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{ページ名}.page.uat.json"
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Markup FROM ApexPage WHERE Name = '{ページ名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{ページ名}.page.prod.json"
+```
+（Visualforce コンポーネントは `ApexPage` を `ApexComponent` に、保存先の `.page.` を `.component.` に替える〔同じ名前のページと上書きし合わないため〕。比べ方は LWC と同じく、空白をそろえて一致するか）
+
+**3. UAT側・本番側の `Source` / `Body` / `Markup` を比較する**:
 ```bash
 python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat.json',encoding='utf-8'))['result']['records']; b=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.prod.json',encoding='utf-8'))['result']['records']; ..."
 ```
 
-**4. 差分の意味を判定する**（本判定は手順2で実体取得できた LWC / Apex クラス / Apex トリガーの3種のみに適用する。それ以外の種別の候補がスコープに含まれていた場合、実体取得できないため Tier0 では判定不可＝Tier1 の更新日時比較に委ねる）:
+**4. 差分の意味を判定する**（本判定は手順2で実体取得できた LWC / Aura / Apex クラス / Apex トリガー / Visualforce の5種のみに適用する。それ以外の種別の候補がスコープに含まれていた場合、実体取得できないため Tier0 では判定不可＝Tier1 の更新日時比較に委ねる）:
 | 判定 | 条件 |
 |---|---|
 | 今回のリリース対象 | 資材マニフェストに含まれる（以下の判定より優先） |
@@ -103,7 +113,7 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
 ```markdown
 ## 本番環境ドリフト確認
 
-### Tier 0（環境間実体差分・マニフェスト非依存。検査対象は LWC / Apex クラス / Apex トリガーのみ。それ以外の種別は Tier 1 の更新日時比較でのみカバー）
+### Tier 0（環境間実体差分・マニフェスト非依存。検査対象は LWC / Aura / Apex クラス / Apex トリガー / Visualforce のみ。それ以外の種別は Tier 1 の更新日時比較でのみカバー）
 | コンポーネント | 検査方式 | スコープ根拠 | UAT/本番 比較結果 | 判定 |
 |---|---|---|---|---|
 | {API名} | Tier0 実体比較 | マニフェスト / 変更記録 / 参照関係 / decisions.md・cases | 一致 / UAT のみ存在 / 本番のみ存在 / 内容相違 / 未比較（Sandbox未接続） | 差分なし / 未リリース積み残し / 未リリース積み残しの疑い / 他者変更あり・要確認 / 今回のリリース対象 / 未実施（Sandbox未接続） |

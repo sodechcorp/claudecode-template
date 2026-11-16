@@ -13,9 +13,10 @@ python scripts/python/sf-lineage/lineage.py deps --manifest <package.xml>       
 python scripts/python/sf-lineage/lineage.py unused [--type field|apex|flow|lwc|vf]            # 使われていない部品の候補（棚卸し・削除の影響確認）
 python scripts/python/sf-lineage/lineage.py status                                           # 地図の作成日時・古いか・組織との比較・レポートの取得状況
 python scripts/python/sf-lineage/lineage.py build                                            # 作り直す
-python scripts/python/sf-lineage/lineage.py modified --target-org <本番> [--target-org <Sandbox>]   # 部品の最終更新日・更新者（組織から読み取り）
+python scripts/python/sf-lineage/lineage.py modified --target-org <本番> [--target-org <Sandbox>] [--full]   # 部品の最終更新日・更新者（組織から読み取り。--full は本番に未リリースの変更の候補を全件）
 python scripts/python/sf-lineage/lineage.py reports --target-org <本番>                      # レポート・ダッシュボードの本体（組織から読み取り）
 python scripts/python/sf-lineage/lineage.py export --repo <識別子> --name-ja <日本語名>       # Neo4j で見る用の中間JSON（下記）
+python scripts/python/sf-lineage/contract_check.py <ルート> [Apex クラス名...]                # 画面の部品が Apex の取っていない項目を表示していないか（地図は使わない）
 ```
 
 - 地図は `.lineage/`（Git では追跡しない）。who・save・label・uses・deps は、地図が無いか force-app より古いときに自動で作り直してから引く（数秒〜十数秒）
@@ -34,6 +35,7 @@ python scripts/python/sf-lineage/lineage.py export --repo <識別子> --name-ja 
 | `build_refs.py` | XML のメタデータ（項目・入力規則・画面・帳票・権限・設定・フロー・ワークフロー・メール）と、Apex・LWC・Aura・VF の参照を作る |
 | `apex_refs.py` | Apex の項目の読み書き・DML・写す連鎖（変数の型の宣言から追う） |
 | `who_uses.py` | 使っている部品を引く（数式・積み上げ集計、値を写した先、部品の呼び出し元・レポートタイプ → レポート → ダッシュボードを辿る。最終更新を付ける） |
+| `contract_check.py` | Apex が取る項目（SOQL の SELECT）と、それを使う Aura（子コンポーネント・LWC の子・datatable を含む）が表示する項目の突き合わせ。項目らしい参照は必ず判定か要目視のどちらかにする。Apex を直接 import する LWC・Visualforce は使う部品を挙げるだけ。手順と判定は [consumer-contract-check.md](../../../.claude/templates/common/consumer-contract-check.md) |
 | `save_chain.py` | 保存時の暗黙の連鎖（保存で動くものと、書き込み・積み上げ集計による波及。メール送信 ✉・外部呼び出し ⇄ の印） |
 | `to_intermediate.py` | 地図を、項目リネージの共通基盤（DDD-Ontology の lineage-core）の中間JSONに書き出す（Salesforce 用のアダプター） |
 | `neo4j/Salesforceの見方（Cypher）.txt` | Neo4j Browser に貼るだけで、保存で動くもの・項目の流れ・項目を変えるときに見る所・画面/ボタンから動く処理を図で出す |

@@ -84,6 +84,7 @@ python scripts/python/sf-lineage/lineage.py reports --target-org <本番>       
 | 取得していない部品（force-app に無いものは地図にも無い。レポート・ダッシュボードは `reports` で取れる） | 取得範囲を確かめる。`modified` の「組織にあって手元に無い部品」も見る |
 | 本番だけにある部品・取得の後の変更 | `modified` と、対象組織での確認（option-org-drift-check） |
 | メソッド単位の呼び出し関係 | メソッド名の Grep |
+| 画面の部品が表示する項目と、Apex が取る項目の組み合わせ（`who` は Aura・LWC がその Apex を使うことまで。取っていない項目を表示しているかは出ない） | `contract_check.py`（[consumer-contract-check.md](../../common/consumer-contract-check.md)） |
 | 管理パッケージの中身 | 名前空間付きの部品は中身が見えない。提供元の資料で |
 | 文字列で組み立てる SOQL の項目・項目名を変数で渡す処理の具体的な項目 | 「全項目・どの項目か不明」の区分に出た部品を読んで確かめる |
 | カスタム設定の値・データ・件数 | 組織で確かめる |

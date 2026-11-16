@@ -85,6 +85,7 @@ Grep pattern: {新規 API 名 / メソッド名}
    組織の地図があれば、先に `python scripts/python/sf-lineage/lineage.py who <新規・変更した API 名…>` で参照元（レイアウト・権限・レポート・呼び出し元の2〜3段目を含む）を出し、grep はメソッド名と地図の確かめに使う。地図は force-app より古ければ自動で作り直す（[option-lineage-map.md](option-lineage-map.md)）
 
 4. ヒット箇所を確認して影響を評価する
+5. **画面の部品が Apex の取っていない項目を表示していないか**: diff が [consumer-contract-check.md](../../common/consumer-contract-check.md) の「対象」に当たる（画面の部品の controller になる Apex の SOQL の SELECT・戻り値の Map のキー・ラッパークラスの項目を変えた、それが呼ぶサービスのクラスの SOQL を変えた、Aura・LWC・Visualforce の表示する項目を変えた）ときは、そのクラスについて同手順の 2・3 を force-app（ルートは `force-app/main/default`）で実施する。NG（取っていない項目を表示していると確かめたもの）は、本節の次の「### 5. 問題発見時の戻り判定」で、直す部品・Apex が implementation-plan.md の変更対象に入っていれば「新規影響箇所を発見したが対処可能」（Phase 4）、入っていなければ「影響範囲が拡大した」（Phase 3。変更対象に加える）にする（backlog-implementer は計画に無い部品を変えないため）。結果は出力の「### 影響範囲再 rescan」に「使う側との突き合わせ: NG なし／NG {部品:行 項目}／要目視 {照合結果}」と書く
 
 ---
 

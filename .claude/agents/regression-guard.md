@@ -87,6 +87,8 @@ grep -rn "{シンボル名}" "{プロジェクトルート}/force-app/" --includ
 
 **組織の地図で補う**: 変更対象の項目・部品を、組織の地図（[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md) の `who`）でも引く。上の grep の対象拡張子に入らない種類（ページレイアウト・Lightning ページ・パス・レポートタイプ・レポート・リストビュー・レコードタイプ・権限セット・プロファイル・メールテンプレート・アクション）と、値を写した先・呼び出し元（2〜3段目）は地図で拾い、grep の結果に加える。地図だけに出た部品は、ソースの該当箇所を確かめてから依存先に入れる（確度が低い候補・テストクラスの区分は、確かめて関係があるものだけ）。
 
+**Apex の取得項目・戻り値を変える場合（使う側の部品が変更対象に入っているか）**: 変更対象の Apex のうち `@AuraEnabled`・`@RemoteAction`・Visualforce の controller / extensions に当たり、implementation-plan.md の実装方針（実装方針まとめ・関連コンポーネント一覧）で SOQL の SELECT・戻り値の Map のキー・ラッパークラスの項目を変えるもの（サービス・セレクターのクラスの SOQL を変えるときは、それを呼ぶ controller のクラス）は、上の grep・地図で見つかった Aura・LWC・Visualforce のうち変更対象に入っていないものを1つずつ確かめる。部品の `.cmp`・`.html`・`.js`・`.page` を、取らなくなる・名前の変わる項目で Grep し、表示していれば「影響範囲（再走査）」に「{部品} は {項目} を表示している。変更対象に加える必要がある」（`ファイルパス:行番号`）と挙げる（backlog-validator が新規発見として Phase 3 戻りの根拠にする）。表示していなければ「依存先」に「{部品}: 変える項目を表示していない（影響なし）」と1行書く（「影響範囲（再走査）」には書かない）（部品の項目の参照は依存関係に出ず、デプロイもテストも通るため、参照元を挙げるだけで終えない。実例: ASNO-44。実装後の突き合わせは Phase 5 の option-diff-review が [consumer-contract-check.md](../templates/common/consumer-contract-check.md) で行う）
+
 > **exit code 注記**: grep が一致なし（exit 1）の場合はエラーではなく「該当なし」として扱い処理を続行する。
 
 ### Step 2: 既存テストのカバレッジ確認

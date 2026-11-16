@@ -1,10 +1,11 @@
 """部品の最終更新日・更新者を組織から読み取りで取る（Metadata API の一覧取得 = sf org list metadata。組織は変えない）。
 
-  python modified.py <地図のフォルダ> <force-app/main/default> --target-org <別名> [--target-org <別名2> ...]
+  python modified.py <地図のフォルダ> <force-app/main/default> --target-org <別名> [--target-org <別名2> ...] [--full]
 
 - 保存先: <地図のフォルダ>/modified-<別名>.json（{"org", "isSandbox", "fetched_at", "items": {"<地図の種類>:<名前>": {...}}}）
 - 表示: 手元の force-app より組織のほうが新しい部品（取り直しが要る）・組織にあって手元に無い部品・
-  2つ以上の組織を取ったときは、本番より Sandbox のほうが新しい部品（本番に未リリースの変更の候補）
+  2つ以上の組織を取ったときは、本番より Sandbox のほうが新しい部品（本番に未リリースの変更の候補）。
+  --full でそれと Sandbox にだけある部品を全件出す（リリースの資材の漏れ探し。release-preparer Phase 1 の 2c）
 - 管理パッケージの部品（namespacePrefix の付く installed）は扱わない
 """
 from __future__ import annotations
@@ -138,8 +139,9 @@ def mtime(p: str) -> float | None:
     return os.path.getmtime(p) if os.path.exists(p) else None
 
 
-def report(fa: str, mods: list[dict], brief: bool = False) -> None:
-    """brief=True は件数だけ（lineage.py status 用。保存済みの一覧から出すので組織にはつながない）。"""
+def report(fa: str, mods: list[dict], brief: bool = False, list_all: bool = False) -> None:
+    """brief=True は件数だけ（lineage.py status 用。保存済みの一覧から出すので組織にはつながない）。
+    list_all=True は「本番より新しい部品」「Sandbox にだけある部品」を全件出す（リリースの資材の漏れ探し用。--full）。"""
     for d in mods:
         stale, missing = [], []
         for key, x in d["items"].items():
@@ -187,10 +189,16 @@ def report(fa: str, mods: list[dict], brief: bool = False) -> None:
             print(f"{d['org']} のほうが本番より新しい部品 {len(newer)} 件・{d['org']} にだけある部品 {len(only)} 件（取得時点）")
             continue
         print(f"■ {d['org']} のほうが本番より新しい部品 {len(newer)} 件・{d['org']} にだけある部品 {len(only)} 件（本番に未リリースの変更の候補。リリース・作業の重なりの確認に使う）")
-        for day, key, who in sorted(newer, reverse=True)[:15]:
+        limit = None if list_all else 15
+        for day, key, who in sorted(newer, reverse=True)[:limit]:
             print(f"    {day} {key}（{who}）")
-        if len(newer) > 15:
-            print(f"    … ほか {len(newer) - 15}")
+        if limit and len(newer) > limit:
+            print(f"    … ほか {len(newer) - limit}（全件は --full）")
+        if list_all and only:
+            print(f"  {d['org']} にだけある部品 {len(only)} 件:")
+            for k in sorted(only, key=lambda k: d["items"][k].get("lastModifiedDate") or "", reverse=True):
+                x = d["items"][k]
+                print(f"    {(x.get('lastModifiedDate') or '')[:10]} {k}（{x.get('lastModifiedByName')}）")
 
 
 def changed(mapdir: str, root: str, since: str) -> None:
@@ -235,7 +243,7 @@ def main() -> None:
         d = fetch(a)
         with open(os.path.join(mapdir, f"modified-{a}.json"), "w", encoding="utf-8") as f:
             json.dump(d, f, ensure_ascii=False)
-    report(fa, [d for d in load_all(mapdir) if d["org"] in aliases])
+    report(fa, [d for d in load_all(mapdir) if d["org"] in aliases], list_all="--full" in args)
 
 
 if __name__ == "__main__":
