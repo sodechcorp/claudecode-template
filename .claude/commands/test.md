@@ -619,7 +619,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 
 #### NG があった場合の差し戻し（期待値ドリフト防止）
 
-> **設計原則**: `investigation.md`（課題原文・真因）は不変。修正は「実装方針の変更」であり「課題認識の変更」ではない。`test-spec.md` の期待結果は NG 理由なく書き換えない。
+> **設計原則**: `investigation.md` の課題原文・真因・【お客様】【担当者】の要求は不変（「## 要件理解」の【ClaudeCode】の解釈は、Phase 3 に戻ったとき planner が理由と前の解釈を残して見直すことがある。backlog-planner.md「決定方針との整合」）。修正は「実装方針の変更」であり「課題認識の変更」ではない。`test-spec.md` の期待結果は NG 理由なく書き換えない。
 
 1. `judgment-result.json` の `ng_type` で NG の種類を区別し、戻り先を確定する:
 
@@ -651,14 +651,14 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    | {YYYY-MM-DD} | /test NG差し戻し | {NGのTC番号・観点} | {NGの原因（実際の結果）} | {修正方針（何をどう変えるか）} | investigation.md §{対応する要求} |
    ```
    これにより「何をなぜ変えたか」が記録に残り、NG 修正ループで実装の方向が課題の真因から静かにずれるのを防ぐ。
-6. ユーザーに戻り先 Phase・NG 原因・修正方針（手順5で implementation-plan.md に記録した場合はその内容）・（該当時）ループ回次警告・影響範囲 TC 候補を提示する
+6. ユーザーに戻り先 Phase・NG 原因・修正方針（手順5で implementation-plan.md に記録した場合はその内容）・（該当時）ループ回次警告・影響範囲 TC 候補を提示する。NG の原因になった決定は誰が決めたか（お客様／担当者／ClaudeCode。[CLAUDE.md §決めたことの出どころ](../CLAUDE.md#決めたことの出どころ全エージェント共通)）を1行で添え、ClaudeCode の判断を「決まった方針」として書かない
 
 7. 修正後の手順を案内する。A か B かは手順1・3で決めた行き先で選び、実装・設定・方針を直す NG が1件でもあれば A、再テストだけで済む NG（手順1の表で再テストになったもの〔未実行のうち表の扱いで実装差し戻しになったものを除く〕・画面エラーでテスト側の誤りと分かったもの・手順3でテスト仕様の誤りとしたもの）だけなら B:
    ```
    A. 修正手順（この順番で実施してください）:
      1. /backlog {issueID} 再開 → {手順3の戻り先: 「Phase 4 修正」/「Phase 3（実装方針の見直し）から Phase 4 まで」/「Phase 2（対応方針の見直し）から Phase 4 まで」/「Phase 3.5（実装前検証のやり直し・今の計画のまま再判定）から Phase 4 まで」/「Phase 1（調査）から Phase 4 まで」（ガード②）} → Phase 5（dry-run 確認）
      2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
-     3. {test-spec.md を直す TC があれば「test-spec.md の {TC} を直してから」}/test {issueID} を再実行（差分モード: 期待結果・判定方法を書き換えていない前回OK分は証跡を流用・取り直しなし）
+     3. {test-spec.md を直す TC があれば「test-spec.md の {TC} を直してから」}{戻り先が Phase 3 なら「Phase 3 で planner が【ClaudeCode】の解釈を見直して TC を挙げたら〔implementation-plan.md の改版履歴の `Phase3 解釈見直し` の行〕、その TC の期待結果を直してから」}/test {issueID} を再実行（差分モード: 期待結果・判定方法を書き換えていない前回OK分は証跡を流用・取り直しなし）
         次回 /test 起動時に judgment-result.json と証跡が自動的に次の回次として退避されます
    B. 再テスト手順: {test-spec.md を直す TC があれば「test-spec.md の {TC} を直してから」}/test {issueID} を再実行してください（実装の修正・再デプロイは不要。前回 NG の TC を撮り直します）
    ```

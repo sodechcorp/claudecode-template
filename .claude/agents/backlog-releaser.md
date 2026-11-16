@@ -248,7 +248,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 > **スキップ判定（軽量再デプロイ）**: `auto_fix_mode: true` の場合、本 Step 全体をスキップする（冒頭「リリースモード判定」表参照）。
 
-> **設計意図（他の知見還流 Step との非対称）**: pitfalls.md（本 Step）のみユーザー確認を必須とし、decisions.md（Step 3）・cases/{issueKey}.md（Step 3.8）・case-index.md（Step 4.5）は確認なしで自動追記する。理由は抽出元の確度の違い: 後者3つは approach-plan.md の採用方針・implementation-plan.md 等、**既にユーザーが承認済みの構造化セクション**からの転記・集約に留まる。一方 pitfalls.md は discussion-log.md の自然文からの発見的パターン抽出（フォールバック時は approach-plan.md/test-report.md の全文 Grep。§[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) も Step 3.6 経由は常に `[fallback]` と明記）であり、**ユーザー未検証の新規の主張**を全案件が参照する共有知識ベースに書き込むことになる。誤検出が混入すると気づかれにくく将来の判断を誤らせるリスクがあるため、この Step のみ意図的にユーザー確認を挟んでいる（意図的設計であり非対称はバグではない）。
+> **設計意図（他の知見還流 Step との非対称）**: pitfalls.md（本 Step）のみユーザー確認を必須とし、decisions.md（Step 3）・cases/{issueKey}.md（Step 3.8）・case-index.md（Step 4.5）は確認なしで自動追記する。理由は抽出元の確度の違い: 後者3つは approach-plan.md の採用方針（担当者が決めたもの）・implementation-plan.md（判断の多くは ClaudeCode の判断。誰が決めたかの印・「決めた人」を残して転記する）等、**既に記録済みの構造化セクション**からの転記・集約に留まる。一方 pitfalls.md は discussion-log.md の自然文からの発見的パターン抽出（フォールバック時は approach-plan.md/test-report.md の全文 Grep。§[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) も Step 3.6 経由は常に `[fallback]` と明記）であり、**ユーザー未検証の新規の主張**を全案件が参照する共有知識ベースに書き込むことになる。誤検出が混入すると気づかれにくく将来の判断を誤らせるリスクがあるため、この Step のみ意図的にユーザー確認を挟んでいる（意図的設計であり非対称はバグではない）。
 
 > **スキップ判定**: `docs/logs/{issueID}/discussion-log.md` が存在しない場合は以下のフォールバック抽出を試みる:
 > 1. `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/test-report.md` が存在するか確認
@@ -335,7 +335,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
      - `## TL;DR` — investigation.md の「課題サマリー」「TL;DR」セクションから200字以内で要約
      - `## 症状・要件` — investigation.md の「要件理解」または「問題の概要」セクションを整形。ない場合は approach-plan.md から補完
      - `## 調査・検討の経緯` — approach-plan.md の「## 方針決定の経緯・根拠」「### 業務要件への回答」と discussion-log.md から「検討の流れ・採用理由」を抽出
-     - `## 採用方針` — approach-plan.md の「## 対応方針（結論）」から転記
+     - `## 採用方針` — approach-plan.md の「## 対応方針（結論）」から転記（行頭の【お客様】【担当者】の印は残す）
      - `## 却下案・代替案` — approach-plan.md「## 方針決定の経緯・根拠」に ClaudeCode の推奨と異なる方針に決まった経緯があればそれを整形（なければ「なし」）
      - `## 教訓・再発防止` — discussion-log.md（Step 0d で Grep 済みの `ハマ`/`落とし穴`/`想定外`/`再発防止`/`気をつけ`/`注意`/`壊れ`/`不具合`/`罠`キーワードにマッチした段落。Step 3.6 pitfalls.md 抽出と同一キーワード群）から抽出。discussion-log.md が存在しない、またはマッチなしの場合は省略
      - `## 関連リンク` — 以下の2行を記載:
@@ -502,7 +502,7 @@ children:
      2. `docs/logs/{issueID}/approach-plan.md` の「## 課題の内容・詳細」冒頭
      3. Backlog 課題タイトル
    - **根本原因（全角60字以内）**: バグ種別のみ。investigation.md の「根本原因」「原因」セクションから抽出。見当たらない場合は `-`
-   - **採用方針（全角40字以内）**: approach-plan.md の「## 対応方針（結論）」から抽出
+   - **採用方針（全角40字以内）**: approach-plan.md の「## 対応方針（結論）」から抽出（行頭の【お客様】【担当者】の印は除く）
    - **教訓（全角40字以内）**: discussion-log.md（Step 0d で Grep 済みの `ハマ`/`落とし穴`/`想定外`/`再発防止`/`気をつけ`/`注意`/`壊れ`/`不具合`/`罠`キーワードにマッチした段落。Step 3.6 pitfalls.md 抽出と同一キーワード群）から抽出。discussion-log.md が存在しない、またはマッチなしの場合は `-`
    - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
    - **関連用語**: approach-plan.md の「## 対応方針（結論）」から API 名・オブジェクト名・処理名を最大3個抽出
