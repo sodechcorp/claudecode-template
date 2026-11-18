@@ -506,14 +506,15 @@ children:
    - **教訓（全角40字以内）**: discussion-log.md（Step 0d で Grep 済みの `ハマ`/`落とし穴`/`想定外`/`再発防止`/`気をつけ`/`注意`/`壊れ`/`不具合`/`罠`キーワードにマッチした段落。Step 3.6 pitfalls.md 抽出と同一キーワード群）から抽出。discussion-log.md が存在しない、またはマッチなしの場合は `-`
    - **種別**: investigation.md の「種別」欄の値（バグ / 追加要望 / その他）
    - **関連用語**: approach-plan.md の「## 対応方針（結論）」から API 名・オブジェクト名・処理名を最大3個抽出
+   - **作業の型**: 今回実際に行った作業（implementation-plan.md の変更対象・approach-plan.md の対応方針・investigation.md の調査の経緯）から、[sf-effort-estimator.md](sf-effort-estimator.md) Step 2 の「作業の型」の表と主な型の決め方で1つ選ぶ。見積の時点の判定ではなく、実際にやった作業で決める（見積担当が次の課題の見積で、この列から同じ型の課題を集めるため）。回答だけで終わった問い合わせは「その他」、原因の切り分けが中心だった問い合わせは「原因の切り分けが中心」
 
-   > **種別が「問い合わせ」の場合**: approach-plan.md が存在しないため、**採用方針**は `answer-draft.md` の「### 回答本文（Backlog 投稿用ドラフト）」冒頭40字、**関連用語**は同セクションから API 名・オブジェクト名を最大3個抽出、**根本原因**は `-` 固定（実装を伴わないため）とする。
+   > **種別が「問い合わせ」の場合**: approach-plan.md が存在しないため、**採用方針**は `answer-draft.md` の「### 回答本文（Backlog 投稿用ドラフト）」冒頭40字、**関連用語**は同セクションから API 名・オブジェクト名を最大3個抽出、**根本原因**は `-` 固定（実装を伴わないため）、**作業の型**は回答だけなら「その他」、挙動の原因を調べて答えたなら「原因の切り分けが中心」とする。
 2. `docs/logs/{issueID}/implementation-plan.md`（Step 0d で取得済み・再 Read しない）から「**関連コンポーネント一覧（変更対象ファイル）**」または「**対象オブジェクト・コンポーネント一覧**」のどちらかのセクションが存在すればコンポーネント情報を取得する（どちらのセクション名でも可）
 3. `docs/knowledge/case-index.md` の表に**最新行を先頭挿入**（1行目ヘッダーの直後）:
    > 追記フォーマット・新規作成ヘッダー: [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §case-index.md 追記フォーマット
-4. `docs/knowledge/case-index.md` が存在しない場合は上記パーシャルの新規作成ヘッダーを使用してから追記する。
+4. `docs/knowledge/case-index.md` が存在しない場合は上記パーシャルの新規作成ヘッダーを使用してから追記する。既存の見出しが12列（最後が「作業の型」）でない場合は、追記の前にプロジェクトのルートで `python scripts/python/effort/case_index_types.py --fix-header` を実行して見出しを直す（上記パーシャルのとおり。既存のデータ行は変えない）。
 
-**スキップ条件**: 当課題の行がすでに存在する場合はスキップ（重複防止）。  
+**スキップ条件**: 当課題の行がすでに存在する場合はスキップ（重複防止）。ただし、その行の作業の型が空・`-`（中断時の部分還流で書いた行など）なら、上の手順で決めた型だけを書く: `python scripts/python/effort/case_index_types.py --overwrite` に `{"{issueID}": "{作業の型}"}` を標準入力で渡す（行のほかのセルは変えない）。  
 **失敗時**: 「`docs/knowledge/case-index.md` の追記に失敗しました。以下の1行を手動で先頭に追加してください」とユーザーに案内する。
 **サイズ上限・アーカイブ通知**: [knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §decisions.md / pitfalls.md / case-index.md のサイズ上限・アーカイブ運用 に従い、追記後の行数が閾値以上なら完了報告に一行付記する。
 
