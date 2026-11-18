@@ -41,7 +41,7 @@
 課題対応ごとの工数を記録するファイル。`/backlog` Phase 6（backlog-releaser）が自動追記する。
 
 見込み: sf-effort-estimator 算出値（単一値・信頼度は approach-plan.md 参照）
-実績: 完了後に後埋め（`/sf-memory` 保守履歴カテゴリ等でヒアリング）
+実績: 完了後に `/sf-memory` の保守履歴（cat6）が Backlog の実績時間で埋め、見積の当たり具合を effort-calibration.md に出す（実績の正本は Backlog）
 
 | 日付 | 課題ID | 種別 | 対応内容 | 見込み | 実績 | 対応者種別 | 担当 |
 |---|---|---|---|---|---|---|---|

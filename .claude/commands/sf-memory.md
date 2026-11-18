@@ -207,7 +207,7 @@ Phase 3: カテゴリ4・6・8 を並列でエージェントへ委譲
       - cat4-apex: docs/design/apex/ / docs/design/batch/ / docs/design/integration/ を生成
       - cat4-flow: docs/design/flow/ を生成
       - cat4-lwc: docs/design/lwc/ / docs/design/vf/ / docs/design/aura/ を生成
-      - cat6: docs/knowledge/effort-calibration.md / docs/knowledge/case-index.md / docs/knowledge/pitfalls.md / docs/knowledge/cases/{issueKey}.md / docs/.sf/_cmp_case_index.json を生成
+      - cat6: docs/knowledge/effort-calibration.md / docs/knowledge/case-index.md / docs/knowledge/pitfalls.md / docs/knowledge/cases/{issueKey}.md / docs/.sf/_cmp_case_index.json を生成（docs/logs/effort-log.md があれば実績を Backlog から埋め、見積の当たり具合を effort-calibration.md に書く）
       - cat6-global: docs/knowledge/global-calibration.md / docs/knowledge/global-pitfalls.md を生成
       - cat8: docs/knowledge/sf-standard.md を生成
     → 完了サマリを返す

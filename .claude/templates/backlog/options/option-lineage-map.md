@@ -65,7 +65,7 @@ python scripts/python/sf-lineage/lineage.py reports --target-org <本番>       
 | 新しい項目の権限・配置（common/new-metadata-permissions-checklist） | 似た既存項目で `who`（権限・画面区分） |
 | 設計書・組織の記憶（/sf-memory・sf-analyst-cat2〜5・sf-org-analyst・detail-design-writer・object-definition-template・sf-context-loader） | `save`（自動化の節）・`who`（呼び出し元・配置先・使用元）・`uses`（Controller → Service の展開・操作するオブジェクト）・`objects --standard`・`changed --since auto`（前回の /sf-memory 以降に変わった部品）。Bash の無い役割は `.lineage/refs.jsonl` を Grep |
 | 取得（/sf-retrieve） | 取得の前に `modified`（手元より組織のほうが新しい部品＝取り直すもの） |
-| 見積もり（sf-effort-estimator） | `who`・`save` の件数を帯の判定の根拠に（係数にはしない） |
+| 見積もり（sf-effort-estimator） | `who`・`save` の件数を見積の「対象特性」に書くだけ（作業の型の選択・値の調整には使わない） |
 
 ## 守ること
 

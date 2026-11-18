@@ -80,7 +80,7 @@ Sandbox から呼んでよい接続先: {Sandbox 用の接続先ホスト}
 | 機能設計書 | `docs/design/{種別}/` | `/sf-memory` | 機能実装前 | apex/flow/batch/lwc/vf/aura/integration |
 | データ統計・マスタ | `docs/data/` | `/sf-memory` | プロジェクト開始時・変更時 | マスタデータ・テンプレート・統計・品質 |
 | 変更履歴 | `docs/logs/changelog.md` | 自動 | `/backlog`・`/sf-memory` 実行時に自動追記（アドホック実装は担当が1行追記） | `/backlog`（backlog-implementer が自動追記・backlog-releaser がフォールバック追記）・`/sf-memory`（sf-org-analyst Phase 7.5 で1セッション1行に集約追記）・アドホック実装は担当（メインスレッド／assistant）が1行追記 |
-| 工数ログ | `docs/logs/effort-log.md` | `/backlog` | `/backlog` 実行時に自動追記 | 見込み工数。`/backlog` 実行時に自動追記 |
+| 工数ログ | `docs/logs/effort-log.md` | `/backlog` | `/backlog` 実行時に自動追記 | 見込み工数。`/backlog` 実行時に自動追記。実績は `/sf-memory` の保守履歴（cat6）が Backlog から埋める |
 | 対応履歴・判断記録 | `docs/decisions.md` | 自動 | `/backlog` 完了時に自動追記 | 保守・開発の判断根拠。`/backlog` 完了時に自動追記 |
 | Salesforceメタデータ | `force-app/main/default/` | SFDX | `/sf-retrieve` 実行後（初回・定期同期） | Apexクラス・LWC・フロー等（`/sf-retrieve` 実行後に生成） |
 | package.xml | `manifest/package.xml` | `/sf-retrieve` | `/sf-retrieve` 実行後 | 全量（推奨） / 個別指定の2モード（旧 standard は all に統合済み） |
