@@ -4,6 +4,7 @@
   python onto_env.py start                      # Neo4j を別のウィンドウで起動し、つながるまで待つ
   python onto_env.py stop                       # Neo4j を止める
   python onto_env.py status                     # 起動しているか・入っているシステムと件数
+  python onto_env.py init-db [--password-env 名前]   # 初回だけ: 空の Neo4j に取り込み用の設定（一意制約 n10s_unique_uri・n10s の graphconfig）を作る。中身は消さない
   python onto_env.py reset-db --yes [--password-env 名前]   # Neo4j の中身を全部消し、n10s の設定だけ作り直す
   python onto_env.py load --root <プロジェクト> --repo <識別子> --name-ja <日本語名>   # 地図 → 中間JSON → TTL → 取り込み → 検証
   python onto_env.py show --query ⑤ --set オブジェクト=<表示ラベル> [--shot <png>] [--keep]   # Claude 用のブラウザの窓で、ログイン・入力・実行まで行う（図がそのまま出る）
@@ -604,6 +605,22 @@ def cmd_reset_db(env: Env, argv: list[str], pass_env: str) -> None:
           f"一意制約: {', '.join(cons[0]['names']) or 'なし'}）")
 
 
+def cmd_init_db(env: Env, argv: list[str], pass_env: str) -> None:
+    """空の Neo4j（新しく置いた一式など）に、取り込みに要る設定を作る。共通の仕組みの取り込みは、これが無いと中止する
+    （一意制約 n10s_unique_uri と n10s の graphconfig。共通の仕組みは安全のため自分では作らない）。中身は消さない。何度実行してもよい。"""
+    need_neo4j_driver(argv, env)
+    with driver(env, pass_env) as d:
+        d.execute_query("CREATE CONSTRAINT n10s_unique_uri IF NOT EXISTS FOR (r:Resource) REQUIRE r.uri IS UNIQUE")
+        rows, _, _ = d.execute_query("CALL n10s.graphconfig.show()")
+        if rows:
+            msg = "n10s の graphconfig はもうあります（変えていません）"
+        else:
+            d.execute_query(f"CALL n10s.graphconfig.init({GRAPHCONFIG})")
+            msg = "n10s の graphconfig を作りました"
+        cons, _, _ = d.execute_query("SHOW CONSTRAINTS YIELD name RETURN collect(name) AS names")
+    print(f"{msg}。一意制約: {', '.join(cons[0]['names']) or 'なし'}")
+
+
 # ---------- load ----------
 def opt(argv: list[str], name: str, default: str | None = None) -> str | None:
     return argv[argv.index(name) + 1] if name in argv and argv.index(name) + 1 < len(argv) else default
@@ -907,7 +924,7 @@ def main() -> None:
     env = Env(env_path)
     cmd = argv[0]
     # Neo4j を使うコマンドは、止まっていれば先に起動する（PC の起動時に立ち上げておかなくてよい）
-    if cmd in ("load", "query", "relations", "props", "open", "show") and not env.running():
+    if cmd in ("load", "query", "relations", "props", "open", "show", "init-db") and not env.running():
         cmd_start(env)
     if cmd == "setup":
         cmd_setup(env)
@@ -917,6 +934,8 @@ def main() -> None:
         cmd_stop(env)
     elif cmd == "status":
         cmd_status(env, argv)
+    elif cmd == "init-db":
+        cmd_init_db(env, argv, opt(argv, "--password-env", PASS_ENV))
     elif cmd == "reset-db":
         cmd_reset_db(env, argv, opt(argv, "--password-env", PASS_ENV))
     elif cmd == "load":
