@@ -82,7 +82,8 @@ argument-hint: "[課題キー] [--force]"
 
 1. `mcp__support_desk__save_triage_draft`:
    - `result`（上の表）
-   - `DO` のときは `plannedHours`・`workStart`・`workEnd`（yyyy-MM-dd）。来月以降は `targetMonth`（yyyy-MM。来月）も渡す（開始日はその月の日にする。違うとポータルが受け付けない）
+   - `type`（種別。判断によらず必ず渡す）: `BUG`（不具合）/ `REQUEST`（要望）/ `INQUIRY`（問い合わせ）/ `CUSTOM_DEV`（個別開発）/ `OTHER`（その他）。課題の文から決める（今の種別が合っていればそのまま）。担当者が案を使うと、一次判断と一緒に種別も入る
+   - `DO` のときは `plannedHours`・`workStart`・`workEnd`（yyyy-MM-dd）を**必ず**渡す（ポータルの一次判断で必須。欠けると案を受け付けない）。来月以降は `targetMonth`（yyyy-MM。来月）も渡す（開始日はその月の日にする。違うとポータルが受け付けない）
    - `reason`（600字まで。社内向け）: 次の形で書く
      ```
      【判断】今月対応（来月以降・お客さんに確認・回答のみ）
