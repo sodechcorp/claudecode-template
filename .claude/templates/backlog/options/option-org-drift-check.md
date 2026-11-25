@@ -27,16 +27,16 @@ release-preparer Phase 1 のマニフェスト確定を待たず、以下の手�
 
 **2. UAT（Sandbox）と本番の双方から Tooling API 経由で実体を取得する**（`$SF_ALIAS` = [sandbox-alias-check.md](../../common/sandbox-alias-check.md) で確認済みの Sandbox/UAT エイリアス、`$PROD_ALIAS` = [prod-readonly-check.md](../../common/prod-readonly-check.md) で確認済みの本番エイリアス。`force-app/` への retrieve は行わない。取得結果は一時ディレクトリ `{tmp_dir}/org-drift-tier0/` に保存し、比較にのみ使う）:
 ```bash
-mkdir -p "{tmp_dir}/org-drift-tier0"
+cd "{project_dir}" && mkdir -p "{tmp_dir}/org-drift-tier0"
 # LWC（LightningComponentResource は Tooling API のみで取得可能。Source にコンポーネント本文が入る）
-sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{バンドル名}.uat.json"
-sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{バンドル名}.prod.json"
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{バンドル名}.uat.json"
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Source, FilePath FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '{バンドル名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{バンドル名}.prod.json"
 # Apex クラス（Body は Tooling API のみで取得可能）
-sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{クラス名}.uat.json"
-sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{クラス名}.prod.json"
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{クラス名}.uat.json"
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Body FROM ApexClass WHERE Name = '{クラス名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{クラス名}.prod.json"
 # Apex トリガー
-sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{トリガー名}.uat.json"
-sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{トリガー名}.prod.json"
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$SF_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{トリガー名}.uat.json"
+cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Body FROM ApexTrigger WHERE Name = '{トリガー名}'" --target-org "$PROD_ALIAS" --json > "{tmp_dir}/org-drift-tier0/{トリガー名}.prod.json"
 ```
 > フィールド名・リレーション名がエラーになる場合は `sf sobject describe --sobject LightningComponentResource --use-tooling-api --target-org "$SF_ALIAS"` で実際のスキーマを確認してから再実行する（API バージョン差異の可能性）。
 
@@ -51,7 +51,7 @@ cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Markup FROM Ape
 
 **3. UAT側・本番側の `Source` / `Body` / `Markup` を比較する**:
 ```bash
-python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat.json',encoding='utf-8'))['result']['records']; b=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.prod.json',encoding='utf-8'))['result']['records']; ..."
+cd "{project_dir}" && python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat.json',encoding='utf-8'))['result']['records']; b=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.prod.json',encoding='utf-8'))['result']['records']; ..."
 ```
 
 **4. 差分の意味を判定する**（本判定は手順2で実体取得できた LWC / Aura / Apex クラス / Apex トリガー / Visualforce の5種のみに適用する。それ以外の種別の候補がスコープに含まれていた場合、実体取得できないため Tier0 では判定不可＝Tier1 の更新日時比較に委ねる）:
@@ -88,23 +88,20 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
 
 ### Tier 2: 深掘り（Tier 1 で痕跡ありのコンポーネントのみ）
 
-1. 痕跡ありコンポーネントのみを対象に、本番の現行資材を用意する（**`force-app/` には絶対に取得しない**）。`/release` では release-preparer Phase 4 の4. が資材マニフェストのうち本番に存在する資材を取得済み（本番変更の記録がない場合は `docs/logs/{issueID}/rollback-backup/`、ある場合は `{tmp_dir}/prod-drift-check/`）のため、**それがあればそのファイルを使い、改めて取得しない**（その場合は下記 2. の diff を「その取得先内の該当ファイル」と「`docs/logs/{issueID}/release-snapshot/` 内の該当ファイル」の比較に読み替える。プロファイル・翻訳は release-preparer.md Phase 1 の 2b の比べ方。**4. の削除は行わない**）。無い場合のみ一時ディレクトリへ取得する（取得先の実際のパスは Glob で確認してから diff する）:
+1. 痕跡ありコンポーネントのみを対象に、本番の現行資材を用意する（**`force-app/` には絶対に取得しない**）。`/release` では release-preparer Phase 4 の4. が資材マニフェストのうち本番に存在する資材を取得済み（本番変更の記録がない場合は `docs/logs/{issueID}/rollback-backup/`、ある場合は `{tmp_dir}/prod-drift-check/`）のため、**それがあればそのファイルを使い、改めて取得しない**（4. で取れなかった資材も取り直さず、release-preparer Phase 4 の5. のとおり「未実施（取得できず）・要確認」とする。取得済みのファイルを使う場合は下記 2. の diff を「その取得先内の該当ファイル」と「`docs/logs/{issueID}/release-snapshot/` 内の該当ファイル」の比較に読み替える。プロファイル・翻訳は release-preparer.md Phase 1 の 2b の比べ方。**4. の削除は行わない**）。無い場合のみ一時ディレクトリへ取得する（取得先の実際のパスは Glob で確認してから diff する）:
    ```bash
-   mkdir -p "{tmp_dir}/prod-drift-check"
-   sf project retrieve start --metadata "ApexClass:{クラス名}" --target-org "$PROD_ALIAS" --output-dir "{tmp_dir}/prod-drift-check" --json
+   cd "{project_dir}" && mkdir -p "{tmp_dir}/prod-drift-check"
+   cd "{project_dir}" && sf project retrieve start --metadata "ApexClass:{クラス名}" --target-org "$PROD_ALIAS" --output-dir "{tmp_dir}/prod-drift-check" --json
    ```
 2. 取得結果と現在の `force-app/` 配下の該当ファイルを diff する:
    ```bash
-   diff "{tmp_dir}/prod-drift-check/force-app/main/default/classes/{クラス名}.cls" "force-app/main/default/classes/{クラス名}.cls"
+   cd "{project_dir}" && diff "{tmp_dir}/prod-drift-check/classes/{クラス名}.cls" "force-app/main/default/classes/{クラス名}.cls"
    ```
 3. diff のうち、今回のリリースの変更で説明できない差（`/release` では release-preparer Phase 4 の6. で「本番の変更を上書きする疑い」とした差。以下と出力の「差分」はこの差を指す）を評価する:
    - **差分なし**: 誰かが触ったが、今回のリリースの変更以外に差が無い → 「痕跡あるが実害なし」
    - **差分あり かつ 今回のリリース内容と非干渉**（無関係な別ロジックの変更）: 「他者変更あり・要確認（リリースで上書きする点をユーザーに警告）」
    - **差分あり かつ 今回のリリース内容と重なる**（同一メソッド・同一項目）: 「競合・要人間判断」（最重要警告）
-4. 一時ディレクトリを削除する（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠）。**1. で release-preparer Phase 4 の4. の取得先を使った場合は削除しない**（`rollback-backup` はロールバック用のバックアップ、`prod-drift-check` は release-preparer の6. でも使うため。後者は release-preparer の 8.・Phase 最終で削除される）:
-   ```bash
-   python -c "import shutil; shutil.rmtree(r'{tmp_dir}/prod-drift-check', ignore_errors=True)"
-   ```
+4. 一時ディレクトリ `{tmp_dir}/prod-drift-check` を、release-preparer.md「Phase 最終: クリーンアップ」のコマンドを `TARGETS="prod-drift-check"` にして削除する（`{tmp_dir}` は project_dir 配下のため、[cleanup-rules.md](../../../spec/cleanup-rules.md) の project_dir 配下の削除に従う）。**1. で release-preparer Phase 4 の4. の取得先を使った場合は削除しない**（`rollback-backup` はロールバック用のバックアップ、`prod-drift-check` は release-preparer の6. でも使うため。後者は release-preparer の 8.・Phase 最終で削除される）
 
 ## 出力
 
@@ -126,7 +123,7 @@ python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat
 ### Tier 2（深掘り・痕跡ありのみ）
 | コンポーネント | diff 結果 | 判定 |
 |---|---|---|
-| {API名} | 差分なし / 差分あり | 実害なし / 要確認 / 競合・要人間判断 |
+| {API名} | 差分なし / 差分あり / 未実施（取得できず） | 実害なし / 要確認 / 競合・要人間判断 |
 
 総合判定: ドリフトなし・リリース可 / 未リリース積み残しあり（リリース対象への追加要確認） / 要確認あり（内容: {詳細}） / 競合あり（リリース中断推奨） / Tier 0未実施のため要確認（Sandbox未接続）
 ```

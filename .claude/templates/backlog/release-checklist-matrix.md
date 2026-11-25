@@ -40,7 +40,7 @@
 2. **dry-run（必須）**: `sf project deploy start --dry-run --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加。判定が「付けない」なら `--test-level` ごと省く）で 0 errors を確認
 3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）。表示された結果で成否を確かめる（待ち時間切れで結果が出なかった場合だけ `sf project deploy report --use-most-recent --target-org <本番エイリアス>` で確かめる。本番の実体は Phase 7 で Claude が確かめる）
 4. **デプロイを分ける場合**（Phase 1 でデプロイの間に作業が要ると判定した場合だけ。順序のためには分けない）: 分けたデプロイごとに 1.〜3. を行い、デプロイの間に作業を行う
-5. **管理画面手動操作**: ソースデプロイ対象外の資材（Phase 1 で分離したもの）があれば、手順書の管理画面操作セクションに従って実施（各操作の直前に変更前の値・設定状態を記録する。ロールバック手順 1c で使う）
+5. **管理画面手動操作**: Phase 1 の4. で分離した管理画面手動操作があれば、手順書の管理画面操作セクションに従って実施（各操作の直前に変更前の値・設定状態を記録する。ロールバック手順 1c で使う）
 
 ## C. リリース後チェック（post-release・全資材共通）
 
