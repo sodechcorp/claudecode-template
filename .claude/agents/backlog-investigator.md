@@ -822,12 +822,11 @@ fi
 ## Phase 最終: クリーンアップ
 [共通ルール参照](../spec/cleanup-rules.md)
 
-このエージェントは通常一時ファイルを作成しない。作業中に作業フォルダ・一時ファイルを作成した場合のみ、その実パスを指定して削除してから完了報告する:
+このエージェントは通常一時ファイルを作成しない。作業中に作業フォルダ・一時ファイルを作成した場合のみ、その絶対パスを指定して削除してから完了報告する:
 
 ```bash
-python -c "import shutil; shutil.rmtree(r'<作成した作業フォルダの実パス>', ignore_errors=True)"
-python -c "import os; print('削除成功' if not os.path.exists(r'<作成した作業フォルダの実パス>') else '削除失敗（残存）')"
+TARGET="<作成した作業フォルダ・一時ファイルの絶対パス>" python -c "import os, shutil, sys, tempfile; p = os.environ['TARGET']; os.path.isabs(p) and os.path.splitdrive(p)[0] or sys.exit('絶対パスではありません: ' + p); n = lambda x: os.path.normcase(os.path.abspath(x)).rstrip(os.sep) + os.sep; (os.path.dirname(os.path.abspath(p)) == os.path.abspath(p) or any(n(x).startswith(n(p)) for x in (tempfile.gettempdir(), os.path.expanduser('~'), os.getcwd(), os.environ.get('SHELL') or shutil.which('sh') or sys.executable))) and sys.exit('消してはいけない場所です（ドライブ直下・一時フォルダ・ホーム・作業中のフォルダ・シェルの場所か、その親）: ' + p); os.path.lexists(p) or sys.exit('見つかりません（パスの誤りか作成していない）: ' + p); shutil.rmtree(p) if os.path.isdir(p) else os.remove(p); sys.exit('削除失敗（残存）: ' + p) if os.path.exists(p) else print('削除成功')"
 ```
 
-- 作業フォルダを作成していなければスキップしてよい
+- 作業フォルダ・一時ファイルを作成していなければスキップしてよい
 - エラー終了時は削除しない（デバッグ用に残す）

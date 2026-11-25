@@ -28,4 +28,4 @@ project_dir 配下を削除する場合は必ず:
 2. パスは環境変数経由で渡すことを推奨する（`TARGET="{path}" python -c "...os.environ['TARGET']..."`）。ソースコード文字列への直接埋め込みで文字化けが起きる場合の回避策になる
 3. `docs/logs/...` などの相対パスは project_dir で実行する（サブエージェントは呼び出しごとに作業フォルダが戻るため `cd "{project_dir}" &&` を付ける。作業フォルダが違うと、無いパスを見て「無くなった」と確かめてしまう）
 
-実装例: [backlog.md](../commands/backlog.md) Phase 6 完了時の `repro/` 削除処理（メインの会話）、[release-preparer.md](../agents/release-preparer.md)「Phase 最終: クリーンアップ」（サブエージェント）を参照。
+実装例: [backlog.md](../commands/backlog.md) Phase 6 完了時の `repro/` 削除処理（メインの会話）、[release-preparer.md](../agents/release-preparer.md)「Phase 最終: クリーンアップ」（サブエージェント）、作成場所が決まっていない作業フォルダは [agent-cleanup-template.md](../templates/common/agent-cleanup-template.md) の2つ目の形を参照。
