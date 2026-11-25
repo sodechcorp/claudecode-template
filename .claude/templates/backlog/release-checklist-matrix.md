@@ -17,7 +17,7 @@
 - [ ] 【Claude確認済】デプロイ対象資材の確定（Phase 1 資材マニフェスト）
 - [ ] 【Claude確認済】`--test-level` の決定（判定ロジックは release-preparer.md Phase 1/5 が正本。固定で `RunLocalTests` にしない）
 - [ ] 【Claude確認済】デプロイ元が `force-app` 本体であることの確認（バックアップ/マージ用フォルダを `--source-dir` に指定していない）
-- [ ] 【Claude確認済】デプロイ順序の確認（Phase 1 の依存関係判定。分割要ならデプロイの間の作業と分け方）
+- [ ] 【Claude確認済】デプロイ順序の確認（Phase 1 の依存関係判定。デプロイの前の作業、分割要ならデプロイの間の作業と分け方）
 - [ ] 【Claude確認済】影響範囲の確認（Phase 2。最終資材での参照元の確認を含む。新規発見があれば担当者の判断）
 - [ ] 【Claude確認済】チケット競合チェック（Phase 3。重大度「高」があれば担当者の判断）
 - [ ] 【Claude確認済】本番環境ドリフト確認・差分の帰属確認（Phase 4。疑いがあれば担当者の判断）
@@ -36,11 +36,11 @@
 
 > **`--test-level` の判定ロジック（Apex 含有有無 + 専用テストクラスの特定有無で決定。固定で `RunLocalTests` にしない）は release-preparer.md Phase 1/5 が正本**。以下のコマンドの `--test-level` にはその判定結果を使う。
 
-1. **バックアップの最新確認（Claude）**: バックアップ（本番資材の `rollback-backup/`・データの CSV）は release-preparer Phase 4 で Claude が取得済み。dry-run と本番デプロイの直前に、本番のコンポーネントが取得後に変わっていないかを Claude が確認し、変わっていれば `release.md` Step 4 の4. に従う（手順書の外でデプロイされていなければ取り直す）
+1. **バックアップの最新確認（Claude）**: バックアップ（本番資材の `rollback-backup/`・データの CSV）は release-preparer Phase 4 で Claude が取得済み。dry-run と本番デプロイ（デプロイの前の作業があれば最初のその作業も）の直前に、本番のコンポーネントが取得後に変わっていないかを Claude が確認し、変わっていれば `release.md` Step 4 の4. に従う（手順書の外でデプロイされていなければ取り直す）
 2. **dry-run（必須）**: `sf project deploy start --dry-run --metadata <Phase1資材マニフェストのAPI名一覧> --target-org <本番エイリアス> --test-level <上記判定に従い RunSpecifiedTests/RunLocalTests>`（`RunSpecifiedTests` の場合のみ対象テストクラス分の `--tests {クラス名}` を追加。判定が「付けない」なら `--test-level` ごと省く）で 0 errors を確認
 3. **デプロイ実行**: dry-run 成功後に `--dry-run` を外して実行（`--test-level` / `--tests` は dry-run と同じ値を使う）。表示された結果で成否を確かめる（待ち時間切れで結果が出なかった場合だけ `sf project deploy report --use-most-recent --target-org <本番エイリアス>` で確かめる。本番の実体は Phase 7 で Claude が確かめる）
 4. **デプロイを分ける場合**（Phase 1 でデプロイの間に作業が要ると判定した場合だけ。順序のためには分けない）: 分けたデプロイごとに 1.〜3. を行い、デプロイの間に作業を行う
-5. **管理画面手動操作**: Phase 1 の4. で分離した管理画面手動操作があれば、手順書の管理画面操作セクションに従って実施（各操作の直前に変更前の値・設定状態を記録する。ロールバック手順 1c で使う）
+5. **管理画面手動操作・データ更新**: Phase 1 の4. で分離した管理画面手動操作と、データ更新（一括更新・データ移行）があれば、手順書のステップに従って実施（デプロイの前の作業は 2. の前に行う。管理画面での操作は各操作の直前に変更前の値・設定状態を記録する。ロールバック手順 1c で使う）
 
 ## C. リリース後チェック（post-release・全資材共通）
 
