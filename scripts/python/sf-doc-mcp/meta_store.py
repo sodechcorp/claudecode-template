@@ -9,8 +9,8 @@ from openpyxl import load_workbook
 
 META_SHEET = "_meta"
 
-# _meta に保存しない大きなキー（describe は生の Salesforce レスポンスで巨大、field_usage は毎回再取得）
-_EXCLUDE_KEYS = {"describe", "field_usage"}
+# _meta に保存しない大きなキー（describe は生の Salesforce レスポンスで巨大）
+_EXCLUDE_KEYS = {"describe"}
 
 
 # Excel セルの文字数上限は 32,767 文字なので分割して保存する

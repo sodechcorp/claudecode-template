@@ -56,9 +56,10 @@ class MetadataFetcher:
                 if v is not None:
                     result["object_info"][k] = v
 
-        # カスタム項目の利用箇所取得（sections で field_usage が true の場合）
+        # カスタム項目の利用箇所取得（sections で field_usage が true の場合）。シートに出る（describe にある）項目だけ残す
         if sections.get("field_usage", True):
-            result["field_usage"] = fetch_field_usage(self._sf, object_api_name)
+            visible = {f["name"] for f in describe.get("fields", [])}
+            result["field_usage"] = {k: v for k, v in fetch_field_usage(self._sf, object_api_name).items() if k in visible}
             if verbose:
                 print(f"    field_usage: {len(result['field_usage'])} 件")
 

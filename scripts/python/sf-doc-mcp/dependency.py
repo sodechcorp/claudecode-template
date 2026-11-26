@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """カスタム項目の利用箇所取得（MetadataComponentDependency）"""
 
+import sys
 import urllib.parse
 from collections import defaultdict
 
@@ -45,6 +46,26 @@ _TYPE_LABEL = {
 }
 
 
+# MetadataComponentDependency は 1 回の問い合わせで 2000 件までしか返さない（done=True のまま打ち切る）
+_DEP_LIMIT = 2000
+
+
+def _query_dependencies(sf, ids: list[str], id_to_api: dict[str, str], obj: str) -> list[dict]:
+    """ids を参照する MetadataComponentDependency を取る。上限に達したら ids を半分に分けて取り直す"""
+    id_list = "','".join(ids)
+    q = (f"SELECT MetadataComponentName, MetadataComponentType, RefMetadataComponentId "
+         f"FROM MetadataComponentDependency "
+         f"WHERE RefMetadataComponentId IN ('{id_list}')")
+    records = sf.restful(f"tooling/query?q={urllib.parse.quote(q, safe='')}").get("records", [])
+    if len(records) < _DEP_LIMIT:
+        return records
+    if len(ids) == 1:
+        print(f"[警告] {obj}.{id_to_api[ids[0]]} の利用箇所が {_DEP_LIMIT} 件以上あり、一部しか載りません", file=sys.stderr)
+        return records
+    mid = len(ids) // 2
+    return _query_dependencies(sf, ids[:mid], id_to_api, obj) + _query_dependencies(sf, ids[mid:], id_to_api, obj)
+
+
 def fetch_field_usage(sf, obj_api_name: str) -> dict[str, str]:
     """
     指定オブジェクトのカスタム項目利用箇所を一括取得する。
@@ -53,13 +74,13 @@ def fetch_field_usage(sf, obj_api_name: str) -> dict[str, str]:
         {field_api_name: "利用箇所の文字列"} の辞書
         例: {"CustomerPriority__c": "レイアウト: 取引先, フロー: 顧客ランク判定"}
     """
-    # Step1: カスタム項目 Id → API名 マッピング
-    q1 = (f"SELECT Id, DeveloperName FROM CustomField "
-          f"WHERE EntityDefinition.QualifiedApiName = '{obj_api_name}'")
+    # Step1: カスタム項目 Id → API名 マッピング（管理パッケージの項目は名前空間付きの API 名にする。シートは describe の名前で引く）
+    q1 = (f"SELECT Id, DeveloperName, NamespacePrefix FROM CustomField "
+          f"WHERE EntityDefinition.QualifiedApiName = '{obj_api_name}' ORDER BY Id")
     r1 = sf.restful(f"tooling/query?q={urllib.parse.quote(q1, safe='')}")
 
     id_to_api: dict[str, str] = {
-        r["Id"]: f"{r['DeveloperName']}__c"
+        r["Id"]: (f"{r['NamespacePrefix']}__" if r.get("NamespacePrefix") else "") + f"{r['DeveloperName']}__c"
         for r in r1.get("records", [])
     }
     if not id_to_api:
@@ -70,12 +91,7 @@ def fetch_field_usage(sf, obj_api_name: str) -> dict[str, str]:
     ids = list(id_to_api.keys())
     all_records: list[dict] = []
     for i in range(0, len(ids), _CHUNK):
-        id_list = "','".join(ids[i:i + _CHUNK])
-        q2 = (f"SELECT MetadataComponentName, MetadataComponentType, RefMetadataComponentId "
-              f"FROM MetadataComponentDependency "
-              f"WHERE RefMetadataComponentId IN ('{id_list}')")
-        r2 = sf.restful(f"tooling/query?q={urllib.parse.quote(q2, safe='')}")
-        all_records.extend(r2.get("records", []))
+        all_records.extend(_query_dependencies(sf, ids[i:i + _CHUNK], id_to_api, obj_api_name))
 
     # Step3: api_name → 利用箇所リスト にまとめる
     usage_map: dict[str, list[str]] = defaultdict(list)

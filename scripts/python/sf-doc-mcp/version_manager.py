@@ -140,7 +140,7 @@ class VersionManager:
 # ヘルパー
 # ------------------------------------------------------------------ #
 
-# 項目以外で定義書に書くセクション（値は改版履歴に出す名前）
+# 項目の定義以外で定義書に書く内容（値は改版履歴に出す名前）
 _SECTION_NAMES = {
     "object_info":      "オブジェクト基本情報",
     "record_types":     "レコードタイプ",
@@ -151,6 +151,7 @@ _SECTION_NAMES = {
     "field_sets":       "項目セット",
     "validation_rules": "入力規則",
     "lookup_filters":   "参照条件",
+    "field_usage":      "利用箇所",
 }
 
 
