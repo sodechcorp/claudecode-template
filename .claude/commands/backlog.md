@@ -142,7 +142,7 @@ sf org display --json
 
 この組織に対して課題対応を進めてよろしいですか？
 （本番: 読み取りのみ可能。データの SELECT・資材の取得は自由に行います。書き込み・削除はしません）
-（以降の Phase は Sandbox での実装・動作確認が前提です。本番接続のまま Phase 1〜4 を進めても、Phase 5（スモーク確認）は Sandbox 未接続のため中断します）
+（以降の Phase は Sandbox での実装・動作確認が前提です。本番接続のまま進めると、バグは Phase 1.6（Sandbox 仮説検証）で、追加要望・その他は Phase 5（管理画面操作で対応する場合は Phase 6 の操作手順の引き渡し）で止まります。Phase 3.5 の実装前の画面・データの記録も取れません）
 別の組織に切り替えたい場合: sf config set target-org <alias>
 ```
 
@@ -444,11 +444,11 @@ Step A の前に、Phase 3 の冒頭と同じく validation-report.md の判定�
 
 返却結果（依存先・テストカバレッジ・影響再走査・過去修正履歴）を `{regression_result}` として保持する。
 
-**Step B: Before エビデンス自動採取（UI 影響ありの場合のみ・本コマンドが直接実行）**
+**Step B: Before エビデンス自動採取（本コマンドが直接実行）**
 
-`docs/logs/{issueID}/implementation-plan.md` の「変更対象ファイル」を確認し、LWC（`.html`/`.js`）・Aura（`.cmp`）・VF（`.page`）が含まれる、または実装方針に「画面・ラベル・文言・表示・UI」の語が含まれる場合のみ、[option-evidence-check.md](../templates/backlog/options/option-evidence-check.md) の 0・B・C 手順を実行する（Step 0: Sandbox alias 解決 → Step B: `ui-evidence-runner` を `mode: before-capture` で Task 起動 → Step C: Before データ値採取）。該当しない場合は本 Step 全体をスキップし `{evidence_result}` = 「該当なし（非UI変更）」とする。
+[option-evidence-check.md](../templates/backlog/options/option-evidence-check.md) の 0〜C 手順を実行する（0: Sandbox alias 解決 → A: UI 影響の判定 → B: UI 影響ありなら `ui-evidence-runner` を `mode: before-capture` で Task 起動 → C: Before データ値採取。C は UI 影響の有無によらず判定する。`{evidence_dir}` は `{project_dir}/docs/logs/{issueID}/evidence`〔`C:/work/...` のようにドライブ文字から始めるスラッシュ区切りの絶対パス。Git Bash の `/c/...` 形式は不可〕）。同ファイル「## 出力」の2行（スクリーンショット・データ値）を `{evidence_result}` とする。
 
-> **権限・FLS・レイアウト・RecordType・共有ルール変更の場合**: 本 Step（Before エビデンス自動採取）の対象外（`{evidence_result}` = 「該当なし（非UI変更）」）でも動作確認が不要になるわけではない。異なる権限経路の実ユーザーによる確認は Phase 6 では行わず、`/test` に一元化されている（詳細は Phase 6 セクション参照）。
+> **権限・FLS・レイアウト・RecordType・共有ルール変更の場合**: Before スクリーンショットが「該当なし（非UI変更）」でも動作確認が不要になるわけではない。異なる権限経路の実ユーザーによる確認は Phase 6 では行わず、`/test` に一元化されている（詳細は Phase 6 セクション参照）。
 
 **Step C: backlog-validator 起動**
 
@@ -549,7 +549,7 @@ deploy_route: {deploy_route}
 
 **調査段階の再現確認スクショ（repro/before, repro/after）を削除**（`{issue_type}` = バグ で Phase 1.6 の `backlog-repro-runner` が実行された場合のみ `{log_dir}/repro/` が存在する。仮説検証用スクショで、一時証跡。結論は `hypothesis-verification.md` に記録済みのため、Phase 6 完了＝もう参照しないタイミングで画像のみ削除する。**`repro/logs/`（`created_records.txt` 等の監査記録。`backlog-releaser.md` §2a 5 が Phase 6 再実行時に参照するため）は削除対象から除外**する）:
 
-> **⚠️ 日本語パス注意**: `project_dir` が日本語ディレクトリ名を含む場合、`python -c "...{log_dir}..."` のようにソースコード文字列へ直接パスを埋め込むと Git Bash 経由の引数展開が文字化けし、存在しないパスに対して `rmtree` が呼ばれて何も削除されないことがある（2026-09-03 実測確認済み）。パスは環境変数経由で渡し、**`ignore_errors=True` を使わず**削除後に `os.path.exists` で成功を確認してから完了を報告する（詳細: `cleanup-rules.md` §`{tmp_dir}` 以外を削除する場合の注意）。
+> **⚠️ 日本語パス注意**: `project_dir` が日本語ディレクトリ名を含む場合、`python -c "...{log_dir}..."` のようにソースコード文字列へ直接パスを埋め込むと Git Bash 経由の引数展開が文字化けし、存在しないパスに対して `rmtree` が呼ばれて何も削除されないことがある（2026-09-03 実測確認済み）。パスは環境変数経由で渡し、**`ignore_errors=True` を使わず**、フォルダごとに削除後に残っていないかを確かめてから完了を報告する（詳細: `cleanup-rules.md` §`{tmp_dir}` 以外を削除する場合の注意）。
 
 ```bash
 case "{log_dir}" in
@@ -559,9 +559,14 @@ case "{log_dir}" in
   *)
     if [ -d "{log_dir}/repro/before" ] || [ -d "{log_dir}/repro/after" ]; then
       REPRO_SIZE=$(du -sh "{log_dir}/repro" 2>/dev/null | cut -f1)
-      REPRO_TARGET="{log_dir}/repro" python -c "import os, shutil; b = os.environ['REPRO_TARGET']; ps = [os.path.join(b, s) for s in ('before', 'after')]; [shutil.rmtree(p) for p in ps if os.path.isdir(p)]; assert not any(os.path.exists(p) for p in ps), 'rmtree 後も残存: ' + b"
-      if [ -d "{log_dir}/repro/before" ] || [ -d "{log_dir}/repro/after" ]; then
-        echo "[WARN] repro/ 配下スクショの削除に失敗しました（残存: 約 ${REPRO_SIZE}）。手動確認してください。"
+      REPRO_LEFT=""
+      for sub in before after; do
+        [ -d "{log_dir}/repro/$sub" ] || continue
+        REPRO_TARGET="{log_dir}/repro/$sub" python -c "import os, shutil; shutil.rmtree(os.environ['REPRO_TARGET'])"
+        [ -d "{log_dir}/repro/$sub" ] && REPRO_LEFT="$REPRO_LEFT repro/$sub"
+      done
+      if [ -n "$REPRO_LEFT" ]; then
+        echo "[WARN] 次のスクショのフォルダを削除できませんでした:${REPRO_LEFT}（削除前の repro/ 全体: 約 ${REPRO_SIZE}）。手動確認してください。"
       else
         echo "[INFO] 調査段階の再現確認スクショ（repro/before, repro/after、約 ${REPRO_SIZE}）を削除しました。repro/logs（監査記録）・結論（hypothesis-verification.md）は残っています。"
       fi
@@ -574,7 +579,7 @@ esac
 
 完了報告を行う。
 
-> **管理画面操作手順書（2b）がある場合**: `{deploy_route}` = `manual-operation` の場合（backlog-releaser が `docs/logs/{issueID}/manual-operation-steps.md` を作る）、完了報告に続けて [manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従い引き渡しを行う（**手順書全文を一度に貼らない**）。同ファイルを Read し、「操作ステップ」内の番号付き各項目を TodoWrite でタスク化し、先頭の未完了ステップのみ内容を提示して「実行結果を教えてください」と添える。ユーザーの実行報告を受けたら該当 Todo を completed にし次のステップへ進む。エラー・質問ならその場で回答し Todo は進めない。Sandbox では行えない・行う意味がないと報告されたステップは completed にして飛ばし、今は本番で操作せず `/release` の手順書で行うよう一言伝える。全 Todo 完了後（ステップが1件のみ・まとめて提示した場合は実行報告を受けた後）、Sandbox で操作したステップがあれば「確認事項」セクションを一度に提示する（飛ばしたステップだけに関わる項目は除く）。続けて（全ステップを飛ばした場合も）「本番反映が必要なら `/release {issueID}` を起動してください」と案内し、「以上で Phase 6（最終フェーズ）の対応は完了です。追加のご確認・ご質問はありますか？（無ければ『完了』とお伝えください）」で締める。その後のやり取り・クロージングと Step 6 のドキュメント更新通知（操作対象は manual-operation-steps.md の「操作対象」）も、backlog-releaser.md の Step 5 の 3.〜5.・Step 6 のとおりここで行う（管理画面操作の場合、backlog-releaser は締めから先を行わない）。
+> **管理画面操作手順書（2b）がある場合**: `{deploy_route}` = `manual-operation` の場合（backlog-releaser が `docs/logs/{issueID}/manual-operation-steps.md` を作る）、完了報告に続けて、まず [sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「エイリアス取得」「Sandbox 判定」で接続先を確かめる。Sandbox と確かめられなければ（本番・接続先の取得失敗）引き渡さず「管理画面操作は Sandbox で行います。`sf config set target-org <Sandbox の alias>` で切り替えて（認証切れなら `sf org login web --alias <alias> --instance-url <Sandbox のログイン URL>` で入り直して）から続けてください」と伝えて待つ。切り替えた・入り直したと言われたら「エイリアス取得」からやり直し、Sandbox では操作しないと言われたら全ステップを飛ばした扱いで（今は本番で操作せず `/release` の手順書で行うよう一言伝え）下の「続けて（全ステップを飛ばした場合も）」へ進み、中止と言われたら手順を保留して終える。Sandbox なら、先頭のステップに「操作する組織: {alias}（{INSTANCE_URL}）」を添えて、[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従い引き渡しを行う（**手順書全文を一度に貼らない**）。同ファイルを Read し、「操作ステップ」内の番号付き各項目を TodoWrite でタスク化し、先頭の未完了ステップのみ内容を提示して「実行結果を教えてください」と添える。ユーザーの実行報告を受けたら該当 Todo を completed にし次のステップへ進む。エラー・質問ならその場で回答し Todo は進めない。Sandbox では行えない・行う意味がないと報告されたステップは completed にして飛ばし、今は本番で操作せず `/release` の手順書で行うよう一言伝える。全 Todo 完了後（ステップが1件のみ・まとめて提示した場合は実行報告を受けた後）、Sandbox で操作したステップがあれば「確認事項」セクションを一度に提示する（飛ばしたステップだけに関わる項目は除く）。続けて（全ステップを飛ばした場合も）「本番反映が必要なら `/release {issueID}` を起動してください」と案内し、「以上で Phase 6（最終フェーズ）の対応は完了です。追加のご確認・ご質問はありますか？（無ければ『完了』とお伝えください）」で締める。その後のやり取り・クロージングと Step 6 のドキュメント更新通知（操作対象は manual-operation-steps.md の「操作対象」）も、backlog-releaser.md の Step 5 の 3.〜5.・Step 6 のとおりここで行う（管理画面操作の場合、backlog-releaser は締めから先を行わない）。
 
 > **📋 本番リリース TODO**: 本フローは Sandbox リリースまで。**本番リリースは人間が手動で実施する**ため、本番デプロイの前に `/release {issueID}` で手順書とバックアップを作成し、デプロイ後に同じ `/release` でデプロイ完了を報告すること（バックアップはデプロイ前の本番から取る）。`/release` Phase 7 がリリース後確認（read-only）と decisions.md「リリース予定日 / 担当」欄・changelog.md への記録を行う。
 
@@ -622,7 +627,7 @@ main スレッドが「この課題は Phase 6 に到達しない」と判断し
    - 作業の型の列は `-` 固定で追記する（実際にやった作業で決める列のため。再開して完了したときに §4.5 のスキップ条件が型だけ書く）
    - 既存行ありならスキップ（dup 防止）
 
-**実行しないもの**: deploy 系（Step 1・2a/2b）・お客様確認サイン取得（Step 3.7）・**全社共有ナレッジ登録（Step 3.9。Phase 6 正常完了時限定のフックのため中断パスでは実行しない）**・完了報告（Step 4）。
+**実行しないもの**（節はいずれも `backlog-releaser.md` のもの）: deploy 系（§接続先確認・§Sandbox の場合・§管理画面直接操作の場合）・お客様確認サイン取得（§お客様確認サイン取得）・**全社共有ナレッジ登録（§全社共有ナレッジ登録。Phase 6 正常完了時限定のフックのため中断パスでは実行しない）**・完了報告（§完了報告）。
 
 ### 終了報告
 

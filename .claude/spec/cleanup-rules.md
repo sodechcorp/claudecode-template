@@ -27,5 +27,6 @@ project_dir 配下を削除する場合は必ず:
 1. **`ignore_errors=True` を使わない**。削除後に `os.path.exists()` で成功を確認し、失敗時は警告を出す（最も重要）
 2. パスは環境変数経由で渡すことを推奨する（`TARGET="{path}" python -c "...os.environ['TARGET']..."`）。ソースコード文字列への直接埋め込みで文字化けが起きる場合の回避策になる
 3. `docs/logs/...` などの相対パスは project_dir で実行する（サブエージェントは呼び出しごとに作業フォルダが戻るため `cd "{project_dir}" &&` を付ける。作業フォルダが違うと、無いパスを見て「無くなった」と確かめてしまう）
+4. 複数の対象を消すときは、1件の失敗（例外）で残りの削除と、この節の 1. の確認を止めない。対象ごとに試してから、残ったものを出す（全部に共通する前提〔作業フォルダ・`{tmp_dir}` の解決・消してはいけない場所の確認〕が崩れたときは、何も消さずに止める）
 
 実装例: [backlog.md](../commands/backlog.md) Phase 6 完了時の `repro/` 削除処理（メインの会話）、[release-preparer.md](../agents/release-preparer.md)「Phase 最終: クリーンアップ」（サブエージェント）、作成場所が決まっていない作業フォルダは [agent-cleanup-template.md](../templates/common/agent-cleanup-template.md) の2つ目の形を参照。

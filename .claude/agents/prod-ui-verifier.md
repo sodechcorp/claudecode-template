@@ -91,11 +91,11 @@ python -c "import time; print(int(time.time()))"
 1. 新規・編集画面が開いたままならキャンセルで閉じる（保存しない）
 2. Login As 中なら `/secur/logout.jsp` でプロキシ解除する
 3. `mcp__playwright__browser_close` でブラウザを閉じる
-4. **Playwright MCP の自動出力を消す**: MCP は操作のたびに、ページ全文のスナップショット（`page-*.yml`）・コンソールログ・ダウンロードの複製を、セッションの作業ディレクトリ直下の `.playwright-mcp/`（通常は `{project_dir}/.playwright-mcp/`）へ自動保存する。本番の画面では実顧客のデータを含みうるため、**Step 0 の開始時刻以降に作られたファイルだけ**を削除する（他の実行の出力には触れない）。`ignore_errors` は使わず、削除後に残存 0 件を確認する（[cleanup-rules.md](../spec/cleanup-rules.md)。パスは環境変数経由）:
+4. **Playwright MCP の自動出力を消す**: MCP は操作のたびに、ページ全文のスナップショット（`page-*.yml`）・コンソールログ・ダウンロードの複製を、セッションの作業ディレクトリ直下の `.playwright-mcp/`（通常は `{project_dir}/.playwright-mcp/`）へ自動保存する。本番の画面では実顧客のデータを含みうるため、**Step 0 の開始時刻以降に作られたファイルだけ**を削除する（他の実行の出力には触れない）。`ignore_errors` は使わず、1件の失敗で残りを止めずに、削除後に残存 0 件を確認する（[cleanup-rules.md](../spec/cleanup-rules.md)。パスは環境変数経由）:
    ```bash
-   TARGET="{project_dir}/.playwright-mcp" START="{Step 0 の開始時刻}" python -c "import os; d=os.environ['TARGET']; s=float(os.environ['START']); ls=lambda: [f for f in (os.listdir(d) if os.path.isdir(d) else []) if os.path.getmtime(os.path.join(d,f))>=s]; n=len(ls()); [os.remove(os.path.join(d,f)) for f in ls()]; print('deleted', n, 'left', len(ls()))"
+   TARGET="{project_dir}/.playwright-mcp" START="{Step 0 の開始時刻}" python -c "import os; from concurrent.futures import ThreadPoolExecutor; d=os.environ['TARGET']; s=float(os.environ['START']); ls=lambda: [f for f in (os.listdir(d) if os.path.isdir(d) else []) if os.path.getmtime(os.path.join(d,f))>=s]; n=len(ls()); x=ThreadPoolExecutor(1); es=[e for e in (x.submit(os.remove, os.path.join(d,f)).exception() for f in ls()) if e]; print('deleted', n-len(ls()), 'left', len(ls()), *es)"
    ```
-   `left` が 0 でなければ、返却の「注意」にパスと残存件数を書く（担当者に手動削除を依頼する）
+   `left` が 0 でなければ、返却の「注意」にパスと残存件数を書く（パスは末尾に出る削除の失敗から。担当者に手動削除を依頼する）
 
 想定外のエラーで中断する場合も、報告の前にこの Step を行う。
 

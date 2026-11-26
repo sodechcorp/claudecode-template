@@ -533,10 +533,10 @@ Notion タスクに紐づく作業であれば、完了後に「ナレッジ／�
 - `{tmp_dir}/contract-prod`（Phase 2 の4. の使う側との突き合わせで本番から取った部品）
 
 ```bash
-cd "{project_dir}" && TMP_DIR="{tmp_dir}" TARGETS="prod-drift-check org-drift-tier0 contract-prod" python -c "import os, shutil, sys; t = os.environ['TMP_DIR']; os.path.isdir(os.path.dirname(os.path.normpath(t))) or sys.exit('NO LOG DIR: ' + t); ps = [os.path.join(t, s) for s in os.environ['TARGETS'].split()]; [shutil.rmtree(p) for p in ps if os.path.isdir(p)]; left = [p for p in ps if os.path.exists(p)]; sys.exit('NOT REMOVED: ' + ', '.join(left)) if left else print('removed')"
+cd "{project_dir}" && TMP_DIR="{tmp_dir}" python -c "import os, sys; t = os.environ['TMP_DIR']; os.path.isdir(os.path.dirname(os.path.normpath(t))) or sys.exit('NO LOG DIR: ' + t)" && TARGETS="prod-drift-check org-drift-tier0 contract-prod" && NG=0 && for s in $TARGETS; do TMP_DIR="{tmp_dir}" S="$s" python -c "import os, shutil, sys; p = os.path.join(os.environ['TMP_DIR'], os.environ['S']); os.path.isdir(p) and shutil.rmtree(p); os.path.exists(p) and sys.exit('NOT REMOVED: ' + p)" || NG=1; done && [ "$NG" = 0 ] && echo removed || { echo "NOT ALL REMOVED"; false; }
 ```
 
-`{tmp_dir}` は project_dir 配下のため、[cleanup-rules.md](../spec/cleanup-rules.md) の project_dir 配下の削除に従う（`ignore_errors=True` を使わない・パスは環境変数で渡す）。対象を変えるときは `TARGETS` だけを書き換える。エラーか `NOT REMOVED:` で終わったら、残ったパスを完了報告に書く。作業が途中でエラー終了した場合は、このコマンドを実行しない（デバッグ用に残す）。
+`{tmp_dir}` は project_dir 配下のため、[cleanup-rules.md](../spec/cleanup-rules.md) の project_dir 配下の削除に従う（`ignore_errors=True` を使わない・パスは環境変数で渡す・1件の失敗で残りを止めない）。対象を変えるときは `TARGETS` だけを書き換える。`NOT ALL REMOVED` で終わったら（終了コード 1）、その前に出たエラー・`NO LOG DIR:`・`NOT REMOVED:` を完了報告に書く。作業が途中でエラー終了した場合は、このコマンドを実行しない（デバッグ用に残す）。
 
 ---
 

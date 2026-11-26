@@ -101,7 +101,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 
 ### 1. 接続先確認
 
-> **スキップ判定**: `deploy_route` が `manual-operation`（2b. 管理画面直接操作）の場合、この Step は実施せず 2b へ直接進む（デプロイ・Sandbox 接続自体が発生しないため、本番/Sandbox 判定は不要）。
+> **スキップ判定**: `deploy_route` が `manual-operation`（2b. 管理画面直接操作）の場合、この Step は実施せず 2b へ直接進む（デプロイ・Sandbox 接続自体が発生しないため、本番/Sandbox 判定は不要。担当者が操作する組織は、引き渡しの前に backlog.md Phase 6 が確かめる）。
 
 > 共通手順: [.claude/templates/common/sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) を参照してSandbox判定を実施する。
 
