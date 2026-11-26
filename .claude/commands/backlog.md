@@ -74,12 +74,13 @@ argument-hint: "[課題ID]"
 >   3. Phase 末尾の確認プロトコルを実行する
 >
 > **【再開・変数】**
-> - **compact 後の再開について**: 長尺セッションで /compact が発生した後に /backlog を継続する場合は、必ず /backlog コマンドを再起動して Phase 0d 経由でコンテキストを復元すること。エージェント実行途中で /compact が発生した場合も同様。investigation.md のフロントマターに記録した `issue_type` / `deploy_route` を Phase 0d で読み込んで変数を再設定する（フロントマター更新の義務・スキップ禁止・復元手順の詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照）
+> - **compact 後の再開について**: 長尺セッションで /compact が発生した後に /backlog を継続する場合は、必ず /backlog コマンドを再起動して Phase 0d 経由でコンテキストを復元すること。エージェント実行途中で /compact が発生した場合も同様。investigation.md のフロントマターに記録した `issue_type` / `deploy_route` / `issue_source` を Phase 0d で読み込んで変数を再設定する（フロントマター更新の義務・スキップ禁止・復元手順の詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照）
 > - **種別変数 `{issue_type}` の管理**: Phase 1 完了時点で `investigation.md` の「種別」欄から `{issue_type}` = `バグ` / `追加要望` / `その他` / `問い合わせ` を確定し、会話の最後まで保持する。Phase 2（デフォルトスタンス／問い合わせ時は回答ドラフトモード分岐）・Phase 5（テスト観点）・Phase 6（お客様確認必須度）の分岐に使用する。種別欄が空欄・不明・記載なしの場合は「種別が判断できません。バグ / 追加要望 / その他 / 問い合わせ のどれに該当しますか？」とテキストで確認してから確定する
 >
 > **【環境・記録】**
 > - **本番環境（isSandbox=false）への直接デプロイは絶対に行わない**
 > - **中断・手動切替・リリース省略でフローが Phase 6 に到達しない場合**: `## §中断時の知見還流（部分還流）` に従い知見を `docs/knowledge/` へ部分還流してから終了する（知見取りこぼし防止）
+> - **課題の読み先（Backlog／保守ポータル）**: Phase 0 で `{issue_source}`（`backlog` / `portal`）を決め、会話の最後まで保持する（[issue-source.md](../templates/common/issue-source.md) §1。保守ポータルの設定がない案件・人は `backlog` で、聞かずに今までどおり進む）。`portal` のときは、Backlog MCP を呼ぶ手順を同 §2 の対応表で読み替え、本書の「保守ポータルの課題」の時点で案（対応の案・返信の下書き・一次判断の案・予定の変更の案・社内メモ）を確認なしで渡す（同 §3〜§6。作業のまとまりの時間は §5 の `effort_clock.py` で測る。担当者の返事を待って止まるときは `pause`、返事が来たら `resume`）。渡したら「保守ポータルに {渡したもの} を渡しました」と1行で伝える
 
 ---
 
@@ -107,6 +108,10 @@ argument-hint: "[課題ID]"
 ```
 
 形式に一致する場合のみ次へ進む（未検証のまま `docs/logs/{issueID}/` を作成しない）。
+
+**課題の読み先の決定**
+
+`docs/logs/{issueID}/investigation.md` の頭書きに `issue_source:` があればその値を `{issue_source}` にする。無ければ [issue-source.md](../templates/common/issue-source.md) §1 の手順で決める（`portal_configured.py` が `none` なら `backlog` にして、何も伝えずに次へ進む）。
 
 **接続組織の確認**
 
@@ -178,7 +183,7 @@ New-Item -ItemType Directory -Force -Path "docs/logs/{issueID}" | Out-Null
 6. `validation-report.md` — 実装前検証結果
 7. `test-report.md` — テスト結果
 
-investigation.md を Read した際はフロントマター（`---` で囲まれた部分）から `issue_type` / `deploy_route` を変数として読み取り、以降のフェーズで使用する（旧版の `light_mode` キーが残っていても無視する）。
+investigation.md を Read した際はフロントマター（`---` で囲まれた部分）から `issue_type` / `deploy_route` / `issue_source` を変数として読み取り、以降のフェーズで使用する（旧版の `light_mode` キーが残っていても無視する）。
 
 **分割読込ルール**: investigation.md・hypothesis-verification.md・approach-plan.md・implementation-plan.md・validation-report.md・test-report.md は、**冒頭 80 行 + 末尾 30 行**を読めば十分（ファイルが 110 行未満の場合は全文）。フルが必要なフェーズ（実装フェーズなど）はエージェント側で個別に全文 Read すること（[共通ルール参照](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通)）。
 
@@ -207,8 +212,8 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 **Step A: 課題本文の先行取得 + sf-context-loader（本コマンドが直接実行）**
 
-1. `mcp__backlog__get_issue` で課題のタイトル・本文を取得する（本文はコンテキスト生成用の先読み。`investigation.md` への逐語転記は `backlog-investigator` が Step A で別途取得する。重複取得は意図的な設計のため許容する）。
-   - **取得に失敗した場合（MCP サーバーダウン等）**: 「Backlog MCP が応答しません。課題本文（タイトル・詳細）をここに貼り付けてください」とユーザーに依頼し、貼り付けられた内容を課題タイトル・本文として扱って以降の手順を続行する（本コマンドはメインスレッドで実行されるため同期的なユーザー入力待ちが可能。`backlog-investigator` は単発 Task サブエージェントで同待ちができないため、MCP 障害時は処理を中断して結果を返す設計としている）。
+1. `mcp__backlog__get_issue`（`{issue_source}` = `portal` のときは `mcp__support_desk__get_issue`。以降、本書と下の担当の Backlog MCP は [issue-source.md](../templates/common/issue-source.md) §2 で読み替える。先に `python scripts/python/effort/effort_clock.py start {issueID} "調査"`）で課題のタイトル・本文を取得する（本文はコンテキスト生成用の先読み。`investigation.md` への逐語転記は `backlog-investigator` が Step A で別途取得する。重複取得は意図的な設計のため許容する）。
+   - **取得に失敗した場合（MCP サーバーダウン等）**: 「Backlog MCP（`{issue_source}` = `portal` のときは「保守ポータル」）が応答しません。課題本文（タイトル・詳細）をここに貼り付けてください」とユーザーに依頼し、貼り付けられた内容を課題タイトル・本文として扱って以降の手順を続行する（本コマンドはメインスレッドで実行されるため同期的なユーザー入力待ちが可能。`backlog-investigator` は単発 Task サブエージェントで同待ちができないため、MCP 障害時は処理を中断して結果を返す設計としている）。
 2. `sf-context-loader` を2つ、**同一メッセージで並列に**起動する（どちらも 1 で取得した課題本文だけを入力にしており、互いの結果に依存しない。並列起動が不安定だったのはサブエージェント内から起動した場合で、メインスレッドからの起動は該当しない）:
    - **knowledge-only モード**:
      ```
@@ -235,6 +240,7 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 課題ID: {issueID}
 プロジェクトルート: {カレントディレクトリ}
 出力先: docs/logs/{issueID}/investigation.md
+課題の読み先: {issue_source}
 知識層コンテキスト: {knowledge_context}
 設計層コンテキスト: {design_context}
 申し送り: {課題本文を読んでメインスレッドが気になった点を1行で（複数なら「／」区切り）。なければこの行ごと省略}
@@ -249,6 +255,7 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 >    課題ID: {issueID}
 >    プロジェクトルート: {カレントディレクトリ}
 >    出力先: docs/logs/{issueID}/investigation.md
+>    課題の読み先: {issue_source}
 >    知識層コンテキスト: {knowledge_context}
 >    設計層コンテキスト: {design_context}
 >    申し送り: {初回と同じ内容。初回に渡していなければこの行ごと省略}
@@ -258,13 +265,16 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 
 > **investigator の確認記録ゲート（非同期・メインスレッド委譲）**: investigator は単発 Task サブエージェントのためユーザー応答を同期的に待てない。課題本文/コメント中の全URL・添付・スクショ・名指しレコードについて、取得不能なものは investigation.md「周辺情報」に共有依頼候補（共有依頼列 = `要`）として記録し、それに依拠する記述には `[要確認: 未共有の一次資料]` を付けたうえで Step B 以降まで進めて investigation.md を完成させる（Step A.5 の症状前提未確定も同様に `[要確認: 症状前提未確定]` で進行）。**ユーザーへの提示・応答受領は本コマンド（メインスレッド）が Phase 1 の終了時に行う**（調査結果のサマリーは書かず、確認事項だけを短く聞く）: investigator が記録した共有依頼候補・症状前提未確定を確認事項として提示し、応答を待つ。ユーザーが資料・回答を提供した場合は investigation.md の該当セクションへ Edit で追記し（共有依頼列を `済` に更新）、「不要・このまま進めて」と回答した場合は waive とみなし理由を追記する（共有依頼列を `不要（waive）` に更新）。あわせて共有依頼への回答を investigation.md の「## 業務側からの追加情報」〔無ければファイル末尾に作る。あれば節の末尾〕に日付を付けて書く（周辺情報の行〔表・# と URL・ファイル名・レコード〕ごとに、出された資料〔貼り付けられた内容は `>` で引用して書くか保存先のパス。チャットに貼られた画像は読んだ内容、エラー文言は原文のまま〕か不要と答えた理由。investigator は investigation.md を書き直すが、この節は引き継いで読む）。追加情報が根本原因仮説に影響しうる場合は Step B と同じ起動で investigator を起動し直し、完了報告が返ったら、初回と同じく種別の確定・デプロイ適否の判定と追記・フロントマターの記録・下の「次に進む条件」をやり直す（軽微な補足のみなら起動し直さず次の Phase〔バグは 1.6、それ以外は 2〕へ進む）。
 
-> **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `deploy_route` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照)。`{tmp_dir}` = `docs/logs/{issueID}/.tmp` に固定し、以下の内容で `{tmp_dir}/write_frontmatter.py` を Write する（[inline-script-hygiene.md](../templates/common/inline-script-hygiene.md) に従い if/for を含む多行ロジックはヒアドキュメントで渡さず外部化する。値は起動時の引数で渡し、スクリプト本体には Claude 置換プレースホルダーを一切含めない。Python の f-string 波括弧との混在を避けるため）:
+> **Phase 1 完了時のフロントマター記録（必須・スキップ不可）**: `{issue_type}` 確定後（上記「種別変数の管理」参照）、/compact 跨ぎ復元用に `issue_type` / `deploy_route` / `issue_source` を investigation.md フロントマターへ書き込む(詳細は [_README.md §compact 跨ぎ復元プロトコル](../templates/backlog/_README.md) を参照)。`{tmp_dir}` = `docs/logs/{issueID}/.tmp` に固定し、以下の内容で `{tmp_dir}/write_frontmatter.py` を Write する（[inline-script-hygiene.md](../templates/common/inline-script-hygiene.md) に従い if/for を含む多行ロジックはヒアドキュメントで渡さず外部化する。値は起動時の引数で渡し、スクリプト本体には Claude 置換プレースホルダーを一切含めない。Python の f-string 波括弧との混在を避けるため）:
 > ```python
 > import pathlib, re, sys
 > issue_id, issue_type, deploy_route = sys.argv[1:4]
+> issue_source = sys.argv[4] if len(sys.argv) > 4 else ''
 > invest = pathlib.Path(f'docs/logs/{issue_id}/investigation.md')
 > text = invest.read_text(encoding='utf-8') if invest.exists() else ''
 > keys = {'issue_type': issue_type, 'deploy_route': deploy_route}
+> if issue_source:
+>     keys['issue_source'] = issue_source
 > if text.startswith('---'):
 >     end = text.index('---', 3)
 >     front = text[3:end]
@@ -278,11 +288,11 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 > else:
 >     fm = '\n'.join(f'{k}: {v}' for k, v in keys.items())
 >     invest.write_text(f'---\n{fm}\n---\n\n{text}', encoding='utf-8')
-> print('[OK] investigation.md issue_type/deploy_route 記録完了')
+> print('[OK] investigation.md issue_type/deploy_route/issue_source 記録完了')
 > ```
 > Write 後、以下を実行する（置換対象は本コマンド行の3引数のみ）:
 > ```bash
-> python "{tmp_dir}/write_frontmatter.py" "{issueID}" "{issue_type}" "{deploy_route}"
+> python "{tmp_dir}/write_frontmatter.py" "{issueID}" "{issue_type}" "{deploy_route}" "{issue_source}"
 > ```
 
 > **次に進む条件（自動進行）**: Phase 1 の結果は報告しない。調査結果（バグは Phase 1.6 の検証結果も）は Phase 2 の提示に1回でまとめて報告する（Phase 2 の提示が Phase 1・1.6 のサマリーを兼ねる）。
@@ -304,6 +314,8 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 ### Phase 2: 対応方針の決定（担当者が決める・本コマンド直接実行）
 
 > **目的**: 担当者が対応方針を決めるための判断材料を短く提示し、決定を記録する。ClaudeCode は方針を立案・比較しない（別エージェントの起動・案の比較表・工数見積はしない）。**`/backlog` 起動後、結果の報告としては最初のもの**であり、Phase 1（調査）・Phase 1.6（Sandbox 検証）の結果報告を兼ねる。下記 Step 2 の形式だけで報告し、その前に「Phase 1 の結果」「Phase 1.6 の結果」を別に書かない。
+
+> **保守ポータルの課題**（`{issue_source}` = `portal`）: 提示の前に `effort_clock.py start {issueID} "方針の決定"` を実行し（「調査」〔Phase 1・1.6〕が終わる）、終わった「調査」を対応の案として渡す（[issue-source.md](../templates/common/issue-source.md) §4〜§6。渡したことは提示の末尾に1行）。担当者の決定を待つ間は `pause`、返事が来たら `resume`。
 
 #### 種別が「問い合わせ」の場合（回答ドラフト）
 
@@ -391,6 +403,8 @@ investigation.md を Read した際はフロントマター（`---` で囲まれ
 ```
 
 推奨と異なる方針に決まった場合・担当者から補足の指示があった場合は discussion-log.md にも追記する。担当者から工数見積を依頼された場合は `sf-effort-estimator` に委譲し（`deploy_route` を渡す。基本のリリースは過去の実績に含まれるので足さず、データ遡及・本番での手作業は estimator が別に見積もって足す。この課題ですでに計上した工数があれば `計上済み`、見積に含めない作業があれば `除外する作業`、お客様に出す内訳が要るときは `お客様向け内訳=要` を渡す。呼ぶ側で作った内訳案・積み上げ・希望の値は渡さない）、返った `{N}h`・内訳の1行（計上済みを引いたときは課題全体の `{W}h` も）・信頼度・採用した課題・実績の幅との照合の行・注意事項（とお客様向けの内訳）を approach-plan.md に「## 工数見積」として追記し、担当者には `{N}h`・信頼度と「要人間確認 {n}件」（あれば各1行）を伝える（見積は依頼時のみ。依頼がなければ作らない）。**返った値は変えない**: 余裕を足す・丸め直す・行に分けて足し直すことはしない。担当者が別の値に決めたときだけ、「担当者の決定 {M}h（見積担当 {N}h）」と書く（[agent-routing.md](../spec/agent-routing.md) §工数見積の強制集約）。**対応形態の整合**: 担当者の決定が Phase 1 の `{deploy_route}` と異なる対応形態（管理画面操作と判定されていたがコードで直す、またはその逆）になった場合は、`{deploy_route}` を決定に合わせて更新し、investigation.md のフロントマター（`write_frontmatter.py` を再実行）と「## デプロイ適否判定」に更新理由を追記してから分岐する。
+
+**保守ポータルの課題**（`{issue_source}` = `portal`）: 記録したら、`effort_clock.py start {issueID} "実装と確認"`（`{deploy_route}` = `manual-operation` は "操作手順の作成"、運用で対応すると決まったときは `stop`）で「方針の決定」を終え、[issue-source.md](../templates/common/issue-source.md) §4 の「方針が決まったとき」のものを渡す: 社内メモ「Claude の方針メモ」（方針の結論・今回対象外にしたこと・工数見積があればその値）・一次判断がまだ（`get_issue` の `triage` が無い）なら一次判断の案・「## 工数見積」の値が一次判断の予定時間と違えば予定の変更の案・対応の案「方針の決定」。「## お客様への回答」を書いたとき（運用で対応）は、その内容で返信の下書き（`status` = `WAITING_CUSTOMER`）も渡す。
 
 記録後、「対応方針を記録しました。Phase 3（実装方針）に進みます」と伝えて同一ターンで次へ進む:
 - 課題の要求が全て、実装も設定変更もしないで運用で対応すると決まった場合（要望の重さとの釣り合いで担当者が決めたもの。一部の要求だけなら「### 今回対象外とする要求・入口」に書いて通常どおり進む）: Phase 3 以降は行わない。お客様に伝える内容（運用のしかたと、要望をそのまま満たすには何が要るか）を approach-plan.md に「## お客様への回答」として書き、チャットにも全文を出す（Backlog への投稿は人が行う）。そのあと [§中断時の知見還流（部分還流）](#中断時の知見還流部分還流) に従って終える
@@ -517,6 +531,8 @@ project_dir: {プロジェクトルートパス}
 - **条件付きPASS（NoTestRun フォールバック発生）** → 自動で Phase 6 に進めない。dry-run はコンパイル成功だが対応テストクラス未整備でカバレッジ未検証。ユーザーに「テスト追加（Phase 4 戻り）」または「カバレッジ未検証を承知で本デプロイ」を求めてから進む
 - **FAIL** → Phase 4 に差し戻す（明らかな壊れを修正してから再度スモーク確認。ユーザー判断を要する分岐ではないため確認は取らない）
 
+> **保守ポータルの課題**（`{issue_source}` = `portal`）: PASS なら、Phase 6 を起動する前に `effort_clock.py start {issueID} "Sandbox への反映"` で「実装と確認」を終え、対応の案として渡す（[issue-source.md](../templates/common/issue-source.md) §4〜§6）。
+>
 > **次に進む条件**: PASS の場合、サマリーを提示したうえで「スモーク確認PASSのため、そのままPhase 6（Sandboxリリース）に進みます」と一行で事実として通知し、承認を待たずに同一ターン内で Phase 6 を起動する（質問文にしない。[answer-scope-spec.md](../templates/common/answer-scope-spec.md) 準拠）。ユーザーは異議があればいつでも割り込める。条件付きPASS の場合のみ、上記2択をテキストで確認してから進む。FAIL の場合は「Phase 4 に差し戻して修正します」と通知し Phase 4 を起動する（確認は取らない）。
 >
 > **Phase 5 典型例（該当時のみ・0件が原則）**: 「カバレッジ未検証（NoTestRun フォールバック）のまま本デプロイに進めてよいか」（dry-run コンパイルエラー・テスト失敗は上記の通り Phase 4 へ自動差し戻しのため業務判断を要さず、典型例に含めない）
@@ -577,6 +593,8 @@ case "{log_dir}" in
 esac
 ```
 
+**保守ポータルの課題**（`{issue_source}` = `portal`）: 完了報告の前に `effort_clock.py stop {issueID}` で「Sandbox への反映」（`manual-operation` は「操作手順の作成」）を終え、対応の案として渡す（[issue-source.md](../templates/common/issue-source.md) §4〜§6）。
+
 完了報告を行う。
 
 > **管理画面操作手順書（2b）がある場合**: `{deploy_route}` = `manual-operation` の場合（backlog-releaser が `docs/logs/{issueID}/manual-operation-steps.md` を作る）、完了報告に続けて、まず [sandbox-alias-check.md](../templates/common/sandbox-alias-check.md) の「エイリアス取得」「Sandbox 判定」で接続先を確かめる。Sandbox と確かめられなければ（本番・接続先の取得失敗）引き渡さず「管理画面操作は Sandbox で行います。`sf config set target-org <Sandbox の alias>` で切り替えて（認証切れなら `sf org login web --alias <alias> --instance-url <Sandbox のログイン URL>` で入り直して）から続けてください」と伝えて待つ。切り替えた・入り直したと言われたら「エイリアス取得」からやり直し、Sandbox では操作しないと言われたら全ステップを飛ばした扱いで（今は本番で操作せず `/release` の手順書で行うよう一言伝え）下の「続けて（全ステップを飛ばした場合も）」へ進み、中止と言われたら手順を保留して終える。Sandbox なら、先頭のステップに「操作する組織: {alias}（{INSTANCE_URL}）」を添えて、[manual-steps-todo-handoff.md](../templates/common/manual-steps-todo-handoff.md) の仕様に従い引き渡しを行う（**手順書全文を一度に貼らない**）。同ファイルを Read し、「操作ステップ」内の番号付き各項目を TodoWrite でタスク化し、先頭の未完了ステップのみ内容を提示して「実行結果を教えてください」と添える。ユーザーの実行報告を受けたら該当 Todo を completed にし次のステップへ進む。エラー・質問ならその場で回答し Todo は進めない。Sandbox では行えない・行う意味がないと報告されたステップは completed にして飛ばし、今は本番で操作せず `/release` の手順書で行うよう一言伝える。全 Todo 完了後（ステップが1件のみ・まとめて提示した場合は実行報告を受けた後）、Sandbox で操作したステップがあれば「確認事項」セクションを一度に提示する（飛ばしたステップだけに関わる項目は除く）。続けて（全ステップを飛ばした場合も）「本番反映が必要なら `/release {issueID}` を起動してください」と案内し、「以上で Phase 6（最終フェーズ）の対応は完了です。追加のご確認・ご質問はありますか？（無ければ『完了』とお伝えください）」で締める。その後のやり取り・クロージングと Step 6 のドキュメント更新通知（操作対象は manual-operation-steps.md の「操作対象」）も、backlog-releaser.md の Step 5 の 3.〜5.・Step 6 のとおりここで行う（管理画面操作の場合、backlog-releaser は締めから先を行わない）。
@@ -607,6 +625,8 @@ main スレッドが「この課題は Phase 6 に到達しない」と判断し
 `docs/logs/{issueID}/` に approach-plan.md / investigation.md 等が 1 つ以上存在すること。Phase 1 完了前の超早期中断（成果物が何もない状態）はスキップする。
 
 ### 実行手順（deploy 系は一切行わない）
+
+> **保守ポータルの課題**（`{issue_source}` = `portal`）: 先に `effort_clock.py stop {issueID}` で動いているまとまりを終え、`pending` で出たまだ渡していないまとまりを対応の案として渡す（[issue-source.md](../templates/common/issue-source.md) §5・§6）。
 
 > 各 Step の詳細手順は `backlog-releaser.md` の対応節を参照して実行する（ロジックのコピーではなく参照）。追記フォーマットの定義は [../templates/common/knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) に集約されている（単一ソース）。
 

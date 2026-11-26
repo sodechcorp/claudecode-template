@@ -50,7 +50,7 @@ tools:
 直接の呼び出しはサポートしていません。Backlog 課題の調査をしたい場合は `/backlog {課題ID}` を実行してください。
 ```
 
-**課題の先行取得**: `課題本文手動入力:` が渡されている場合（MCP 障害復旧モード）は本項をスキップし、下記「MCP 障害復旧モード」節に従う。それ以外の通常 Phase 1（Step 0〜H）では Step 0a 以降が課題本文・コメントを前提とする。Step 0 に入る前に、まず `mcp__backlog__get_issue` で課題本文を取得する（起動パラメータの `課題の読み先:` が `portal` のときは、本ファイルの `mcp__backlog__*` をすべて [issue-source.md](../templates/common/issue-source.md) §2 の対応表で `mcp__support_desk__*` に読み替える。Backlog の課題 URL の代わりに、ポータルの課題キーを出典に書く。ポータルに書く道具は使わない）。`mcp__backlog__get_issue_comments` は `count`（目安20）を必ず指定して取得し、件数が多い場合は `minId`/`maxId` でページングする（ページングが必要なため一括の並列発行はしない）。ここで取得した内容が Step A の入力であり、Step A で再取得はしない。
+**課題の先行取得**: `課題本文手動入力:` が渡されている場合（MCP 障害復旧モード）は本項をスキップし、下記「MCP 障害復旧モード」節に従う。それ以外の通常 Phase 1（Step 0〜H）では Step 0a 以降が課題本文・コメントを前提とする。Step 0 に入る前に、まず `mcp__backlog__get_issue` で課題本文を取得する（起動パラメータの `課題の読み先:` が `portal` のときは、本ファイルの `mcp__backlog__*` をすべて [issue-source.md](../templates/common/issue-source.md) §2 の対応表で `mcp__support_desk__*` に読み替える。Backlog の課題 URL の代わりに、ポータルの課題キーを出典に書く。ポータルに書く道具は使わない。下の担当〔pattern-curator・backlog-blind-second-opinion など〕を起動するときも `課題の読み先: portal` を渡す）。`mcp__backlog__get_issue_comments` は `count`（目安20）を必ず指定して取得し、件数が多い場合は `minId`/`maxId` でページングする（ページングが必要なため一括の並列発行はしない）。ここで取得した内容が Step A の入力であり、Step A で再取得はしない。
 
 ---
 

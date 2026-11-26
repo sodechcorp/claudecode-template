@@ -36,6 +36,10 @@ project_dir: {プロジェクトルートパス}
 
 > 回答ドラフトを生成しました。内容をご確認のうえ、Backlog への投稿は手動でお願いします。
 
+**保守ポータルの課題**（`{issue_source}` = `portal`）: 上の「Backlog への投稿は人間が手動で」の代わりに、ユーザの確認が済んだ回答本文（「### 回答本文（Backlog 投稿用ドラフト）」）を返信の下書きとして渡す（`mcp__support_desk__save_reply_draft`・`status` = `WAITING_CUSTOMER`）。`effort_clock.py stop {issueID}` で「方針の決定」（回答の作成）を終え、対応の案「回答の作成」として渡す（[issue-source.md](../common/issue-source.md) §4〜§6）。完了報告は次の文にする:
+
+> 回答の下書きを保守ポータルに渡しました。課題の画面の「下書きを使う」で確かめて送ってください。
+
 完了時は `## §中断時の知見還流（部分還流）` は適用しない（Phase 6 到達前の中断ではなく、問い合わせ種別の正規完了経路のため）。代わりに以下の知見還流を実行する（Sandboxデプロイ・お客様確認サイン等 Phase 6 固有の手順は対象外。各 Step の詳細手順は `backlog-releaser.md` の対応節を参照して実行する）:
 
 1. **cases/{issueKey}.md**: `backlog-releaser.md` §3.8 の手順で実行する。問い合わせ種別の場合、approach-plan.md / implementation-plan.md / test-report.md は存在しないため、代わりに `answer-draft.md` の「### 回答本文（Backlog 投稿用ドラフト）」を `## 採用方針` 相当として使用する（詳細は §3.8 の「種別が『問い合わせ』の場合」参照）。

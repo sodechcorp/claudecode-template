@@ -26,6 +26,15 @@ Salesforce 保守課題の実装後テストを全自動実行し、エビデン
 
 Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{log_dir}/.test-context.json` に書き出す（Phase A 手順8・自己防衛のため書き込み失敗は無視）。長時間セッションで `/compact` が発生した後に Phase B 以降から会話を再開する場合は、このファイルが存在すれば `project_dir` / `xlsx_folder` / `evidence_dir` / `spec_path` / `judgment_path` / `alias` / `instance_url` を読み込んで復元し、Phase A を再実行しない（Sandbox 判定は re-run しても結果が変わらないため）。ファイルが存在しない場合は Phase A から実行する。どちらの場合も Step 0 の Read はやり直す。
 
+## 保守ポータルの課題（課題の読み先）
+
+`docs/logs/{issueID}/investigation.md` の頭書きの `issue_source:` を `{issue_source}` にする（無ければ [issue-source.md](../templates/common/issue-source.md) §1 で決める。保守ポータルの設定が無ければ `backlog` で、聞かずに今までどおり）。`portal` のときだけ次を行う（`backlog` のときは何もしない）:
+
+- Phase A の初めに `python scripts/python/effort/effort_clock.py start {issueID} "テスト・証跡"`。担当者の返事を待って止まるときは `pause`、返事が来たら `resume`
+- Backlog MCP を呼ぶ手順（Phase F-1 など）は issue-source.md §2 の対応表で読み替える
+- 完了報告の前（総合判定が PASS・条件付き PASS のとき）: `effort_clock.py stop {issueID}` で終えた「テスト・証跡」を対応の案として渡す（issue-source.md §4〜§6）。`pending-signoff.md` があれば（お客さんの確認が要る課題）、Sandbox で見てもらう依頼の返信の下書きを渡す（`status` = `WAITING_ANSWER`。確認してほしい画面・手順を番号で。`pending-signoff.md` の「目視確認のご案内」を元に、社内のことは書かない）。完了報告の「お客様確認」のリマインドは「Sandbox で見てもらう依頼の下書きを保守ポータルに渡しました。課題の画面の「下書きを使う」で確かめて送ってください」に置き換える
+- FAIL・AI 判定待ちのまま終えるときは渡さない（`pause` だけして、次の `/test` で続きを測る）
+
 ---
 
 ## フェーズ構成
@@ -452,7 +461,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/generate_test_report.py" \
 
 After エビデンスが確定した時点での完了確認。`.claude/templates/backlog/options/option-acceptance-criteria-recheck.md` の実行手順に従う:
 
-1. **軽量フェッチ（キャッシュ判定用）**: `mcp__backlog__get_issue`（課題本文。`updated` フィールドを含む）・`mcp__backlog__get_issue_comments`（`order: desc`, `count: 1` で最新コメント1件のみ）で `{issueID}` の `updated` タイムスタンプと最終コメントIDを取得する（この時点では全コメント本文は取得しない）
+1. **軽量フェッチ（キャッシュ判定用）**: `mcp__backlog__get_issue`（課題本文。`updated` フィールドを含む。`{issue_source}` = `portal` のときは `mcp__support_desk__get_issue` の `updatedAt`〔無い版は `events` の先頭の日時〕。コメントも `mcp__support_desk__get_issue_comments` で、以降も [issue-source.md](../templates/common/issue-source.md) §2 で読み替える）・`mcp__backlog__get_issue_comments`（`order: desc`, `count: 1` で最新コメント1件のみ）で `{issueID}` の `updated` タイムスタンプと最終コメントIDを取得する（この時点では全コメント本文は取得しない）
 2. **キャッシュ判定**: 取得した `issue_updated` と `last_comment_id` を、`{log_dir}/.acceptance-recheck.json` の前回値と比較する:
    - キャッシュが存在し、`issue_updated` と `last_comment_id` が両方とも前回値と完全一致し、かつ前回 `verdict` が「リリース可」で `section` がある場合: 全コメント取得・後付け要件確認（手順3〜4）を実行せず、キャッシュの `section`（前回追記したセクション本文）を `{log_dir}/test-report.md` に追記する（末尾に「（コメント・課題本文に増分なしのため前回結果を再掲）」を付記）
    - キャッシュ不在、値が不一致、前回 `verdict` が「追加実装要」、または `section` が無い場合: `mcp__backlog__get_issue_comments`（引数なし＝全コメント）で全件を改めて取得し、手順3〜4を実行する

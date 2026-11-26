@@ -63,7 +63,9 @@ argument-hint: "[課題ID]"
 
 ### Step 3: release-preparer への委譲
 
-`mcp__backlog__get_issue` で `{issueID}` の課題タイトル（`{件名}`）を取得する（investigation.md・implementation-plan.md が共に無い場合の release-preparer Step 0a 側フォールバックに必要。取得できない場合は空のまま次に進む）。
+**保守ポータルの課題**: `docs/logs/{issueID}/investigation.md` の頭書きの `issue_source:` を `{issue_source}` にする（無ければ [issue-source.md](../templates/common/issue-source.md) §1 で決める。保守ポータルの設定が無ければ `backlog` で、聞かずに今までどおり）。`portal` のときは、先に `python scripts/python/effort/effort_clock.py start {issueID} "本番の準備"` を実行し、Backlog MCP を呼ぶ手順は同 §2 で読み替える。
+
+`mcp__backlog__get_issue`（`{issue_source}` = `portal` のときは `mcp__support_desk__get_issue`）で `{issueID}` の課題タイトル（`{件名}`）を取得する（investigation.md・implementation-plan.md が共に無い場合の release-preparer Step 0a 側フォールバックに必要。取得できない場合は空のまま次に進む）。
 
 Task tool で `release-preparer` を起動する:
 
@@ -81,6 +83,8 @@ issue_title: {件名}
 **`release-preparer` の起動が失敗した場合**（Task エラー・完了報告が返らない場合）: 推測・要約で代替の完了報告を作成しない。エラー内容をそのままユーザーに伝えて中断する（以降の `release_plan_generated` 判定・引き渡しは行わない）。
 
 `release-preparer` の完了報告をそのままユーザーに提示する。
+
+**保守ポータルの課題**（`{issue_source}` = `portal`）: 手順書ができたら（`release_plan_generated` が `true`）、`effort_clock.py stop {issueID}` で終えた「本番の準備」を対応の案として渡す（[issue-source.md](../templates/common/issue-source.md) §4〜§6）。担当者の操作を待つ間の時間は数えない（測るのはここまで）。
 
 完了報告に含まれる `release_plan_generated` の値で分岐する（`test-report.md` 不在時に続行を希望しなかった場合など、release-preparer が前提未達で中断した場合は `false` になる。この場合 `docs/logs/{issueID}/release-plan.md` が過去実行分として残っていても今回生成されたものではないため参照しない）:
 - **`false` の場合**: 完了報告の提示のみで終了する（以降の手順は行わない）
@@ -152,6 +156,8 @@ manual_rows: {担当者作業待ちの作業に依存する行の V 番号と作
 - スクリーンショットには実顧客のデータが写る可能性がある旨を、初回の結果報告で一言添える（個人情報の扱いは [prod-readonly-check.md](../templates/common/prod-readonly-check.md)「本番 UI 確認」の証跡の扱いに従う）
 
 **③ の担当者確認で NG が報告されたら**（保存・代表操作で期待どおりに動かない等）: ③ の残りとデータのバックアップの削除より先に、上の画面確認の NG と同じく `prod-release-issue.md`・`docs/decisions.md` に記録してロールバックの要否を確認する（decisions.md には「本番リリース後の担当者確認で NG（{確認項目・差の種類}）。詳細は prod-release-issue.md 参照」と書く。最後の Phase 7 判定が差異ありか、その後に NG が1件以上の画面確認の記録か「③ の担当者確認 NG:」の行があれば、今回のデプロイの prod-release-issue.md が既にあるので退避せず追記する）。release-log.md の ③ の結果の行は、この記録を済ませてから「③ の担当者確認 NG: {確認項目}（次の対応: ロールバックの要否の確認）」と書く。「不要・受け入れ」はロールバック状況を追記して ③ の続きへ進む（「画面確認: 未実施」の行は書かない）。
+
+**保守ポータルの課題**（`{issue_source}` = `portal`）: ③ の担当者確認が全て終わり、ロールバックしない（または「不要・受け入れ」で記録済み）と決まったら、お客さんへの完了の連絡の返信の下書きを渡す（`mcp__support_desk__save_reply_draft`・`status` = `WAITING_CUSTOMER`。本番に反映したこと・お客さんに確かめてほしいこと〔あれば〕を短く。[issue-source.md](../templates/common/issue-source.md) §4）。「完了の連絡の下書きを保守ポータルに渡しました。課題の画面の「下書きを使う」で確かめて送ってください」と1行で伝える。
 
 **③ の担当者確認が全て終わったら**（③ の担当者確認が「なし」の場合を含む。最後の Phase 7 判定が差異ありか、その後の画面確認・③ の担当者確認に NG があれば、ロールバックの判断が「不要・受け入れ」で記録済みのときだけ）: データのバックアップ（`docs/logs/{issueID}/backup/data/` と、再生成で退避した `backup/data.R*/`）が存在する場合は削除する（個人情報を含みうるため残さない）。[cleanup-rules.md](../spec/cleanup-rules.md) に従い `ignore_errors=True` を使わずに削除し、削除後に存在しないことを確認してから「データのバックアップを削除しました」と伝える（削除に失敗した場合はパスを示して担当者に手動削除を依頼する）。メタデータの `rollback-backup/`・`release-snapshot/` は個人情報を含まないため残す。変更前の写し（`docs/logs/{issueID}/before-snapshot/`）は削除する（追加対応で `/backlog` が変更前の写しを取り直すため）。画面確認の証跡（`release-verification/`）は削除せず残すが、実顧客のデータが写る可能性があるため、チャット・Backlog・共有ドライブへ載せる前に写り込みを確認する（`docs/logs/` は git 管理外）。最後に release-log.md に「リリース終了: {日時}」を1行追記する（本番変更の記録〔release-preparer.md Phase 4 冒頭〕はこの行より前の記録を見ない）。
 

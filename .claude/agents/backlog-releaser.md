@@ -292,7 +292,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 > ルール定義: [.claude/templates/backlog/customer-signoff.md](../templates/backlog/customer-signoff.md) を参照
 
-**Claude はお客様向け Backlog コメントを投稿しない**。Claude の責務は以下のみ:
+**Claude はお客様向け Backlog コメントを投稿しない**（保守ポータルの課題の返信の下書きは `/test`・`/release` のメインの会話が渡す。本エージェントは渡さない）。Claude の責務は以下のみ:
 
 1. Phase 1.6 の再現テスト結果エビデンス（Before/After 対）が `hypothesis-verification.md`（証跡保存先: `docs/logs/{issueID}/repro`）に保存されていることを確認
 2. **（2026-09-15変更）この時点ではチャットにリマインドを出さない**: `/test` の網羅的テストがまだ実行されておらず、動作未検証のままお客様確認を促すのは早すぎるため（詳細: [customer-signoff.md §リマインドを出すタイミング](../templates/backlog/customer-signoff.md)）。代わりに `{issue_type}` に応じた要否（下記の3区分。判定基準は customer-signoff.md の表と同一）と、Step 2a-5 で生成済みの「🔎 目視確認のご案内」ブロックへの参照を `docs/logs/{issueID}/pending-signoff.md` に記録するのみに留める:
