@@ -4,7 +4,7 @@
 
 ## 適用対象
 
-- `/release`（`release.md` Step 4・Step 5）: `release-plan.md` の手順全体を Todo にし、Claude の作業（【Claude】: 通常経路の ② Step 1 のバックアップ最新確認、③ の Claude の確認〔Phase 7・画面確認は `prod-ui-verifier`〕、データのバックアップの削除）は Claude が担当者に確認を取らずに実施して completed にし、結果だけ伝える。**1つずつ渡すのは Claude では行えない担当者の操作（【担当者】: コマンドの実行・管理画面での操作・保存や代表操作を伴う確認）だけ**。① の【担当者】→ ② の `### Step N: ...` 各項目〔+ 管理画面手動操作〕を先に渡し、③ の担当者確認はデプロイ完了後に Claude のリリース後確認（Phase 7）が終わってから渡す。確認・判断だけの項目（手順の確認・日時や体制の確定等）は Todo にしない。① の【Claude確認済】は一度にまとめて伝える
+- `/release`（`release.md` Step 4・Step 5）: `release-plan.md` の手順全体を Todo にし、Claude の作業（【Claude】: 通常経路の ② Step 1 のバックアップ最新確認、③ の Claude の確認〔Phase 7・画面確認は `prod-ui-verifier`〕、データのバックアップの削除）は Claude が担当者に確認を取らずに実施して completed にし、結果だけ伝える。**1つずつ渡すのは Claude では行えない担当者の操作（【担当者】: コマンドの実行・管理画面での操作・保存や代表操作を伴う確認）だけ**。① の【担当者】→ ② の `### Step N: ...` 各項目（管理画面手動操作を含む）を先に渡し、③ の担当者確認はデプロイ完了後に Claude のリリース後確認（Phase 7）が終わってから渡す。確認・判断だけの項目（手順の確認・日時や体制の確定等）は Todo にしない。① の【Claude確認済】は一度にまとめて伝える
 - `/backlog`（`backlog.md` Phase 6）: `backlog-releaser` が管理画面直接操作（2b）を選んだ場合に生成する `manual-operation-steps.md` の「操作ステップ」内、番号付き各項目
 
 `/backlog` の manual-operation-steps.md の「確認事項」（チェックリスト形式）は対象外で、一度に提示してよい。`/release` は ①〜③ の【担当者】をすべて1つずつ渡す（前の結果で次の内容が変わりうるため）。
