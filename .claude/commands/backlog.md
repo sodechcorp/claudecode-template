@@ -85,14 +85,14 @@ argument-hint: "[課題ID]"
 
 ### Step 0: 共通 CRITICAL ルールの読込（必須・コマンド起動直後）
 
-以下を **Read で全文読み込む**（CLAUDE.md にはスタブのみ・詳細は外出し先）:
+以下を **Read で全文読み込む**:
 
-1. Read `.claude/templates/common/verify-implementation-spec.md` — 実装裏付けルール。追加ルール記入欄まで読む
+1. Read `.claude/templates/common/verify-implementation-spec.md` — 実装裏付けの backlog 固有の補足（本体は CLAUDE.md §実装裏付け・出典確認）。追加ルール記入欄まで読む
 2. Read `.claude/templates/common/verify-source-attribution-spec.md` — 出典確認ルール。追加ルール記入欄まで読む
 3. Read `.claude/templates/common/answer-scope-spec.md` — 回答時のスコープ管理ルール（派生事項の分離・無断リファクタ禁止）
 4. Read `.claude/templates/common/uncertainty-marker-spec.md` — 確証なし時のマーカー規約（[推定]/[要確認]/[出典不明]の使い分け）
 
-**理由**: 各フェーズ間で main thread がユーザーの自由テキスト質問に応答する。CLAUDE.md にはスタブのみ記載のため、詳細を読まないと「挙動を実コード確認せず断定」「出典を捏造」「質問外の派生事項を無断で本文に混入」のリスクがある。backlog-* agent 側の Step 0c と同じ spec を読み、main thread と agent の知識を揃える。
+**理由**: 各フェーズ間で main thread がユーザーの自由テキスト質問に応答する。1. の補足（Web 裏取りの補足・loader 要約の引用の2層ルール）、2.〜4. の詳細、追加ルール記入欄は CLAUDE.md に無いため、読まないと「挙動を実コード確認せず断定」「出典を捏造」「質問外の派生事項を無断で本文に混入」のリスクがある。backlog-* agent 側の Step 0c と同じ spec を読み、main thread と agent の知識を揃える。
 
 ---
 

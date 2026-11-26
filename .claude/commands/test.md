@@ -34,9 +34,9 @@ Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{
 
 ### Step 0: 共通 CRITICAL ルールの読込（必須・コマンド起動直後）
 
-以下を **Read で全文読み込む**（CLAUDE.md には要旨のみ・詳細は外出し先）:
+以下を **Read で全文読み込む**:
 
-1. Read `.claude/templates/common/verify-implementation-spec.md` — 実装裏付けルール。追加ルール記入欄まで読む
+1. Read `.claude/templates/common/verify-implementation-spec.md` — 実装裏付けの backlog 固有の補足（本体は CLAUDE.md §実装裏付け・出典確認）。追加ルール記入欄まで読む
 2. Read `.claude/templates/common/verify-source-attribution-spec.md` — 出典確認ルール。追加ルール記入欄まで読む
 3. Read `.claude/templates/common/answer-scope-spec.md` — 回答時のスコープ管理ルール（派生事項の分離・無断リファクタ禁止）
 4. Read `.claude/templates/common/uncertainty-marker-spec.md` — 確証なし時のマーカー規約（[推定]/[要確認]/[出典不明]の使い分け）
