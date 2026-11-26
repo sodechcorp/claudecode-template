@@ -6,7 +6,7 @@
 
 ## 実行手順
 
-1. 課題の全コメントを `mcp__backlog__get_issue_comments` で取得して読み返す
+1. 課題の全コメントを `mcp__backlog__get_issue_comments` で取得して読み返す（課題の読み先が保守ポータルのときは `mcp__support_desk__get_issue_comments`。社内メモ〔`internal: true`〕はお客さんの受入基準として扱わない。読み替えは [issue-source.md](../../common/issue-source.md) §2）
 2. 以下を確認する:
 
    **後付け要件の確認**:

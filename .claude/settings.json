@@ -46,7 +46,8 @@
     "allow": [
       "Bash(*)",
       "Bash(python scripts/python/git-sync/git-sync-merge.py --branch *)",
-      "mcp__backlog__*"
+      "mcp__backlog__*",
+      "mcp__support_desk__*"
     ],
     "deny": [
       "Bash(sf project deploy* --target-org*prod*)",

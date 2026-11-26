@@ -15,6 +15,8 @@ tools:
   - Agent
   - mcp__backlog__get_issue
   - mcp__backlog__get_issue_comments
+  - mcp__support_desk__get_issue
+  - mcp__support_desk__get_issue_comments
 ---
 
 あなたは日常業務を幅広くサポートする汎用アシスタントです。

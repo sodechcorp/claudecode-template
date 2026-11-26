@@ -1,5 +1,5 @@
 ---
-description: "MCP（外部ツール連携）のセットアップ。Backlog・GitHub・Slack等の連携を設定する。"
+description: "MCP（外部ツール連携）のセットアップ。Backlog・保守ポータル（support-desk）・GitHub・Slack等の連携を設定する。"
 ---
 
 ## Step 1: 現在の設定を自動チェック
@@ -37,11 +37,11 @@ description: "MCP（外部ツール連携）のセットアップ。Backlog・Gi
 AskUserQuestion で設定するMCPを選択する:
 
 - `backlog` — Backlogチケット管理
+- `support-desk` — 保守ポータル（課題の窓口を保守ポータルに移した顧客の課題を読む・案を渡す）
 - `github` — GitHub PR・Issue連携
-- `slack` — Slackメッセージ送受信
 - `notion` — Notionページ読み書き
 
-playwright を設定する場合は「その他」を選択して `playwright` と入力する。
+playwright・slack を設定する場合は「その他」を選択して `playwright`・`slack` と入力する。
 
 ## Step 2: 実行
 
@@ -153,6 +153,38 @@ GitHub Personal Access Token を入力してください。
   }
 }
 ```
+
+### 「support-desk」の場合
+
+保守ポータル（support-desk）の課題を `/backlog`・`/test`・`/release`・`/triage` で読み、案（一次判断の案・対応の案・返信の下書き）を渡すための設定。**鍵はチャットに貼らせない**（Claude の会話にもファイルにも残さない）。
+
+1. チャットで保守ポータルの URL を聞く（自由入力のため AskUserQuestion は使わない。例: `https://support.example.com`。末尾の `/` は付けない）
+2. 鍵は本人に用意してもらう。次をそのまま案内する（鍵の値は Claude に送らないよう添える）:
+   ```
+   1. 保守ポータルにログインし、「設定」→「Claude連携」で鍵を作る（読める顧客を絞れます）
+   2. PowerShell で次の2行を実行する（鍵はこの窓にだけ貼り、チャットには貼らないでください）
+      setx SUPPORT_DESK_KEY "<作った鍵>"
+      setx SUPPORT_DESK_URL "<保守ポータルの URL>"
+   3. VS Code（Claude Code）を開き直す
+   ```
+3. `.mcp.json` に次を書く（鍵は環境変数から読む。値を書き込まない）:
+
+```json
+"support_desk": {
+  "type": "http",
+  "url": "<URL>/api/claude/mcp",
+  "headers": {
+    "Authorization": "Bearer ${SUPPORT_DESK_KEY:-}"
+  }
+}
+```
+
+- サーバーの名前は必ず `support_desk`（道具の名前が `mcp__support_desk__*` になり、テンプレートはこの名前で読み先を決める: [issue-source.md](../templates/common/issue-source.md)）
+- 開き直したあと `mcp__support_desk__get_myself` を呼び、鍵の持ち主と期限（`keyExpiresAt`）を伝える。つながらない（401 など）ときは、鍵の期限・環境変数を確かめてもらう。それでも直らないときは、Claude Code の版によって `headers` の `${...}` が展開されないことがあるので、本人に次を PowerShell で実行してもらう（鍵はこの PC のユーザーの設定にだけ入り、案件のフォルダには入らない）。そのあと `.mcp.json` の `support_desk` は消す:
+  ```
+  claude mcp add --transport http --scope local support_desk "<URL>/api/claude/mcp" --header "Authorization: Bearer $env:SUPPORT_DESK_KEY"
+  ```
+- どの顧客の課題をポータルから読むかは、ポータルの顧客の「窓口」で自動で決まる（案件ごとの設定は要らない）
 
 ## Step 3: .mcp.json の書き込みルール
 

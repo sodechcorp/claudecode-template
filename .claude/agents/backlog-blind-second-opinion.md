@@ -8,6 +8,8 @@ tools:
   - Grep
   - mcp__backlog__get_issue
   - mcp__backlog__get_issue_comments
+  - mcp__support_desk__get_issue
+  - mcp__support_desk__get_issue_comments
 ---
 
 **起動元**: `.claude/templates/backlog/options/option-second-opinion.md` 経由で backlog-investigator（Step C-3。Phase 1.6 で仮説が再現せず Phase 1 再入モードになったとき、手順 6 の観点として選んだ場合のみ）から Task ツールで起動される。

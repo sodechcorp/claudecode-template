@@ -1,5 +1,7 @@
 # Backlog MCP 利用ルール（レスポンス肥大化対策）
 
+> **課題の読み先が保守ポータルのとき**（`{issue_source}` = `portal`。起動パラメータ・investigation.md の頭書き `issue_source:` で渡される）: 本ファイルの `mcp__backlog__*` は [issue-source.md](./issue-source.md) §2 の対応表で `mcp__support_desk__*` に読み替える（`count` とページングの決まりは同じ）。値が無い・`backlog` のときは今までどおり Backlog を読む。
+
 ## 背景
 
 `get_issue_comments` / `get_issues` は、本文・投稿者名などの実データに対し `createdUser.nulabAccount` / `notifications[].user`（同一ユーザー情報の重複） / `stars` / `iconUrl` 等のメタデータが数倍のノイズとして付与される（SNM-14 実測: 本文 200 バイト程度に対し 1 コメントあたり約 1.5KB）。`count` を指定せず大量課題・大量コメントを取得すると出力が肥大化し、後続処理が不安定になるリスクがある。

@@ -15,6 +15,9 @@ tools:
   - mcp__backlog__get_issue_comments
   - mcp__backlog__get_pull_requests
   - mcp__backlog__get_git_repositories
+  - mcp__support_desk__get_issues
+  - mcp__support_desk__get_issue
+  - mcp__support_desk__get_issue_comments
 ---
 
 あなたは Salesforce 保守課題の**本番リリース準備**専門エージェントです。`/backlog`（Sandbox リリース）・`/test`（証跡採取）完了後に起動される、独立したライフサイクル段階を担当します。
@@ -191,7 +194,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧。URL エンコ�
 1. **Backlog の課題本文での照合**: option-ticket-conflict-check.md の手順（Backlog read-only MCP）
 2. **部品単位での照合（常時実行）**: 課題本文に部品名が書かれていない競合も拾うため、ローカルの作業ログで照合する
    - `docs/logs/*/implementation-plan.md` の見出しに「関連コンポーネント一覧」を含む節・`docs/logs/*/implementation-summary.md` の見出しに「変更を加えた資材一覧」を含む節・`docs/logs/*/manual-operation-steps.md` の見出しに「操作対象」を含む節（節は下位の見出しを含む。いずれも自課題を除く。その見出しが無いファイル〔旧形式・手書きの作業ログ〕はファイル全体）を Grep し、資材マニフェストと同じ資材を変更している他課題を列挙する（「変更しない」と書いた行や説明に部品名が出るだけの行でも当たるため、当たった行〔ファイル:行〕を候補の記録に添える）
-   - 列挙した課題の Backlog の状態を `mcp__backlog__get_issues` で確認し、完了済みの課題は除外する
+   - 列挙した課題の Backlog の状態を `mcp__backlog__get_issues` で確認し、完了済みの課題は除外する（課題の読み先が保守ポータル〔`docs/logs/{issueID}/investigation.md` の頭書き `issue_source: portal`〕の課題は、ポータルの `mcp__support_desk__get_issues`〔`customer`＝課題キーの頭・`scope`＝`OPEN`〕で未完了の課題を見る。読み替えは [issue-source.md](../templates/common/issue-source.md) §2）
    - 残った課題は「部品単位の競合候補」として記録する。`docs/decisions.md` の「リリース予定日 / 担当」欄に本番リリースの記録（Phase 7 の 7-4 が書く「本番リリース完了:」）があれば、候補の記録に「本番リリース記録あり（{日付}）」と添える（除外はしない。再対応で作業中に戻った課題にも前回の記録が残るため）。**重大度は Phase 4 の6.（差分の帰属確認）で確定する**: その課題の変更が手元の資材に混入している疑いがあれば「高」、混入が無ければ「情報」。6. を実施できない場合（本番未接続・管理画面操作版・4. で取得できなかった資材）は「未確定（高として扱う）」
    - `force-app/` が Git 管理対象の場合は、資材マニフェストのファイルを自課題以外のコミットが変更していないかも `git log` で確認する
    - **照合範囲の限界を記録する**: `docs/logs/` は git 管理対象外のため、照合できるのは自分の端末で扱った課題だけ（他メンバーが扱った課題は見えない）。他メンバーの並行作業は Phase 4 の Tier 1（本番の最終更新者）と 6.（本番にだけある変更）で拾う

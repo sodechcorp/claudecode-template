@@ -7,6 +7,8 @@ Backlog で関連する過去課題の履歴を検索し、同じ機能領域で
 ## 実行手順
 
 1. 関連キーワードを決める（影響するオブジェクト名・機能名・操作フロー名）
+> 課題の読み先が保守ポータル（`{issue_source}` = `portal`）のときは、この手順の `mcp__backlog__*` を [issue-source.md](../../common/issue-source.md) §2 の対応表で読み替える（`get_issues` は `customer`＝課題キーの頭）。内部メモ用の Backlog プロジェクト（INTERNALTASK など）を探す手順は飛ばす（ポータルには取り込まない）。
+
 2. `mcp__backlog__get_issues` でキーワード検索する:
    - 同一プロジェクトで過去の完了済み課題を検索
    - 課題種別・ステータスを絞らずに検索する（バグも追加要望も対象）

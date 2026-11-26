@@ -50,6 +50,7 @@ Claude Code の自動モードは、ツール呼び出しを分類器で判定�
 - `G:\共有ドライブ` 削除: hook ハードブロック（bypass 不可）
 - `G:\共有ドライブ` 書き込み: 確認不要（自由に書き込んでよい）
 - Backlog 書き込み（コメント投稿・課題更新・PR操作等）: hook ハードブロック（bypass 不可）。文面案はチャットで提示のみ。投稿・更新は人間が Backlog UI から手動で実施。`mcp__backlog__add_*` / `update_*` / `delete_*` / `mark_*` / `reset_*` が対象。読み取り（`get_*` / `count_*` / `list_*`）は許可。
+- 保守ポータル（support-desk・`mcp__support_desk__*`）: 書けるのは案（一次判断の案・予定の変更の案・対応の案・返信の下書き）と社内メモだけで、送信・状態の変更・対応の記録・一次判断の確定の道具はポータルに無い（確定は担当者が画面で押す）。課題の読み先が保守ポータルのとき、決まった時点で確認なしで渡す（お客さんには届かない。時点と守ること: [issue-source.md](../templates/common/issue-source.md) §3・§4）
 - 対象と削除の扱いの詳細: `.claude/templates/common/shared-folder-protection.md` 参照
 
 ## ファイル変更ルール

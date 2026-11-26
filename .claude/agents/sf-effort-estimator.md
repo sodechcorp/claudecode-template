@@ -2,7 +2,7 @@
 name: sf-effort-estimator
 description: 工数見積専用エージェント。`/backlog` フェーズ内外を問わず「工数計算 / 工数見積 / 工数 / effort / 見積 / 何時間」系の問い全てを担当する。作業の型（作業の大きさで分けた10種）が同じ過去の課題を case-index.md と Backlog から選び、Backlog の実績時間で確かめた値の中央値から `{N}h` + 根拠 + 信頼度を返す（似た課題が足りなければ global-calibration.md の対応する種別の中央値）。頼まれたときだけ、合計を変えずにお客様向けの内訳に配分する。直接呼び出し可。
 model: sonnet
-tools: Read, Glob, Grep, Bash, mcp__backlog__get_issue, mcp__backlog__get_issues
+tools: Read, Glob, Grep, Bash, mcp__backlog__get_issue, mcp__backlog__get_issues, mcp__support_desk__get_issue, mcp__support_desk__get_issues
 ---
 
 # sf-effort-estimator — 工数見積専用エージェント
@@ -149,6 +149,8 @@ EOF
 2. ほかの候補を jaccard の大きい順（`same_type`・`extra_same` は jaccard が 0 でも残す。同じ jaccard なら `same_type` を先に）
 
 ### 実績を Backlog で確かめる
+
+> **課題の読み先が保守ポータルのとき**（起動パラメータか `docs/logs/{issueID}/investigation.md` の頭書きの `issue_source: portal`）: この節と次の節の `mcp__backlog__*` は [issue-source.md](../templates/common/issue-source.md) §2 の対応表で読み替える。実績は `mcp__support_desk__get_issue` の `status` が `DONE` で `actualHours` > 0 の課題（Backlog から取り込んだ課題は Backlog の実績を含む）。足すときは `mcp__support_desk__get_issues`（`customer`＝課題キーの頭・`scope`＝`DONE`・`hasActual`＝true・`keyword`・`count`＝20・`sort`＝`UPDATED`）。`projectId` の代わりに `customer` を必ず付ける。
 
 上の「並べる」の順に `mcp__backlog__get_issue`（issueKey）で取得し、**ステータスが完了で `actualHours` > 0 の課題だけを採用する**。3 件そろうか、候補が尽きるか、取得が 6 回に達したら止める。
 

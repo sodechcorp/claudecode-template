@@ -10,6 +10,10 @@ tools:
   - mcp__backlog__get_issue
   - mcp__backlog__get_issue_comments
   - mcp__backlog__get_project_list
+  - mcp__support_desk__get_issues
+  - mcp__support_desk__get_issue
+  - mcp__support_desk__get_issue_comments
+  - mcp__support_desk__get_customers
 ---
 
 ## 出力原則（厳守）

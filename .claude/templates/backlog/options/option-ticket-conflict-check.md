@@ -16,6 +16,7 @@
 2. **進行中の他課題を取得する**（Backlog read-only MCP）:
    ```
    mcp__backlog__get_issues（プロジェクトID指定・statusId で「処理中」「未対応」等の未完了ステータスに絞り込み・自課題 {issueID} は除外）
+   （課題の読み先が保守ポータル〔`{issue_source}` = `portal`〕のときは mcp__support_desk__get_issues〔customer＝課題キーの頭・scope＝OPEN〕。Git リポジトリ・PR を見る手順は飛ばし、手元の Git のブランチ・ログで代わりに見る。読み替えは issue-source.md §2）
    ```
    - 件数が多い場合は直近更新順（`sort: updated`, `order: desc`）で上位 N 件（目安 30 件）に絞る。全件走査が必要な規模の場合はユーザーに絞り込み条件（担当者・カテゴリ等）を確認する
    - `get_issues` のレスポンスには課題本文（`description`）が既に含まれる。**本文確認のためだけに `get_issue` を候補ごとに呼び直さない**（`get_issues` の結果をそのまま使う。二重取得はコストの無駄）

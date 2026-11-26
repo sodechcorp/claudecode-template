@@ -2,6 +2,8 @@
 
 SF系エージェント（sf-architect / reviewer / backlog系 / assistant 等）は、Phase 0 の直後に本ファイルを Read する。本ファイルを Read したら、このセクションの内容を作業全体に適用する。詳細仕様が必要な時のみ各 spec ファイルを Read すること。
 
+> **課題の読み先**: 課題を Backlog MCP（`mcp__backlog__*`）で読む手順は、課題の読み先が保守ポータル（`{issue_source}` = `portal`。起動パラメータ・investigation.md の頭書き `issue_source:` で渡される）のとき、[issue-source.md](./issue-source.md) §2 の対応表で `mcp__support_desk__*` に読み替える。ポータルに案を渡すのはメインの会話（コマンド）だけで、エージェントは渡さない。値が無い・`backlog` のときは今までどおり。
+
 ---
 
 ## 1. 実装裏付け（verify-implementation-spec）
@@ -18,7 +20,7 @@ backlog 固有 extras: [verify-implementation-spec.md](./verify-implementation-s
 
 **確認が必要な場面**:
 - 「この文章は私が書いた／お客さんが書いた」等の出典帰属
-- Backlog コメントを引用・解釈する場面 → `mcp__backlog__get_issue_comments` で再取得して照合
+- Backlog コメントを引用・解釈する場面 → `mcp__backlog__get_issue_comments`（保守ポータルの課題は `mcp__support_desk__get_issue_comments`）で再取得して照合
 - 確認できない場合は `[出典不明]` を付ける
 
 詳細仕様: [verify-source-attribution-spec.md](./verify-source-attribution-spec.md)
