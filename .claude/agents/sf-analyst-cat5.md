@@ -78,13 +78,13 @@ tools:
 
 ```
 必須キー: generated_at / groups（list 形式）
-グループ毎の必須フィールド: group_id / name_ja / uc_id / feature_ids / components / assignment_confidence
+グループ毎の必須フィールド: group_id / name_ja / uc_id / feature_ids / components
 ```
 
 `docs/.sf/feature_groups.yml` の存在を確認する:
 - **存在しない → 初回生成モード**: Phase 1 から全量生成する
-- **存在する → 差分更新モード**: 既存 YAML を Read して必須キーを確認する。対象の FG（「受け取る情報」の絞り込みルール）に `assignment_confidence` が欠落していれば Phase 3 で追記する。手動修正は保持する
-  - **技術識別子チェック**: [phase0.5-common.md 参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 対象の FG の `name_ja` のみ（`id` / `components` 等の識別子フィールドは適用外）
+- **存在する → 差分更新モード**: 既存 YAML を Read して必須キーを確認する。手動修正は保持する
+  - **技術識別子チェック**: [phase0.5-common.md 参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 対象の FG（「受け取る情報」の絞り込みルール）の `name_ja` のみ（`id` / `components` 等の識別子フィールドは適用外）
 
 ### Phase 1: コンポーネント一覧の収集
 
@@ -198,18 +198,6 @@ FG確定後、以下の観点で割り当てを検証する:
 `feature_ids.yml` が存在する場合は必ず読み込み、コンポーネントAPI名を F-xxx IDに変換してから記載する。
 
 差分更新モードの場合は手動修正（FG名変更・コメント・手動割り当て）を保持したまま、新規コンポーネントのみ追記する。
-
-**`assignment_confidence` フィールド（E-6・必須）**: 各 FG の割り当て根拠強度を `high` / `medium` / `low` で出力する。UC-anchor 優先度 1〜5 から以下でマップする:
-
-| UC-anchor 優先度 | assignment_confidence |
-|---|---|
-| 1（Trigger TableEnumOrId 一致） | high |
-| 2（設計書の関連UC 参照） | high |
-| 3（全 operated_objects 1対1マッチ） | medium |
-| 4（主要オブジェクト優先・部分マッチ） | medium |
-| 5（対応なし → FG-CMN） | low |
-
-スケルトン JSON のファイル自体がなくフォールバックした場合も `low` とする（該当エントリだけがない場合は上の表どおり）。
 
 #### generated_at の扱い（厳守）
 
