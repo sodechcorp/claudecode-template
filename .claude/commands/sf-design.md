@@ -551,6 +551,8 @@ version_increment: {version_increment}
 
 ## Step 3: 完了報告
 
+**案件の記録を Git に送る**（完了報告のあと・1回だけ）: `python scripts/python/docs-sync/docs_sync.py "sf-design の記録"` を実行し、結果の1行を添える（終了コード 3・4 のときもやり直さず、その1行を伝えるだけ）。
+
 sf-design-step1（または直接呼ばれた sf-design-step2 / sf-design-step3）から返された完了報告をそのまま assistant message に転記する。フォーマット定義は各エージェント側に集約済み。
 
 > `run_reviewer=true` の場合、sf-design-step2 の完了報告に reviewer の指摘事項が含まれる。そのまま転記する（指摘の修正はここでは行わない。反映するには `/sf-design` の再実行が必要な旨をあわせて伝える）。

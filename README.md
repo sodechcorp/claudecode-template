@@ -29,7 +29,6 @@ Salesforce 開発プロジェクト向けの Claude Code テンプレート。
 | `/sf-setup` | SF 組織への認証（prod / dev / skip の対話形式） | 初回のみ |
 | `/setup-mcp` | GitHub・Slack・Notion 等の MCP 連携を設定 | 初回のみ |
 | `/upgrade [タグ]` | 大本テンプレートから `.claude/` 配下を更新 | タグ省略で main ブランチ |
-| `/git-sync` | プロジェクトの pull/push を対話形式で実行（`docs/` / `CLAUDE.md`） | |
 
 ### 組織記憶系
 
@@ -94,7 +93,7 @@ clone 後の初期化順（正本: `/sf-setup` 実行後の案内）: `/sf-setup
 ### テンプレートの更新・Git 同期
 
 - テンプレート更新: `/upgrade`（`.claude/` / `scripts/` のみ更新。プロジェクト固有ファイルは保護される）
-- プロジェクト同期: `/git-sync`（`docs/` / `CLAUDE.md` の pull / push を対話形式で実行）
+- プロジェクト同期: 自動（`/backlog`・`/test`・`/release`・`/sf-memory`・`/sf-design` の終わりに `scripts/python/docs-sync/docs_sync.py` が `docs/`（設計書・知見・cases など。`logs/`・個人の設定は入れない）・`CLAUDE.md` を取り込んでから送る。手で送るときも同じスクリプトを実行する。`/git-sync` は廃止）
 
 > セットアップ詳細・前提ツール一覧・トラブルシュートは社内テンプレートガイド（wiki）を参照。
 

@@ -61,6 +61,7 @@
   2. 各まとまりを1行にする: 日付＝`workDate`・何をしたか＝`{label}: {content}`（`content` が空なら、そのまとまりの成果物〔investigation.md・approach-plan.md・test-report.md・release-plan.md など〕から「何をどう対応したか」を1文で書き、`effort_clock.py note {課題キー} {id} "{その文}"` で残す）・結果＝そのまとまりの結論を短く（原因を特定・方針決定・Sandbox に反映・テスト PASS・手順書を作成 など）・時間＝`{hours}h`（`capped: true` なら `{hours}h（目安）`）
   3. `docs/knowledge/cases/{課題キー}.md` の「## 対応履歴」の表の末尾に足す（節が無い古いファイルは「## 関連リンク」の直前に節を作る。ファイルが無いときは `backlog-releaser` §3.8 の手順で作ってから足す）。ヘッダの `更新日` を今日にする
   4. `python scripts/python/effort/effort_clock.py mark-sent {課題キー} --to cases {id}...` で印を付ける
+  5. 最後に（足す行が0件でも）案件の記録を Git に送る: `python scripts/python/docs-sync/docs_sync.py "{コマンド名} {課題キー} の記録"`（コマンド名の先頭に `/` を付けない。Git Bash がパスに書き換えるため。例 `backlog GF-12 の記録`）。結果の1行をそのまま伝える。終了コードが 3（競合・手元の未保存の変更とぶつかった）・4（送り先が無い・docs 以外のまだ送っていないコミットがある・送信に失敗）のときは、やり直さず・force もせず、その1行と「記録はコミット済みです」を伝えて先へ進む（止めない）
 - 本番のデータ（個人名・メールアドレス・取引の値）・お客さんの社外秘を書かない
 
 ---
