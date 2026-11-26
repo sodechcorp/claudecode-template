@@ -73,13 +73,15 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 `docs/design/` 配下にmdファイルが存在するか確認する。存在しない → 初回生成モード、存在する → アップデートモード（手動追記・設計判断の根拠を絶対に消さない）。
 
-**アップデートモード時の技術識別子チェック**: [phase0.5-common.md 参照](.claude/templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各設計書の **responsibility（責務）/ 概要 / 注意点・備考 の自然文セクション**。Mermaid コードブロック内の `Apex: ClassName` も対象（業務語または `**[要確認: 業務語へ変換要]**` へ）。担当オブジェクト列（API 名を記録する目的）は適用外。
+**アップデートモード時の技術識別子チェック**: [phase0.5-common.md 参照](.claude/templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各設計書（対象を指定したときは「Phase 1.5 前提」の対象の設計書だけ。対象が決まる Phase 1 の後に行う）の **responsibility（責務）/ 概要 / 注意点・備考 の自然文セクション**。Mermaid コードブロック内の `Apex: ClassName` も対象（業務語または `**[要確認: 業務語へ変換要]**` へ）。担当オブジェクト列（API 名を記録する目的）は適用外。
 
 ---
 
-## Phase 1.5 前提: 全件反復処理の明示
+## Phase 1.5 前提: 対象と反復処理
 
-受け取った対象 API 名リスト（Phase 1 で取得した N 件すべて）に対し、**1 件ずつ順次** Phase 1.5（ハッシュチェック）→ Phase 2（設計書生成）→ ハッシュキャッシュ更新を実行する。
+**対象**: 対象コンポーネントAPI名・対象機能グループIDがどちらも「全て」なら、Phase 1 で取得した N 件すべて。どちらかを指定したら（「全て」の方は絞り込みに使わない）、Phase 1 で取得したもののうち、指定した API 名（大文字・小文字を区別しない）か、指定した FG の `docs/.sf/feature_groups.yml` の `feature_ids` を Phase 0 の `feature_list.json` の `id` で引いて `type` が担当種別（apex: Apex・Batch・Integration・Trigger／flow: Flow・画面フロー／lwc: LWC・Visualforce・Aura）のものの API 名に一致するものだけ。指定して 0 件なら Phase 1.5・2・3.5 を行わず、最終報告に「対象なし（指定: {指定値}）」と理由（feature_groups.yml・その FG が無い／担当種別のものが無い／Phase 1 の取得に無い: {API 名}）を書き、これを完了とする。
+
+対象の N 件に対し、**1 件ずつ順次** Phase 1.5（ハッシュチェック）→ Phase 2（設計書生成）→ ハッシュキャッシュ更新を実行する。
 
 - **コンテキスト枯渇時の挙動**: 途中停止して「完了」と宣言してはならない。1 件処理完了ごとにハッシュキャッシュへ書き込めば、次のイテレーションで未処理分から再開可能
 - **進捗報告**: 概ね 10 件処理ごとに `処理済 X/N 件` を 1 行報告する
@@ -259,7 +261,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 ## Phase 3.5: 完了性検証（必須）
 
-Phase 2 の反復完了後、`_metadata_cache.json` の対象種別件数と生成済み設計書件数を突合する。
+Phase 2 の反復完了後、`_metadata_cache.json` の対象種別件数と生成済み設計書件数を突合する（対象を指定したときは `--api-names` に対象の API 名をカンマ区切りで渡し、その分だけ突合する）。
 
 ```bash
 python {project_dir}/scripts/python/sf-doc-mcp/verify_cat4_completeness.py \

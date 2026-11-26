@@ -5,7 +5,7 @@ _metadata_cache.json の対象種別件数と docs/design/{kind}/ の生成済�
 未生成コンポーネントがあれば exit 1 で報告する。
 
 Usage:
-  python verify_cat4_completeness.py --project-dir <PATH> --kind <flow|apex|lwc>
+  python verify_cat4_completeness.py --project-dir <PATH> --kind <flow|apex|lwc> [--api-names A,B]
 
 Exit code:
   0 — missing == 0（全件生成済み）
@@ -47,10 +47,15 @@ def main():
         "--kind", required=True, choices=["flow", "apex", "lwc"],
         help="対象種別"
     )
+    parser.add_argument(
+        "--api-names",
+        help="突合をこの API 名だけに絞る（カンマ区切り・大文字小文字を区別しない）。省略時は全件"
+    )
     args = parser.parse_args()
 
     proj = Path(args.project_dir)
     kind = args.kind
+    only = None if args.api_names is None else {n.strip().lower() for n in args.api_names.split(",") if n.strip()}
 
     # 1. _metadata_cache.json を読む
     cache_path = proj / "docs" / ".sf" / "_metadata_cache.json"
@@ -75,7 +80,7 @@ def main():
         records = cache.get(meta_key, [])
         for rec in records:
             api_name = rec.get(name_field)
-            if not api_name:
+            if not api_name or (only is not None and api_name.lower() not in only):
                 continue
             src = src_root / src_pattern.format(api_name)
             # scan_features.py が機能一覧に入れないもの（空・雛形 VF、テスト・Batch を起動する Schedulable のクラス）は doc 必須対象外
@@ -156,7 +161,7 @@ def main():
     # 8. stdout に集計行（1 行のみ）
     print(
         f"[verify_cat4] kind={kind} expected={len(expected_cmps)}"
-        f" generated={len(generated_cmps)} missing={missing_count}"
+        f" generated={len(generated_cmps if only is None else expected_cmps & generated_cmps)} missing={missing_count}"
         f" deprecated={deprecated_count}"
     )
 

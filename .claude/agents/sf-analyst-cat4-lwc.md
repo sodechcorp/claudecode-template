@@ -31,7 +31,7 @@ tools:
 | Visualforce ページ・コントローラー | `vf/` | ApexPage クエリで検出 / `*Controller` クラスで VF 向けと判定 |
 | Aura コンポーネント | `aura/` | AuraDefinitionBundle で検出 |
 
-> **VF 設計書の必須生成**: ApexPage クエリで取得した VF ページのうち、**deprecated でなく、かつ空・テスト用・Salesforce デフォルト雛形でないもの**について `.page` 単位で **`docs/design/vf/` に設計書を必ず生成する**。対応する `*Controller.cls` は VF ページ設計書に統合して記載し、`design/apex/` には VF ページ単体の設計書を作らない（cat4-apex の担当外）。Phase 完了時に `design/vf/` ディレクトリが存在し、設計書対象の ApexPage 件数と生成件数が一致することを `verify_cat4_completeness.py --kind lwc`（exit 0）で確認する。
+> **VF 設計書の必須生成**: 対象（cat4-common.md「Phase 1.5 前提」）の VF ページのうち、**deprecated でなく、かつ空・テスト用・Salesforce デフォルト雛形でないもの**について `.page` 単位で **`docs/design/vf/` に設計書を必ず生成する**。対応する `*Controller.cls` は VF ページ設計書に統合して記載し、`design/apex/` には VF ページ単体の設計書を作らない（cat4-apex の担当外）。Phase 完了時に `design/vf/` ディレクトリが存在し、設計書対象の ApexPage 件数と生成件数が一致することを `verify_cat4_completeness.py --kind lwc`（exit 0）で確認する。
 >
 > **空・雛形 VF のフィルタ根拠**: `scan_features.py` の `is_trivial_vf_page()` 関数が以下を「trivial」と判定し `feature_list.json` から除外する。Phase 0 の `feature_list.json` に Visualforce エントリとして含まれていない API 名 = scan が設計書対象外と判断済みのため、agent はそれらの doc 生成をスキップし「### 設計書対象外とした空/テスト用 VF」に一覧化する。
 > - **自己終了 `<apex:page .../>`**（controller/standardController 属性なし）: リダイレクト専用の空ページ
@@ -102,7 +102,7 @@ sf data query -q "SELECT Name, ControllerType, ControllerKey FROM ApexPage WHERE
 sf data query -q "SELECT DeveloperName FROM AuraDefinitionBundle WHERE NamespacePrefix = null ORDER BY DeveloperName" --use-tooling-api --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key aura_bundles
 ```
 
-各コンポーネントのソースを **全文読み込む**（大きいファイルは 200 行ずつ分割）:
+対象（cat4-common.md「Phase 1.5 前提」）の各コンポーネントのソースを **全文読み込む**（大きいファイルは 200 行ずつ分割）:
 - LWC: `force-app/main/default/lwc/{name}/{name}.js` + `{name}.html` + `{name}.js-meta.xml`
 - VF: `force-app/main/default/pages/{Name}.page` + 対応する `*Controller.cls`
 - Aura: `force-app/main/default/aura/{name}/{name}.cmp` + `{name}Controller.js`

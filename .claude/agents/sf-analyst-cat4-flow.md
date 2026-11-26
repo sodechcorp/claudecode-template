@@ -84,7 +84,7 @@ sf data query -q "SELECT ApiName, ProcessType, Label, Description FROM FlowDefin
 
 > **Inactive Flow（Draft/Obsolete）の扱い**: `ActiveVersionId == null` の Flow（Inactive）は本クエリの対象外＝設計書生成対象外とする（「設計書は稼働中の組織を記述する」という意図的な設計）。ただし silent 除外を避けるため、`force-app/main/default/flows/` のフロー（ファイル名から `.flow-meta.xml` を除いた API 名）のうち本クエリの結果に無いものを抽出し、その API 名と件数を**最終報告の「主な発見・所見」に1行**記載する（例: `Inactive Flow 2 件を設計書生成対象から除外: GH_UpdateTaskLastActivityDate, GH_UpdateToDoLastActivityDate`）。物理ファイルは存在するが稼働していないため、文書化要否は人間が個別判断する。
 
-各フローのソースを以下の手順で読み込む。**容量・行数を理由に主要ノード・DML・Apex 呼び出しを `[要確認]` で放置しない**（早期終了禁止）。
+対象（cat4-common.md「Phase 1.5 前提」）の各フローのソースを以下の手順で読み込む。**容量・行数を理由に主要ノード・DML・Apex 呼び出しを `[要確認]` で放置しない**（早期終了禁止）。
 
 **Pass 1（骨格把握）**: Grep で主要タグの name 属性を抽出してノード一覧と接続関係を把握。
 

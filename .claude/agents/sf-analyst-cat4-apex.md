@@ -107,7 +107,7 @@ sf data query -q "SELECT DeveloperName, Endpoint FROM NamedCredential" --json 2>
 sf data query -q "SELECT CronJobDetail.Name, CronJobDetail.JobType, CronExpression FROM CronTrigger WHERE State = 'WAITING' OR State = 'ACQUIRED'" --json 2>/dev/null | python {project_dir}/scripts/python/sf-doc-mcp/build_metadata_cache.py {project_dir} --key cron_triggers
 ```
 
-各コンポーネントのソースを **全文読み込む**（500 行超は 200 行ずつ分割）:
+対象（cat4-common.md「Phase 1.5 前提」）の各コンポーネントのソースを **全文読み込む**（500 行超は 200 行ずつ分割）:
 - Apex: `force-app/main/default/classes/{Name}.cls` + `{Name}.cls-meta.xml`
 - Integration: `force-app/main/default/namedCredentials/` / `externalCredentials/`
 
