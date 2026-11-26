@@ -227,7 +227,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧。URL エンコ�
      cd "{project_dir}" && sf project retrieve start {本番に存在する資材ごとに --metadata "Type:Name"} --target-org {本番エイリアス} --output-dir {取得先} --json | python -c "import json, sys; d = json.load(sys.stdin.buffer); r = d.get('result') or {}; print('STATUS:', d.get('status'), d.get('message', ''), r.get('status', ''), r.get('errorMessage', '')); print('FAILED:', [f['type'] + ':' + f['fullName'] for f in r.get('files', []) if f.get('state') == 'Failed']); print('MESSAGES:', r.get('messages'))"
      ```
      取得は Succeeded のまま一部の資材を返さないことがある（その資材の `result.files` の `state` が `Failed`、`result.messages` に `Entity of type … cannot be found`）ため、この取得と下のプロファイル・翻訳・有効な版の取得は、上と同じく `STATUS:`・`FAILED:`・`MESSAGES:` で資材ごとに取れたかを確かめ（プロファイル・翻訳の取得で一緒に指定した資材は除く。`STATUS:` 行が出ないか、`STATUS:` が 0 以外か、続く取得の状態が `Succeeded` 以外なら取得自体の失敗なので、認証切れは 1. からやり直し、それ以外はエラーを直して取り直す〔直せなければ、3. の一覧の有無によらず変更種別を変えずに、全て取れなかったものとする〕）、取得先のディレクトリ構成を Glob〔path は `{project_dir}`〕で確認してから（ファイル〔親ファイルの中の要素の資材はその要素〕が無い資材も取れなかったものとする）以降の比較に使う。3. の一覧にあるのに取れなかった資材と、取得自体の失敗で取れなかったものとした資材（有効な版だけが取れなかったフローを含む）は、変更種別を変えずに 6. の表に「未実施（取得できず）」と書き、最重要警告に記録する（`rollback-backup` に取れなかったものは「{コンポーネント}は本番から取得できず、ロールバック手順 1 では戻せません」とし、事前記録にも書く）。変更のプロファイル・翻訳はこの取得に入れず、Phase 1 の 2b の比べ方で `{tmp_dir}/prod-drift-check/profile` に取得し、プロファイル・翻訳のファイルだけを `{取得先}/profiles/`・`{取得先}/translations/` にコピーして `profile/` を消す（一緒に指定した資材をロールバックの戻し先・比較元に入れない。「Phase 最終: クリーンアップ」のコマンドを `TARGETS="prod-drift-check/profile"` にして）。プロファイル・翻訳のほかに取得するものが無ければ、上の取得は行わない。3. で記録した取得時点の `ActiveVersionId` が `LatestVersionId` と違う（有効な版がある）フローは、上の取得が最新の版を返すため、有効な版も `Flow:{API名}-{版番号}`（版番号は 3. と同じく `FlowVersionView` で、取得時点の `ActiveVersionId` から引く）で `{tmp_dir}/prod-drift-check/active-flow` に取得する（`rollback-backup/` に入れると、版番号の付いた名前のまま `rollback-deploy/` に入る）
-   - いずれの場合も、リリースする資材（force-app の該当ファイル）を `docs/logs/{issueID}/release-snapshot/` にコピーする（Phase 7 のリリース後確認で「何をリリースしたか」の基準にするため。force-app は後で取り直されうる）
+   - いずれの場合も、既存の `docs/logs/{issueID}/release-snapshot/` を消してから（前回の控えにだけあるファイルを残さないため。[cleanup-rules.md](../spec/cleanup-rules.md) の project_dir 配下の削除に従い、無くなったことを確かめる。上の `deployed-snapshot/` の更新と再取得モードの比較は消す前に行う）、リリースする資材（force-app の該当ファイル）を `release-snapshot/` にコピーする（Phase 7 のリリース後確認で「何をリリースしたか」の基準にするため。force-app は後で取り直されうる）
    - 取得日時を release-plan.md「事前記録」に記録する（本番変更の記録がある場合は上記の引き継ぎ）
 5. **Tier 2（深掘り）**: 6. の後に、Tier 1 で痕跡ありのコンポーネントについて、6. で「本番の変更を上書きする疑い」とした差を option-org-drift-check.md Tier 2 の基準（痕跡あるが実害なし／他者変更あり／競合・要人間判断）で評価する（本番からの取得・比較は 4.・6. のものを使う。6. が「未実施（取得できず）」の資材は、比べていないので「実害なし」にせず「未実施（取得できず）・要確認」とする）
 6. **差分の帰属確認（対象が絞れているか・必須）**: 4. の本番資材（4. で有効な版も取得したフローは有効な版）と `release-snapshot/`（プロファイル・翻訳は Phase 1 の 2b の比べ方で、出すファイル）をコンポーネントごとに diff し、差分の1か所ずつを向きで分けて判定する（そのフローは、最新の版を有効な版と diff し、その差の箇所〔有効でない最新の版で変わった箇所。`<status>` は除く〕のうち `release-snapshot/` の同じ箇所が最新の版と同じ内容でないものも、向きによらず本番にだけある変更として、差分箇所に「有効でない最新の版」と添える。下の写しとの比較は最新の版で行う）:
@@ -278,7 +278,7 @@ Phase 1 で確定した資材マニフェスト（API名一覧。URL エンコ�
 
 **資材種別に応じた組み立て（重要）**: Phase 1 で確定した資材マニフェストに**実際に含まれる種別のみ**を §D 資材種別別チェックから転記する（含まれない種別の行は書かない）。マトリクスにない種別が出た場合はマトリクス §E に従い `[要確認]` 付きで検証方法を起案する（推測で断定しない）。「前・実行・後」の3段構成は資材の有無によらず必ず全て記載する。
 
-`docs/logs/{issueID}/release-plan.md` が既に存在する場合（`/release {issueID}` の再実行。「本番固有の失敗」からの再試行等）は `release-plan.R{N}.md`（N = 既存の `release-plan.R*.md` の最大回次 + 1）へリネームして退避してから新規作成する（前回手順書を上書きで消さない。`prod-release-issue.md` の退避規約と同じパターン）。`docs/logs/{issueID}/release-log.md` に「手順書生成: {日時（時刻まで）}」を1行追記してから、`docs/logs/{issueID}/release-plan.md` を新規作成する（`release.md` Step 2b の「途中から再開する」は最後のこの行より後の記録だけを使う。前回の手順書に対する記録で今回のステップを完了扱いにしないため、新しい手順書より先に書く）。構成（リリース前 → 実行 → 後の順を厳守）:
+`docs/logs/{issueID}/release-plan.md` が既に存在する場合（`/release {issueID}` の再実行。「本番固有の失敗」からの再試行等）は `release-plan.R{N}.md`（N = 既存の `release-plan.R*.md` の最大回次 + 1）へリネームして退避してから新規作成する（前回手順書を上書きで消さない。`prod-release-issue.md` の退避規約と同じパターン）。`docs/logs/{issueID}/prod-release-issue.md` があれば、同じく `prod-release-issue.R{N}.md` へ退避する（前の手順書のリリースの記録。出し直すので、`/backlog` の再開〔resume-phase-routing.md〕が差し戻しとして読まないように）。`docs/logs/{issueID}/release-log.md` に「手順書生成: {日時（時刻まで）}」を1行追記してから、`docs/logs/{issueID}/release-plan.md` を新規作成する（`release.md` Step 2b の「途中から再開する」は最後のこの行より後の記録だけを使う。前回の手順書に対する記録で今回のステップを完了扱いにしないため、新しい手順書より先に書く）。構成（リリース前 → 実行 → 後の順を厳守）:
 
 ```markdown
 # 本番リリース手順書
@@ -515,7 +515,7 @@ release_plan_generated: true
 - {manual_operation_mode: false の場合}本番デプロイは人間が手順書の CLI コマンドを実行してください。{true の場合}本番への管理画面操作は人間が手順書の操作ステップに従って実行してください。このエージェントは本番へ read-only 操作のみ行い、デプロイ・書き込みは一切行っていません
 - リリース後チェック（③）は、Claude が read-only で確認できるもの（資材の一致・削除の反映・SOQL で確認できる状態は Phase 7、本番の画面の閲覧・Login As での見え方・新規／編集画面での入力〔保存しない〕は `prod-ui-verifier`）を先に確認し、保存・代表操作を伴うものだけを担当者に1つずつ渡します
 - {競合・ドリフトの警告があればここに再掲}
-- 引き渡しの中で本番デプロイの結果を伝えてもらえれば、そのまま Claude がリリース後確認（read-only）を行い、decisions.md・changelog.md に記録します（Phase 7）。途中で止めて後でデプロイした場合や手順書の外でデプロイした場合は、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください
+- 引き渡しの中で本番デプロイの結果を伝えてもらえれば、そのまま Claude がリリース後確認（read-only）を行い、decisions.md・changelog.md に記録します（Phase 7）。途中で止めて後でデプロイした場合や手順書の外でデプロイした場合は、本セッションの継続でも `/release {issueID}` の再起動でも構わないので「デプロイ完了しました」と教えてください（手順書の残りの手順があれば、続けて渡してからリリース後確認を行います）
 {Phase 1 2a で最重要警告にした候補、または Tier 0 で未リリース積み残し（その疑い）が検出された場合}- **要確認**: {検出コンポーネント名} をリリース対象に含めるべきですか？含める場合は、引き渡しの最重要警告の確認でそう答えてください（`/release {issueID}` の再実行で資材マニフェストに加え、release-plan.md を再生成します）
 ```
 
@@ -579,7 +579,7 @@ Phase 6 の完了報告後、ユーザーから本番デプロイ完了の報告
   3. 担当者作業待ちがある場合は、その内容を release-log.md に残し、完了報告で ③ の担当者の確認として伝える
   4. 最後に release-log.md に「Phase 7 記録: 完了（デプロイ日時: {7-2 の値}）」を1行追記する（7-1 と `release.md` Step 2b の再開の判定に使う）
 - **それ以外（一部失敗・失敗・7-3 で差異あり）**: decisions.md・changelog.md へは「リリース済み」の体裁で記録しない（実態と乖離した完了記録を残さない）。代わりに:
-  - 既存の `docs/logs/{issueID}/prod-release-issue.md` があれば `prod-release-issue.R{N}.md`（N = 既存の `prod-release-issue.R*.md` の最大回次 + 1）へリネームして退避してから、今回の内容（デプロイ日時・結果・リリース後確認の差異・ロールバック状況）を `docs/logs/{issueID}/prod-release-issue.md` に記録する
+  - 既存の `docs/logs/{issueID}/prod-release-issue.md` があり、そのデプロイ日時が今回（7-2 の値）と違えば `prod-release-issue.R{N}.md`（N = 既存の `prod-release-issue.R*.md` の最大回次 + 1）へリネームして退避してから、今回の内容（デプロイ日時・結果・リリース後確認の差異・ロールバック状況）を `docs/logs/{issueID}/prod-release-issue.md` に記録する（同じなら同じデプロイの記録なので退避せず追記する）
   - decisions.md の当該課題エントリには「本番リリース: {一部失敗 / リリース後確認で差異あり}（{日時}）。ロールバック状況: {内容}。詳細は prod-release-issue.md 参照」と追記する（「リリース予定日 / 担当」欄は更新しない＝未完了のため）。7-4 では、ロールバック状況を両ファイルとも「要否は担当者が判断（release.md Step 5）」と書く
   - 最後に release-log.md に「Phase 7 記録: {一部失敗 / 失敗 / 差異あり}（デプロイ日時: {7-2 の値}）」を1行追記する（`release.md` Step 2b の再開の判定に使う。「完了」とは書かない＝7-1 で止めず、同じデプロイの訂正の報告では記録し直す）
 - **7-3 が未実施の場合**: 記録せず、担当者の再認証後に Phase 7 をやり直す
