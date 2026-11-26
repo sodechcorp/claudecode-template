@@ -63,7 +63,7 @@ argument-hint: "[課題ID]"
 
 ### Step 3: release-preparer への委譲
 
-**保守ポータルの課題**: `docs/logs/{issueID}/investigation.md` の頭書きの `issue_source:` を `{issue_source}` にする（無ければ [issue-source.md](../templates/common/issue-source.md) §1 で決める。保守ポータルの設定が無ければ `backlog` で、聞かずに今までどおり）。`portal` のときは、先に `python scripts/python/effort/effort_clock.py start {issueID} "本番の準備"` を実行し、Backlog MCP を呼ぶ手順は同 §2 で読み替える。
+**課題の読み先・作業のまとまり**: `docs/logs/{issueID}/investigation.md` の頭書きの `issue_source:` を `{issue_source}` にする（無ければ [issue-source.md](../templates/common/issue-source.md) §1 で決める。保守ポータルの設定が無ければ `backlog` で、聞かずに今までどおり）。読み先に関係なく、先に `python scripts/python/effort/effort_clock.py start {issueID} "本番の準備"` を実行する。`portal` のときは、Backlog MCP を呼ぶ手順を同 §2 で読み替える。
 
 `mcp__backlog__get_issue`（`{issue_source}` = `portal` のときは `mcp__support_desk__get_issue`）で `{issueID}` の課題タイトル（`{件名}`）を取得する（investigation.md・implementation-plan.md が共に無い場合の release-preparer Step 0a 側フォールバックに必要。取得できない場合は空のまま次に進む）。
 
@@ -84,7 +84,7 @@ issue_title: {件名}
 
 `release-preparer` の完了報告をそのままユーザーに提示する。
 
-**保守ポータルの課題**（`{issue_source}` = `portal`）: 手順書ができたら（`release_plan_generated` が `true`）、`effort_clock.py stop {issueID}` で終えた「本番の準備」を対応の案として渡す（[issue-source.md](../templates/common/issue-source.md) §4〜§6）。担当者の操作を待つ間の時間は数えない（測るのはここまで）。
+**作業のまとまりと対応履歴**: 手順書ができたら（`release_plan_generated` が `true`）、`effort_clock.py stop {issueID}` で「本番の準備」を終え（担当者の操作を待つ間の時間は数えない。測るのはここまで）、まだ cases に書いていないまとまりを `docs/knowledge/cases/{issueID}.md` の「## 対応履歴」に足す（[cases-format.md](../templates/common/cases-format.md) §対応履歴）。`{issue_source}` = `portal` のときは、終えたまとまりを対応の案として渡す（[issue-source.md](../templates/common/issue-source.md) §4〜§6）。
 
 完了報告に含まれる `release_plan_generated` の値で分岐する（`test-report.md` 不在時に続行を希望しなかった場合など、release-preparer が前提未達で中断した場合は `false` になる。この場合 `docs/logs/{issueID}/release-plan.md` が過去実行分として残っていても今回生成されたものではないため参照しない）:
 - **`false` の場合**: 完了報告の提示のみで終了する（以降の手順は行わない）

@@ -5,8 +5,9 @@
     python scripts/python/effort/effort_clock.py pause  {key}          # 担当者の返事を待って止まるとき
     python scripts/python/effort/effort_clock.py resume {key}          # 返事が来て続けるとき
     python scripts/python/effort/effort_clock.py stop   {key}          # まとまりを終える → 結果を JSON で出す
-    python scripts/python/effort/effort_clock.py pending {key}         # 終えたが、まだ渡していないまとまり（再開・compact のあと）
-    python scripts/python/effort/effort_clock.py mark-sent {key} {id}  # 渡した（ポータル・cases に書いた）印を付ける
+    python scripts/python/effort/effort_clock.py note   {key} {id} "何をどう対応したか"  # 内容を残す（ポータルの対応の案と cases の対応履歴で同じ文を使う）
+    python scripts/python/effort/effort_clock.py pending {key} [--for portal|cases]  # 終えたが、まだ渡していない／書いていないまとまり（既定 portal）
+    python scripts/python/effort/effort_clock.py mark-sent {key} [--to portal|cases] {id}...  # 渡した（ポータル）・書いた（cases）の印を付ける（既定 portal）
 
 測り方:
     - 数えるのは、start〜stop のうち pause〜resume を除いた時間（担当者の返事を待っている時間は数えない）
@@ -75,7 +76,9 @@ def _finish(state: dict, now: datetime) -> dict | None:
         "capped": bool(cur.get("capped")),
         "startedAt": cur["startedAt"],
         "endedAt": now.isoformat(timespec="seconds"),
+        "content": "",
         "sent": False,
+        "written": False,
     }
     state["done"].append(item)
     state["current"] = None
@@ -122,16 +125,39 @@ def main(argv: list[str]) -> int:
         finished = _finish(state, now)
         _save(key, state)
         print(json.dumps({"finished": finished}, ensure_ascii=False))
-    elif cmd == "pending":
-        print(json.dumps({"current": cur["label"] if cur else None,
-                          "pending": [d for d in state["done"] if not d.get("sent")]}, ensure_ascii=False))
-    elif cmd == "mark-sent":
-        ids = {int(x) for x in argv[3:]}
-        for d in state["done"]:
-            if d["id"] in ids:
-                d["sent"] = True
+    elif cmd == "note":
+        if len(argv) < 5:
+            print("[ERROR] id と内容を渡してください", file=sys.stderr)
+            return 2
+        found = [d for d in state["done"] if d["id"] == int(argv[3])]
+        if not found:
+            print(f"[ERROR] まとまりがありません: {argv[3]}", file=sys.stderr)
+            return 2
+        found[0]["content"] = argv[4].strip()
         _save(key, state)
-        print(json.dumps({"marked": sorted(ids)}, ensure_ascii=False))
+        print(json.dumps({"noted": found[0]["id"]}, ensure_ascii=False))
+    elif cmd in ("pending", "mark-sent"):
+        rest = argv[3:]
+        target = "portal"
+        for flag in ("--for", "--to"):
+            if flag in rest:
+                i = rest.index(flag)
+                target = rest[i + 1]
+                del rest[i:i + 2]
+        if target not in ("portal", "cases"):
+            print(f"[ERROR] portal か cases を渡してください: {target}", file=sys.stderr)
+            return 2
+        flag_key = "sent" if target == "portal" else "written"
+        if cmd == "pending":
+            print(json.dumps({"current": cur["label"] if cur else None, "for": target,
+                              "pending": [d for d in state["done"] if not d.get(flag_key)]}, ensure_ascii=False))
+        else:
+            ids = {int(x) for x in rest}
+            for d in state["done"]:
+                if d["id"] in ids:
+                    d[flag_key] = True
+            _save(key, state)
+            print(json.dumps({"marked": sorted(ids), "to": target}, ensure_ascii=False))
     else:
         print(f"[ERROR] 知らない操作です: {cmd}", file=sys.stderr)
         return 2

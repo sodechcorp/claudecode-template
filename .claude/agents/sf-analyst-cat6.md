@@ -186,7 +186,7 @@ Pass A・Pass B ともに 0 件の場合は、空ヘッダー行のみで新規�
 - Step 4 で pitfalls 検出された課題
 - description + コメント合計文字数が 1500 字以上
 
-**スキップ条件**: 同名ファイル（`docs/knowledge/cases/{issueKey}.md`）が既に存在する場合はスキップする（backlog-releaser が /backlog 経由で生成済みの可能性）。
+**既にある場合**: 同名ファイル（`docs/knowledge/cases/{issueKey}.md`）が既に存在する場合（backlog-releaser が /backlog 経由で作った課題の正式な記録）は、上書きしない。無い節（[cases-format.md](../templates/common/cases-format.md) の8節のうち見出しが無いもの）と、ヘッダの `実績工数:` 行（無ければ）だけを足す。「## 対応履歴」が無ければ見出しと表の頭だけを足す（行は作らない。行は /backlog・/test・/release が足す）。
 
 **コメント取得**: Step 3 でコメント取得済みの課題はその結果を再利用する。未取得の課題は `mcp__backlog__get_issue_comments` で取得する。
 
@@ -338,7 +338,7 @@ cat6 完了 — {N}件の完了課題から以下のファイルを生成しま�
 - docs/knowledge/effort-calibration.md（{K}件の actualHours 記録あり課題から生成）
 - docs/knowledge/case-index.md（新規 {J1}件追加 / 既存 {J2}件保持）
 - docs/knowledge/pitfalls.md（keyword {P1}件 / llm {P2}件 / 新規 {P3}件追加）
-- docs/knowledge/cases/{issueKey}.md（{C}件 — 重要案件のみ、{S}件スキップ）
+- docs/knowledge/cases/{issueKey}.md（{C}件 — 重要案件のみ、既にあるファイルに節を足した {S}件）
 
 ### 取得サマリ
 - Backlog 完了課題（全量）: {M}件
@@ -346,7 +346,7 @@ cat6 完了 — {N}件の完了課題から以下のファイルを生成しま�
 - case-index 差分マージ: 新規 {J1}件 / 既存 {J2}件保持 / 工数を Backlog の実績に直した {J3}件 / 作業の型を埋めた {J4}件（判定できず `-` {J5}件）
 - effort-log 実績の記入: {E1}件（セル数が合わず変えなかった行 {E2}件）/ 見積の当たり具合: 実績÷見込みの中央値 {r}（{n}件）
 - pitfalls 検出（Pass A keyword）: {P1}件 / （Pass B llm）: {P2}件 / 差分追加: {P3}件
-- cases/ 詳細ファイル: 新規 {C}件 / スキップ {S}件
+- cases/ 詳細ファイル: 新規 {C}件 / 既にあるファイルに節を足した {S}件
 
 ### 次のアクション
 - `/backlog [課題ID]` 実行時から planner が温度感・過去事例・ハマりポイントを参照します。

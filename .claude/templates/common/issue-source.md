@@ -100,10 +100,11 @@ Backlog には今までどおり何も書かない（hook が止める）。ポ�
 - 担当者の返事を待って止まるとき: `... pause {課題キー}`／返事が来て続けるとき: `... resume {課題キー}`（返事を待つ時間は数えない）
 - まとまりが終わったとき: `... stop {課題キー}` → 返った `hours`（0.5 時間単位に切り上げ済み）・`workDate` をそのまま使う。`capped: true` のときは内容の末尾に「（時間は目安）」と付ける
 - まとまりの名前は 4 章の表の「対応の案「…」」の名前を使う
+- 「何をどう対応したか」の文は `... note {課題キー} {id} "{文}"` で残す（ポータルの対応の案の `content` と、cases の「## 対応履歴」の行に同じ文を使う。[cases-format.md](./cases-format.md) §対応履歴）
 
 ## 6. 二重に渡さない
 
 - 渡す前に `get_issue` の `efforts`（記録済みの対応）と `claudeEffortDrafts`（まだ使っていない案）を読み、同じまとまり（同じ日・同じ内容）があれば渡さない
-- 渡したら `python scripts/python/effort/effort_clock.py mark-sent {課題キー} {id}` で印を付ける。再開・compact のあとは `... pending {課題キー}` で、終えたのにまだ渡していないまとまりを確かめてから渡す
+- 渡したら `python scripts/python/effort/effort_clock.py mark-sent {課題キー} --to portal {id}` で印を付ける。再開・compact のあとは `... pending {課題キー} --for portal` で、終えたのにまだ渡していないまとまりを確かめてから渡す
 - 1回に10件まで。まだ使っていない案が課題ごとに20件たまっていたら渡さず、「対応の案が20件たまっています。課題の画面で使うか消してください」と伝える
 - `content`（社内向け）は「何をどう対応したか」を1〜2文で書く（例「原因の調査: 受注一覧の検索で日付の条件が逆になっていた（OrderSearchController.cls）」）。cases の「対応履歴」の1行と同じ内容にする

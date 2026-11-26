@@ -308,7 +308,9 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 ### 3.8. cases/{issueKey}.md 詳細ファイル生成
 
-> **スキップ判定**: `auto_fix_mode: true`（軽量再デプロイ。冒頭「リリースモード判定」表参照）の場合は本 Step 全体をスキップする。それ以外で `docs/knowledge/cases/{issueKey}.md` が既に存在する場合はスキップ（cat6 が生成済みの可能性）。`{issueKey}` が空 / 未設定 / 変数名リテラルの場合もスキップする。
+> **スキップ判定**: `{issueKey}` が空 / 未設定 / 変数名リテラルの場合だけスキップする。`auto_fix_mode: true`（軽量再デプロイ）でも、ファイルが既にあっても、スキップしない（課題の正式な記録として毎回書き足す。[cases-format.md](../templates/common/cases-format.md) 冒頭）。`auto_fix_mode: true` のときは、既にあるファイルの「## 調査・検討の経緯」に今回の直しを1行足すだけにする（ほかの節は書き直さない）。
+>
+> **既にある場合**（前の対応・cat6 が作ったもの）: 新しく作らず、Read してから書き直す。TL;DR・症状・要件・採用方針・却下案・教訓は今回の内容で書き直し、前の対応で分かったことは「## 調査・検討の経緯」の先頭に「前回（{前の更新日}）: …」として残す。「## 対応履歴」の行・cat6 が足した `実績工数` の行・末尾の `全社共有ナレッジ登録済み:`／`全社共有ナレッジ登録: しない` の行は消さない。ヘッダの `更新日` を今日にする。「## 対応履歴」の行はメインの会話が足す（本エージェントは足さない。cases-format.md §対応履歴）
 
 `docs/logs/{issueID}/` 配下の前工程ファイルを集約し、`docs/knowledge/cases/{issueKey}.md` として知識ベース形式で書き出す。
 
@@ -323,7 +325,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    > **種別が「問い合わせ」の場合**: 上記4ファイルのうち存在するのは `investigation.md` のみ（approach-plan.md / implementation-plan.md / test-report.md は問い合わせルートでは生成されない）。代わりに `docs/logs/{issueID}/answer-draft.md` を使う（`phase2-inquiry-mode.md` から呼ばれた場合のみ Read 対象に追加）。
 
 2. `docs/knowledge/cases/` フォルダが存在しない場合は作成する
-3. 以下の仕様で `docs/knowledge/cases/{issueKey}.md` を新規作成する:
+3. 以下の仕様で `docs/knowledge/cases/{issueKey}.md` を新規作成する（既にあれば上の「既にある場合」のとおり書き直す。「## 対応履歴」は見出しと表の頭だけを置く）:
 
 > 出力スキーマ（セクション見出し・順序・各節の意味）:
 > [../templates/common/cases-format.md](../templates/common/cases-format.md)
@@ -337,14 +339,14 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
      - `## 調査・検討の経緯` — approach-plan.md の「## 方針決定の経緯・根拠」「### 業務要件への回答」と discussion-log.md から「検討の流れ・採用理由」を抽出
      - `## 採用方針` — approach-plan.md の「## 対応方針（結論）」から転記（行頭の【お客様】【担当者】の印は残す）
      - `## 却下案・代替案` — approach-plan.md「## 方針決定の経緯・根拠」に ClaudeCode の推奨と異なる方針に決まった経緯があればそれを整形（なければ「なし」）
-     - `## 教訓・再発防止` — discussion-log.md（Step 0d で Grep 済みの `ハマ`/`落とし穴`/`想定外`/`再発防止`/`気をつけ`/`注意`/`壊れ`/`不具合`/`罠`キーワードにマッチした段落。Step 3.6 pitfalls.md 抽出と同一キーワード群）から抽出。discussion-log.md が存在しない、またはマッチなしの場合は省略
+     - `## 教訓・再発防止` — discussion-log.md（Step 0d で Grep 済みの `ハマ`/`落とし穴`/`想定外`/`再発防止`/`気をつけ`/`注意`/`壊れ`/`不具合`/`罠`キーワードにマッチした段落。Step 3.6 pitfalls.md 抽出と同一キーワード群）から抽出。discussion-log.md が存在しない、またはマッチなしの場合は「なし」
      - `## 関連リンク` — 以下の2行を記載:
        - `- Backlog: （{issueID} で Backlog 検索）`
        - `- docs/logs/{issueID}/: 前工程ファイル一式`
 
-   **種別が「問い合わせ」の場合**（上記の代わりに以下を使う。`## 調査・検討の経緯` `## 却下案・代替案` は実装検討を伴わないため省略）:
+   **種別が「問い合わせ」の場合**（上記の代わりに以下を使う。`## 調査・検討の経緯` `## 却下案・代替案` は実装検討を伴わないため「なし（問い合わせのため実装の検討なし）」と書く。見出しは残す）:
      - `## 採用方針` — `answer-draft.md` の「### 回答本文（Backlog 投稿用ドラフト）」を転記
-     - `## 教訓・再発防止` — 同セクション内の [要確認] 事項・補足があれば要約。なければ省略
+     - `## 教訓・再発防止` — 同セクション内の [要確認] 事項・補足があれば要約。なければ「なし」
 
 前工程ファイルがいずれも存在しない場合は「前工程ファイルが見当たらないため cases ファイルをスキップ」とログに記録してスキップする。
 
@@ -364,7 +366,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
    python -c "import json,pathlib; p=pathlib.Path(r'{project_dir}/.mcp.json'); t=p.read_text(encoding='utf-8').strip() if p.exists() else ''; d=json.loads(t) if t else {}; print('notion' in d.get('mcpServers', {}))"
    ```
    出力が `False` の場合はスキップし、「Notion MCP 未設定のため全社共有ナレッジ登録をスキップしました（設定するには `/setup-mcp`）」と1行通知する。
-3. `docs/knowledge/cases/{issueKey}.md` 内に既に `全社共有ナレッジ登録済み:` の行がある（重複登録防止。通知不要）
+3. `docs/knowledge/cases/{issueKey}.md` 内に既に `全社共有ナレッジ登録済み:` または `全社共有ナレッジ登録: しない` の行がある（重複登録・二度聞きの防止。通知不要）
 
 **Step A: 共有可否判定**（Claude が自律判定。ユーザー確認は Step C の送信可否のみで、可否判定そのものは確認を挟まない）
 
@@ -398,7 +400,7 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 このままNotionのナレッジDBに登録しますか？（登録する / 内容を修正して登録 / 登録しない）
 ```
 
-- 「登録しない」: 何もせず Step 4 へ進む
+- 「登録しない」: `docs/knowledge/cases/{issueKey}.md` の末尾に `---` と `全社共有ナレッジ登録: しない（{YYYY-MM-DD}）` の2行を足し（次の再デプロイ・追加の対応で二度聞かないため）、Step 4 へ進む
 - 「内容を修正して登録」: 指示を反映して再提示し、承認後に Step D へ
 - 「登録する」: Step D へ
 
