@@ -30,14 +30,14 @@ Phase A は `/test` 起動時に一度だけ実行し、確定した変数を `{
 
 `docs/logs/{issueID}/investigation.md` の頭書きの `issue_source:` を `{issue_source}` にする（無ければ [issue-source.md](../templates/common/issue-source.md) §1 で決める。保守ポータルの設定が無ければ `backlog` で、聞かずに今までどおり）。
 
-- **作業のまとまり**（読み先に関係なく）: Phase A の初めに `python scripts/python/effort/effort_clock.py start {issueID} "テスト・証跡"`。担当者の返事を待って止まるときは `pause`、返事が来たら `resume`。完了報告の前（総合判定が PASS・条件付き PASS のとき）に `effort_clock.py stop {issueID}` で終え、まだ cases に書いていないまとまりを `docs/knowledge/cases/{issueID}.md` の「## 対応履歴」に足す（[cases-format.md](../templates/common/cases-format.md) §対応履歴）
+- **作業のまとまり**（読み先に関係なく）: 完了報告の前（総合判定が PASS・条件付き PASS のとき）に「テスト・証跡」のまとまりを終える（[issue-source.md](../templates/common/issue-source.md) §5: 担当者が手でテスト・証跡を取ったらかかる時間で控え → `portal` なら対応の案 → cases の「## 対応履歴」に足して Git に送る）
 
 `portal` のときだけ、さらに次を行う（`backlog` のときは行わない）:
 
-- 終えた「テスト・証跡」（と、まだ渡していないまとまり）を対応の案として渡す（issue-source.md §4〜§6）
+- 「テスト・証跡」の対応の案は上のまとまりを終えるときに渡す（issue-source.md §5・§6）
 - Backlog MCP を呼ぶ手順（Phase F-1 など）は issue-source.md §2 の対応表で読み替える
 - 完了報告の前（総合判定が PASS・条件付き PASS のとき）: `pending-signoff.md` があれば（お客さんの確認が要る課題）、Sandbox で見てもらう依頼の返信の下書きを渡す（`status` = `WAITING_ANSWER`。確認してほしい画面・手順を番号で。`pending-signoff.md` の「目視確認のご案内」を元に、社内のことは書かない）。完了報告の「お客様確認」のリマインドは「Sandbox で見てもらう依頼の下書きを保守ポータルに渡しました。課題の画面の「下書きを使う」で確かめて送ってください」に置き換える
-- FAIL・AI 判定待ちのまま終えるときは、まとまりを終えず（`pause` だけして、次の `/test` で続きを測る）、案も渡さない
+- FAIL・AI 判定待ちのまま終えるときは、まとまりを終えない（次の `/test` で PASS になったときに、やり直しの分も含めて終える）・案も渡さない
 
 ---
 

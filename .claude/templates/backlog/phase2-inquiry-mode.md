@@ -36,9 +36,9 @@ project_dir: {プロジェクトルートパス}
 
 > 回答ドラフトを生成しました。内容をご確認のうえ、Backlog への投稿は手動でお願いします。
 
-**作業のまとまり**: ユーザの確認が済んだら `effort_clock.py stop {issueID}` で「回答の作成」を終える（下の 1. で cases を作った〔または更新した〕あと、まだ書いていないまとまりを「## 対応履歴」に足す。[cases-format.md](../common/cases-format.md) §対応履歴）。
+**作業のまとまり**: ユーザの確認が済み、下の 1. で cases を作った（または書き直した）あと、「回答の作成」のまとまりを終える（[issue-source.md](../common/issue-source.md) §5: 控え → `portal` なら対応の案 → cases の「## 対応履歴」に足して Git に送る）。
 
-**保守ポータルの課題**（`{issue_source}` = `portal`）: 上の「Backlog への投稿は人間が手動で」の代わりに、ユーザの確認が済んだ回答本文（「### 回答本文（Backlog 投稿用ドラフト）」）を返信の下書きとして渡し（`mcp__support_desk__save_reply_draft`・`status` = `WAITING_CUSTOMER`）、終えた「回答の作成」を対応の案として渡す（[issue-source.md](../common/issue-source.md) §4〜§6）。完了報告は次の文にする:
+**保守ポータルの課題**（`{issue_source}` = `portal`）: 上の「Backlog への投稿は人間が手動で」の代わりに、ユーザの確認が済んだ回答本文（「### 回答本文（Backlog 投稿用ドラフト）」）を返信の下書きとして渡す（`mcp__support_desk__save_reply_draft`・`status` = `WAITING_CUSTOMER`。[issue-source.md](../common/issue-source.md) §4）。完了報告は次の文にする:
 
 > 回答の下書きを保守ポータルに渡しました。課題の画面の「下書きを使う」で確かめて送ってください。
 
