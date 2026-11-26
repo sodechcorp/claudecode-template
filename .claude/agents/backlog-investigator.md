@@ -70,6 +70,7 @@ tools:
 5. **investigation.md の読込**: `出力先:` または `docs/logs/{issueID}/investigation.md` を Read し、既存の「原因仮説（多角分析）」テーブルを把握する（追記の重複防止）。
 
 6. **新視点の仮説生成（最低 2 件）**: 前回と**異なる調査手段・着眼点**から新仮説を立てる。以下を優先的に検討する:
+   - investigation.md の「## 業務側からの追加情報」（Phase 1.6 ④ で止まった後に担当者から得た情報）が示す条件。既存の仮説と原因が同じでも、その情報で再現条件（前提データ・操作ユーザ・手順）が変わるものは、下の「前回と同じ仮説」に当たらない。新しい H 番号の仮説として、どの仮説の条件を変えたものかを根拠に書いて足す
    - Apex デバッグログ解析（option-apex-debug-log）
    - git blame による変更履歴確認（option-git-blame-history）
    - 症状あり/なしレコードの差分比較（option-cross-record-comparison）
