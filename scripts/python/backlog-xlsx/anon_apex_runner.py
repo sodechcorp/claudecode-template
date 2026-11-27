@@ -155,7 +155,10 @@ def run_anonymous(alias: str, apex_file: str) -> dict:
         errs = apex_result.get("compileProblem", "（コンパイルエラー詳細なし）")
         raise SystemExit(f"[FATAL] Apex コンパイルエラー:\n{errs}")
     if apex_result.get("success") is False:
-        exc = apex_result.get("exceptionMessage", "") or apex_result.get("exceptionStackTrace", "")
+        # スタックトレースも残す（例外がテストの匿名 Apex の行〔AnonymousBlock〕か実装のクラス・トリガーの中かを
+        # auto-evidence-runner「実行できなかった TC の扱い」が見分けるため）
+        exc = "\n".join(x for x in (apex_result.get("exceptionMessage", ""),
+                                    apex_result.get("exceptionStackTrace", "")) if x)
         raise SystemExit(f"[FATAL] Apex 実行時例外:\n{exc}")
     if apex_result.get("success") is not True:
         # result/success キー欠落など想定外の形状（malformed/truncated response 等）。
