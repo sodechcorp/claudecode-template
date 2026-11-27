@@ -124,7 +124,7 @@ options:
     category: C
     auto-execute-when:
       - 同じ機能領域で過去に類似課題が複数件あった（option-similar-past-issue で発見）
-      - 根本原因が設計・仕組みの問題（個人ミスではなく構造的問題）
+      - 根本原因が設計・仕組みの問題（個人ミスではなく構造的問題。バグは approach-plan.md「## 原因・現状」で判断）
       - 課題に「再発防止」「根本対応」「仕組みで防ぐ」等の言及
     auto-skip-when:
       - 一時的な設定ミス・typo レベルで再発リスクなし
