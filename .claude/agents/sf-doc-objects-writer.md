@@ -3,6 +3,7 @@ name: sf-doc-objects-writer
 description: "sf-doc コマンドから委譲されてオブジェクト項目定義書を生成する。Salesforce組織に直接接続して xlsx を 01_基本設計/ に出力し、両方選択時は sf-doc-overview-writer を連鎖呼び出しする。"
 tools:
   - Read
+  - Write
   - Glob
   - Grep
   - Bash

@@ -3,6 +3,7 @@ name: sf-design-step3
 description: "sf-design コマンドから委譲される機能一覧ステップ。generate_feature_list.py を直接呼び出して機能一覧.xlsx を生成する。"
 tools:
   - Read
+  - Write
   - Glob
   - Grep
   - Bash

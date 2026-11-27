@@ -4,6 +4,7 @@ description: "sf-design コマンドから委譲されるプログラム設計�
 model: opus
 tools:
   - Read
+  - Write
   - Glob
   - Grep
   - Bash
