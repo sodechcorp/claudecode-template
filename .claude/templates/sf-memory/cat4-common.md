@@ -126,7 +126,8 @@ else:
         if path.exists():
             h.update(path.read_bytes())
     current_hash = h.hexdigest()
-    print('SKIP' if cache.get(api_name) == current_hash and has_design_doc() else f'UPDATE:{current_hash}')
+    stored = cache.get(kind + ':' + api_name, cache.get(api_name))  # 前の版のキャッシュは API 名だけがキー
+    print('SKIP' if stored == current_hash and has_design_doc() else f'UPDATE:{current_hash}')
 ```
 
 ```bash
@@ -136,7 +137,7 @@ python {output_dir}/.tmp/check_cat4_hash.py
 `SKIP`（ソースが前回と同じで、この機能IDの設計書が担当フォルダにある）→ Phase 2 をスキップ。`UPDATE:{hash}` → Phase 2 で設計書を生成/更新後にキャッシュを更新:
 
 ```bash
-python -c "import json, pathlib; proj = pathlib.Path(r'{project_dir}'); cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'; cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}; cache['{api_name}'] = '{new_hash}'; cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding='utf-8')"
+python -c "import json, pathlib; proj = pathlib.Path(r'{project_dir}'); cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'; cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}; cache['{flow|apex|lwc}:{api_name}'] = '{new_hash}'; cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding='utf-8')"
 ```
 
 ---
