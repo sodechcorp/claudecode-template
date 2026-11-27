@@ -85,6 +85,9 @@ if sf org display -o "$ALIAS" >/dev/null 2>&1; then
     ok "認証成功"
     sf config set target-org "$ALIAS" 2>/dev/null
     ok "デフォルト組織に設定: $ALIAS"
+    if [ "$LOGIN_URL" = "https://login.salesforce.com" ] && ! echo "$ALIAS" | grep -qiE 'prod|production' && ! grep -qxF "$ALIAS" .prod-aliases 2>/dev/null; then
+        warn "本番の alias「$ALIAS」は prod を含まないため、hook が本番と判定できません。プロジェクト直下の .prod-aliases に1行で追記してください（/sf-setup から実行した場合は Step 4 で追記します）"
+    fi
 else
     error "認証に失敗しました。もう一度実行してください"
 fi

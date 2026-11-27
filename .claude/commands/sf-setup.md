@@ -74,13 +74,22 @@ sf org login web --alias "$alias" --instance-url <URL>
 
 ### 4-1: 接続組織の種別を確認
 
-Step 1 で選択した組織種別と実際の認証先が一致しているかを `sf org display` で二重チェックする（MyDomain 等で意図と異なる組織に接続している可能性を検知するための安全装置）:
+Step 1 で選択した組織種別と実際の認証先が一致しているかを二重チェックする（MyDomain 等で意図と異なる組織に接続している可能性を検知するための安全装置。`sf org display --json` は CLI のバージョンにより `isSandbox` を返さないため、組織から直接読む）:
 
 ```bash
-sf org display --target-org "$alias" --json
+sf data query -q "SELECT IsSandbox FROM Organization" --target-org "$alias" --json
 ```
 
-`isSandbox` フィールドが Step 1 の選択（本番/Sandbox）と矛盾していた場合は、その旨をユーザーに警告してから先に進む。
+`result.records[0].IsSandbox` が Step 1 の選択（本番/Sandbox）と矛盾していた場合は、その旨を伝えて AskUserQuestion で「この組織で続ける」「Step 1 からやり直す」を選んでもらう（やり直す場合は、Step 3 で登録した alias と既定の接続先を `sf alias unset "$alias"`・`sf config unset target-org` で外してから Step 1 に戻る。外さないと、保護されていない本番の alias が既定の接続先に残る）。
+
+**本番の alias の保護（必須）**: 本番（`IsSandbox` が false。取れなかったときは Step 1 の選択）で、`alias` が `prod`・`production` を含まない（大文字小文字を問わない）場合は、`.claude/hooks/pre-operation.js` が本番と判定できずデプロイ・データ変更のハードブロックが効かない。プロジェクト直下の `.prod-aliases`（hook が読む本番 alias の一覧。1行1 alias）に追記し、完了案内でその旨を伝える:
+
+```bash
+if ! grep -qxF "$alias" .prod-aliases 2>/dev/null; then
+  [ -s .prod-aliases ] && [ -n "$(tail -c1 .prod-aliases)" ] && echo >> .prod-aliases
+  echo "$alias" >> .prod-aliases
+fi
+```
 
 > **注意**: 「今どの組織に接続中か」というライブ状態をルート `CLAUDE.md` に固定値で記録しない。接続先は `sf org display` のライブ確認で判定するため、スナップショットを焼き込むと切り替え後に誤判定を起こす。alias と環境（開発/ステージング/本番）の対応表そのものは `CLAUDE.md` の「Salesforce組織情報」セクションに記入してよい（Step 4-2 の案内対象。`setup.sh` の「Sandbox alias 等を記入する」も同じ表を指す）。
 
@@ -89,8 +98,9 @@ sf org display --target-org "$alias" --json
 ```
 ✅ 認証完了
   alias: {alias}
-  種別: Sandbox / 本番
+  種別: Sandbox / 本番（Step 4-1 で読んだ IsSandbox で決める）
   default-org に設定済み（/backlog で使用される組織です）
+  .prod-aliases に追記済み（本番として保護）  ← 上で追記したときだけ
 
 別の組織も登録したい場合は再度 /sf-setup を実行してください。
 default-org を切り替えるには: sf config set target-org <別alias>
