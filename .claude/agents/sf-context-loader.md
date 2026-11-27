@@ -52,9 +52,9 @@ tools:
 1. `{project_dir}/docs/knowledge/case-index.md` / `pitfalls.md` / `sf-standard.md` / `docs/decisions.md` の4ファイルの存在を確認
 2. **4ファイルすべて存在しない場合**: 「該当ナレッジなし（knowledge/ 未整備）」を返して終了
 3. **1ファイルでも存在する場合**: `task_description` からキーワードを抽出し、存在するファイルのみを対象にマッチングを実行:
-   - `docs/knowledge/case-index.md` → 症状・キーワード列を Grep でマッチング（存在する場合）。マッチ行から課題ID（列2）を抽出し、`docs/knowledge/cases/{issueKey}.md` が存在すれば最大2件 Read（`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクションのみ抽出。ファイルが存在しない課題はスキップし、case-index 行のみ使用）
+   - `docs/knowledge/case-index.md` → 症状/要件・関連用語の列を、タスクの対象（オブジェクト・機能・症状）を表す語で Grep する（存在する場合）。一致した語を含む語が別のオブジェクト・機能を指す行（取引先 → 取引先責任者・外部取引先、請求 → 資料請求通知）を除いた行（同じ対象を指す語〔請求 → 請求書・請求指示〕の行は残す）だけを使い（ほかの行は一致なしと扱う）、課題ID（列2）を抽出し、`docs/knowledge/cases/{issueKey}.md` が存在すれば最大2件 Read（`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクションのみ抽出。ファイルが存在しない課題はスキップし、case-index 行のみ使用）
    - `docs/knowledge/pitfalls.md` → 本文を Grep でマッチング（存在する場合）
-   - `docs/knowledge/sf-standard.md` → 該当セクションを Grep でマッチング（存在する場合）
+   - `docs/knowledge/sf-standard.md` → `^## ` の見出し一覧を Grep で取り、タスクの内容に意味で当たる節を取る（存在する場合。見出しの字面はキーワードと違う。下記の、常に読込対象に追加する sf-standard.md と同じ読み方）
    - `docs/decisions.md` → 先頭 200 行 Read（降順管理のため最新が先頭）、またはキーワード Grep（存在する場合）
    - `docs/knowledge/domain/*.md` → 存在するファイル全てに対してキーワード Grep（存在する場合のみ）。Revenue Cloud・Account Engagement 等のドメイン固有仕様・SF サポート回答・ハマりポイントを記録したファイル群。マッチした内容は最大2ファイル Read（「## 判明した仕様」「## ハマりポイント」「## 注意事項」セクションのみ抽出）
 
@@ -71,10 +71,10 @@ tools:
 
 | パターン/キーワード | 例 | 読み込み対象・方法 |
 |---|---|---|
-| `(?:F\|CMP)-\d+` | F-042, F-001 | `docs/.sf/feature_list.json` の `design_doc` パスから `docs/design/{種別}/【F-xxx】*.md`（**`design_doc` が null/未設定の場合は設計書未生成（cat4 未完走）とみなしこのエントリをスキップ。エラー停止せず、他のマッチ結果で要約を生成する**） |
+| `(?:F\|CMP)-\d+`、またはステップ3-1 で `feature_list.json` の api_name に一致したコンポーネント名 | F-042, F-001, preCheck | `docs/.sf/feature_list.json` の `design_doc` パスから `docs/design/{種別}/【F-xxx】*.md`（**`design_doc` が null/未設定の場合は設計書未生成（cat4 未完走）とみなしこのエントリをスキップ。エラー停止せず、他のマッチ結果で要約を生成する**） |
 | `UC-\d+` | UC-01, UC-03 | `docs/flow/usecases.md`（全体を読み、該当UC番号のセクションを抽出） |
-| `\w+__c`（項目API名） | Status__c, ApplicantId__c | `docs/catalog/_index.md` → `docs/catalog/{standard\|custom}/{object}.md`（**先頭100行程度**: 基本情報・リレーション・主要項目を抽出。全項目一覧の全行・ピックリスト全値・入力規則数式全文までは読まない） |
-| オブジェクト名（日本語・英語） | VisaApplication, 申請管理 | `docs/catalog/_index.md` → `docs/catalog/{standard\|custom}/{object}.md`（**先頭100行程度**: 基本情報・リレーション・主要項目を抽出。全項目一覧の全行・ピックリスト全値・入力規則数式全文までは読まない） |
+| `\w+__c`（項目API名） | Status__c, ApplicantId__c | `docs/catalog/{standard\|custom}/` をその項目API名で単語の境界つき（`\b{API名}\b`）に Grep し、一致した行（項目の表の行）だけを取る（こうして取った catalog は全体で F-ID・オブジェクト関連の1件と数える。`_index.md` にオブジェクトとして載っている名前は下のオブジェクト名の行で扱う） |
+| オブジェクト名（日本語・英語） | VisaApplication, 申請管理 | `docs/catalog/_index.md` → `docs/catalog/{standard\|custom}/{object}.md`（`^## ` の見出し一覧を Grep で取り、基本情報・用途・リレーションに当たる節と、カスタム項目の表の行〔1列目が `__c` の API 名の行〕の先頭20件程度を取る。案件ごとに見出しの名前が違うので、見出しの意味で選ぶ。全項目の全行・ピックリスト全値・入力規則数式全文までは読まない） |
 | キーワード（ER図・データモデル系） | ER図, ER, データモデル, データ構造, リレーション, 関係図, オブジェクト間の関係, 全体構造 | `docs/catalog/_data-model.md` |
 | キーワード（自動化系） | トリガ, バッチ, フロー, 自動化 | `docs/data/automation-config.md` |
 | キーワード（業務フロー系） | 業務フロー, 申請フロー, 画面フロー, ユースケース | `docs/flow/usecases.md`（UC-xx マッチと同様、該当セクションを抽出） |
@@ -83,10 +83,10 @@ tools:
 | キーワード（連携系） | API, 連携, 外部, callout | `docs/architecture/system.json` |
 | キーワード（要件系） | スコープ, 要件, `(?:N?FR\|BR)-\d+`, ビジネスルール | `docs/requirements/requirements.md`（先頭100行程度。要件番号で一致したときは、先頭ではなくその番号を Grep して一致した行〔見出しならその節〕を取る） |
 | キーワード（マスタ系） | マスタ, ピックリスト, 選択リスト, 商品 | `docs/data/master-data.md` |
-| キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity | `docs/overview/org-profile.md`（下記の常時読込ルールで別途対応済みのためこのマッチでは重複追加しない） + `docs/knowledge/pitfalls.md`（先頭150行 Read） |
+| キーワード（権限系） | 権限, プロファイル, 権限セット, FLS, FieldSecurity, 共有, 見えない, 参照できない, アクセス | `docs/overview/org-profile.md` の権限に当たる節（下記の常時読込と同じファイルなので1件と数える） + `docs/knowledge/sf-standard.md` の共有・FLS・権限評価に当たる節（同上） + `docs/knowledge/pitfalls.md`（先頭150行 Read） |
 | キーワード（工数系） | 工数, effort, 見積, 何時間, calibration | `docs/knowledge/effort-calibration.md`（先頭150行 Read） + `docs/knowledge/global-calibration.md`（先頭100行 Read・存在する場合のみ） + `docs/knowledge/case-index.md`（工数列 Grep） |
 | `[A-Z][A-Z0-9_]+-\d+`（issueID。1文字のキーは手順番号〔`B-1` 等〕と区別できないため拾わない。`docs/logs/*/investigation.md` の Glob で出るフォルダ名・`docs/knowledge/case-index.md` の課題ID列・`docs/decisions.md` の `^## ` の直後（`###` の行は含めない）のどれかにある課題IDと、プロジェクトキー〔`-` より前〕が同じものだけを課題IDとして扱う。課題ID以外の採番〔`FR-036`・`TC-005`・`SA-004` 等〕や `UC-`・`CMP-`・`BR-` は形では区別できないため） | GF-341, LINK-139, SNM-12, INTERNALTASK-674 | `docs/logs/{issueID}/investigation.md`（`^## 課題サマリー` セクションのみ Grep） + `docs/decisions.md`（該当 issueID 行 + 前後20行を Grep） + `docs/logs/{issueID}/approach-plan.md`（`^## 対応方針（結論）` セクションのみ Grep）。それぞれの見出しが無いファイル（旧形式のログ）は[方式A](../CLAUDE.md#中間成果物の分割読込全下流エージェント共通)（冒頭+末尾読み）で読む。**自課題 ID は読込対象から除外**（→ 下記の自課題除外ルール参照） |
-| キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件: 先頭200行を Read・降順管理のため最新が先頭） + `docs/knowledge/case-index.md`（症状列を Grep）→ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md`（存在すれば最大2件 Read・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出） |
+| キーワード（過去判断・類似課題） | 過去に, 以前, 前回, 同様の, 類似, またか, 再発, よく似た, 決まっている | `docs/decisions.md`（直近10件: 先頭200行を Read・降順管理のため最新が先頭） + `docs/knowledge/case-index.md`（症状/要件・関連用語の列をタスクの対象（オブジェクト・機能・症状）を表す語で Grep）→ 一致した語を含む語が別のオブジェクト・機能を指す行（取引先 → 取引先責任者・外部取引先、請求 → 資料請求通知）を除いた行（同じ対象を指す語〔請求 → 請求書・請求指示〕の行は残す）だけの課題ID から `docs/knowledge/cases/{issueKey}.md`（存在すれば最大2件 Read・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出） |
 | キーワード（変更履歴系） | 変更履歴, changelog, 最近の変更, デプロイ, リリース | `docs/logs/changelog.md`（先頭30行 Read。先頭挿入運用のため直近分が先頭） |
 | キーワード（落とし穴・注意） | 落とし穴, ハマる, ハマった, 気を付ける, 気をつけて, 注意, 地雷, 壊れる, 想定外, 罠 | `docs/knowledge/pitfalls.md`（先頭150行 Read）+ `docs/knowledge/global-pitfalls.md`（先頭100行 Read・存在する場合のみ） |
 | キーワード（レポート/ダッシュボード系） | レポート, ダッシュボード, report, dashboard | `docs/data/reports-dashboards.md` |
@@ -99,9 +99,9 @@ tools:
 
 > 上表のうち「ER図・データモデル系」（`docs/catalog/_data-model.md`）と「マスタ系」（`docs/data/master-data.md`）は、統合前の旧 Phase 3 表に対応行が存在せず読込方法が未規定だったキーワード分類。統合により本表が唯一の参照先になったため解消済み（読込方法は他の単純単一ファイル系と同様、行数上限指定なし＝全文を対象とする）。
 
-`{project_dir}/docs/overview/org-profile.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（用語集・命名規則の共通参照として）。
+`{project_dir}/docs/overview/org-profile.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（用語集の共通参照として）。全文は読まず、`^## ` の見出し一覧を Grep で取り、用語集の節をタスクの語で Grep した一致行（20件まで）と、対応禁止事項・過去のトラブル史（地雷）に当たる節だけを取る。
 
-`{project_dir}/docs/knowledge/sf-standard.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（Salesforce 標準仕様の基盤知識として。ただし該当セクションのみ抽出し全文読込は避ける）。
+`{project_dir}/docs/knowledge/sf-standard.md` が存在する場合は、マッチ件数に関わらず常に読込対象に追加する（Salesforce 標準仕様の基盤知識として）。全文は読まず、`^## ` の見出し一覧を Grep で取り、標準仕様のキーワード（Phase 2 の表）やタスクの内容に意味で当たる節だけを取る（見出しの字面はキーワードと違う。例: SOQL上限・API制限 → ガバナ制限／API・UI 制限、トリガ順序 → トリガ実行順序、sharing・FLS評価 → 共有設定・FLS・権限評価。当たる節が無ければ読まない）。
 
 **組織の地図でキーワードを補う**（`{project_dir}/.lineage/refs.jsonl` がある場合だけ。このエージェントは Bash を持たないので `lineage.py` は実行せず、Grep で引く。地図は最後に作った時点の候補）:
 - **日本語の表示ラベルしか無いとき**: `.lineage/objects.json`（オブジェクトの表示名）と `.lineage/fields.json`（項目。1行の JSON）を、`-o` 付きの Grep でキーワードを含むラベルを引いて API 名を得る（パターン例: オブジェクトは `"\w+": "[^"]*{キーワード}[^"]*"`、項目は `"\w+": \{"label": "[^"]*{キーワード}[^"]*"`。項目のオブジェクトは `.lineage/refs.jsonl` を `"target": "\w+\.{項目}"` で Grep して得る）。得た API 名で上の表の `\w+__c`・オブジェクト名の行に当てる
@@ -112,7 +112,7 @@ tools:
 > - **除外判定**: `task_description` 冒頭や `「{issueID} の対応をする/実装する/調査する」` のように、処理主体として言及されている ID が自課題。
 > - **除外しない**: `focus_hints` で明示された別の課題ID、または `task_description` 中で「過去に GF-xxx で同様の問題が…」のように明確に過去事例として言及されている別の課題ID は従来どおり過去課題として読む。
 
-**マッチが全くない場合**: `org-profile.md` または `sf-standard.md`（常時読込対象）が存在する場合は、それらのみを読込対象として Phase 3 へ進み要約を返す。**いずれも存在しない場合のみ** Phase 2.5 へ進む。
+**マッチが全くない場合**（コンポーネント名の候補になる語があるときは、先にステップ3-1 の api_name の照合を行い、一致すれば F-ID の行のマッチとして扱う）: `org-profile.md` または `sf-standard.md`（常時読込対象）が存在する場合は、それらのみを読込対象として Phase 3 へ進み要約を返す。**いずれも存在しない場合のみ** Phase 2.5 へ進む。
 
 ---
 
@@ -137,7 +137,9 @@ tools:
 `task_description`・`focus_hints`・Phase 2 で組織の地図から得た API 名に、F-ID（旧 CMP-ID を含む）・コンポーネントの名前（クラス・フロー・LWC 等の名前。日本語の機能名・画面名を含む）・項目API名・オブジェクト名（日本語のラベルを含む）の候補になる語が1つも無いとき（標準仕様・工数だけの質問など）は、このステップを飛ばす（候補か迷う語があれば飛ばさない）。飛ばさないときは、以下を Read / Grep して、どのファイルを詳細読込すべきか特定する:
 
 - `docs/catalog/_index.md` — オブジェクト名一覧（存在する場合）
-- `docs/.sf/feature_list.json` — F-xxx（または旧 CMP-xxx）・api_name のマッチングに Grep を使う（存在する場合）
+- `docs/.sf/feature_list.json` — F-xxx（または旧 CMP-xxx）・api_name のマッチングに Grep を使う（存在する場合。api_name は `"api_name": "{名前}"` の完全一致で引く）。api_name に一致した部品は Phase 2 の表の F-ID の行として設計書を読む
+
+このステップで読むインデックスは、Phase 3 の読込上限（合計7ファイル）に数えない。
 
 インデックスの Read または JSON パースが失敗した場合はそのインデックスをスキップし、もう一方のインデックスおよび Phase 2 でマッチした他のファイル群で要約を生成する（Phase 3 の「失敗ファイルはスキップして継続」方針に合わせる）。**両インデックスとも失敗した場合のみ**「該当コンテキストなし（docs/ 不整合）」を返して終了する。
 
@@ -151,9 +153,9 @@ tools:
 - effort 関連: 最大3ファイル（effort-calibration.md は先頭150行・global-calibration.md は先頭100行（存在時のみ）・case-index.md は工数列 Grep のみ）
 - decisions.md: 1ファイル（issueID 関連は該当行+前後20行を Grep、過去判断関連は先頭200行 Read。全文 Read はしない）
 - changelog.md: 1ファイル（先頭30行 Read のみ）
-- case-index.md: 1ファイル（Grep による症状列マッチのみ）+ マッチ行の課題ID から `docs/knowledge/cases/{issueKey}.md` を最大2ファイル Read（存在時のみ・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出。cases ファイルの2件は合計7の内数）
-- org-profile.md: 1ファイル（マッチ件数に関わらず常時読込対象・存在する場合のみ）
-- sf-standard.md: 1ファイル（Grep による該当セクション抽出のみ）
+- case-index.md: 1ファイル（Grep による症状/要件・関連用語の列のマッチのみ）+ 上の表の過去判断の行と同じ選び方で残した行の課題ID から `docs/knowledge/cases/{issueKey}.md` を最大2ファイル Read（存在時のみ・`## TL;DR` / `## 採用方針` / `## 教訓・再発防止` セクション抽出。cases ファイルの2件は合計7の内数。残さなかった行の cases は読込対象に数えない）
+- org-profile.md: 1ファイル（マッチ件数に関わらず常時読込対象・存在する場合のみ。用語集の一致行と対応禁止事項・過去のトラブル史の節のみ。権限系の節もこの1件に含む）
+- sf-standard.md: 1ファイル（見出しで選んだ該当セクションのみ。当たる節が無ければ数えない）
 - pitfalls.md: 1ファイル（先頭150行 Read。先頭挿入運用のため直近分を優先取得）+ global-pitfalls.md: 1ファイル（先頭100行 Read・存在する場合のみ）
 - test-prerequisites.md: 1ファイル（先頭150行 Read）
 - domain/*.md: 最大2ファイル（ドメイン固有知識キーワードマッチ時のみ・存在するファイルに Grep 後 Read）
