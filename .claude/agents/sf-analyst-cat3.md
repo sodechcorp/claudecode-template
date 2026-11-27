@@ -69,7 +69,7 @@ docs/data/
 
 ### Phase 0.5: 既存ファイルの規約適合チェック（差分更新モード時必須）
 
-**技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: `master-data.md` の説明列・`automation-config.md` のフロー・承認プロセス説明文。**注意**: DeveloperName カラム・件数カラムは適用外
+**技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: `master-data.md` の表の、DeveloperName・API 名・件数・レコードの値を書く列以外の説明の列（用途・概要・備考など。列名は案件ごとに違う。「項目｜値」「項目｜内容」のような2列の表は行の名前で決め、用途・利用箇所・説明などの行に当てる）、`automation-config.md` のキュー・承認プロセス・割り当てルール・フロー・ワークフロールールなどの用途・説明の文章。**注意**: DeveloperName・API 名・件数の列と行（2列の表の API名・キー項目・件数・現在の値などの行）と、レコードの値（値例など）は適用外
 
 次に `docs/data/` 配下にmdファイルが存在するか確認する:
 - **存在しない → 初回生成モード**: Phase 1 へ進む

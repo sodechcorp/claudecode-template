@@ -110,9 +110,9 @@ tools:
 
 | 対象ファイル | 適用フィールド | 適用外（API 名記録目的のため許容） |
 |---|---|---|
-| `docs/overview/org-profile.md` | 用語集の「業務での呼び方」「説明」列、ステークホルダーマップの「担当領域」「備考」列 | 用語集の「Salesforce 上の API 名」列 |
-| `docs/requirements/requirements.md` | 導入背景・対象スコープ・対象外スコープ本文、ビジネスルール本文（BR-XXX） | FR-XXX 採番のみの行 |
-| `docs/flow/usecases.md` | UC 名・トリガー・主な登場人物・例外ケース本文、主要オブジェクト名は業務語表記（API 名併記禁止） | 「主要オブジェクト」列に API 名 1 つだけを記録する場合は許容 |
+| `docs/overview/org-profile.md` | 「用語集」の表の、Salesforce 上の名前を記録する列以外の列（業務での呼び方・説明・定義・意味・補足など。列名は案件ごとに違う）、「ステークホルダーマップ」の「担当領域」「備考」列 | 「用語集」の Salesforce 上の名前を記録する列（「Salesforce 上の API 名」「Salesforceオブジェクト/項目」「正式名称／API名」など。列名ではなく中身で決め、業務の正式名称を書く「正式名称」の列は含まない）。その列が無い用語集の表は表全体（「用語｜定義」「用語｜意味」など。業務語との対応として API 名を用語・説明のセルに書いているため） |
+| `docs/requirements/requirements.md` | 「導入背景」「対象スコープ」「対象外スコープ」の節（file-templates.md の必須見出し骨格。相当する見出しを含む）の本文、ビジネスルール（`BR-XXX` の行。`BR-XXX` を見出しにした書き方は、その見出しの下の本文） | FR-XXX 採番のみの行 |
+| `docs/flow/usecases.md` | UC 名・「トリガー」「主な登場人物」「主要な例外・エラーケース」（file-templates.md の usecases.md の項目名。「例外ケース」「例外」など相当する項目を含む）の本文、主要オブジェクト名は業務語表記（API 名併記禁止） | 「主要オブジェクト」列に API 名 1 つだけを記録する場合は許容 |
 | `docs/architecture/system.json` | `components[].label` / `components[].description` | `components[].api_name` |
 | `docs/flow/swimlanes.json` | `lanes[].name`, `steps[].title`, `steps[].action`（`check_swimlanes.py` でも別途検出される） | — |
 
@@ -126,7 +126,7 @@ tools:
 
 1. 上記「適用フィールド」を Grep でスキャンする
 2. ヒットした語が許容語リスト（`Pardot` / `GMOサイン` / `LINE` / `SMS` / `Experience サイト` / `Salesforce` / `OPROARTS` / `Reserve` / `URL` / `PDF` / `CSV` / `Web` 等）に該当する場合は除外
-3. 違反は `org-profile.md` 用語集の「業務での呼び方」列を引いて Edit で置換
+3. 違反は `org-profile.md` 用語集の業務語の列（「業務での呼び方」「業務用語」「用語」など。列名は案件ごとに違う）を引いて Edit で置換
 4. 用語集に対応する業務語が見つからなければ `**[要確認: 業務語へ変換要]**` を付与
 5. **手動追記であっても規約違反は修正対象**（L72 「規約適合は保護より優先」の方針に合致）
 
