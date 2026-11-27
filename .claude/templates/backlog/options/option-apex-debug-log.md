@@ -33,25 +33,26 @@ Step 3 の匿名 Apex を実行する接続ユーザー（Step 1 の `sf org dis
 sf data query --query "SELECT Id, Name, Username FROM User WHERE Username = '<接続ユーザーの username>' LIMIT 1" \
   --target-org <sandbox-alias> --json
 
-# 有効な TraceFlag があれば作らずにそれを使い、StartDate を今にする（期間の重なるものは作れない。期間は StartDate から24時間まで）
-sf data query --use-tooling-api --query "SELECT Id, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '<UserId>' AND LogType = 'USER_DEBUG' AND ExpirationDate > $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  --target-org <sandbox-alias> --json
-# ExpirationDate が30分後以降なら StartDate だけ
-sf data update record --use-tooling-api --sobject TraceFlag --record-id <既存の TraceFlagId> \
-  --values "StartDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  --target-org <sandbox-alias> --json
-# ExpirationDate が30分後より前なら ExpirationDate も30分後に
-sf data update record --use-tooling-api --sobject TraceFlag --record-id <既存の TraceFlagId> \
-  --values "StartDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) ExpirationDate=$(date -u -d '+30 minutes' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+30M +%Y-%m-%dT%H:%M:%SZ)" \
-  --target-org <sandbox-alias> --json
-
-# 無ければ TraceFlag を作る（30分）。DebugLevel は BugInvestigation があればその Id を使う（DeveloperName は重複できない）
+# DebugLevel は BugInvestigation があればその Id を使い、無ければ作る（DeveloperName は重複できない）
 sf data query --use-tooling-api --query "SELECT Id FROM DebugLevel WHERE DeveloperName = 'BugInvestigation'" \
   --target-org <sandbox-alias> --json
 sf data create record --use-tooling-api --sobject DebugLevel \
   --values "DeveloperName=BugInvestigation MasterLabel=BugInvestigation ApexCode=FINEST ApexProfiling=INFO Callout=INFO Database=FINEST System=DEBUG Validation=INFO Visualforce=INFO Workflow=INFO" \
   --target-org <sandbox-alias> --json
 
+# 有効な TraceFlag があれば作らずにそれを使う（期間の重なるものは作れない。期間は StartDate から24時間まで）。DebugLevelId を BugInvestigation に付け替え（元の DebugLevelId は Step 5 で戻す）、StartDate を今にする
+sf data query --use-tooling-api --query "SELECT Id, ExpirationDate, DebugLevelId FROM TraceFlag WHERE TracedEntityId = '<UserId>' AND LogType = 'USER_DEBUG' AND ExpirationDate > $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --target-org <sandbox-alias> --json
+# ExpirationDate が30分後以降なら ExpirationDate はそのまま
+sf data update record --use-tooling-api --sobject TraceFlag --record-id <既存の TraceFlagId> \
+  --values "DebugLevelId=<DebugLevelId> StartDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --target-org <sandbox-alias> --json
+# ExpirationDate が30分後より前なら ExpirationDate も30分後に
+sf data update record --use-tooling-api --sobject TraceFlag --record-id <既存の TraceFlagId> \
+  --values "DebugLevelId=<DebugLevelId> StartDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) ExpirationDate=$(date -u -d '+30 minutes' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+30M +%Y-%m-%dT%H:%M:%SZ)" \
+  --target-org <sandbox-alias> --json
+
+# 無ければ TraceFlag を作る（30分）
 sf data create record --use-tooling-api --sobject TraceFlag \
   --values "LogType=USER_DEBUG TracedEntityId=<UserId> DebugLevelId=<DebugLevelId> StartDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) ExpirationDate=$(date -u -d '+30 minutes' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v+30M +%Y-%m-%dT%H:%M:%SZ)" \
   --target-org <sandbox-alias> --json
@@ -63,15 +64,18 @@ sf data create record --use-tooling-api --sobject TraceFlag \
 
 課題の操作（investigation.md の「再現条件」）がサーバー側で呼ぶ処理（同じ DML・同じ Apex メソッド）を、Sandbox で匿名 Apex から実行する（実行前の確認と rollback は [backlog-investigator.md](../../../agents/backlog-investigator.md)「調査原則」の「Sandbox のデータは変えずに確かめる」のとおり）。匿名 Apex は接続ユーザーで動き、処理を rollback するため、画面側の処理や操作ユーザーの権限で決まる症状と、レコードトリガーフローの非同期パス・スケジュール済みパス、時間ベースワークフロー・プロセスビルダーのスケジュール済みアクションで起きる症状は再現できない:
 ```bash
-sf apex run --file {tmp_dir}/reproduce_bug.apex --target-org <sandbox-alias> --json
+sf api request rest --target-org <sandbox-alias> \
+  "/services/data/v62.0/tooling/executeAnonymous/?anonymousBody=$(python -c "import sys, urllib.parse; print(urllib.parse.quote(open(sys.argv[1], encoding='utf-8-sig').read(), safe=''))" {tmp_dir}/reproduce_bug.apex)"
 ```
+
+Tooling API の executeAnonymous で実行する（`sf apex run` はログのレベルを `APEX_CODE,DEBUG;APEX_PROFILING,INFO` に固定して送るため Step 2 の DebugLevel が効かず、`SOQL_EXECUTE_BEGIN`・`DML_BEGIN`・`VALIDATION_FAIL` がログに出ない。`--target-org` は URL より前に置く〔本番に向けたときに hook が止めるため〕）。応答の `compiled`・`compileProblem` でコンパイルエラー（`Unexpected token '<EOF>'` なら本文が空＝ファイルの読み込みの失敗）、`success`・`exceptionMessage` で未処理の例外を見る。`sf api request rest`（sf CLI では beta）が使えない（コマンドが無い・本文が長すぎて失敗する等）ときは `sf apex run --file {tmp_dir}/reproduce_bug.apex --target-org <sandbox-alias> --json` で実行し、Step 4 ではこの3つのイベントが出ないものとして読む（出ていないことを「実行されなかった」「0件」と読まない）。
 
 再現後、すぐに Step 4 へ進む（TraceFlag の有効期限内に取得）。
 
 ### Step 4: ログ取得・解析
 
 ```bash
-# ログ一覧を確認（最新のものが対象）
+# ログ一覧を確認（Step 3 の実行時刻以降で Operation が `/services/data/v62.0/tooling/executeAnonymous/`〔sf apex run なら `Api`〕のもの）
 sf apex log list --target-org <sandbox-alias> --json
 
 # ログを取得（最新のログIDを指定）
@@ -94,10 +98,12 @@ grep -E "(FATAL_ERROR|EXCEPTION_THROWN|SOQL_EXECUTE_BEGIN|CODE_UNIT_STARTED|USER
 
 ### Step 5: TraceFlag の後片付け
 
-Step 2 で作った TraceFlag を削除する（期限が切れても組織に残る）。Step 2 で既存の TraceFlag を使った場合は行わない:
+Step 2 で作った TraceFlag を削除する（期限が切れても組織に残る）。Step 2 で既存の TraceFlag を使った場合は削除せず、DebugLevelId を元に戻す:
 
 ```bash
 sf data delete record --use-tooling-api --sobject TraceFlag --record-id <作成した TraceFlagId> --target-org <sandbox-alias> --json
+# 既存の TraceFlag を使った場合
+sf data update record --use-tooling-api --sobject TraceFlag --record-id <既存の TraceFlagId> --values "DebugLevelId=<元の DebugLevelId>" --target-org <sandbox-alias> --json
 ```
 
 ## 出力
@@ -110,6 +116,7 @@ investigation.md「根本原因」セクションに追記:
 - ログ取得日時: {YYYY-MM-DD HH:MM}
 - 再現操作: {何を行ったか}
 - 対象ユーザー: {Username / Profile}（匿名 Apex で再現した場合は接続ユーザー）
+- 実行方法: {executeAnonymous（Tooling API）／sf apex run（SOQL_EXECUTE_BEGIN・DML_BEGIN・VALIDATION_FAIL は記録されない）}
 
 ### 重要ログ抜粋
 

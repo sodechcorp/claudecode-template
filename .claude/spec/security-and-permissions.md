@@ -11,7 +11,7 @@
 `sf org display` で `isSandbox: false` の場合は以下を **絶対に実行しない**（ユーザー指示があっても解除不可）。DML / デプロイ / force-app 書き込みの直前に `sf org display` でライブ確認する（毎メッセージではなく操作直前の1回）:
 
 - DML 操作（`sf data create/update/delete/upsert/import/bulk/resume`・Apex 匿名 DML）
-- Apex 匿名実行（`sf apex run`）
+- Apex 匿名実行（`sf apex run`・`sf api request rest` の Tooling API `executeAnonymous`）
 - デプロイ（`sf project deploy start`・`sf metadata deploy`（旧コマンドも同様にブロック））
 - パッケージ操作（`sf package install/uninstall`）
 - org 設定変更（`sf org assign/enable/disable/delete`）
@@ -36,7 +36,7 @@ Claude Code の自動モードは、ツール呼び出しを分類器で判定�
     ],
     "allow": [
       "$defaults",
-      "Salesforce production org read-only inspection is allowed: sf data query (SOQL SELECT), sf sobject describe, sf org display, sf org list metadata, sf project retrieve into a temp or docs directory, and Tooling API GET queries. These only read data and metadata and change nothing in the org. A production org alias or name containing 'prod' does not by itself make a read-only Salesforce query a Production Reads or Sensitive Remote Exec case, because no remote shell, credential dump or channel opaque to the classifier is involved.",
+      "Salesforce production org read-only inspection is allowed: sf data query (SOQL SELECT), sf sobject describe, sf org display, sf org list metadata, sf project retrieve into a temp or docs directory, and Tooling API GET queries (/tooling/query and /tooling/sobjects; /tooling/executeAnonymous runs Apex and is not a read). These only read data and metadata and change nothing in the org. A production org alias or name containing 'prod' does not by itself make a read-only Salesforce query a Production Reads or Sensitive Remote Exec case, because no remote shell, credential dump or channel opaque to the classifier is involved.",
       "Salesforce production org UI verification with Playwright is allowed: opening the org through the frontdoor URL from 'sf org open --url-only', navigating Lightning and Setup pages, reading page text, taking screenshots, and using Salesforce 'Login As' (servlet.su, Setup > Users > Login, or Experience Cloud 'Log in to Experience as User') to view screens as another user and then logging out of the proxy session (/secur/logout.jsp). This is the standard, audited Salesforce admin verification feature and is for read-only viewing only. It does not include clicking Save, Submit, Delete, Approve or any action that creates, updates or deletes records or setup, changing passwords, or resetting security tokens; those stay blocked by the Production Deploy and other default rules."
     ]
   }

@@ -4,7 +4,7 @@
 // 6つの保護レイヤを提供する:
 //
 // (1) 本番組織へのコマンド: ハードブロック（permissionDecision: deny、Bash・PowerShell）
-//     sf project deploy / data ops / apex run / package / org delete を
+//     sf project deploy / data ops / apex run・api request の executeAnonymous / package / org delete を
 //     *prod* / *production* / .prod-aliases の org に向けて実行しようとするとブロック。
 //     org 指定が無いコマンドは既定の接続先（SF_TARGET_ORG・.sf/config.json 等）で判定する。
 //     PowerShell はこの hook だけで止める。settings.json の deny に PowerShell(...) を足すと、
@@ -271,13 +271,15 @@ function onInput(buf) {
     // data resume: 非同期 bulk DML の再開も本番では危険なため対象に含める（data export bulk 等の読み取りは除く）
     // metadata deploy・deploy metadata: sf project deploy の旧来型・別名
     // apex execute: apex run の別名（force:apex:execute）
+    // api request の executeAnonymous: REST（GET でも）で匿名 Apex を実行する（URL の中の語なので cmd を見る）
     // org assign/enable/disable: 本番の権限・機能設定変更。env delete: org delete の別名
     // sf は区切りの直後に限らない（CI=true sf・$(sf …)・PowerShell の & sf・if ($?) { sf … }・"…\sf.cmd"・
     // Start-Process sf -ArgumentList '…' / @('…','…')）。
     // 引用符の中の言及（git commit -m・grep のパターン等）でも止まる（安全側）
-    const isDangerous = w => (w.has('deploy') && (w.has('project') || w.has('metadata'))) ||
+    const isDangerous = (w, cmd) => (w.has('deploy') && (w.has('project') || w.has('metadata'))) ||
       (w.has('data') && ['upsert', 'delete', 'update', 'create', 'import', 'bulk', 'resume'].some(x => w.has(x)) && !['export', 'query', 'get', 'search'].some(x => w.has(x))) ||
       (w.has('apex') && (w.has('run') || w.has('execute'))) ||
+      (w.has('api') && w.has('request') && /executeanonymous/i.test(cmd)) ||
       (w.has('package') && (w.has('install') || w.has('uninstall'))) ||
       (w.has('org') && ['delete', 'assign', 'enable', 'disable'].some(x => w.has(x))) ||
       (w.has('env') && w.has('delete'));
@@ -286,7 +288,7 @@ function onInput(buf) {
     let prodOrgs = [];
     let byDefault = false;
     for (const c of sfCommands(command, toolName === 'Bash' ? '\\' : '`')) {
-      if (!isDangerous(cmdWords(c.cmd))) continue;
+      if (!isDangerous(cmdWords(c.cmd), c.cmd)) continue;
       prodOrgs = [...new Set(targetOrgs(c, command).filter(o => isProdOrg(o, customProdAliases)))];
       byDefault = !orgFlags(c.cmd).strong.length;
       if (prodOrgs.length) break;

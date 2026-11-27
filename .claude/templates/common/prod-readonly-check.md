@@ -15,7 +15,7 @@
 **このガードを通過しても以下は絶対に行わない**（一覧の sf のコマンドは hook / settings.json のハードブロック対象と同一。本番かどうかは接続先のエイリアス名〔`*prod*`・`*production*`・`.prod-aliases`〕で判定する。`force-app/` への書き込みと、一覧に無いコマンド・操作による変更〔`sf project delete source`・`sf api request` の書き込み・画面の保存等〕は hook の対象外で、この指示だけが止める。ガード通過を理由に実行を試みないこと）:
 - `sf project deploy`（`--dry-run` 含む）
 - `sf data upsert / delete / update / create / import / bulk / resume`
-- `sf apex run`
+- `sf apex run`・`sf api request rest` の Tooling API `executeAnonymous`（GET でも匿名 Apex を実行する。hook が止めるのはコマンドに `executeAnonymous` の語がそのまま書かれているときだけ）
 - `sf package install / uninstall`
 - `sf org delete / assign / enable / disable`
 - `force-app/` への書き込み・DML 全般
