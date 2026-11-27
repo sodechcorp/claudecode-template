@@ -69,17 +69,7 @@ docs/data/
 
 ### Phase 0.5: 既存ファイルの規約適合チェック（差分更新モード時必須）
 
-[共通手順参照](../templates/sf-memory/phase0.5-common.md) — cat3 固有の必須 H2:
-
-```
-master-data.md: マスタ一覧 / レコード件数 / 代表値サンプル
-automation-config.md: 承認プロセス / キュー割り当て / 自動化設定
-email-templates.md: テンプレート一覧 / 差し込み項目
-```
-
-1. `docs/data/` 配下の既存 `.md` を Glob で列挙 → ファイルごとに `^## ` を Grep して H2 見出しを全て抽出
-2. 上記必須項目と照合し、欠落があれば対応 Phase で末尾追記（手動追記は保護）
-3. **技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: `master-data.md` の説明列・`automation-config.md` のフロー・承認プロセス説明文。**注意**: DeveloperName カラム・件数カラムは適用外
+**技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: `master-data.md` の説明列・`automation-config.md` のフロー・承認プロセス説明文。**注意**: DeveloperName カラム・件数カラムは適用外
 
 次に `docs/data/` 配下にmdファイルが存在するか確認する:
 - **存在しない → 初回生成モード**: Phase 1 へ進む
