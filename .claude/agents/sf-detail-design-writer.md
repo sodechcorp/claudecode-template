@@ -130,7 +130,7 @@ python -c "import pathlib; docs_uc = pathlib.Path(r'{project_dir}') / 'docs' / '
 
 ## Phase 0.7: ハッシュチェック（グループごと）
 
-> **目的**: ソースに変更がないグループをスキップして LLM 呼び出しと Excel 生成を節約する。
+> **目的**: 生成が読む入力（ソース・機能グループの定義・usecases.md の UC の節・設計書に載るオブジェクトの項目と翻訳）に変更がないグループをスキップして LLM 呼び出しと Excel 生成を節約する。
 
 各グループの処理前に以下を実行する。
 
@@ -186,13 +186,15 @@ detected_excel_or_empty=$(python -c "import pathlib; p = pathlib.Path(r'{output_
 
 ```bash
 python "{project_dir}/scripts/python/sf-doc-mcp/source_hash_checker.py" \
+  --project-dir "{project_dir}" \
+  --feature-group "{group_id}" \
   --source-paths "{source_paths}" \
   --existing-excel "{detected_excel_or_empty}"
 ```
 
 | stdout の status | 終了コード | 対応 |
 |---|---|---|
-| `status:MATCH` | 0 | このグループをスキップ（Phase 1〜Phase 4 全てスキップ） |
+| `status:MATCH` | 0 | `{version_increment}` が `minor` ならこのグループをスキップ（Phase 1〜Phase 4 全てスキップ）。`major` なら通常どおり処理し、`hash:XXXX` の値を `{source_hash}` として記録する |
 | `status:CHANGED` / `NEW` / `NO_HASH` | 1 | 通常どおり処理する。`hash:XXXX` の値を `{source_hash}` として記録する（`hash:` が空＝グループのソースのファイルが見つからないときは、完了報告の要確認にグループIDを書く） |
 
 > **新規作成（既存 Excel なし）の場合も `status:CHANGED` として扱われる**。`detected_excel_or_empty` が空でも処理を継続し、Phase 4 で新規ファイルとして生成する（`--source-hash ""` で渡す）。
