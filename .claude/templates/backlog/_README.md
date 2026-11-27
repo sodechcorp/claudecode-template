@@ -21,6 +21,7 @@
 ├── _partials/                    # 差分ベース定型チェックの部品（deploy-manifest-base.md 等）
 ├── phase1-6-sandbox-verification.md # Phase 1.6 詳細手順（backlog.md からバグ系のみ条件付き Read）
 ├── phase2-inquiry-mode.md        # Phase 2 問い合わせ専用モード詳細手順（backlog.md から条件付き Read）
+├── planner-phase-b-template.md   # backlog-planner Phase B-3 提示フォーマット・implementation-plan.md の書式（backlog-planner.md から条件付き Read。末尾の追加ラウンドの書き足し方は backlog-implementer.md・backlog.md も参照）
 ├── planner-phase-q.md            # backlog-planner Phase Q 詳細手順（backlog-planner.md から条件付き Read）
 ├── deploy-skip-judgment.md       # デプロイ適否の判定基準
 ├── resume-phase-routing.md       # 途中フェーズからの再開ルーティング
@@ -96,7 +97,7 @@
 
 | パターン | 判定挙動 | 該当オプション例 |
 |---|---|---|
-| **A. 常時実行** | `auto-skip-when` 空、ほぼ無条件で実行 | option-symptom-reverification / option-multi-cause-hypothesis / option-counter-evidence-search / option-knowledge-extraction |
+| **A. 常時実行寄り** | 対象の種別ではほぼ無条件で実行（`auto-skip-when` は種別違い・その手法が要らない／成り立たないときだけ） | option-symptom-reverification / option-multi-cause-hypothesis / option-counter-evidence-search / option-knowledge-extraction |
 | **B. コード変更の有無で判定** | コード実体に影響しない変更（コメント・ラベル等）はスキップ確認 | option-reverse-grep / option-similar-impl-search / option-unit-test-creation / option-bulk-processing-check / option-soql-governor-limit-check |
 | **C. 課題種別/ワード検出で判定** | 種別「バグ」「追加要望」や特定ワード（権限・データ・移行・パフォーマンス 等）でトリガ | option-permission-fls-check / option-sharing-rule-check / option-data-migration-plan / option-data-volume-analysis / option-performance-test |
 | **D. 規模・影響範囲で判定** | 影響範囲広・全社影響・重要バグ時のみ実行 | option-second-opinion / option-staged-deployment-plan / option-feature-flag-design / option-security-audit |
@@ -172,7 +173,6 @@
 - 実装計画策定（処理構造・データ設計・最低限の SOQL）
 - 実装本体（FLS / CRUD / with sharing / API 名再照合 / docs 更新）
 - 最低限の Apex テスト実行
-- 合同 UI 確認（ユーザクロステスト）
 - After エビデンス取得
 - 接続先確認・Sandbox デプロイ（Phase 6 は Sandbox リリース専用）
 
