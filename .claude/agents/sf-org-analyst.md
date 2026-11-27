@@ -329,12 +329,6 @@ FGに紐づくコンポーネントが swimlanes のステップとして現れ�
 - 承認プロセス名が design/ の設計書に「呼び出し元」として記載されていない → 設計書に追記
 - キューが design/ のどのコンポーネントにも関連付けられていない → `**[要確認: キュー未紐付け]**` を automation-config.md に付与
 
-#### 5-G: automation-config の承認者ロール ↔ cat5 FG の actor 整合チェック（cat3+cat5 完了済みの場合のみ）
-
-`docs/data/automation-config.md` の承認段階の承認者ロールと、`docs/.sf/feature_groups.yml` の各 FG の `actor` フィールドを突き合わせる。
-
-- 承認者ロールが FG の actor として記載されていない → feature_groups.yml に `actor` 追記または `**[要確認: actor 未整合]**` を付与
-
 #### 5-H: 件数正本(data-statistics.md) ↔ catalog 同期先の突合（cat2+cat3 完了済みの場合のみ）
 
 > `data/data-statistics.md`（cat3 正本）または `catalog/_index.md`（cat2）が未生成の場合はスキップする。catalog 内部の件数整合、および cat2 実行時に data-statistics が既存だった場合の突合は cat2 Phase 5「件数の突き合わせ」が担当する。本ステップは cat2 実行後に data-statistics が生成/更新された場合の取りこぼしを 2 周目で再突合する（冪等: 既に一致していれば件数は書き換えない）。

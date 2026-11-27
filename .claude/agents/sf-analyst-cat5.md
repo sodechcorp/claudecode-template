@@ -64,9 +64,6 @@ tools:
 - **存在する場合**: Read して `uc_ids` / `related_objects` / `fr_ids` / `glossary` を取得する
 - **存在しない場合**: 直接 Read する: `docs/flow/usecases.md`・`docs/overview/org-profile.md`・`docs/requirements/requirements.md`
 
-**cat3 の生成物（E-2: FG actor 精度向上）**:
-- `docs/data/automation-config.md` を Read し、承認プロセスの承認者ロール・キューの対象オブジェクトを把握する。承認段階・キューから FG の actor を確定する際の補助情報として使う（承認者ロール = actor 候補）。
-
 **cat4 の生成物（設計書参照）**:
 - `docs/design/` 配下の各設計書の「担当オブジェクト」「関連UC」フィールドを参照して割り当て精度を上げる。
 
@@ -84,7 +81,7 @@ tools:
 `docs/.sf/feature_groups.yml` の存在を確認する:
 - **存在しない → 初回生成モード**: Phase 1 から全量生成する
 - **存在する → 差分更新モード**: 既存 YAML を Read して必須キーを確認する。手動修正は保持する
-  - **技術識別子チェック**: [phase0.5-common.md 参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 対象の FG（「受け取る情報」の絞り込みルール）の `name_ja` のみ（`id` / `components` 等の識別子フィールドは適用外）
+  - **技術識別子チェック**: [phase0.5-common.md 参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 対象の FG（「受け取る情報」の絞り込みルール）の `name_ja` のみ（`group_id` / `components` 等の識別子フィールドは適用外）
 
 ### Phase 1: コンポーネント一覧の収集
 
@@ -171,7 +168,7 @@ ls force-app/main/default/pages/ 2>/dev/null
 
 **マージ候補（同一FGに統合）**:
 - 割り当てコンポーネント1件以下のUCが連続 かつ 同じオブジェクト中心 → 1FGに統合
-- ただし業務担当者（actor）が異なる場合はマージしない
+- ただし UC の `actors`（業務担当者）が異なる場合はマージしない
 
 **分割候補（複数FGに分ける）**:
 - 1UCに15件超 かつ 明確に独立した処理フェーズがある → フェーズ単位で分割（例: 「受注前処理」「受注後処理」）

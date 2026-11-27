@@ -184,7 +184,7 @@ Phase 2: カテゴリ2 をエージェントへ委譲（順次）
 
 Phase 2.5: カテゴリ3 をエージェントへ委譲（順次）
   ※ カテゴリ2完了後に実行（docs/catalog/ を参照するため）
-  ※ cat3 を前段に置くことで、承認プロセス・キュー情報が cat4*/cat5 で参照可能になる
+  ※ cat3 を前段に置くことで、承認プロセス・キュー情報が cat4* で参照可能になる
   sf-analyst-cat3（カテゴリ3: マスタデータ・ワークフロー設定）
     → docs/data/ を生成（master-data.md / email-templates.md / automation-config.md 等）
     → 完了サマリを返す
