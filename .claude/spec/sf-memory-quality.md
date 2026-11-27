@@ -1,6 +1,6 @@
 # sf-memory 品質原則・マーカー規約（全カテゴリ共通）
 
-sf-analyst-cat1〜cat6、および sf-org-analyst が共通して守る原則。cat8 は外部 SF 公式仕様を扱うため独立した品質原則を持つ（sf-analyst-cat8.md 参照）。
+sf-analyst-cat1〜cat6、および sf-org-analyst が共通して守る原則。cat8 は外部 SF 公式仕様を扱うため独立した品質原則を持つ（sf-analyst-cat8.md 参照）。sf-analyst-cat6-global は Backlog 全プロジェクトの実績を集計した横断ナレッジ（`docs/knowledge/global-*.md`）だけを作り、組織・資料を読まないため対象外（出力は同エージェントの汎用性原則に従う）。
 
 ## 品質原則
 
