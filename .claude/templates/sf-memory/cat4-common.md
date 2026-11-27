@@ -73,7 +73,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 `docs/design/` の種別フォルダ（apex・batch・integration・flow・lwc・vf・aura）に md ファイルが存在するか確認する（直下の md〔sf-architect の設計書など〕は見ない）。存在しない → 初回生成モード、存在する → アップデートモード（手動追記・設計判断の根拠を絶対に消さない）。
 
-**アップデートモード時の技術識別子チェック**: [phase0.5-common.md 参照](.claude/templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各設計書（対象を指定したときは「Phase 1.5 前提」の対象の設計書だけ。対象が決まる Phase 1 の後に行う）の **responsibility（責務）/ 概要 / 注意点・備考 の自然文セクション**。担当オブジェクト列（API 名を記録する目的）は適用外。
+**アップデートモード時の技術識別子チェック**: [phase0.5-common.md 参照](.claude/templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各設計書（対象を指定したときは「Phase 1.5 前提」の対象の設計書だけ。対象が決まる Phase 1 の後に行う）の **「スコープ・ユーザーストーリー」（旧版の設計書の「スコープ」を含む）と「概要」**（短縮版テンプレートの節）。ほかの節（基本情報・実現方式・データ設計・ロジック設計・影響範囲・依存関係・所見・注意点など、方式・処理・依存や開発者向けの注意を書き、API 名を書くのが自然な節）は適用外。
 
 ---
 
