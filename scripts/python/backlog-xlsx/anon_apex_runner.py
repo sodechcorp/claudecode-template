@@ -167,14 +167,16 @@ def run_anonymous(alias: str, apex_file: str) -> dict:
 
 
 def extract_debug_output(apex_result: dict) -> list:
-    """debug ログから System.debug 出力を抽出して行リストを返す。"""
+    """debug ログから System.debug 出力を抽出して行リストを返す。
+    debug ログはメッセージの | を &#124; にして出す（& < > 等はそのまま）ので、System.debug に書いた形に戻す
+    （CHECK|・CREATED_RECORD| の目印を judge_results.py・auto-evidence-runner が | で探すため）。"""
     log = apex_result.get("result", {}).get("logs", "") or ""
     lines = []
     for line in log.splitlines():
         # ログ形式: timestamp|USER_DEBUG|[1]|DEBUG|...
         m = re.search(r"\|USER_DEBUG\|\[\d+\]\|DEBUG\|(.+)$", line)
         if m:
-            lines.append(m.group(1).strip())
+            lines.append(m.group(1).strip().replace("&#124;", "|"))
     return lines
 
 

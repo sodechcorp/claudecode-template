@@ -80,6 +80,11 @@ def _teisaku_teijun(no: str, spec_row: dict) -> str:
     return " → ".join(parts) if parts else "—"
 
 
+def _cell(value) -> str:
+    """表のセルに入れる値の | をエスケープし、改行を空白にする（_common.parse_test_spec と同じく \\| は区切りにしない）。"""
+    return re.sub(r"\s*[\r\n]+\s*", " ", "" if value is None else str(value)).replace("|", "\\|")
+
+
 def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
                   alias: str, instance_url: str, round_no: int) -> str:
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -106,7 +111,7 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
         shubetsu = spec_by_no.get(no, {}).get("種別", spec_by_no.get(no, {}).get("実行種別", ""))
         actual = r.get("actual", "")
         icon = _STATUS_ICON.get(r.get("status", ""), r.get("status", ""))
-        lines.append(f"| {no} | {label} | {shubetsu} | {actual} | {icon} |")
+        lines.append(f"| {_cell(no)} | {_cell(label)} | {_cell(shubetsu)} | {_cell(actual)} | {_cell(icon)} |")
     lines.append("")
 
     ng_list = judgment.get("ng_list", [])
@@ -117,7 +122,7 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
     lines.append("| No | 観点 | NG 理由 |")
     lines.append("|---|---|---|")
     for ng in ng_list:
-        lines.append(f"| {ng.get('no', '')} | {ng.get('label', '')} | {ng.get('reason', '')} |")
+        lines.append(f"| {_cell(ng.get('no'))} | {_cell(ng.get('label'))} | {_cell(ng.get('reason'))} |")
     lines.append("")
 
     skip_list = judgment.get("skip_list", [])
@@ -129,7 +134,7 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
         row = spec_by_no.get(no, {})
         label = row.get("観点", "")
         reason = _extract_paren_reason(row.get("自動化可否", ""), "要手動")
-        lines.append(f"| {no} | {label} | {reason} |")
+        lines.append(f"| {_cell(no)} | {_cell(label)} | {_cell(reason)} |")
     lines.append("")
     lines.append("エビデンス.xlsx（/test Phase G で共有フォルダに保存した場合はそちら）の「証跡」シートの該当ケース枠に"
                  "スクリーンショットを貼り付けてください（/test を再実行すると上書きされるため、最後の /test の後に貼る。"
@@ -150,7 +155,7 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
         lines.append("| No | 観点 | 対象外の理由 |")
         lines.append("|---|---|---|")
         for t in taigaigai_list:
-            lines.append(f"| {t.get('no', '')} | {t.get('label', '')} | {t.get('reason', '')} |")
+            lines.append(f"| {_cell(t.get('no'))} | {_cell(t.get('label'))} | {_cell(t.get('reason'))} |")
         lines.append("")
 
     lines.append("### 網羅性チェック")
@@ -198,7 +203,7 @@ def build_report(issue_id: str, judgment: dict, spec_by_no: dict, log_dir: str,
         lines.append("| 確認対象 | 画面/レコードURL | レコードID | 対象TC | 操作手順 |")
         lines.append("|---|---|---|---|---|")
         for name, url, rec_id, tc_no, teijun in handoff_rows:
-            lines.append(f"| {name} | {url} | {rec_id} | {tc_no} | {teijun} |")
+            lines.append(f"| {_cell(name)} | {_cell(url)} | {_cell(rec_id)} | {_cell(tc_no)} | {_cell(teijun)} |")
         lines.append("")
 
     lines.append("### 総合判定")
