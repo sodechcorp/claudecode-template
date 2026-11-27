@@ -47,7 +47,7 @@ tools:
 
 ## Phase 1.5: knowledge-only モード（focus_hints に "knowledge-only" が含まれる場合のみ）
 
-`focus_hints` に `"knowledge-only"` が含まれる場合、通常の Phase 2/3/4 をバイパスして以下のみ実行する（backlog-investigator / backlog-planner から呼ばれる用途）:
+`focus_hints` に `"knowledge-only"` が含まれる場合、通常の Phase 2/3/4 をバイパスして以下のみ実行する（backlog.md〔investigator の分〕・backlog-planner から呼ばれる用途）:
 
 1. `{project_dir}/docs/knowledge/case-index.md` / `pitfalls.md` / `sf-standard.md` / `docs/decisions.md` の4ファイルの存在を確認
 2. **4ファイルすべて存在しない場合**: 「該当ナレッジなし（knowledge/ 未整備）」を返して終了
@@ -134,7 +134,7 @@ tools:
 
 ### ステップ3-1: 軽量インデックスを先読み
 
-以下を Read / Grep して、どのファイルを詳細読込すべきか特定する:
+`task_description`・`focus_hints`・Phase 2 で組織の地図から得た API 名に、F-ID（旧 CMP-ID を含む）・コンポーネントの名前（クラス・フロー・LWC 等の名前。日本語の機能名・画面名を含む）・項目API名・オブジェクト名（日本語のラベルを含む）の候補になる語が1つも無いとき（標準仕様・工数だけの質問など）は、このステップを飛ばす（候補か迷う語があれば飛ばさない）。飛ばさないときは、以下を Read / Grep して、どのファイルを詳細読込すべきか特定する:
 
 - `docs/catalog/_index.md` — オブジェクト名一覧（存在する場合）
 - `docs/.sf/feature_list.json` — F-xxx（または旧 CMP-xxx）・api_name のマッチングに Grep を使う（存在する場合）

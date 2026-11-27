@@ -53,7 +53,6 @@
 | 起動コマンド | エージェント |
 |---|---|
 | `/sf-memory` cat1〜cat6・cat6-global・cat8 / cat7（横断補完） | `sf-analyst-cat1〜cat3` / `sf-analyst-cat4-apex` / `sf-analyst-cat4-flow` / `sf-analyst-cat4-lwc` / `sf-analyst-cat5〜cat6` / `sf-analyst-cat6-global` / `sf-analyst-cat8` / `sf-org-analyst`（= cat7） |
-| `/sf-memory` Phase 0 コンテキスト読込 | `sf-context-loader` |
 | `/sf-design` 各ステップ | `sf-design-step1〜3` / `sf-design-writer` / `sf-screen-writer` / `sf-detail-design-writer` |
 | `/sf-doc` 各ステップ | `sf-doc-overview-writer` / `sf-doc-objects-writer` |
 | `/backlog` 各 Phase | `backlog-investigator` / `backlog-repro-runner` / `backlog-planner` / `backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-validator` |

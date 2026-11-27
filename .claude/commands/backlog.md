@@ -29,7 +29,7 @@ argument-hint: "[課題ID]"
 
 > **同一 issueID で会話を続ける場合（コマンド再起動なし）**: 一度 `/backlog {issueID}` を起動したセッションでは、その後 Backlog コメントの貼り付け・URL 共有・「追加でこれも」等の新しい情報が出てきた時点で、コマンドを再起動しなくても新ラウンドとして同じルールが自動適用される。詳細: [§同一セッション内の追加対応](#同一セッション内の追加対応ルールの常駐化)。
 
-**各エージェントの内部構造**: 全エージェント（`backlog-repro-runner` を除く）は Step 0b でフェーズ用 `_index-phase{N}.md` を読んでオプション判定を行う（[à la carte 仕組み](../templates/backlog/_README.md)）。`backlog-repro-runner` は Phase 1.6（バグ系のみ）専用で Step 0b を持たず、à la carte 判定の対象外。`backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-planner` はさらに Step 0a で `sf-context-loader` を呼び出す（`backlog-planner` は digest 優先で実運用上ほぼ発火しない）。
+**各エージェントの内部構造**: 全エージェント（`backlog-repro-runner` を除く）は Step 0b でフェーズ用 `_index-phase{N}.md` を読んでオプション判定を行う（[à la carte 仕組み](../templates/backlog/_README.md)）。`backlog-repro-runner` は Phase 1.6（バグ系のみ）専用で Step 0b を持たず、à la carte 判定の対象外。`backlog-implementer` / `backlog-tester` / `backlog-releaser` / `backlog-planner` はさらに Step 0a で `sf-context-loader` を呼び出す（4つとも [sf-context-load-phase0.md](../templates/common/sf-context-load-phase0.md) の「ダイジェスト優先」に従い、起動するのは `context-digest.md` が無いか足りないときだけ。`backlog-planner` は knowledge-only モード、ほかは通常モード）。
 
 > **サブエージェントの二段ネストを避ける（`backlog-validator` は完全 leaf agent・`backlog-investigator` は部分的）**: サブエージェントがさらに別のサブエージェントを起動する二段ネストのうち、「同一メッセージでの複数 Agent/Task 同時発行」を伴う箇所は不安定化要因と特定し、本コマンド（メインスレッド）に引き上げた。単発・非並列の呼び出し（`backlog-planner → sf-context-loader` / `backlog-investigator → backlog-blind-second-opinion`〔Phase 1 再入モード〕等）は `auto-evidence-runner → ui-evidence-runner`（`/test`）と同型の安定パターンのため据え置いている。
 > - `backlog-validator`: `regression-guard`・`ui-evidence-runner`（Before-only）を本コマンドが Phase 3.5 開始時に直接 Task 起動（詳細は Phase 3.5 セクション参照）

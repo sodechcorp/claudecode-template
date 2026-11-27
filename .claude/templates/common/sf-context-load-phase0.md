@@ -28,7 +28,7 @@
 
 - **クォート必須**: `[callout, api]` のようなクォートなし記法は禁止
 - `"{...}"` 形式のプレースホルダは、Claude が sf-context-loader 呼び出し前に実値へテキスト置換（`.claude/CLAUDE.md` §テンプレート置換ルール準拠）。置換後も文字列配列の形を保つ
-- 予約値 `"knowledge-only"` を含めると knowledge-only モードに切り替わる（backlog-investigator / backlog-planner 専用。通常エージェントでは使用しない）
+- 予約値 `"knowledge-only"` を含めると knowledge-only モードに切り替わる（backlog.md〔investigator の分〕・backlog-planner 専用。通常エージェントでは使用しない）
 
 ## 結果の標準解釈
 
