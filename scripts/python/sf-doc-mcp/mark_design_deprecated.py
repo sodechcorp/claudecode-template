@@ -64,6 +64,22 @@ STATUS_SAVED_PATTERN = re.compile(
 STATUS_LEFT_PATTERN = re.compile(r"^\|\s*実装状態\s*\|.*廃止", re.MULTILINE)
 
 
+def _read_md(md_path: Path) -> tuple[str, tuple[str, str]]:
+    """BOM を除き改行を LF にそろえた本文と、書き戻すときの形（BOM の有無・元のファイルに多い方の改行）を返す"""
+    with open(md_path, encoding="utf-8", newline="") as f:
+        raw = f.read()
+    bom = "\ufeff" if raw.startswith("\ufeff") else ""
+    raw = raw[len(bom):]
+    crlf = raw.count("\r\n")
+    return raw.replace("\r\n", "\n"), (bom, "\r\n" if crlf > raw.count("\n") - crlf else "\n")
+
+
+def _write_md(md_path: Path, text: str, form: tuple[str, str]) -> None:
+    bom, newline = form
+    with open(md_path, "w", encoding="utf-8", newline="") as f:
+        f.write(bom + text.replace("\n", newline))
+
+
 def find_design_md(project_dir: Path, ftype: str, feat_id: str, api_name: str) -> Path | None:
     """feature_ids.yml のエントリに対応する設計書 MD を、design_folders のフォルダの順に探して返す。
 
@@ -118,7 +134,7 @@ def apply_deprecated(md_path: Path, scan_date: str, dry_run: bool) -> dict:
         already_marked: 既にバナーマーカーが存在したか
         status_no_match: 「実装状態」行が見つからなかったか（テンプレ非準拠 MD の可能性）
     """
-    text = md_path.read_text(encoding="utf-8")
+    text, form = _read_md(md_path)
     result = {
         "banner_added": False,
         "status_replaced": False,
@@ -151,7 +167,7 @@ def apply_deprecated(md_path: Path, scan_date: str, dry_run: bool) -> dict:
         result["status_no_match"] = True
 
     if not dry_run and new_text != text:
-        md_path.write_text(new_text, encoding="utf-8")
+        _write_md(md_path, new_text, form)
 
     return result
 
@@ -162,7 +178,7 @@ def restore_deprecated(md_path: Path, dry_run: bool) -> tuple[str, bool]:
     戻り値: (状態, 実装状態に「廃止」が残ったか)。状態は "restored"（外した）/ "restored_default"（前の値の記録が無く
             「実装済み」にした）/ "none"（バナーも記録も無い）/ "edited"（バナーの文が定型と違うため触らない）
     """
-    text = md_path.read_text(encoding="utf-8")
+    text, form = _read_md(md_path)
     if BANNER_MARKER in text:
         new_text, n = BANNER_BLOCK_PATTERN.subn("", text, count=1)
         if n == 0:
@@ -182,7 +198,7 @@ def restore_deprecated(md_path: Path, dry_run: bool) -> tuple[str, bool]:
     left = bool(STATUS_LEFT_PATTERN.search(pattern.sub("", new_text)))  # 戻す行の値そのものに「廃止」があっても数えない
     new_text = pattern.sub(_back, new_text)
     if not dry_run:
-        md_path.write_text(new_text, encoding="utf-8")
+        _write_md(md_path, new_text, form)
     return ("restored_default" if defaulted else "restored"), left
 
 
