@@ -27,7 +27,7 @@ loader は行番号を保持しないため、loader 要約からの引用はフ
 Read `.claude/templates/common/verify-implementation-spec.md`（backlog 固有 extras。追加ルール記入欄まで読む）
 ```
 
-既存エージェントからの参照リンク: `.claude/CLAUDE.md#実装裏付け・出典確認（全エージェント共通・常に適用）`
+既存エージェントからの参照リンク: `.claude/CLAUDE.md#実装裏付け出典確認全エージェント共通常に適用`
 
 ---
 
