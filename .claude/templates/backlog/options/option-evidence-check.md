@@ -33,6 +33,7 @@ implementation-plan.md の「変更対象ファイル」と実装方針を確認
    ```
    mode: before-capture
    issueID: {issueID}
+   project_dir: {project_dir}
    alias: {alias}
    evidence_dir: {evidence_dir}
    target_screens: {target_screens リスト}

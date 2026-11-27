@@ -43,7 +43,7 @@ tools:
   各 TC: No / 観点 / 前提・データ準備 / 実行アクション / テスト手順（あれば） / 期待結果 / 判定方法 / 証跡取得 / 分岐ラベル（あれば） / 確認ポイント（着眼点）（あれば） / 対象画面（あれば。任意列。Step 1.5 の `--path` 最適化に使用） / 前提データの保存の前に控えた値（あれば。Step 1「後から動く処理の結果を撮る TC」の比べる元の値）
   ```
 
-**Before-only モード（mode: before-capture）追加パラメータ**:
+**Before-only モード（mode: before-capture）**: 上の `{issueID}`・`{project_dir}`（「基盤手順の読込」の test-prerequisites.md に使う）・`{alias}`（frontdoor 認証に使う）・`{evidence_dir}` に加えて:
 - `{mode}` — `before-capture` を指定
 - `{target_screens}` — 撮影対象画面のリスト。各要素:
   ```
