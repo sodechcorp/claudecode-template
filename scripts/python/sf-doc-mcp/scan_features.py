@@ -16,6 +16,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from atomic_io import file_lock, write_text_atomic
 from feature_id_ledger import (
     load_ledger, save_ledger, resolve_id, mark_deprecated, _make_key,
 )
@@ -643,10 +644,19 @@ def _is_default_javadoc(text: str) -> bool:
     return any(p.search(text or "") for p in _DEFAULT_JAVADOC_PATTERNS)
 
 
-def scan(project_dir: Path) -> list[dict]:
+def scan(project_dir: Path, output: Path | None = None) -> list[dict]:
+    ledger_path = project_dir / "docs" / ".sf" / "feature_ids.yml"
+    # cat4 の3エージェントが並列に流すので、台帳の読込から feature_list.json の書き込みまでを排他する
+    with file_lock(ledger_path):
+        features = _scan(project_dir, ledger_path)
+        if output:
+            write_text_atomic(output, json.dumps(features, ensure_ascii=False, indent=2))
+        return features
+
+
+def _scan(project_dir: Path, ledger_path: Path) -> list[dict]:
     force_app = project_dir / "force-app" / "main" / "default"
     docs_design = project_dir / "docs" / "design"
-    ledger_path = project_dir / "docs" / ".sf" / "feature_ids.yml"
     ledger = load_ledger(ledger_path)
 
     features = []
@@ -792,14 +802,12 @@ def main():
     args = parser.parse_args()
 
     project_dir = Path(args.project_dir).resolve()
-    features = scan(project_dir)
-    out = json.dumps(features, ensure_ascii=False, indent=2)
+    features = scan(project_dir, Path(args.output) if args.output else None)
 
     if args.output:
-        Path(args.output).write_text(out, encoding="utf-8")
         print(f"スキャン完了: {len(features)}件 → {args.output}", file=sys.stderr)
     else:
-        sys.stdout.buffer.write(out.encode("utf-8"))
+        sys.stdout.buffer.write(json.dumps(features, ensure_ascii=False, indent=2).encode("utf-8"))
         sys.stdout.buffer.flush()
 
 

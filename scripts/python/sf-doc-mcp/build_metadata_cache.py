@@ -4,11 +4,13 @@ sf data query ... --json の stdout を stdin 経由で受け取り、
 docs/.sf/_metadata_cache.json にキー別に蓄積し、キーごとの書き込み時刻を cached_at_by_key に残す。
 cat4-apex/cat4-flow/cat4-lwc/cat5 は cached_at_by_key が 5分以内のキーは再クエリしない。
 クエリが失敗した出力（status が 0 以外・result が無い）はそのキーを消して exit 1（0件として書かない）。
-cat4-apex/flow/lwc は並列に同じファイルへ書くため、読み込みから書き込みまでを OS のファイルロックで排他する。
+cat4-apex/flow/lwc は並列に同じファイルへ書くため、読み込みから書き込みまでを OS のファイルロックで排他し、差し替えで書く（ロックを取らずに読む側が途中までの中身を読まない）。
 Usage: sf data query "SELECT ..." --json | python build_metadata_cache.py {project_dir} --key apex_classes
 """
 import argparse, datetime, hashlib, json, os, sys, tempfile
 from pathlib import Path
+
+from atomic_io import read_text, write_text_atomic
 
 if os.name == "nt":
     import msvcrt
@@ -54,7 +56,7 @@ def main():
         cache: dict = {}
         if cache_path.exists():
             try:
-                cache = json.loads(cache_path.read_text(encoding="utf-8"))
+                cache = json.loads(read_text(cache_path))
             except Exception:
                 cache = {}
 
@@ -67,7 +69,7 @@ def main():
         else:
             cache.pop(args.key, None)
             cached_at_by_key.pop(args.key, None)
-        cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+        write_text_atomic(cache_path, json.dumps(cache, ensure_ascii=False, indent=2))
     finally:
         _unlock(lock_fd)
         os.close(lock_fd)

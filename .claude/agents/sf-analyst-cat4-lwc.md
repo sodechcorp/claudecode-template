@@ -128,8 +128,10 @@ sf data query -q "SELECT DeveloperName FROM AuraDefinitionBundle WHERE Namespace
 ```python
 import json, pathlib, re, sys
 proj = pathlib.Path(r'{project_dir}')
+sys.path.insert(0, str(proj / 'scripts' / 'python' / 'sf-doc-mcp'))
+from atomic_io import read_text
 cache_path = proj / 'docs' / '.sf' / '_metadata_cache.json'
-cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}
+cache = json.loads(read_text(cache_path)) if cache_path.exists() else {}
 if 'apex_pages' not in cache:
     print('FAIL: _metadata_cache.json に apex_pages が無い（Phase 1 の ApexPage のクエリ結果をキャッシュしていない）'); sys.exit(1)
 apex_pages = {r['Name'] for r in cache['apex_pages']}

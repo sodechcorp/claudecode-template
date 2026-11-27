@@ -19,6 +19,8 @@ from pathlib import Path
 
 import yaml
 
+from atomic_io import file_lock, read_text
+
 # 設計書を探すフォルダは verify_cat4_completeness.py と同じ scan_features.py の定義を使う（DRY）
 from scan_features import design_doc_ids, design_folders
 
@@ -222,7 +224,12 @@ def main() -> None:
     if not ledger_path.exists():
         print(f"[ERROR] feature_ids.yml が見つかりません: {ledger_path}", file=sys.stderr)
         sys.exit(1)
+    # cat4 の3エージェントが並列に流すので、同じ設計書を同時に読み書きしないよう台帳のロックを持つ
+    with file_lock(ledger_path):
+        _run(args, project_dir, ledger_path)
 
+
+def _run(args, project_dir: Path, ledger_path: Path) -> None:
     # 最終スキャン日付: 引数 > feature_ids.yml の mtime > 当日
     if args.scan_timestamp:
         scan_date = args.scan_timestamp
@@ -234,7 +241,7 @@ def main() -> None:
         except OSError:
             scan_date = datetime.date.today().isoformat()
 
-    ledger = yaml.safe_load(ledger_path.read_text(encoding="utf-8")) or {}
+    ledger = yaml.safe_load(read_text(ledger_path)) or {}
     deprecated_entries = [e for e in ledger.get("features", []) if e.get("deprecated")]
     active_ids = {e.get("id") for e in ledger.get("features", []) if not e.get("deprecated")}
 

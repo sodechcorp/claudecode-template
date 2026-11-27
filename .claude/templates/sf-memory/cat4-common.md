@@ -91,22 +91,23 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 ## Phase 1.5: ハッシュチェック（変更なしスキップ）
 
-以下の内容で `{output_dir}/.tmp/check_cat4_hash.py` を Write する:
+以下の内容で `{output_dir}/.tmp/check_cat4_hash_{flow|apex|lwc}.py` を Write する（3つの cat4 エージェントが同時に書くので、ファイル名に種別を入れる）:
 
 ```python
 import hashlib, json, pathlib, sys
 proj = pathlib.Path(r'{project_dir}')
+sys.path.insert(0, str(proj / 'scripts' / 'python' / 'sf-doc-mcp'))
+from atomic_io import read_text  # 他の cat4 エージェントが差し替え中でも読めるまで待つ
 cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'
-cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}
+cache = json.loads(read_text(cache_path)) if cache_path.exists() else {}
 api_name = '{api_name}'
 kind = '{flow|apex|lwc}'
 src_paths = {source_file_paths}
 
 def has_design_doc():  # この API 名の担当種別の機能IDが全部、担当フォルダの設計書にあるか（verify_cat4_completeness.py と同じ数え方）
-    sys.path.insert(0, str(proj / 'scripts' / 'python' / 'sf-doc-mcp'))
     from scan_features import _KIND_DESIGN_DIRS, _TYPE_TO_DESIGN_FOLDER, design_doc_ids
     try:
-        feats = json.loads((proj / 'docs' / '.sf' / 'feature_list.json').read_text(encoding='utf-8'))
+        feats = json.loads(read_text(proj / 'docs' / '.sf' / 'feature_list.json'))
         dirs = _KIND_DESIGN_DIRS[kind]
     except (OSError, ValueError, KeyError):
         return False
@@ -131,13 +132,13 @@ else:
 ```
 
 ```bash
-python {output_dir}/.tmp/check_cat4_hash.py
+python {output_dir}/.tmp/check_cat4_hash_{flow|apex|lwc}.py
 ```
 
-`SKIP`（ソースが前回と同じで、この機能IDの設計書が担当フォルダにある）→ Phase 2 をスキップ。`UPDATE:{hash}` → Phase 2 で設計書を生成/更新後にキャッシュを更新:
+`SKIP`（ソースが前回と同じで、この機能IDの設計書が担当フォルダにある）→ Phase 2 をスキップ。`UPDATE:{hash}` → Phase 2 で設計書を生成/更新後にキャッシュを更新（3つの cat4 エージェントが同じファイルに書くので、排他して書く）:
 
 ```bash
-python -c "import json, pathlib; proj = pathlib.Path(r'{project_dir}'); cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'; cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}; cache['{flow|apex|lwc}:{api_name}'] = '{new_hash}'; cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding='utf-8')"
+python -c "import pathlib, sys; proj = pathlib.Path(r'{project_dir}'); sys.path.insert(0, str(proj / 'scripts' / 'python' / 'sf-doc-mcp')); from atomic_io import update_json; update_json(proj / 'docs' / '.sf' / 'cat4_hash_cache.json', '{flow|apex|lwc}:{api_name}', '{new_hash}')"
 ```
 
 ---
@@ -158,7 +159,7 @@ python -c "import json, pathlib; proj = pathlib.Path(r'{project_dir}'); cache_pa
 
 **既存 【TBD】ファイルの処理**:
 
-以下の内容で `{output_dir}/.tmp/remove_tbd_design.py` を Write する:
+以下の内容で `{output_dir}/.tmp/remove_tbd_design_{flow|apex|lwc}.py` を Write する:
 
 ```python
 import pathlib
@@ -169,7 +170,7 @@ for tbd in design_dir.rglob('【TBD】{kebab_name}.md'):
 ```
 
 ```bash
-python {output_dir}/.tmp/remove_tbd_design.py
+python {output_dir}/.tmp/remove_tbd_design_{flow|apex|lwc}.py
 ```
 
 テンプレートは `{project_dir}/docs/templates/component-design-template.md` を Read して使用する。
@@ -202,8 +203,10 @@ python {project_dir}/scripts/python/sf-doc-mcp/mark_design_deprecated.py \
 ```python
 import json, pathlib, re, sys
 proj = pathlib.Path(r'{project_dir}')
+sys.path.insert(0, str(proj / 'scripts' / 'python' / 'sf-doc-mcp'))
+from atomic_io import read_text
 cache_path = proj / 'docs' / '.sf' / '_metadata_cache.json'
-cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}
+cache = json.loads(read_text(cache_path)) if cache_path.exists() else {}
 if 'apex_pages' not in cache:
     print('NO_APEX_PAGES: _metadata_cache.json に apex_pages が無いため、名前では検出していない')
 apex_pages = {r['Name'] for r in cache.get('apex_pages', [])}

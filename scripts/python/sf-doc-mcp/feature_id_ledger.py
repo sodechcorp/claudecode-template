@@ -21,6 +21,8 @@ from typing import Optional
 
 import yaml
 
+from atomic_io import read_text, write_text_atomic
+
 
 LEDGER_HEADER = (
     "# ⚠ このファイルはスクリプト（scan_features.py）が自動管理します。\n"
@@ -38,8 +40,7 @@ def load_ledger(ledger_path: Path) -> dict:
     if not ledger_path.exists():
         return {"next_id": 1, "features": []}
     try:
-        with ledger_path.open("r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+        data = yaml.safe_load(read_text(ledger_path))
         # 中身が空の台帳を「台帳なし」にすると F-001 から振り直して上書きする
         if not isinstance(data, dict):
             raise ValueError("中身が空か形式が違う（ファイルを確かめ、壊れていれば git の履歴から戻して再実行する）")
@@ -53,11 +54,10 @@ def load_ledger(ledger_path: Path) -> dict:
 
 def save_ledger(ledger_path: Path, ledger: dict) -> None:
     """台帳を保存する（ヘッダーコメント付き）。"""
-    ledger_path.parent.mkdir(parents=True, exist_ok=True)
     body = yaml.safe_dump(
         ledger, allow_unicode=True, sort_keys=False, default_flow_style=False,
     )
-    ledger_path.write_text(LEDGER_HEADER + body, encoding="utf-8")
+    write_text_atomic(ledger_path, LEDGER_HEADER + body)
 
 
 # classes/ 配下の .cls ファイルから生成される型グループ。

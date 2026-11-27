@@ -17,6 +17,7 @@ from pathlib import Path
 
 import yaml
 
+from atomic_io import read_text
 from feature_id_ledger import _APEX_GROUP, _FLOW_GROUP
 from scan_features import _KIND_DESIGN_DIRS, classify_apex, design_doc_ids, is_trivial_vf_page
 
@@ -63,7 +64,7 @@ def main():
         print(f"[verify_cat4] ERROR: {cache_path} not found", file=sys.stderr)
         sys.exit(2)
 
-    cache = json.loads(cache_path.read_text(encoding="utf-8"))
+    cache = json.loads(read_text(cache_path))
     missing_keys = [meta_key for meta_key, *_ in _KIND_META[kind] if meta_key not in cache]
     if missing_keys:
         print(
@@ -96,7 +97,7 @@ def main():
         print(f"[verify_cat4] ERROR: {fids_path} not found", file=sys.stderr)
         sys.exit(2)
 
-    fids_data = yaml.safe_load(fids_path.read_text(encoding="utf-8")) or {}
+    fids_data = yaml.safe_load(read_text(fids_path)) or {}
     fids: dict[tuple[str, str], tuple[str, bool]] = {}
     for feat in fids_data.get("features", []):
         api_name = feat.get("api_name")
