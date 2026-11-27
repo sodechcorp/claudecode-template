@@ -42,7 +42,7 @@ backlog-implementer が安全・確実に実装できるよう、**担当者が�
 
 判定結果（採用・スキップしたオプション）は **validation-report.md** の末尾にスキップ理由付きで記録する（_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
-> **`existing-test-baseline` / `impact-rescan` は本 Step の判定対象外**: この2オプションは `regression-guard` が backlog.md Step A で常時実行するため、`_index-phase3-5.md` の `auto-skip-when` による個別判定を行わない（常に「採用」扱い。詳細は Step 2-3 の「option との関係」を参照）。
+> **`existing-test-baseline` / `impact-rescan` / `evidence-check` は本 Step の判定対象外**: 前の2つは `regression-guard` が backlog.md Step A で、`evidence-check` は backlog.md Step B で本体が常時実行するため、個別判定を行わない（常に「採用」扱い。詳細は Step 2-3 の「option との関係」・Step 5 を参照）。
 
 > **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。validation-report.md の所見・確認結果は日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
 
@@ -127,7 +127,7 @@ Grep で「原因・現状」「対応方針（結論）」「方針決定の経
 >
 > **`regression-guard確認結果` が渡されなかった場合**: 呼び出し元での regression-guard 起動が失敗・スキップされたと判断し、Step 2-3 セクションに「regression-guard 未実行（{渡された理由があれば記載}）」と記録し、総合判定を「技術確認待ち」とする（実装前の回帰確認が無いまま自動で実装に入らないため）。
 
-> **option との関係**: `existing-test-baseline` / `impact-rescan` は本 Step の `regression-guard` が代替実行する。`regression-guard` は backlog.md Step A で常に起動されるため、Step 0b でこの2オプションについて `auto-skip-when` による個別判定は行わない（`_index-phase3-5.md` の該当 `auto-skip-when` はこの2オプションには適用しない）。判定結果は常に「採用」として扱い、option ファイルは個別実行せず `regression-guard確認結果` を当該オプションの実行結果として validation-report.md 末尾「採用したオプション」欄に記録する。
+> **option との関係**: `existing-test-baseline` / `impact-rescan` は本 Step の `regression-guard` が代替実行する。`regression-guard` は backlog.md Step A で常に起動されるため、Step 0b でこの2オプションの個別判定は行わず、常に「採用」として扱い、option ファイルは個別実行せず `regression-guard確認結果` を当該オプションの実行結果として validation-report.md 末尾「採用したオプション」欄に記録する。
 
 > **NoTestRun フォールバック予兆**: `regression-guard確認結果` で変更予定 Apex に対応するテストクラスが存在しないと判明した場合、validation-report.md の Step 2 セクションに「Phase 5 で NoTestRun フォールバック見込み・カバレッジ未検証リスクあり」と1行記録する。これは早期警告であり総合判定を NG にはしない（本デプロイの実際の停止判定は Phase 5 の backlog-tester が担う）。
 

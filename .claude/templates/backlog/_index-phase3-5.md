@@ -11,24 +11,20 @@ options:
 
   - name: option-existing-test-baseline
     description: 変更前の既存テスト状態を記録（カバレッジ・PASS/FAIL ベースライン）
-    category: B
+    category: A
     auto-execute-when:
-      - 変更対象が Apex クラス・トリガーを含む
-      - 既存テストクラスがある
+      - 常に採用（regression-guard の静的確認で代替。実測は Phase 5。backlog-validator.md Step 2-3「option との関係」）
     auto-skip-when:
-      - Apex コードを含まない変更（設定・メタデータ・LWC のみ）
-      - 新規プロジェクトでテストクラスが存在しない
+      - （なし）
     estimated-cost: 軽
 
   - name: option-impact-rescan
     description: 影響範囲の逆参照 grep 再走査（Phase 1 の reverse-grep 結果を実装計画で再確認）
-    category: B
+    category: A
     auto-execute-when:
-      - 変更対象の API 名・メソッド名・フィールド名を変更または追加
-      - Phase 1 で逆参照 grep を実施した場合（確認精度向上）
+      - 常に採用（regression-guard が代替実行。backlog-validator.md Step 2-3「option との関係」）
     auto-skip-when:
-      - 変更が単一ファイル内に完全に閉じている（外部参照なし）
-      - コメント・ラベル・表示文字列のみの変更
+      - （なし）
     estimated-cost: 中
 
   - name: option-cross-review
@@ -44,8 +40,8 @@ options:
     description: 実装前 Before エビデンス取得状況の確認（画面キャプチャ・データ状態）
     category: A
     auto-execute-when:
-      - 種別がバグまたは追加要望（常時実行）
+      - 常に採用（backlog.md Phase 3.5 Step B で本体が実行。backlog-validator.md Step 5）
     auto-skip-when:
-      - typo 修正・ラベル変更のみ（エビデンス概念が無関係）
+      - （なし）
     estimated-cost: 軽
 ```

@@ -1,6 +1,6 @@
 # option-existing-test-baseline
 
-> **現在は `regression-guard` が代替するため個別実行しない（参考として保持）**: Phase 3.5 では `_index-phase3-5.md` の個別判定を行わず、`regression-guard確認結果`（静的確認のみ）を利用する（詳細: [backlog-validator.md](../../../agents/backlog-validator.md) Step 2-3「option との関係」参照）。regression-guard は本ファイルの実測処理（`sf apex run test` 実行によるベースライン記録）は代替しない。実測 PASS/FAIL・カバレッジは Phase 5（backlog-tester の dry-run）で**変更後**の値として確定し、変更前との差分比較は行わない設計（[option-regression-test.md](./option-regression-test.md) 参照）。本ファイルの手順は実装参考として残している。
+> **現在は `regression-guard` が代替するため個別実行しない（参考として保持）**: Phase 3.5 では個別判定・個別実行を行わず、`regression-guard確認結果`（静的確認のみ）を利用する（詳細: [backlog-validator.md](../../../agents/backlog-validator.md) Step 2-3「option との関係」参照）。regression-guard は本ファイルの実測処理（`sf apex run test` 実行によるベースライン記録）は代替しない。実測 PASS/FAIL・カバレッジは Phase 5（backlog-tester の dry-run）で**変更後**の値として確定し、変更前との差分比較は行わない設計（[option-regression-test.md](./option-regression-test.md) 参照）。本ファイルの手順は実装参考として残している。
 
 ## 何をするか（現行では実行されない旧設計・参考情報）
 
