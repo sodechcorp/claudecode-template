@@ -285,10 +285,9 @@ org-profile.md の品質を高めるため、以下の項目を**読み込んだ
 
 以下のソースから情報を抽出する:
 
-1. **Salesforce 組織ユーザー情報**（管理者プロファイル保有者を特定）:
+1. **Salesforce 組織ユーザー情報**（管理者プロファイル保有者を特定。プロファイルの名前は組織の言語で変わる〔「システム管理者」等〕ので、名前でなく「すべてのデータの編集」の権限で探す）:
    ```bash
-   sf data query --query "SELECT Id, Name, Profile.Name, IsActive FROM User WHERE IsActive = true AND Profile.Name LIKE '%Admin%' ORDER BY Name LIMIT 20" --json
-   sf data query --query "SELECT Id, Name, Profile.Name FROM User WHERE IsActive = true AND Profile.Name = 'System Administrator' LIMIT 10" --json
+   sf data query --query "SELECT Id, Name, Profile.Name, IsActive FROM User WHERE IsActive = true AND Profile.PermissionsModifyAllData = true ORDER BY Name LIMIT 20" --json
    ```
 2. **読み込んだ外部資料**: 組織図・連絡先一覧・提案書等から役職・氏名を抽出
 3. **個人情報ルール**: 氏名のみ記録。メールアドレス・電話番号は記録しない
