@@ -29,6 +29,7 @@
 | ファイル | 目的 | 正本 |
 |---|---|---|
 | `backlog-mcp-hygiene.md` | Backlog MCP の取得の作法（count 指定・ページング・転記するフィールドの絞り込み） | ○ |
+| `issue-source.md` | 課題の読み先（Backlog／保守ポータル）の決め方・保守ポータルの道具と Backlog の対応表・ポータルに渡す案と渡す時点（`/triage`・`/reply`・`/close`・`/backlog`・`/test`・`/release` が使用） | ○ |
 | `knowledge-reflux-formats.md` | 知見還流（`docs/decisions.md`・`docs/logs/`・`docs/knowledge/` への追記）のフォーマット | ○ |
 | `manual-steps-todo-handoff.md` | 手順書の Todo 化・逐次ハンドオフ共通仕様（`/release` Step 4・Step 5・`/backlog` Phase 6 が使用） | ○ |
 | `cases-format.md` | `docs/knowledge/cases/<案件キー>.md` の出力構造 | ○ |

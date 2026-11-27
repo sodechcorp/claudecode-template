@@ -5,7 +5,7 @@
 
 **課題の正式な記録**: 1課題1ファイルで、Git に入る（`docs/logs/` は作業場で Git に入らない）。最初の対応で作り、2回目以降の対応（再デプロイ・追加の対応・本番のリリース）でも**書き足す・書き直す**（「既にあればスキップ」はしない）。対応のたびに「## 対応履歴」に行を足し、ほかの節は最新の内容に書き直す（前の対応で分かったことは「## 調査・検討の経緯」と「## 対応履歴」に残す）。
 
-> **参照方法**: backlog-releaser Step 3.8（/backlog）および sf-analyst-cat6 Step 5（/sf-memory）がこのスキーマを基準として生成する。抽出元データや経路固有フィールドは各エージェントが追加指定する。
+> **参照方法**: backlog-releaser Step 3.8（/backlog）・sf-analyst-cat6 Step 5（/sf-memory）・`/close` §2（完了の仕上げ）がこのスキーマを基準として生成する。抽出元データや経路固有フィールドは各エージェントが追加指定する。
 
 ---
 
@@ -66,4 +66,4 @@
 
 ---
 
-*このテンプレートを参照するエージェント: `backlog-releaser` Step 3.8（/backlog）・`sf-analyst-cat6` Step 5（/sf-memory）*
+*このテンプレートを参照するエージェント・コマンド: `backlog-releaser` Step 3.8（/backlog）・`sf-analyst-cat6` Step 5（/sf-memory）・`/close` §2（完了の仕上げ）・`/backlog`・`/test`・`/release` のメインの会話（「## 対応履歴」の足し方）*
