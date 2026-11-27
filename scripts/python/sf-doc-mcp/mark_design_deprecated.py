@@ -1,6 +1,8 @@
 """
 deprecated=true になったコンポーネントの設計書 MD に注記バナーと
 「実装状態」セルの **[廃止]** 化を一括適用するスクリプト。
+deprecated=false に戻った（force-app に戻った）機能の設計書からは、このスクリプトが付けた
+バナーと **[廃止]** を外し、「実装状態」を廃止にする前の値（記録が無ければ「実装済み」）に戻す。
 
 - 設計書ファイルは削除しない（手動追記・設計判断の根拠を保持）
 - 冪等: BANNER_MARKER の有無で二重追記を防止
@@ -34,7 +36,32 @@ STATUS_ROW_PATTERN = re.compile(
     r"^(\|\s*実装状態\s*\|)\s*(?!.*\*\*\[廃止\]\*\*)([^|]+?)(\|\s*)$",
     re.MULTILINE,
 )
-STATUS_ROW_REPLACEMENT = r"\1 **[廃止]** \3"
+# 廃止にする前の「実装状態」の値は、戻すときのためにセルの中のコメントに残す
+STATUS_SAVED = "<!-- sf-memory:status-before-deprecated: {} -->"
+
+
+def _to_deprecated(m: re.Match, save: bool = True) -> str:
+    before = m.group(2).strip()
+    saved = f" {STATUS_SAVED.format(before)}" if save and before and "-->" not in before else ""
+    return f"{m.group(1)} **[廃止]**{saved} {m.group(3)}"
+
+
+# apply_deprecated が入れたバナー（日付だけ可変の全文一致。行頭のときだけ・前の空行は空行のときだけ消す。直後に人が引用行を足したものは一致させない）と、書き換えた「実装状態」セル
+_BANNER_PRE, _BANNER_POST = BANNER_TEMPLATE.split("{scan_date}")
+BANNER_BLOCK_PATTERN = re.compile(
+    r"(?:(?<=\n)\n)?(?<![^\n])" + re.escape(_BANNER_PRE.format(marker=BANNER_MARKER)) + r"[^）\n]*"
+    + re.escape(_BANNER_POST) + r"(?!>)\n?"
+)
+STATUS_DEPRECATED_PATTERN = re.compile(
+    r"^(\|\s*実装状態\s*\|)\s*\*\*\[廃止\]\*\*\s*(?:<!-- sf-memory:status-before-deprecated: (.*?) -->\s*)?(\|\s*)$",
+    re.MULTILINE,
+)
+# バナーが無くても、前の値の記録が付いたセルはこのスクリプトが書いたもの
+STATUS_SAVED_PATTERN = re.compile(
+    r"^(\|\s*実装状態\s*\|)\s*\*\*\[廃止\]\*\*\s*<!-- sf-memory:status-before-deprecated: (.*?) -->\s*(\|\s*)$",
+    re.MULTILINE,
+)
+STATUS_LEFT_PATTERN = re.compile(r"^\|\s*実装状態\s*\|.*廃止", re.MULTILINE)
 
 
 def find_design_md(project_dir: Path, ftype: str, feat_id: str, api_name: str) -> Path | None:
@@ -115,7 +142,8 @@ def apply_deprecated(md_path: Path, scan_date: str, dry_run: bool) -> dict:
         result["banner_added"] = True
 
     # 2. 「実装状態」セルを **[廃止]** に書き換え
-    replaced_text, n = STATUS_ROW_PATTERN.subn(STATUS_ROW_REPLACEMENT, new_text)
+    # 前の値を残すのはバナーを付けたときだけ（付いた後に書き換えられた値を「前の値」にしない）
+    replaced_text, n = STATUS_ROW_PATTERN.subn(lambda m: _to_deprecated(m, result["banner_added"]), new_text)
     if n > 0:
         result["status_replaced"] = True
         new_text = replaced_text
@@ -128,9 +156,39 @@ def apply_deprecated(md_path: Path, scan_date: str, dry_run: bool) -> dict:
     return result
 
 
+def restore_deprecated(md_path: Path, dry_run: bool) -> tuple[str, bool]:
+    """apply_deprecated が付けたバナーと「実装状態」の **[廃止]** を外し、「実装状態」を廃止にする前の値に戻す。
+    バナーが無くても、前の値の記録が付いたセルは戻す（バナーだけ手で外された場合）。
+    戻り値: (状態, 実装状態に「廃止」が残ったか)。状態は "restored"（外した）/ "restored_default"（前の値の記録が無く
+            「実装済み」にした）/ "none"（バナーも記録も無い）/ "edited"（バナーの文が定型と違うため触らない）
+    """
+    text = md_path.read_text(encoding="utf-8")
+    if BANNER_MARKER in text:
+        new_text, n = BANNER_BLOCK_PATTERN.subn("", text, count=1)
+        if n == 0:
+            return "edited", False
+        pattern = STATUS_DEPRECATED_PATTERN
+    elif STATUS_SAVED_PATTERN.search(text):
+        new_text, pattern = text, STATUS_SAVED_PATTERN
+    else:
+        return "none", bool(STATUS_DEPRECATED_PATTERN.search(text))
+    defaulted = []
+
+    def _back(m: re.Match) -> str:
+        if m.group(2) is None:
+            defaulted.append(True)
+        return f"{m.group(1)} {m.group(2) or '実装済み'} {m.group(3)}"
+
+    left = bool(STATUS_LEFT_PATTERN.search(pattern.sub("", new_text)))  # 戻す行の値そのものに「廃止」があっても数えない
+    new_text = pattern.sub(_back, new_text)
+    if not dry_run:
+        md_path.write_text(new_text, encoding="utf-8")
+    return ("restored_default" if defaulted else "restored"), left
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="deprecated=true のコンポーネント設計書 MD に廃止注記を追加する"
+        description="deprecated=true のコンポーネント設計書 MD に廃止注記を追加し、有効に戻った機能の設計書から外す"
     )
     parser.add_argument("--project-dir", required=True, help="プロジェクトルートパス")
     parser.add_argument("--dry-run", action="store_true", help="差分検出のみ（ファイル書き換えなし）")
@@ -165,6 +223,7 @@ def main() -> None:
         "missing_md": 0,
         "shared": 0,
         "warning": 0,
+        "restored": 0,
     }
     updated_files: list[str] = []
 
@@ -210,11 +269,44 @@ def main() -> None:
                 status_msg = "実装状態→[廃止] 予定" if r["status_replaced"] else "実装状態行なし"
                 print(f"  [dry-run] {md.name}: {banner_msg} / {status_msg}")
 
+    # deprecated=false に戻った機能の設計書から、付けたバナーと **[廃止]** を外す（複合ファイルは1つでも有効なら外す）
+    seen: set[Path] = set()
+    for entry in ledger.get("features", []):
+        if entry.get("deprecated"):
+            continue
+        feat_id, ftype, api_name = entry.get("id", ""), entry.get("type", ""), entry.get("api_name", "")
+        md = find_design_md(project_dir, ftype, feat_id, api_name)
+        if md is None or md in seen:
+            continue
+        seen.add(md)
+        state, status_left = restore_deprecated(md, args.dry_run)
+        if status_left:
+            stats["warning"] += 1
+            print(
+                f"  [WARN] 機能が有効に戻ったが、実装状態に「廃止」が残っています（手で直す）: {feat_id} {md}",
+                file=sys.stderr,
+            )
+        if state in ("restored", "restored_default"):
+            stats["restored"] += 1
+            if args.dry_run:
+                print(f"  [dry-run] {md.name}: 廃止バナーと実装状態の **[廃止]** を外す予定")
+            if state == "restored_default":
+                print(
+                    f"  [INFO] 機能が有効に戻ったので廃止バナーを外し、実装状態を「実装済み」にした（廃止にする前の値の記録なし）: {feat_id} {md}",
+                    file=sys.stderr,
+                )
+        elif state == "edited":
+            stats["warning"] += 1
+            print(
+                f"  [WARN] 機能が有効に戻ったが、廃止バナーの文が定型と違うため外していません（バナーと実装状態の **[廃止]** を手で外す）: {feat_id} {md}",
+                file=sys.stderr,
+            )
+
     dry_label = " (dry-run)" if args.dry_run else ""
     print(
         f"[mark_design_deprecated] deprecated={stats['total']} "
         f"updated={stats['updated']} already={stats['already']} "
-        f"missing_md={stats['missing_md']} shared={stats['shared']} warning={stats['warning']}"
+        f"missing_md={stats['missing_md']} shared={stats['shared']} warning={stats['warning']} restored={stats['restored']}"
         f"{dry_label}"
     )
 
