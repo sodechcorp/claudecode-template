@@ -6,6 +6,8 @@ Apex デバッグログを取得・解析し、バグの発生箇所・例外内
 
 ## 実行手順
 
+一時ファイル（再現用の匿名 Apex・取得したログ）は `{tmp_dir}`（`docs/logs/{issueID}/.tmp`。[backlog-investigator.md](../../../agents/backlog-investigator.md)「ミッション」）に置く（[tmp-file-rules.md](../../common/tmp-file-rules.md)）。無ければ最初に `mkdir -p "{tmp_dir}"` で作る（`>` での保存はフォルダを作らない）。
+
 ### Step 1: 前提確認
 
 1. Sandbox 接続を確認する:
@@ -19,7 +21,7 @@ Apex デバッグログを取得・解析し、バグの発生箇所・例外内
    ```bash
    sf apex log list --target-org <症状が出た組織の alias> --json
    ```
-   - 課題の発生時刻に近いログがあれば `sf apex log get --log-id <logId> --target-org <同じ alias> > /tmp/apex_debug.log` で取得 → Step 4 の「重要箇所を抽出」から解析する
+   - 課題の発生時刻に近いログがあれば `sf apex log get --log-id <logId> --target-org <同じ alias> > {tmp_dir}/apex_debug.log` で取得 → Step 4 の「重要箇所を抽出」から解析する
    - 関係するログがなければ Step 2 へ。Step 3 の匿名 Apex で再現できない症状・Step 3 の参照先で実行しないもの（未試行とするもの）なら Step 2 以降は行わない（バグは Phase 1.6 が画面で再現する）
 
 ### Step 2: TraceFlag 設定（ログ有効化）
@@ -61,7 +63,7 @@ sf data create record --use-tooling-api --sobject TraceFlag \
 
 課題の操作（investigation.md の「再現条件」）がサーバー側で呼ぶ処理（同じ DML・同じ Apex メソッド）を、Sandbox で匿名 Apex から実行する（実行前の確認と rollback は [backlog-investigator.md](../../../agents/backlog-investigator.md)「調査原則」の「Sandbox のデータは変えずに確かめる」のとおり）。匿名 Apex は接続ユーザーで動き、処理を rollback するため、画面側の処理や操作ユーザーの権限で決まる症状と、レコードトリガーフローの非同期パス・スケジュール済みパス、時間ベースワークフロー・プロセスビルダーのスケジュール済みアクションで起きる症状は再現できない:
 ```bash
-sf apex run --file /tmp/reproduce_bug.apex --target-org <sandbox-alias> --json
+sf apex run --file {tmp_dir}/reproduce_bug.apex --target-org <sandbox-alias> --json
 ```
 
 再現後、すぐに Step 4 へ進む（TraceFlag の有効期限内に取得）。
@@ -73,10 +75,10 @@ sf apex run --file /tmp/reproduce_bug.apex --target-org <sandbox-alias> --json
 sf apex log list --target-org <sandbox-alias> --json
 
 # ログを取得（最新のログIDを指定）
-sf apex log get --log-id <logId> --target-org <sandbox-alias> > /tmp/apex_debug.log
+sf apex log get --log-id <logId> --target-org <sandbox-alias> > {tmp_dir}/apex_debug.log
 
 # 重要箇所を抽出
-grep -E "(FATAL_ERROR|EXCEPTION_THROWN|SOQL_EXECUTE_BEGIN|CODE_UNIT_STARTED|USER_DEBUG|DML_BEGIN|VALIDATION_FAIL)" /tmp/apex_debug.log | head -100
+grep -E "(FATAL_ERROR|EXCEPTION_THROWN|SOQL_EXECUTE_BEGIN|CODE_UNIT_STARTED|USER_DEBUG|DML_BEGIN|VALIDATION_FAIL)" {tmp_dir}/apex_debug.log | head -100
 ```
 
 解析の着眼点:
@@ -131,7 +133,7 @@ investigation.md「根本原因」セクションに追記:
 
 ## 禁止事項
 
-- **本番組織での TraceFlag 設定は禁止**（TraceFlag・DebugLevel のレコードの作成・更新・削除＝本番への書き込みのため）。本番に既に存在するデバッグログの一覧・内容の読み取り（`sf apex list log` / `sf apex get log`）は読み取りのため許可不要で行ってよい
+- **本番組織での TraceFlag 設定は禁止**（TraceFlag・DebugLevel のレコードの作成・更新・削除＝本番への書き込みのため）。本番に既に存在するデバッグログの一覧・内容の読み取り（`sf apex log list` / `sf apex log get`）は読み取りのため許可不要で行ってよい
 - 本番に対する INSERT / UPDATE / DELETE / UPSERT / DML 実行は絶対禁止
 - context 肥大を防ぐため、ログ全文を investigation.md に貼り付けない。抽出した重要行のみを記録する
 
@@ -141,7 +143,7 @@ investigation.md「根本原因」セクションに追記:
 
 ```
 Agent:
-ログファイル /tmp/apex_debug.log を読み、以下の情報を抽出して返してください:
+ログファイル {tmp_dir}/apex_debug.log を読み、以下の情報を抽出して返してください:
 1. EXCEPTION_THROWN / FATAL_ERROR の行（前後3行含む）
 2. CODE_UNIT_STARTED の一覧（クラス名のみ）
 3. SOQL_EXECUTE_BEGIN で 0 行返却のクエリ
