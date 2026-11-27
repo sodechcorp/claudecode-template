@@ -152,7 +152,13 @@ def run_soql(access_token: str, instance_url: str, api_version: str, query: str)
         kwargs["version"] = api_version
     try:
         sf = Salesforce(**kwargs)
-        result = sf.query_all(query)
+        # query_all は totalSize を取れたレコードの数で返し、COUNT() の件数が常に 0 になるため、1ページ目の totalSize を使う
+        result = sf.query(query)
+        total, records = result.get("totalSize"), list(result.get("records", []))
+        while not result.get("done", True):
+            result = sf.query_more(result["nextRecordsUrl"], identifier_is_url=True)
+            records += result.get("records", [])
+        result = {"totalSize": total, "done": True, "records": records}
     except SalesforceError as e:
         raise SystemExit(f"[FATAL] SOQL 実行失敗 (status={e.status}): {e}")
     except requests.exceptions.RequestException as e:
@@ -243,6 +249,43 @@ def write_failure_evidence(out_path: str, query: str, label: str = "", no: str =
 
 # ── queries-file パーサ（test-spec.md の SOQL 行を抽出） ─────────────────────
 
+_SELECT_RE = re.compile(r"(?<![A-Za-z0-9_])SELECT\s", re.IGNORECASE)  # \b は「にSELECT」の日本語の直後に当たらない
+_SOQL_CONT_RE = re.compile(r"(?<![A-Za-z0-9_])(?:AND|OR|WHERE|ORDER\s+BY|GROUP\s+BY|HAVING|LIMIT|OFFSET)\s+[A-Za-z0-9_'(:]",
+                           re.IGNORECASE)
+_PLACEHOLDER_RE = re.compile(r"\{[^{}]+\}")
+
+
+def _extract_soql(action: str) -> str:
+    """実行アクションのセルから SOQL を1文取り出す。SELECT から、文字列リテラル（'…'）の外で最初に出る
+    ` " と ASCII 以外の文字（「を実行」等の文・全角の括弧）の手前までを SOQL とする（バッククォートで囲んだ形・
+    sf data query -q "…" の形・後ろに文が続く形で、閉じの記号や文をクエリに入れない）。
+    残りに別の SELECT 文があるとき・区切りの後ろが SOQL の続き（AND・ORDER BY 等）のときは、1文だけ・条件を削って
+    実行しないよう、従来どおり最初の SELECT からセルの末尾までを返す（実行に失敗し、auto-evidence-runner の
+    「実行できなかった TC の扱い」に回る）。"""
+    m = _SELECT_RE.search(action)
+    if not m:
+        return action
+    i = j = m.start()
+    in_literal = False
+    while j < len(action):
+        c = action[j]
+        if in_literal:
+            if c == "\\":
+                j += 2
+                continue
+            if c == "'":
+                in_literal = False
+        elif c == "'":
+            in_literal = True
+        elif c in "`\"" or ord(c) > 0x7F:
+            break
+        j += 1
+    # 残りに別の SELECT 文がある・区切りの後ろが SOQL の続き（AND・ORDER BY 等）のときは、条件を黙って落とさない
+    if _SELECT_RE.search(action, j) or _SOQL_CONT_RE.search(action, j):
+        return action[i:]
+    return action[i:j].strip().rstrip(";").strip()
+
+
 def parse_queries_from_spec(spec_path: str) -> list:
     """test-spec.md の "No" 列を持つテストケース一覧テーブルから 種別=SOQL の行を抽出する。
     テーブル選択は _common.parse_test_spec に統一する（C-3: 独自実装は最初に見つけた
@@ -261,9 +304,7 @@ def parse_queries_from_spec(spec_path: str) -> list:
         if "SOQL" not in shubetsu_parts:
             continue
         action = row.get("実行アクション", row.get("確認手順", "")).strip()
-        # SELECT から始まる SOQL を抽出
-        m = re.search(r"(SELECT\s.+)", action, re.IGNORECASE)
-        query = m.group(1) if m else action
+        query = _extract_soql(action)
         queries.append({
             "no": row.get("No", "").strip(),
             "label": row.get("観点", row.get("確認観点", "")).strip(),
@@ -283,6 +324,8 @@ def run_one_soql_case(access_token: str, instance_url: str, api_version: str,
     fname = f"{q['no']}_{re.sub(r'[^\w]', '_', q['label'])[:30]}.txt"
     out_path = os.path.join(out_dir, fname)
     try:
+        if _PLACEHOLDER_RE.search(q["query"]):  # テキスト項目の '{…}' は実行が通って0件になるため、実行しない
+            raise SystemExit(f"[FATAL] SOQL 実行失敗: クエリに差し込み値（{_PLACEHOLDER_RE.search(q['query']).group(0)}）が残っている")
         data = run_soql(access_token, instance_url, api_version, q["query"])
         total = to_text_evidence(data, out_path, q["query"], q["label"], q["no"])
         return {"no": q["no"], "label": q["label"], "ok": True,
