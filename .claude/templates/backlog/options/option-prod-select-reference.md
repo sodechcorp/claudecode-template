@@ -15,7 +15,7 @@
    ```bash
    sf data query --query "{SELECT文}" --target-org {prod-alias} --json
    ```
-3. 結果を成果物（investigation.md・test-report.md 等の `docs/logs/{issueID}/` 配下）に要約して記録する。`docs/logs/` は git 管理対象外のため値をそのまま書いてよい。**git 管理のドキュメント（`docs/knowledge/`・`docs/decisions.md`・`docs/logs/changelog.md` 等）へ転記するときは、顧客の個人情報（氏名・メールアドレス・電話番号等）の値は書かず、件数・パターンに置き換える**
+3. 結果を成果物（investigation.md・test-report.md 等の `docs/logs/{issueID}/` 配下）に要約して記録する。`docs/logs/` は git 管理対象外のため値をそのまま書いてよい。**git 管理のドキュメント（`docs/knowledge/`・`docs/decisions.md` 等）へ転記するときは、顧客の個人情報（氏名・メールアドレス・電話番号等）の値は書かず、件数・パターンに置き換える**
 
 ## 出力
 
