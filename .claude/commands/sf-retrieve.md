@@ -71,6 +71,7 @@ bash scripts/sf-retrieve.sh select "ApexClass:MyClass" "Flow:MyFlow" "CustomObje
 | Visualforce ページ | `ApexPage` |
 | フロー | `Flow` |
 | LWC コンポーネント | `LightningComponentBundle` |
+| Aura コンポーネント | `AuraDefinitionBundle` |
 | オブジェクト・項目 | `CustomObject` |
 | カスタム表示ラベル | `CustomLabel` |
 | カスタムメタデータ型 | `CustomMetadata` |

@@ -93,11 +93,12 @@ sf sobject list -s custom
 sf data query -q "SELECT TableEnumOrId, COUNT(Id) cnt FROM CustomField WHERE NamespacePrefix = null GROUP BY TableEnumOrId ORDER BY COUNT(Id) DESC" --use-tooling-api --json
 ```
 
-force-app/ 配下のApex・Flow・LWCを読み込み、SOQL FROM句・DML操作・`@wire` アダプターから**実際に利用されている標準オブジェクト**を抽出する:
+force-app/ 配下のApex・Flow・LWC・Visualforceを読み込み、SOQL FROM句・DML操作・`@wire` アダプター・VF の `standardController` から**実際に利用されている標準オブジェクト**を抽出する:
 
 ```bash
 # force-app/ が存在しない場合は「メタデータ未取得のため Apex 参照調査をスキップ」と出力して次のステップへ進む
 grep -rE "FROM\s+\w+|INSERT\s+\w+|UPDATE\s+\w+|UPSERT\s+\w+|DELETE\s+\w+" force-app/main/default/classes/ | head -100
+grep -rhoiE 'standardController="\w+"' force-app/main/default/pages/ 2>/dev/null | sort | uniq -c
 ```
 
 > **grep ベース検出の制約**: 上記 grep は正規表現マッチのみのため、`Database.query('SELECT ... FROM ...')` のような動的 SOQL や `.getSObjectType().getDescribe()` 等の反射系は拾えない。検出漏れが疑われる場合は、各コンポーネント定義書で `**[要確認]**` を付けてユーザーに確認を促す。
@@ -110,10 +111,10 @@ python scripts/python/sf-lineage/lineage.py objects --standard
 
 **標準オブジェクトを定義書化する基準（いずれか1つ）**:
 - カスタム項目が追加されている
-- force-app/ の Apex / Flow / LWC で直接参照されている
+- force-app/ の Apex / Flow / LWC / Visualforce（`standardController`）で直接参照されている
 - レコード件数 > 0 かつ主要なビジネスデータとして使用されている（Account・Contact・Opportunity・Case・Lead等）
 
-**除外する標準オブジェクト**: システム系（ContentVersion・FeedItem・Group・PermissionSet・ProcessInstance等）でカスタム項目もなくビジネスロジックと直接関係しないもの。ただしApexコードで直接参照している場合は含める。
+**除外する標準オブジェクト**: システム系（ContentVersion・FeedItem・Group・PermissionSet・ProcessInstance等）でカスタム項目もなくビジネスロジックと直接関係しないもの。ただしApexコード・VF の `standardController` で直接参照している場合は含める。
 
 **既存の定義書があるのに上の対象に入らなかったオブジェクト**（差分更新のとき）は、接続先の組織の一覧に無い定義書の名前を次で出して分ける（プロジェクトのルートで実行。一覧は大きいので、比べた結果だけを出す）:
 

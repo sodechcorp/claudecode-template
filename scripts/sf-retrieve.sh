@@ -338,6 +338,7 @@ generate_standard() {
     <types><members>*</members><name>CustomLabel</name></types>
     <types><members>*</members><name>CustomMetadata</name></types>
     <types><members>*</members><name>LightningComponentBundle</name></types>
+    <types><members>*</members><name>AuraDefinitionBundle</name></types>
     <types><members>*</members><name>PermissionSet</name></types>
     <types><members>*</members><name>PermissionSetGroup</name></types>
     <types><members>*</members><name>StaticResource</name></types>
