@@ -11,7 +11,7 @@
    - バッチ処理・バルク処理（大量 DML）
    - 複雑な SOQL（多数の結合・条件）
 
-2. Sandbox でパフォーマンス計測を実施する:
+2. Sandbox でパフォーマンス計測を実施する（Apex のログの取り方は [option-apex-debug-log.md](option-apex-debug-log.md) の Step 1 の 1.（isSandbox の確認）と Step 2〜5 のとおり。Step 1 の 2. の既存ログは変更前の処理のログなので計測値に使わない。TraceFlag・DebugLevel を Tooling API で置き、計測する処理は Tooling API の executeAnonymous で実行し、終わったら TraceFlag を片付ける。`sf apex run` で実行したログはレベルが `APEX_CODE,DEBUG;APEX_PROFILING,INFO` に固定され `SOQL_EXECUTE_BEGIN`・`SOQL_EXECUTE_END` が出ないので、SOQL 1件ごとの行数・時間には使わない〔1 トランザクションの SOQL の総件数・CPU 時間は `LIMIT_USAGE_FOR_NS` に出るので読める〕）:
 
    **Apex 実行時間**:
    - Apex デバッグログで `EXECUTION_FINISHED` の時間を確認する
