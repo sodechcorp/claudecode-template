@@ -1,6 +1,6 @@
 # API名 vs 日本語ラベルの使い分け（全 agent 共通）
 
-> **適用範囲**: `/sf-design` プログラム設計 JSON 生成時の自然言語テキスト項目のみ。`docs/catalog` 等 `/sf-memory` の業務文書は `sf-memory-quality.md §技術識別子禁止の原則`（より厳格・Apex クラス名も禁止）、`/backlog` xlsx・MD 成果物やチャット回答は `templates/backlog/_README.md §人が読む欄の日本語・表示ラベル規約` を参照（適用範囲が異なる）。
+> **適用範囲**: `/sf-design` のプログラム設計（sf-design-writer・sf-screen-writer）・詳細設計（sf-detail-design-writer）の JSON 生成時の自然言語テキスト項目のみ。冒頭の表の「クラス名は API 名でOK」はプログラム設計用で、詳細設計はクラス名・コンポーネント名も書かず、「## 自然言語テキスト項目での禁止事項」と `sf-detail-design-writer/quality-rules.md` に従う。`docs/catalog` 等 `/sf-memory` の業務文書は `sf-memory-quality.md §技術識別子禁止の原則`（より厳格・Apex クラス名も禁止）、`/backlog` xlsx・MD 成果物やチャット回答は `templates/backlog/_README.md §人が読む欄の日本語・表示ラベル規約` を参照（適用範囲が異なる）。
 
 | 記述対象 | 表記ルール | 例 |
 |---|---|---|

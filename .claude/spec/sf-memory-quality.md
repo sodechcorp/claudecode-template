@@ -40,7 +40,7 @@ cat1 は外部公開情報（会社概要・業種・組織規模・拠点数等
 
 ## 技術識別子禁止の原則（業務本文セクション向け）
 
-> **適用範囲**: `/sf-memory` が生成する `docs/catalog` / `docs/design` 等の業務本文のみ（sf-analyst-cat1〜cat6・sf-org-analyst の成果物）。`/sf-design` プログラム設計 JSON は `naming-convention-api-vs-label.md`（Apex クラス名は許容）、`/backlog` 成果物・チャット回答は `templates/backlog/_README.md §人が読む欄の日本語・表示ラベル規約`（コンポーネント名は許容）を参照。本原則は他の2つより厳格（Apex クラス名も禁止）。
+> **適用範囲**: `/sf-memory` が生成する `docs/catalog` / `docs/design` 等の業務本文のみ（sf-analyst-cat1〜cat6・sf-org-analyst の成果物）。`/sf-design` のプログラム設計・詳細設計 JSON は `naming-convention-api-vs-label.md`（プログラム設計は Apex クラス名を許容）、`/backlog` 成果物・チャット回答は `templates/backlog/_README.md §人が読む欄の日本語・表示ラベル規約`（コンポーネント名は許容）を参照。本原則はプログラム設計・`/backlog` より厳格（Apex クラス名も禁止）。
 
 業務担当者向けの自然文（説明文・タイトル・トリガー・備考等）には、
 **プロジェクトに初めて参加した人間が読んで意味が分かる言葉のみ** を書く。

@@ -45,7 +45,7 @@ tools:
 
 ## 品質基準（最重要）
 
-> 詳細ルール（責務記述・API名禁止・flow_label・business_flow の書き方）は Phase 0 で読み込む `quality-rules.md` を参照する。
+> 詳細ルール（責務記述・API名禁止・flow_label・business_flow の書き方）は Phase 0 で読み込む `quality-rules.md`・`naming-convention-api-vs-label.md` を参照する。
 
 ---
 
@@ -86,6 +86,7 @@ python {tmp_dir}/read-feature-groups.py
 **参照リファレンスを読み込む（Phase 0 で1回のみ Read）:**
 ```
 Read: {project_dir}/.claude/templates/sf-detail-design-writer/quality-rules.md
+Read: {project_dir}/.claude/templates/common/naming-convention-api-vs-label.md
 ```
 責務記述・API名禁止・flow_label・business_flow の書き方を把握してから Phase 0.3 へ進む。
 

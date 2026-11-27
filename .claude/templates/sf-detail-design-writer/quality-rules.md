@@ -14,25 +14,7 @@
 
 ## 禁止: API名・メソッド名・拡張子付きファイル名を日本語テキストに混ぜない
 
-> API名 vs 日本語ラベルの使い分け詳細: [.claude/templates/common/naming-convention-api-vs-label.md](../common/naming-convention-api-vs-label.md)
-
-**`business_flow[].action` / `components[].responsibility` / `interfaces[].description` / `screens[].items[].validation` / `processing_purpose` / `data_flow_overview`** など、**すべての自然言語テキスト項目**で以下を禁止する:
-
-- API 名（`ContractApplication__c`・`User_portal__r` 等の `__c` / `__r` 付き識別子）
-- メソッド呼び出し形式（`foo()` / `Controller.bar()` / `Site.login()` 等）
-- ファイル拡張子付き名称（`.page` / `.cls` / `.trigger` / `.flow-meta.xml` / `.cmp` / `.js` / `.html`）
-- コンポーネント API 名の露出（`CustomPasswordResetController` / `ChangePasswordPage` 等の CamelCase 識別子）
-- 「F-XXX」等の内部機能ID
-
-これらはすべて **日本語の業務表現**に置き換える。対応表:
-
-| 技術表現 | 業務表現 |
-|---|---|
-| `CustomPasswordReset.page にアクセス` | 「パスワードリセット画面にアクセスする」 |
-| `ContractApplication__c` | 「契約申込」（オブジェクト名の日本語ラベル） |
-| `PasswordReset() → System.setPassword` | 「新しいパスワードを設定して保存する」 |
-| `Site.validatePassword` | 「パスワードの形式・強度を検証する」 |
-| `CustomSiteLogin の customSiteLogin() が契約区分に応じて URL 組立` | 「契約区分に応じた遷移先画面を組み立ててログインする」 |
+> 禁止する表記と業務表現への置き換えは、Phase 0 で Read する正本 [.claude/templates/common/naming-convention-api-vs-label.md](../common/naming-convention-api-vs-label.md) の「## 自然言語テキスト項目での禁止事項」に従う（本ファイルでは再掲しない）。
 
 ## 禁止: `business_flow[].actor` にコンポーネント名を書かない
 
