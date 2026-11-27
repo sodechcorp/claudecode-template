@@ -42,7 +42,7 @@
 
 ### Step 0a: SFコンテキスト読込（sf-context-loader 経由）
 
-`sf-context-loader` を呼び出して関連コンテキストを取得する。
+呼び出し仕様の「ダイジェスト優先」に従い、`context-digest.md` が無いか足りないときだけ `sf-context-loader` を呼び出して関連コンテキストを取得する。
 
 > 共通手順: [.claude/templates/common/sf-context-load-phase0.md](../common/sf-context-load-phase0.md)
 
