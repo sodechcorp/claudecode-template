@@ -13,13 +13,9 @@ tools:
   - WebSearch
   - WebFetch
   - mcp__backlog__get_issue
-  - mcp__backlog__get_issues
-  - mcp__backlog__get_project
   - mcp__backlog__get_issue_comments
   - mcp__backlog__get_issue_attachment
   - mcp__support_desk__get_issue
-  - mcp__support_desk__get_issues
-  - mcp__support_desk__get_customers
   - mcp__support_desk__get_issue_comments
   - mcp__support_desk__get_issue_attachment
 ---
@@ -121,7 +117,6 @@ tools:
 3. **通常フロー（「ミッション」節以降）に従い、Backlog MCP を使う箇所だけ次のとおり置き換える**:
    - 課題本文・コメント（課題の先行取得・Step A の手順1-2）: `課題本文手動入力:` の内容を使う。コメントの投稿者・日時が貼り付けテキストから判別できない場合は「投稿者/日時: 貼り付けテキストから判別不可」と明記する
    - 添付（Step A-2 の 1）: 一覧・中身とも取得不可。investigation.md「周辺情報」の添付ファイル表に「取得不可（MCP 障害復旧モードのため手動入力で代替）」と記録し、貼り付けテキスト内に添付・スクショへの言及があれば共有依頼候補として扱う
-   - 内部メモ用プロジェクト参照（Step A）: プロジェクトキーが定義されていれば、リンク/URL 表に「{キー} の対応する内部課題（あれば本文・コメント）」の行を作り、種別を `Backlog 課題`、取得結果を「取得不可（MCP 障害復旧モード）」、材料性を `あり`、共有依頼列を `要` にする
    - 本文・コメントが課題キーで参照している別の課題（Step A-2 の Backlog の課題 URL を含む）: リンク/URL 表に行を作り、種別を `Backlog 課題`、取得結果を「取得不可（MCP 障害復旧モード）」にして、Step A-2 の 3 で材料性を判定する
    - そのほかの Backlog MCP の呼び出し（コメントの再取得・option-related-issue-search・option-similar-past-issue）: 行わない。スキップの記録には理由「MCP 障害復旧モード」を書く
 
@@ -230,8 +225,6 @@ Step 0b のオプション判定は Step 0a の後に実施する。
 - **問い合わせ**: 技術的な質問・仕様確認・回答のみで完結し、コード変更を伴わない課題。成果物は「顧客/業務担当への回答文面」。判定根拠を1〜2行で説明する（「その他」との違い: その他＝調査依頼/設定変更/判定不能でコード変更の可能性が残る、問い合わせ＝回答文面が最終成果物でコード変更なしと判定できる）
 
 → investigation.md「種別」欄に必ず記入する（Step F および /backlog Phase 2 以降で利用。問い合わせの場合は Phase 2 で回答ドラフト生成に使われ、Phase 3 以降はスキップされる）
-
-**内部メモ用プロジェクト参照**: `{project_dir}/CLAUDE.md` に内部メモ用 Backlog プロジェクトキーが定義されている場合は、本課題に対応する内部課題を確認する（option-related-issue-search の Step 5 参照）。内部課題のコメントには確定スコープ・背景メモが整理されていることがある。
 
 ### Step A-2: 周辺情報の完全収集（添付・リンク・スクショ）
 

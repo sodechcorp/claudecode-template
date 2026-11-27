@@ -116,15 +116,13 @@ options:
     default-when-uncertain: skip
 
   - name: option-related-issue-search
-    description: 関連 Backlog 過去課題の履歴検索（mcp__backlog__get_issues / get_issue_comments）
-    category: D
+    description: 参照されている別の課題の本文・全コメントを読む（mcp__backlog__get_issue / get_issue_comments）
+    category: C
     auto-execute-when:
-      - 課題に「以前にも発生」「過去に類似」「再発」等の言及あり
-      - 同一機能・同一画面で過去に課題があった可能性が高い
       - 課題本文・コメント・ローカル `docs/decisions.md` 等で別の課題ID（枝番・関連課題・派生課題）が参照されている（例: 「GF-347 で確定」「GF-338 で対応予定」等）
+      - Step B 以降（設計書・コード）で方針に関わる別の課題ID の参照を見つけた（Step 0b でスキップしていても、その時点で実行し、採用したオプションの欄に移す）
     auto-skip-when:
-      - 完全新規機能の追加要望
-      - 設定変更のみでロジック関与なし
+      - 別の課題ID の参照がない
     estimated-cost: 中
 
   - name: option-git-blame-history
