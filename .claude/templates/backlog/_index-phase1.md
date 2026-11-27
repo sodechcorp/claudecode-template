@@ -55,7 +55,7 @@ options:
     estimated-cost: 中
 
   - name: option-similar-impl-search
-    description: 類似実装パターンを force-app/ から全件探索して読む
+    description: 類似実装パターンを force-app/ から全件探し、呼び出し側の上限まで読む（Phase 3 backlog-planner は優先度順に最大3件）
     category: B
     auto-execute-when:
       - 種別が追加要望
