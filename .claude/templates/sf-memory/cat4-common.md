@@ -11,7 +11,7 @@
 
 **テンプレート置換ルール（厳守）:** [共通ルール参照](.claude/CLAUDE.md#テンプレート置換ルール厳守)
 
-**マーカー規約:** [共通ルール参照](.claude/CLAUDE.md#マーカー規約sf-memory-全カテゴリ共通)
+**マーカー規約:** [共通ルール参照](.claude/spec/sf-memory-quality.md#マーカー規約)
 
 ---
 
