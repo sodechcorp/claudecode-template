@@ -6,6 +6,8 @@
 
 ## 実行手順
 
+前提: `force-app/` が Git 管理対象であること（`git check-ignore -q force-app/` の終了コードが 1）。0（`.gitignore` 対象。テンプレート既定の構成）・128（Git リポジトリでない）なら行わず、Step 0b の判定が採用でも implementation-plan.md の「### スキップしたオプション」に「force-app が Git 管理対象外」と書く（「### 採用したオプション」・段階コミット一覧には書かない）。
+
 1. 実装計画（implementation-plan.md）の変更内容を論理的な単位に分割する:
    - 「オブジェクト定義（フィールド追加）」
    - 「Apex クラスの実装」
@@ -14,9 +16,9 @@
    - 「docs/ 更新」
 2. 各単位ごとにコミットする:
    ```bash
-   git add {対象ファイル}
-   git commit -m "feat({issueID}): {変更の内容を簡潔に}"
+   git add {対象ファイル} && git commit -m "feat({issueID}): {変更の内容を簡潔に}" && git rev-parse --short HEAD
    ```
+   - ハッシュが出た単位だけ一覧に書く。出なかった単位は `git reset -q -- {対象ファイル}` でステージを戻し、コミットせずに次へ進む（`git add` は .gitignore 対象のファイルを含むと、ほかのファイルをステージしたまま失敗し、戻さないと次の単位のコミットに混ざる。`git restore --staged` はその対象のパスで全体が失敗する）
 3. コミット粒度の目安:
    - 1 コミット = 1 ファイルまたは密接に関連する 2〜3 ファイル
    - 「これを単独で revert したい」と思える粒度
@@ -26,7 +28,7 @@
 
 ## 出力
 
-コミット後に実施したコミット一覧を implementation-plan.md に追記:
+コミット後に実施したコミット一覧を implementation-plan.md に追記する（表の列の順〔# / コミットハッシュ / 内容〕は [deploy-manifest-base.md](../_partials/deploy-manifest-base.md) が位置で読み、先頭行の2列目を base に使う。列を変えるときは同ファイルも直す）:
 
 ## 段階コミット一覧
 
