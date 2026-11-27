@@ -37,7 +37,7 @@
 
 ## 自動化（このオブジェクトに関連するApex/Flow）
 （どのApexクラス・Flow・トリガーがこのオブジェクトを操作するか。
-  組織の地図があれば、`python scripts/python/sf-lineage/lineage.py save <オブジェクト名>` で保存で動くもの（入力規則・トリガー・レコードトリガーフロー〔保存前／保存後・順番〕・ワークフロー・重複ルール）・別オブジェクトへの波及・✉（メール送信）⇄（外部呼び出し・イベント発行）⏱（非同期）の印を引き、この節の候補にする。承認プロセスから動く項目自動更新は保存では動かないので分けて書く。ソースで確かめてから書く（[option-lineage-map.md](../backlog/options/option-lineage-map.md)）。地図が無ければ従来どおり）
+  組織の地図があれば、`python scripts/python/sf-lineage/lineage.py save <オブジェクト名>` で保存で動くもの（入力規則・トリガー・レコードトリガーフロー〔保存前／保存後・順番〕・ワークフロー・重複ルール）・別オブジェクトへの波及・✉（メール送信）⇄（外部呼び出し・イベント発行）⏱（非同期）の印を引き、この節の候補にする。承認プロセスから動く項目自動更新は保存では動かないので分けて書く。ソースで確かめてから書く（[option-lineage-map.md](../backlog/options/option-lineage-map.md)）。地図が無ければ sf-analyst-cat2 Phase 2「自動化」の取得だけで書く）
 
 ## 権限マトリクス
 （ObjectPermissions を取得していない場合は `**[要確認]**` を使わず、以下の定型注記のみ記載する）
@@ -49,7 +49,7 @@
 
 ## cross-reference の記載（重要）
 
-「このオブジェクトがどのUCで使われるか」「どのApex/FlowがSOQL/DMLで操作するか」を必ず記載する。情報がない場合は `**[要確認]**` を入れる。
+「このオブジェクトがどのUCで使われるか」「どのApex/FlowがSOQL/DMLで操作するか」を必ず記載する。情報がない場合は `**[要確認]**` を入れる（操作する Apex/Flow は sf-analyst-cat2 Phase 2「自動化」の書き方に従う）。
 
 組織の地図があれば、`python scripts/python/sf-lineage/lineage.py who <オブジェクト名>` で「この対象に書き込む部品」「処理」区分（SOQL・DML・保存で動く Apex・フローと、その呼び出し元）を引き、操作する Apex/Flow の候補にする。地図は候補なので、`.lineage/refs.jsonl` の file・line でソースを確かめてから記載する（[option-lineage-map.md](../backlog/options/option-lineage-map.md)）。
 
