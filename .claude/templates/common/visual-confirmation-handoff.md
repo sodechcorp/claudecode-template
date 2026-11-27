@@ -16,7 +16,7 @@ INSTANCE_URL=$(sf org display --target-org "$SF_ALIAS" --json | python -c "impor
 
 **`instanceUrl` は accessToken を含まない組織ドメインのみの値**（例: `https://xxxxx--sandboxname.sandbox.my.salesforce.com`）。チャット・test-report.md・created_records.txt 等の成果物に出力してよい。
 
-**厳禁**: `FRONTDOOR_URL`（`sf org open --url-only` が返す accessToken 込みのワンタイムURL）は `playwright-sf-screen-ops.md` の規約により証跡・ログ・return値・チャット出力のいずれにも絶対に出力しない。目視ハンドオフ用のリンクは必ず `instanceUrl` ベースの素のURLを使う。
+**厳禁**: `FRONTDOOR_URL`（`sf org open --url-only` が返す、ログイン用の値を含む1回限りの URL）は `playwright-sf-screen-ops.md` の規約により証跡・ログ・return値・チャット出力のいずれにも絶対に出力しない。目視ハンドオフ用のリンクは必ず `instanceUrl` ベースの素のURLを使う。
 
 ---
 

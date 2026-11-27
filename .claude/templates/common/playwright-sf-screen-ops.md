@@ -35,7 +35,7 @@ Salesforce Setup 配下（`/_ui/`・`/lightning/setup/` 等）の URL は、**�
 
 **前提**: 対象エイリアスが sf CLI に有効な状態で認証済みであること。未確認の場合は `sandbox-alias-check.md` の「認証状態の確認」を先に実施する（未認証・期限切れのまま実行すると本コマンドが失敗する）。
 
-**1件目の遷移先（相対パス）が判明している場合（推奨）**: `--path` に渡すと `FRONTDOOR_URL` の `retURL` にその画面が埋め込まれ、ログイン直後に対象画面へ直接着地する（`--path` 省略時は既定の Lightning ホームに着地してから別途アプリ内遷移が必要になり、その分の画面読み込みが毎回無駄になる）。
+**1件目の遷移先（相対パス）が判明している場合（推奨）**: `--path` に渡すと `FRONTDOOR_URL` の `startURL` にその画面が埋め込まれ、ログイン直後に対象画面へ直接着地する（`--path` 省略時は既定の Lightning ホームに着地してから別途アプリ内遷移が必要になり、その分の画面読み込みが毎回無駄になる）。
 
 ```bash
 MSYS_NO_PATHCONV=1 sf org open --target-org "$SF_ALIAS" --url-only --json --path "{1件目の対象画面の相対パス}"
@@ -51,23 +51,37 @@ sf org open --target-org "$SF_ALIAS" --url-only --json
 
 JSON の `result.url` を `FRONTDOOR_URL` として取得する。`--path` 指定時は `page.goto(FRONTDOOR_URL)` の1回で1件目の対象画面まで到達するため、直後に続けていた個別ナビゲーションは不要になる。
 
+**取得したらすぐ開く（必須）**: `FRONTDOOR_URL`（`/secur/frontdoor.jsp?otp=…&startURL=…`）は、取得してから1分の間に1回だけ開ける（Salesforce ヘルプ「Generate a Frontdoor URL to Bridge into UI Sessions」。もう一度 `sf org open` を実行すると、同じ URL がまた1回開けるようになる〔greenfield の Sandbox で実測〕）。使用済み・期限切れの URL を Cookie の無いコンテキストで開くと、ログイン画面（`/?ec=301&startURL=…`）に着く。取得と開く操作の間にほかの工程（データの準備・長いコードブロックの組み立て）を挟まず、取得した直後に下のログイン用のコードブロックだけを実行する（`browser_navigate` で開く場合〔`prod-ui-verifier`〕は取得した直後に開き、次のコードブロックの冒頭で下の `frontdoorFailure` を定義して呼ぶ）。以後の画面操作はログインした `page` のセッションで続け、対象画面のコードブロックには `FRONTDOOR_URL` を入れない（開き直さない・別のコンテキストで開かない）。
+
 Playwright の最初の操作が `Browser is already in use … use --isolated` で失敗したら、同じ案件の別のセッション（または残った前回のブラウザ）が Playwright のプロファイルを使っている（`.mcp.json` の playwright に `--isolated` が無い）。下の着地の確認でログインできなかったときと同じ扱いで、理由を「`/setup-mcp` で playwright を設定し直し（`--isolated` が付く）、Claude Code を再起動する」にして返す。
 
-**着地の確認（必須）**: `FRONTDOOR_URL` を開いたら、最初の撮影・操作の前に `frontdoorFailure(page)` を呼ぶ（`browser_navigate` で開いたときは次のコードブロックの冒頭で呼ぶ）。`page.goto` は frontdoor のリダイレクト（`/secur/frontdoor.jsp` → `/secur/contentDoor`）の途中で戻り、`waitSfReady` の後もまだ着地していないことがあるため、`page.url()` をそのまま見ない。理由が返ったらログインできていない。その画面を対象画面として撮影・判定・入力せず、画面操作をやめて理由を呼び出し元に返す。パスワード変更画面なら「{alias} の接続ユーザーのパスワード変更が要る（担当者が Salesforce にログインして変更する）」と伝える（同じセッションでほかの画面を開いてもパスワード変更画面に戻される。パスワードは Claude が変更しない）。
+**着地の確認（必須）**: `FRONTDOOR_URL` を開いたら、最初の撮影・操作の前に `frontdoorFailure(page)` を呼ぶ（`browser_navigate` で開いたときは次のコードブロックの冒頭で呼ぶ）。`page.goto` は frontdoor のリダイレクト（`/secur/frontdoor.jsp` → `/secur/contentDoor`）の途中で戻り、`waitSfReady` の後もまだ着地していないことがあるため、`page.url()` をそのまま見ない。理由が返ったらログインできていない。理由が `ログイン画面に着地（ec=301）` なら URL が使用済みか期限切れ（同じ接続ユーザーで並行する別のセッションが先に開いた場合を含む）なので、取得し直して1回だけ開き直す。それでも返る・ほかの理由のときは、その画面を対象画面として撮影・判定・入力せず、画面操作をやめて理由を呼び出し元に返す。パスワード変更画面なら「{alias} の接続ユーザーのパスワード変更が要る（担当者が Salesforce にログインして変更する）」と伝える（同じセッションでほかの画面を開いてもパスワード変更画面に戻される。パスワードは Claude が変更しない）。ログイン画面へ戻されたこと（ログインできていない・途中でセッションが切れた）は、URL のクエリの `ec` で見分ける（内部の画面は `/?ec=302&startURL=…`、Experience Cloud は `/s/login/?ec=302&startURL=…` に着く。URL が `login` を含むかでは見分けない: 内部のログイン画面に当たらず、`/lightning/setup/LoginAccessPolicies/home` などの設定画面に当たる）。
 
 ```javascript
-async function frontdoorFailure(p) {
-  // frontdoor のリダイレクトを抜けるまで待ってから着地先を見る。ログイン後の画面なら null
-  const landed = await p.waitForURL(u => !/^\/secur\/(frontdoor\.jsp|contentDoor)/.test(u.pathname), { timeout: 15000, waitUntil: 'commit' }).then(() => true, () => false);
-  const u = new URL(p.url());
-  if (!landed) return `frontdoor のリダイレクトが終わらない（${u.pathname}）`;
-  if (u.pathname.startsWith('/_ui/system/security/ChangePassword')) return 'パスワード変更画面に着地（接続ユーザーのパスワードの期限切れ）';
-  if (u.pathname === '/' && u.searchParams.has('ec')) return 'ログイン画面に着地（frontdoor の URL でログインできなかった）';
-  return null;
+// ログイン用のコードブロック（FRONTDOOR_URL を取得した直後に、これだけを実行する）
+async (page) => {
+  async function frontdoorFailure(p) {
+    // frontdoor のリダイレクトを抜けるまで待ってから着地先を見る。ログイン後の画面なら null
+    const landed = await p.waitForURL(u => !/^\/secur\/(frontdoor\.jsp|contentDoor)/.test(u.pathname), { timeout: 15000, waitUntil: 'commit' }).then(() => true, () => false);
+    const u = new URL(p.url());
+    if (!landed) return `frontdoor のリダイレクトが終わらない（${u.pathname}）`;
+    if (u.pathname.startsWith('/_ui/system/security/ChangePassword')) return 'パスワード変更画面に着地（接続ユーザーのパスワードの期限切れ）';
+    if (u.searchParams.has('ec')) return `ログイン画面に着地（ec=${u.searchParams.get('ec')}）`;
+    return null;
+  }
+  async function waitSfReady(p) {
+    await p.waitForLoadState('domcontentloaded');
+    await p.locator('.slds-spinner, lightning-spinner').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+  }
+  page.setDefaultTimeout(15000);
+  await page.goto('FRONTDOOR_URL_HERE'); // 取得した値を埋め込む
+  const fdFail = await frontdoorFailure(page);
+  if (!fdFail) await waitSfReady(page); // 着地した画面の表示完了まで待ってから返す
+  return JSON.stringify({ frontdoorFailure: fdFail }); // null ならログインできている
 }
 ```
 
-**セキュリティ（必須）**: accessToken（FRONTDOOR_URL に含まれる）は以下に絶対に出力しない:
+**セキュリティ（必須）**: `FRONTDOOR_URL`（ログイン用の値を含む）と accessToken は以下に絶対に出力しない:
 - Write するファイル（証跡・ログ・レポート）
 - コードブロックの return 値
 - `browser_run_code_unsafe` の引数文字列（変数として展開した値をコードブロック文字列に埋め込む）
@@ -251,12 +265,12 @@ async (page) => {
     const u = new URL(p.url());
     if (!landed) return `frontdoor のリダイレクトが終わらない（${u.pathname}）`;
     if (u.pathname.startsWith('/_ui/system/security/ChangePassword')) return 'パスワード変更画面に着地（接続ユーザーのパスワードの期限切れ）';
-    if (u.pathname === '/' && u.searchParams.has('ec')) return 'ログイン画面に着地（frontdoor の URL でログインできなかった）';
+    if (u.searchParams.has('ec')) return `ログイン画面に着地（ec=${u.searchParams.get('ec')}）`;
     return null;
   }
-  // 画面に遷移（1件目かつ --path 指定済みなら FRONTDOOR_URL 自体が対象画面。それ以外は対象URLへ直接遷移）
+  // 画面に遷移（ログイン用のコードブロックの --path で着地済みの1件目は不要）
   await page.goto('{対象URL}');
-  // FRONTDOOR_URL を開いたときは着地を確かめ、ログインできていなければ撮影せずに返す
+  // ログイン画面に戻されていれば（セッション切れ）撮影せずに返す
   const fdFail = await frontdoorFailure(page);
   if (fdFail) return JSON.stringify({ ok: false, frontdoorFailure: fdFail });
   await waitSfReady(page);
@@ -495,7 +509,7 @@ async (page) => {
   function looksLikeLoginAsFailure(text, url) {
     const failMarkers = ['このページを表示する権限がありません', 'insufficient privileges', 'Invalid Session', 'ページが見つかりません', 'INVALID_SESSION_ID'];
     if (failMarkers.some(m => text.includes(m))) return true;
-    if (/\/login\.jsp/.test(url)) return true; // ログイン画面に戻された＝失敗
+    if (new URL(url).searchParams.has('ec')) return true; // ログイン画面に戻された＝失敗
     return false;
   }
   async function getPageText(page) {
@@ -770,14 +784,13 @@ async (page) => {
 
 ### 仕組み
 
-`page.context().browser().newContext()` で TC ごとに独立したブラウザコンテキストを作成する。frontdoor 認証は最初に1回だけ行い、その `storageState`（Cookie 等の認証状態）を全コンテキストの生成時（`newContext({storageState})`）に渡して使い回すことで、TC ごとの frontdoor 再ログインを回避する（各コンテキストは対象 URL へ直接遷移）。`max_workers_ui`（デフォルト3）件ずつ `Promise.all` でチャンク処理する。
+`page.context().browser().newContext()` で TC ごとに独立したブラウザコンテキストを作成する。ログイン済みの `page`（「frontdoor 認証」のログイン用のコードブロックを実行済み）の `storageState`（Cookie 等の認証状態）を全コンテキストの生成時（`newContext({storageState})`）に渡して使い回す（`FRONTDOOR_URL` は1回しか開けないため、コンテキストごとには開かない。各コンテキストは対象 URL へ直接遷移）。`max_workers_ui`（デフォルト3）件ずつ `Promise.all` でチャンク処理する。
 
 ### 骨格コード
 
 ```javascript
 async (page) => {
   const MAX_WORKERS = 3; // max_workers_ui を展開
-  const FRONTDOOR = 'FRONTDOOR_URL_HERE'; // 変数展開で埋め込む（accessToken は直書き禁止）
   const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
     '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
     'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
@@ -831,16 +844,6 @@ async (page) => {
     }
   }
 
-  async function frontdoorFailure(p) {
-    // 着地の確認（「frontdoor 認証」節参照）
-    const landed = await p.waitForURL(u => !/^\/secur\/(frontdoor\.jsp|contentDoor)/.test(u.pathname), { timeout: 15000, waitUntil: 'commit' }).then(() => true, () => false);
-    const u = new URL(p.url());
-    if (!landed) return `frontdoor のリダイレクトが終わらない（${u.pathname}）`;
-    if (u.pathname.startsWith('/_ui/system/security/ChangePassword')) return 'パスワード変更画面に着地（接続ユーザーのパスワードの期限切れ）';
-    if (u.pathname === '/' && u.searchParams.has('ec')) return 'ログイン画面に着地（frontdoor の URL でログインできなかった）';
-    return null;
-  }
-
   // 並列可 TC のリスト（エージェントが TC 分だけ定義する）
   // 【before 採取の設計方針】並列可＝グループ①（読み取り専用）は before≒after（同じ画面）となり
   // 「修正前も同じ内容だった」と誤読させる証跡になるため before は採取しない（after のみ）
@@ -850,19 +853,8 @@ async (page) => {
     // ... TC 数だけ追加
   ];
 
-  // 0. frontdoor 認証を1回だけ確立し storageState（Cookie 等）を取得（以降の全コンテキストで使い回す）
-  const bootCtx = await page.context().browser().newContext();
-  const bootPage = await bootCtx.newPage();
-  bootPage.setDefaultTimeout(15000);
-  await bootPage.goto(FRONTDOOR);
-  const fdFail = await frontdoorFailure(bootPage);
-  if (fdFail) { // ログインできていない: どの TC も撮らずに返す
-    await bootCtx.close();
-    return JSON.stringify(tasks.map(t => ({ no: t.no, ok: false, error: fdFail })));
-  }
-  await waitSfReady(bootPage);
-  const authState = await bootCtx.storageState();
-  await bootCtx.close();
+  // 0. ログイン済みの page の storageState（Cookie 等）を取る（以降の全コンテキストで使い回す。return・ファイルには出さない）
+  const authState = await page.context().storageState();
 
   const results = [];
   // MAX_WORKERS 件ずつチャンク処理
@@ -871,20 +863,13 @@ async (page) => {
     const chunkResults = await Promise.all(chunk.map(async (t) => {
       let ctx;
       try {
-        ctx = await page.context().browser().newContext({ storageState: authState }); // frontdoor 再ログイン不要（Cookie 引き継ぎ）
+        ctx = await page.context().browser().newContext({ storageState: authState }); // コンテキストごとのログインは不要（Cookie 引き継ぎ）
         const p = await ctx.newPage();
         p.setDefaultTimeout(15000);
         await p.goto(t.url);
         await waitSfReady(p);
-        if (/\/(secur\/login|login)/i.test(p.url())) {
-          // storageState のセッションが無効だった場合のみ frontdoor で個別ログイン（フォールバック）
-          await p.goto(FRONTDOOR);
-          const fdFail2 = await frontdoorFailure(p);
-          if (fdFail2) return { no: t.no, ok: false, error: fdFail2 };
-          await waitSfReady(p);
-          await p.goto(t.url);
-          await waitSfReady(p);
-        }
+        // ログイン画面に戻された（セッションが無効）ら撮らずに返す（URL のクエリの ec で見分ける。「frontdoor 認証」節参照）
+        if (new URL(p.url()).searchParams.has('ec')) return { no: t.no, ok: false, error: 'セッション失効(ログイン画面へ遷移)' };
         // ケース固有操作があればここに挿入
         // after 撮影（fullPage: true）+ after DOM 取得（グループ①は before を採取しない）
         await p.screenshot({ path: t.afterPath, fullPage: true, animations: 'disabled', scale: 'css' });
@@ -914,9 +899,9 @@ async (page) => {
 
 `page.context().browser().newContext()` が Playwright MCP の制約で使えない場合は、単一セッションの逐次処理に自動フォールバックする。その場合でも Tier 1（`waitSfReady`）と Tier 2（Login As バッチ化）の高速化は有効。
 
-### accessToken 秘匿（並列時も同じ規約）
+### 認証情報の秘匿（並列時も同じ規約）
 
-`FRONTDOOR_URL` は変数として展開した値をコードブロック文字列に埋め込む。return 値・ファイル・ログに含めない。複数コンテキストに渡す場合も同様。
+`authState`（セッションの Cookie を含む）は return 値・ファイル・ログに含めない。並列のコードブロックに `FRONTDOOR_URL` は入れない。
 
 ---
 
@@ -946,7 +931,7 @@ mcp__playwright__browser_network_requests
 
 ## セキュリティ規約（全操作共通・必須）
 
-- **FRONTDOOR_URL（accessToken 含む）をコードブロック引数に直書きしない**（エージェント変数として展開した値を文字列に埋め込む）
+- **FRONTDOOR_URL（ログイン用の値を含む）をコードブロック引数に直書きしない**（エージェント変数として展開した値を文字列に埋め込む。入れるのは「frontdoor 認証」のログイン用のコードブロックだけ）
 - `browser_run_code_unsafe` は RCE 相当のため **Sandbox セッション、または本番 UI 確認（read-only）モード〔`prod-ui-verifier`〕に限る**。本番で書いてよいのは、閲覧・スクリーンショット・DOM 取得・Login As（本人確認とプロキシ解除を含む）と、新規・編集画面の中の入力（`.fill`・`.selectOption`・`.check`）、新規・編集・キャンセルのクリックだけ。本番で書いてはいけないもの: 保存・削除・承認・送信・画面フローの次へ／完了などの確定操作のボタンの `click`、`.press('Enter')`、`setInputFiles`、`fetch` 等による API 呼び出し。Enter の唯一の例外は Login As フォールバックの ManageUsers 検索欄（`searchBox.fill` と Enter）のみ。範囲の正本: [prod-readonly-check.md](prod-readonly-check.md)「本番 UI 確認（read-only）」
 - **Playwright MCP は操作のたびに `.playwright-mcp/` へページ全文のスナップショット・コンソールログ・ダウンロードの複製を自動保存する**（エージェントの証跡ルールの外）。本番の画面では実顧客のデータが残るため、本番モードでは終了時に開始時刻以降のファイルを削除する（`prod-ui-verifier` Step 4）。`.playwright-mcp/` は `.gitignore` で追跡対象外にしている
 - accessToken はいかなる形でもファイル・ログ・証跡・return 値に出力しない

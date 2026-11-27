@@ -77,16 +77,15 @@ Sandbox 確認は呼び出し元（テスト証跡モード: `auto-evidence-runn
    mkdir -p "{evidence_dir}/before"
    ```
 
-2. **frontdoor 認証**: `{target_screens}` の1件目（`target_screens[0]`）の `nav_hint` が `/` で始まる相対パスの場合、`playwright-sf-screen-ops.md`「frontdoor 認証」の `--path` 指定形式に従い、その値を `--path` に渡して `FRONTDOOR_URL` を取得する（ログイン直後に1件目の対象画面へ直接着地する）。1件目の `nav_hint` が `/` で始まらない（クリック手順）場合は `--path` を省略した通常形式で取得する。
+2. **frontdoor 認証**: `{target_screens}` の1件目（`target_screens[0]`）の `nav_hint` が `/` で始まる相対パスの場合、`playwright-sf-screen-ops.md`「frontdoor 認証」の `--path` 指定形式に従い、その値を `--path` に渡して `FRONTDOOR_URL` を取得する（ログイン直後に1件目の対象画面へ直接着地する）。1件目の `nav_hint` が `/` で始まらない（クリック手順）場合は `--path` を省略した通常形式で取得する。取得したらすぐ同節のログイン用のコードブロックで開き、着地を確かめる。ログインできていなければどの画面も撮らず、全画面をスキップ（備考 `ログイン未完了（{理由}）`）として返す。
 
 3. **各 target_screen を順次撮影**（`{target_screens}` リストを順番に処理）:
 
    `{target_screens}` が空の場合はこの手順をスキップし、`Before 撮影完了: 0 画面` として返却する（4. でブラウザを終了する）。
 
-   各画面について（`playwright-sf-screen-ops.md`「DOM 本文取得（getPageText）」「DOM テキストの直接保存（saveText）」「高速待機（networkidle 禁止）」「確認対象要素への赤枠注入」「frontdoor 認証」で定義済みの `getPageText`/`saveText`/`ERROR_SIGNATURES`/`waitSfReady`/`highlightTarget`/`clearHighlight`/`frontdoorFailure` をコードブロック内にインラインで定義して使う。テスト証跡モードとは独立した実行なので、この節だけで完結するコードブロックを組む）、**画面ごとに `try/catch` で囲み、1画面の失敗が後続画面の撮影を止めないようにする**:
-   - **着地の確認**: 1件目の `page.goto(FRONTDOOR_URL)` の直後に `frontdoorFailure(page)` を呼ぶ。ログインできていなければどの画面も撮らず、全画面をスキップ（備考 `ログイン未完了（{理由}）`）として返す。
-   - **1件目かつ手順2で `--path` を指定した場合**: `page.goto(FRONTDOOR_URL)` の時点で既に対象画面に到達しているため、追加のアプリ内遷移は行わず `waitSfReady(page)` で表示完了を待つのみとする。
-   - **上記以外（1件目で `--path` 未指定、または2件目以降）**: `nav_hint` に従って遷移する（1件目のみ `page.goto(FRONTDOOR_URL)` でログイン、以降はアプリ内遷移）。`getByText` / `getByRole` / URL 直指定で遷移し、`waitSfReady(page)` で表示完了を待つ。
+   各画面について（`playwright-sf-screen-ops.md`「DOM 本文取得（getPageText）」「DOM テキストの直接保存（saveText）」「高速待機（networkidle 禁止）」「確認対象要素への赤枠注入」で定義済みの `getPageText`/`saveText`/`ERROR_SIGNATURES`/`waitSfReady`/`highlightTarget`/`clearHighlight` をコードブロック内にインラインで定義して使う。テスト証跡モードとは独立した実行なので、この節だけで完結するコードブロックを組む）、**画面ごとに `try/catch` で囲み、1画面の失敗が後続画面の撮影を止めないようにする**:
+   - **1件目かつ手順2で `--path` を指定した場合**: 手順2のログインで既に対象画面に到達しているため、追加のアプリ内遷移は行わず `waitSfReady(page)` で表示完了を待つのみとする。
+   - **上記以外（1件目で `--path` 未指定、または2件目以降）**: `nav_hint` に従って遷移する（ログインは手順2で済んでいる）。`getByText` / `getByRole` / URL 直指定で遷移し、`waitSfReady(page)` で表示完了を待つ。
    - 遷移パスが特定できない・遷移後に画面が一致しない場合は**スキップ**し「遷移パス特定不可（{name}）」を返却テキストに記録する（ユーザー依頼はしない）。
    - `target_label` が指定されていれば `highlightTarget` で赤枠注入後に撮影し、`clearHighlight` で解除する。`target_label` 未指定、または解決失敗で枠なし撮影した場合は `highlighted: false` を明示する（下流で実績を誤認させないため。テスト証跡モードの `highlighted` と同じ扱い）。
    - スクショ（fullPage: true）: `await page.screenshot({path: '{evidence_dir}/before/{issueID}_{name_sanitized}_before.png', fullPage: true, animations: 'disabled', scale: 'css'})`
@@ -164,9 +163,9 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
 
 ---
 
-## Step 1.5: 認証 URL 取得
+## Step 1.5: frontdoor 認証（ログイン）
 
-`playwright-sf-screen-ops.md` の「frontdoor 認証」に従い `FRONTDOOR_URL` を取得する（alias は `{alias}` を使う）。`FRONTDOOR_URL` を開いたとき（Step 2A の `bootPage`・Step 2B の1件目・Step 3 の初回ログイン）は同節の着地の確認を行う。ログインできていなければ、残りの画面操作（ほかのグループ・Login As を含む）を行わず、まだ撮っていない UI TC ごとに `{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt` を `printf '%s\n' '判定: 未確認 — 画面にログインできず（{理由}）、結果を確認していない' > "{その .txt}"` で書き（前回の証跡が残っていても `judge_results.py` が理由付きの NG〔未実行〕にする）、NG（備考に `[ログイン未完了: {理由}]`）にして返す（Login As 不可の要手動にしない）。
+`playwright-sf-screen-ops.md` の「frontdoor 認証」に従い `FRONTDOOR_URL` を取得し（alias は `{alias}` を使う）、すぐ同節のログイン用のコードブロックで `page` を開いて着地を確かめる（下の `--path` はこの取得の前に決める）。以後の Step 2A・2B・3 はこの `page` のセッションを使い、`FRONTDOOR_URL` を開き直さない（1回しか開けない）。ログインできていなければ、画面操作（Login As を含む）を行わず、UI TC ごとに `{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt` を `printf '%s\n' '判定: 未確認 — 画面にログインできず（{理由}）、結果を確認していない' > "{その .txt}"` で書き（前回の証跡が残っていても `judge_results.py` が理由付きの NG〔未実行〕にする）、NG（備考に `[ログイン未完了: {理由}]`）にして返す（Login As 不可の要手動にしない）。
 
 **`--path` 最適化（テスト時短・任意。判定できなければ省略してよい）**: Step 1 の分類結果でグループ②（逐次）に 1 件以上 TC がある場合のみ判定する（グループ①は各 TC が個別 URL へ直接遷移するため対象外。グループ③は Login As 遷移を別途挟むため対象外）。グループ②の 1 件目 TC の `対象画面` 列が空でなく、`docs/knowledge/test-prerequisites.md`（「基盤手順の読込」節の read-before で存在すれば読込済み）§ 1 の「対象画面」列に同名の既知エントリがあり、かつ「URL（コミュニティ/組織）」列が `/` 始まりの相対パスを記載している場合、その値を `--path` に渡す。一致なし・値が空欄・グループ②が 0 件のいずれかに該当する場合は `--path` を省略する（この場合は現状と同じ動作になるだけで、退行にはならない）。
 
@@ -194,7 +193,7 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
 
 `playwright-sf-screen-ops.md` の「並列 UI 証跡（複数コンテキスト）」に従い、`{max_workers_ui}` 件ずつ `Promise.all` でチャンク処理する。読み取り専用 TC は before/after で画面状態が変わらないため **before は採取しない（after のみ）**（同ファイル「並列 UI 証跡」骨格コードの前提コメント参照）。
 
-- frontdoor 認証は最初に1回だけ行い、その `storageState`（Cookie 等）を全コンテキストの生成時（`newContext({storageState})`）に渡して使い回す（TC ごとの frontdoor 再ログインは行わない。`playwright-sf-screen-ops.md`「並列 UI 証跡（複数コンテキスト）」節参照）。各コンテキストは対象 URL へ直接遷移 → TC 撮影 → コンテキストを閉じる
+- Step 1.5 でログインした `page` の `storageState`（Cookie 等）を全コンテキストの生成時（`newContext({storageState})`）に渡して使い回す（コンテキストごとのログインは行わない。`playwright-sf-screen-ops.md`「並列 UI 証跡（複数コンテキスト）」節参照）。各コンテキストは対象 URL へ直接遷移 → TC 撮影 → コンテキストを閉じる
 - DOM テキストは `saveText`（`playwright-sf-screen-ops.md`「DOM テキストの直接保存」節で定義するヘルパー。Blob download 経由でコードブロック内から `after/screen/{No}_{観点サニタイズ}.txt` へ直接保存し、DOM全文をLLM経由で書き戻さない）で保存する。保存失敗時のみ `text` フィールドにフォールバックとして本文を積む。
 - return 値は `JSON.stringify([{no, ok, highlighted: false, url, textLen, thinDom, errorSignature, text?}, ...])` の配列（`text` は保存失敗時のみ存在。失敗要素は `{no, ok:false, error}`）。**グループ①は `highlightTarget` を使わないため `highlighted` は常に `false` を明示する**（フィールド自体を省略すると下流 `generate_evidence_xlsx.py` の `_load_highlight_status` が「実績不明」と扱い「従来どおり赤枠あり」にフォールバックしてしまい、実際はハイライトを試みていない TC が虚偽の赤枠ありと表示されるため）。エージェントは各要素を以下の通り処理する:
   - `ok:true` の要素: `text` が存在する場合（保存失敗フォールバック）のみ `after/screen/{No}_{観点サニタイズ}.txt` に Write する（通常はコードブロック内で保存済みのため不要）。`url` は `.split('?')[0]` でクエリを除去した上で返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3。ユーザーの目視ハンドオフに使うため破棄しない）。`thinDom: true` の場合は備考欄に `[空撮り疑い: DOM {textLen}文字]` を付記する（**判定は行わない・記録のみ。NG化しない**）。`errorSignature` が非 null の場合は備考欄に `[画面エラー検出: {errorSignature}]` を付記し**NG 扱いにする**（Step 2B と同一ルール。期待結果がそのエラー文言自体を検証する意図の TC は対象外）
@@ -213,11 +212,11 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
 
 書き込み動詞（登録/更新/削除等）を伴う TC はレコード状態が操作前後で変化する。**before（操作直前状態）** は **after（操作後状態）** との差分を示す有意な証跡になるため、このグループのみ before/after を両方採取する（before のスクショはエビデンスの TC だけ、before の DOM は判定方法が前後比較の TC だけ。Step 1「エビデンスの TC」）。
 
-1件目の TC のみ `await page.goto(FRONTDOOR_URL)` でログイン。2件目以降はセッションを流用する（再ログインしない）。Step 1.5 で `--path` に渡した画面が1件目の TC の操作を始める画面（同じレコード。手順0.5）と同じ場合は、この1回の goto でその画面に着地するため、1件目の TC には `preNav` を書かない。
+Step 1.5 でログインした `page` をそのまま使う（コードブロックで `FRONTDOOR_URL` を開かない）。ログインの後に `page` でほかの画面を開いていなければ（Step 2A の newContext 不可時の逐次・Step 3 の TC を前に置いたときは開いている）、`page` は着地した画面（`--path` に渡した画面。省略したときはホーム）のままなので、その画面が1件目の TC の操作を始める画面（同じレコード。手順0.5）と同じなら、1件目の TC には `preNav` を書かない。
 
 コードブロック構成（同一セッションの連続 TC を1コードブロックにまとめる）:
 
-**バッチ化の原則**: 同一セッションのグループ② TC は可能な限り1コードブロックにまとめて実行する（1件目のみ goto ログイン、以降はブロック内でアプリ内遷移を続ける）。TC が増えても同じブロックに追記するだけにし、TC ごとに `browser_run_code_unsafe` を往復しない。ロケータの事前 snapshot 確認が必要な TC や、フォーム状態を戻せない TC のみ別ブロックに分割する（後から動く処理を待つ TC と、Step 1 で別のグループの TC を前に置いた TC の前は Step 1 のとおり区切る。前の UI の TC の保存で区切るときは前の TC の後でブロックを終え、次のブロックは再ログインせず、再読込してから続ける。その TC の操作の後で区切るときは、区切るブロックはその TC の手順2まで〔操作の途中の保存で区切るならその保存まで〕を行い、それまでの `results` とその TC の before の保存失敗分を返す〔保存失敗分は受け取った時点で Write する〕。次のブロックは再ログインせず、再読込 → 〔途中の保存で区切ったときは操作の残り →〕その TC の手順3・4〔push に before のフィールドは含めない〕→ 残りの TC と続ける。その TC がそこまでに失敗した〔`ok: false`〕ときは待たず、次のブロックはその TC を飛ばして残りの TC と続ける）。**撮影・DOM取得・保存・push の共通処理は1つの関数（`runTC`）にまとめ、TC 固有の操作部分のみを配列（`tcs`）でループさせる（Step 2A の `tasks`/`Promise.all` 骨格と同じ考え方）。TC ごとにブロック全体（撮影〜push の一連の記述）を複製しない**（生成トークンが TC 数に比例して線形増加するのを防ぐため。後述のコードブロック例を参照）。
+**バッチ化の原則**: 同一セッションのグループ② TC は可能な限り1コードブロックにまとめて実行する（ブロック内でアプリ内遷移を続ける）。TC が増えても同じブロックに追記するだけにし、TC ごとに `browser_run_code_unsafe` を往復しない。ロケータの事前 snapshot 確認が必要な TC や、フォーム状態を戻せない TC のみ別ブロックに分割する（後から動く処理を待つ TC と、Step 1 で別のグループの TC を前に置いた TC の前は Step 1 のとおり区切る。前の UI の TC の保存で区切るときは前の TC の後でブロックを終え、次のブロックは再ログインせず、再読込してから続ける。その TC の操作の後で区切るときは、区切るブロックはその TC の手順2まで〔操作の途中の保存で区切るならその保存まで〕を行い、それまでの `results` とその TC の before の保存失敗分を返す〔保存失敗分は受け取った時点で Write する〕。次のブロックは再ログインせず、再読込 → 〔途中の保存で区切ったときは操作の残り →〕その TC の手順3・4〔push に before のフィールドは含めない〕→ 残りの TC と続ける。その TC がそこまでに失敗した〔`ok: false`〕ときは待たず、次のブロックはその TC を飛ばして残りの TC と続ける）。**撮影・DOM取得・保存・push の共通処理は1つの関数（`runTC`）にまとめ、TC 固有の操作部分のみを配列（`tcs`）でループさせる（Step 2A の `tasks`/`Promise.all` 骨格と同じ考え方）。TC ごとにブロック全体（撮影〜push の一連の記述）を複製しない**（生成トークンが TC 数に比例して線形増加するのを防ぐため。後述のコードブロック例を参照）。
 
 各 TC はブロック内で以下 1〜4 を行い、結果を配列 `results` へ push する。TC ごとに `try/catch` で囲み、失敗した TC が後続 TC の証跡採取を止めないようにする:
 
@@ -232,7 +231,7 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
    - `ui_cases` の `確認ポイント（着眼点）` に `target={ラベル}` 記載がある場合、after 撮影**直前**に対象要素を `highlightTarget` でハイライトし、撮影後に解除する（後述）。`target` 未記載の TC は `const highlightEl = null;` として明示する（ハイライトを試みない）。
    - スクショ: `fullPage: true` で全ページ撮影。分岐なしは `{No}_{観点サニタイズ}.png`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}.png`
    - after DOM: `await getPageText(page)` を取得（判定の主役）し、`saveText(page, afterText, '/絶対パス/after/screen/{ファイル名}.txt')` で直接保存する（`{ファイル名}` は PNG と同じ命名: 分岐なしは `{No}_{観点サニタイズ}`、分岐ありは `{No}_{観点サニタイズ}_{分岐ラベル}`。PNG と `.txt` が同じベース名でペアになるようにする）。
-4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), highlighted: !!highlightEl, textLen: afterText.length, thinDom: afterText.length < 200, errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || (/\/(secur\/login|login)/i.test(page.url()) ? 'セッション失効(ログイン画面へ遷移)' : null), ...(beforeSaved ? {} : {beforeText}), ...(afterSaved ? {} : {text: afterText})})`（ログイン画面 URL への遷移は DOM 文言に現れずグループ①の並列コンテキスト用フォールバックと違い再ログインもされないため、`errorSignature` の URL チェックでセッション失効を検知し既存の NG 扱い・備考欄付記に乗せる）。`beforeSaved`/`afterSaved` は `saveText` の戻り値（`true`=保存済み・`false`=download 不発火でフォールバック要）。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
+4. **push**: 成功時は `results.push({no: '{No}', ok: true, url: page.url(), highlighted: !!highlightEl, textLen: afterText.length, thinDom: afterText.length < 200, errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || (new URL(page.url()).searchParams.has('ec') ? 'セッション失効(ログイン画面へ遷移)' : null), ...(beforeSaved ? {} : {beforeText}), ...(afterSaved ? {} : {text: afterText})})`（途中でセッションが切れてログイン画面へ戻されたことは `ERROR_SIGNATURES` の文言に現れないため、URL のクエリの `ec` で検知し既存の NG 扱い・備考欄付記に乗せる）。`beforeSaved`/`afterSaved` は `saveText` の戻り値（`true`=保存済み・`false`=download 不発火でフォールバック要）。失敗時（catch）は `results.push({no: '{No}', ok: false, error: String(e)})`。
    - `highlighted`: `target=` 指定ありかつ要素解決に成功した場合のみ `true`。`target=` 未記載、または解決失敗で枠なし撮影した場合は `false`。この実績値は下流の証跡シート生成（`generate_evidence_xlsx.py`）が「赤枠あり/なし」の説明文を実態に合わせて出し分けるために使う（種別だけを見て機械的に「赤枠あり」と書いてしまう不整合を防ぐ）。
    - `target` 未記載・ロケータ解決失敗の場合は枠なしで**必ず撮影**（スキップしない。これはロケータ失敗ではなく catch 対象外）。
 
@@ -240,7 +239,7 @@ python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if
 
 **ハイライト実績の記録（マージ方式・Step 2A/2B/3 のいずれの処理後もこの手順に従う）**: `results` を反復し `{no: highlighted}` のマッピング（`ok: false` の TC は含めない）を組み立てる。`{evidence_dir}/after/screen/_highlight_status.json` が既に存在する場合は **Read して既存マッピングとマージ**（同一 `no` は今回の値で上書き、それ以外の既存キーは保持）してから Write する。存在しない場合はそのまま新規 Write する（**既存内容を確認せず Write で全上書きすることは禁止** — Step 2A・2B・3 は別々のコードブロックで実行されるため、単純な上書きだと先に処理したグループの実績が後続グループの書き込みで消える。差分再実行時に前回実績を消さないためにも必須）。ファイル名が `_` で始まるため証跡ファイルの TC 番号索引（`fname.split("_")[0]`）とは衝突しない。
 
-> **画面エラー検知（JS側で computed・Write 前提ではない）**: `errorSignature` はコードブロック内の `ERROR_SIGNATURES`（後述 `saveText` と併せて定義）で以下のシグネチャを `afterText.includes()` 判定した結果、または `page.url()` がログイン画面パターン（`/secur/login` または URL に `login` を含む。`playwright-sf-screen-ops.md`「並列 UI 証跡」節のセッション無効フォールバック判定と同一パターン）に一致した場合（**セッション失効検知**。グループ②③は単一セッションを使い回すため、操作の途中でセッションが切れるとログイン画面がそのまま撮影されてしまう。ログイン画面の DOM 文言は下記シグネチャに含まれないため URL でも判定する）: `問題が発生しました` / `問題が発生しているようです` / `is malformed` / `関連リストはレイアウトにありません` / `権限が不十分です` / `Insufficient Privileges` / `このページには到達できません` / `URL No Longer Exists` / `予期しないエラーが発生しました` / `Unexpected Error`。該当した場合、`ok: true` であっても保存自体は通常どおり行うが、**返却テーブルには当該 No を NG として記録し備考欄に `[画面エラー検出: {errorSignature}]` を付記する**（期待結果がそのエラー文言自体を検証する意図の TC は対象外）。**画面が開けてスクショが撮れたことと、画面の中身が正しいことは別**。「操作手順どおりに画面を開いてスクショを撮った」だけで OK として報告しない。最終的な機械判定は Phase D `judge_results.py` 側でも同じシグネチャを検知して強制 NG にするため、ここでの検知漏れは自動的な最終防波堤があるが、採取時点で気づいたものはこの場で NG として報告すること。
+> **画面エラー検知（JS側で computed・Write 前提ではない）**: `errorSignature` はコードブロック内の `ERROR_SIGNATURES`（後述 `saveText` と併せて定義）で以下のシグネチャを `afterText.includes()` 判定した結果、または `page.url()` のクエリに `ec` がある場合（ログイン画面へ戻された。`playwright-sf-screen-ops.md`「frontdoor 認証」の着地の確認と同じ見分け方）（**セッション失効検知**。グループ②③は単一セッションを使い回すため、操作の途中でセッションが切れるとログイン画面がそのまま撮影されてしまう。ログイン画面の DOM 文言は下記シグネチャに含まれないため URL でも判定する）: `問題が発生しました` / `問題が発生しているようです` / `is malformed` / `関連リストはレイアウトにありません` / `権限が不十分です` / `Insufficient Privileges` / `このページには到達できません` / `URL No Longer Exists` / `予期しないエラーが発生しました` / `Unexpected Error`。該当した場合、`ok: true` であっても保存自体は通常どおり行うが、**返却テーブルには当該 No を NG として記録し備考欄に `[画面エラー検出: {errorSignature}]` を付記する**（期待結果がそのエラー文言自体を検証する意図の TC は対象外）。**画面が開けてスクショが撮れたことと、画面の中身が正しいことは別**。「操作手順どおりに画面を開いてスクショを撮った」だけで OK として報告しない。最終的な機械判定は Phase D `judge_results.py` 側でも同じシグネチャを検知して強制 NG にするため、ここでの検知漏れは自動的な最終防波堤があるが、採取時点で気づいたものはこの場で NG として報告すること。
 
 > **fullPage の理由**: Salesforce のレコード詳細・リスト画面は観点となる項目・セクションが viewport 下方に折り返すことが多い。`fullPage: true` で全ページを撮影することで、PNG 証跡に確認観点が必ず写るようにする。
 
@@ -383,15 +382,6 @@ async (page) => {
       return await page.locator('body').innerText();
     }
   }
-  async function frontdoorFailure(p) {
-    // 着地の確認（playwright-sf-screen-ops.md「frontdoor 認証」参照）
-    const landed = await p.waitForURL(u => !/^\/secur\/(frontdoor\.jsp|contentDoor)/.test(u.pathname), { timeout: 15000, waitUntil: 'commit' }).then(() => true, () => false);
-    const u = new URL(p.url());
-    if (!landed) return `frontdoor のリダイレクトが終わらない（${u.pathname}）`;
-    if (u.pathname.startsWith('/_ui/system/security/ChangePassword')) return 'パスワード変更画面に着地（接続ユーザーのパスワードの期限切れ）';
-    if (u.pathname === '/' && u.searchParams.has('ec')) return 'ログイン画面に着地（frontdoor の URL でログインできなかった）';
-    return null;
-  }
   const results = [];
 
   // TC 定義: TC ごとに変わるのはラベル・遷移（preNav）・操作（action）・印（evidence・compare）だけ。
@@ -441,7 +431,7 @@ async (page) => {
       results.push({
         no: tc.no, ok: true, url: page.url(), highlighted: !!highlightEl,
         textLen: afterText.length, thinDom: afterText.length < 200,
-        errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || (/\/(secur\/login|login)/i.test(page.url()) ? 'セッション失効(ログイン画面へ遷移)' : null),
+        errorSignature: ERROR_SIGNATURES.find(s => afterText.includes(s)) || (new URL(page.url()).searchParams.has('ec') ? 'セッション失効(ログイン画面へ遷移)' : null),
         ...(beforeSaved ? {} : { beforeText }),
         ...(afterSaved ? {} : { text: afterText }),
       });
@@ -450,10 +440,7 @@ async (page) => {
     }
   }
 
-  await page.goto('FRONTDOOR_URL_HERE'); // 1件目のみ実行。実際は Step 1.5 で取得した FRONTDOOR_URL の値をエージェント変数展開で埋め込む（accessToken を直書きしない。playwright-sf-screen-ops.md「frontdoor 認証」参照）
-  const fdFail = await frontdoorFailure(page);
-  if (fdFail) return JSON.stringify(tcs.map(tc => ({ no: tc.no, ok: false, error: fdFail }))); // ログインできていない: どの TC も撮らずに返す（Step 1.5）
-  await waitSfReady(page);
+  // page は Step 1.5 でログイン済み（FRONTDOOR_URL はここで開かない）
   for (const tc of tcs) {
     // 続き元が失敗した続きの TC は実行しない（Step 1。エージェントが after の .txt に「判定: 未確認」を書く）
     if (tc.from && results.some(r => r.no === tc.from && !r.ok)) { results.push({ no: tc.no, ok: false, error: `続き元 ${tc.from} の画面が無く未実行` }); continue; }
@@ -476,8 +463,6 @@ async (page) => {
 
 Step 1 のグループ③を対象にする。
 
-**Step 2B を実行していない場合の初回ログイン（必須）**: Step 3 の前に Step 2B を1件も実行していない（グループ②のTC数が0件か、②の TC を全て③の TC の後に置いた。`page` が一度も FRONTDOOR_URL へ遷移していない）場合は、このバッチの最初のコードブロック冒頭で `await page.goto(FRONTDOOR_URL);`・着地の確認（Step 1.5）・`await waitSfReady(page);` を実行して認証済みセッションを確立してから、以下の Login As 前提チェック・実ユーザ名の解決に進む（**グループ①のTCが1件以上あっても本ログインは省略しない**: Step 2A の frontdoor 認証は `bootPage` という `page` とは別のブラウザコンテキストで行われるため、グループ①のみ実行済みでも `page` 自体は未認証のまま）。グループ②が1件以上処理済みの場合は `page` が既に認証済みのため、この初回ログインは不要（重複実行しない）。
-
 **バッチ化の原則**: グループ③の TC を対象ユーザ単位でグルーピングし、ユーザごとに `Login As 1回 → 当該ユーザの全 TC を連続撮影 → logout 1回` に収める。TC ごとに Login As/logout を往復しない。
 
 Login As 前提チェック・実ユーザ名の解決・Login As バッチ操作手順は `playwright-sf-screen-ops.md` の「Login As」セクション（内部ユーザー）および「Login As（コミュニティ / Experience Cloud ユーザー）」セクション（外部ユーザー）に従う。**コミュニティ / お客様ユーザーも自動化対象**（コミュニティ Login As 手順を使う）。
@@ -490,7 +475,7 @@ Step 1 で③の判定に使った記載からプロファイル名/ユーザ名
 
 1. グループ③の TC の対象ユーザ（上の「実ユーザ名の解決」で確かめたもの）を一覧化し重複を排除する
 2. ユーザごとに「そのユーザが必要な TC リスト」を Step 1 の順にまとめる（続きの TC は対象画面への goto を書かず、続き元が失敗したら実行しない）
-3. ユーザ数だけコードブロックを実行する（1ユーザ = 1コードブロック。後から動く処理を待つ TC は Step 1 のとおり区切り、Login As のまま次のブロックに続けて logout はその後のブロックで行う。Step 1 で②の TC の前に置いた TC は、Step 2B のその TC の前でブロックを区切って Login As → その TC → 管理者に戻る〔`playwright-sf-screen-ops.md` の戻し方〕を行い、Step 2B の続きに戻る。②の1件目より前に置いたときは先に上記の初回ログインを行い、②の1件目にも `preNav` を書く。Step 1 で③の TC の後に置いた②の TC は、全ユーザのブロックの後に管理者に戻って〔同じ戻し方〕`preNav` を書いて行う。別のユーザの TC-xxx の後に置いた③の TC は、そのユーザのブロックを TC-xxx のユーザのブロックより後にする）
+3. ユーザ数だけコードブロックを実行する（1ユーザ = 1コードブロック。後から動く処理を待つ TC は Step 1 のとおり区切り、Login As のまま次のブロックに続けて logout はその後のブロックで行う。Step 1 で②の TC の前に置いた TC は、Step 2B のその TC の前でブロックを区切って Login As → その TC → 管理者に戻る〔`playwright-sf-screen-ops.md` の戻し方〕を行い、Step 2B の続きに戻る。②の1件目より前に置いたときは、②の1件目にも `preNav` を書く。Step 1 で③の TC の後に置いた②の TC は、全ユーザのブロックの後に管理者に戻って〔同じ戻し方〕`preNav` を書いて行う。別のユーザの TC-xxx の後に置いた③の TC は、そのユーザのブロックを TC-xxx のユーザのブロックより後にする）
 
 ### 証跡の命名（TC 固有）
 
@@ -501,7 +486,7 @@ Login As での証跡はユーザ名を含む命名にする:
 
 **ユーザ名サニタイズ**: ログインユーザ名がメールアドレス形式の場合、`@` は `_at_` に、`.` は `_` に置換する（観点サニタイズと同じくスペース・`/`・`\`・その他記号は除去）。`.`/`@` をそのまま残すと下流 `generate_evidence_xlsx.py` の `split('_')[0]` による No 接頭辞抽出には影響しないが、ファイル名の可読性・OS 予約文字回避のため明示的に定める。
 
-Step 2B と同様に `saveText`/`ERROR_SIGNATURES`（**ログイン画面 URL パターンによるセッション失効検知を含む**。Step 2B「画面エラー検知」節参照）を使い、`results.push` へ `url: page.url()` を含め、返却テーブルの「画面URL」列に `.split('?')[0]` でクエリを除去した値を記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。**本ステップは `highlightTarget` をエビデンスの TC（確認ポイントに `target=` があるもの。Step 1「エビデンスの TC」）にだけ適用し（after 撮影の直前に注入・撮影後に解除。Step 2B 手順3と同じ）、`results.push` の各要素に `highlighted`（エビデンスの TC は要素を解決できたかの実際の結果、それ以外は `false`）を必ず含める**（省略すると下流 `generate_evidence_xlsx.py` が実績不明として「従来どおり赤枠あり」にフォールバックし、未試行の TC が虚偽の赤枠ありと表示される）。全ユーザ処理完了後、`{no: highlighted}`（`ok:false` の TC は含めない）のマッピングを Step 2B「ハイライト実績の記録」節と同じマージ手順で `_highlight_status.json` に反映する。
+Step 2B と同様に `saveText`/`ERROR_SIGNATURES`（**URL のクエリの `ec` によるセッション失効検知を含む**。Step 2B「画面エラー検知」節参照）を使い、`results.push` へ `url: page.url()` を含め、返却テーブルの「画面URL」列に `.split('?')[0]` でクエリを除去した値を記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3）。**本ステップは `highlightTarget` をエビデンスの TC（確認ポイントに `target=` があるもの。Step 1「エビデンスの TC」）にだけ適用し（after 撮影の直前に注入・撮影後に解除。Step 2B 手順3と同じ）、`results.push` の各要素に `highlighted`（エビデンスの TC は要素を解決できたかの実際の結果、それ以外は `false`）を必ず含める**（省略すると下流 `generate_evidence_xlsx.py` が実績不明として「従来どおり赤枠あり」にフォールバックし、未試行の TC が虚偽の赤枠ありと表示される）。全ユーザ処理完了後、`{no: highlighted}`（`ok:false` の TC は含めない）のマッピングを Step 2B「ハイライト実績の記録」節と同じマージ手順で `_highlight_status.json` に反映する。
 
 **Login As が実行時に失敗した場合の手順**:
 1. まず `playwright-sf-screen-ops.md` のコミュニティ Login As 手順（Contact ページ → ユーザーとしてログイン）を試みる
@@ -598,6 +583,6 @@ OK: {ok} 件 / NG: {ng} 件 / 降格（要手動）: {降格} 件
 4. JS の `ok: true` かつ `errorSignature` が非 null（画面エラー検出。セッション失効含む）→ `NG`（`ok: true` でも上書きする）
 5. 上記のいずれにも該当しない → `OK`（`thinDom: true`・`highlighted: false` は備考欄への付記のみで、結果列を `NG` にはしない）
 
-accessToken は返却テキストに一切含めない。「画面URL」列は `page.url()` から `.split('?')[0]` でクエリを除去した値のみ（accessToken を含む FRONTDOOR_URL とは別物・出力可）。オーケストレータ（auto-evidence-runner）はこの列を [visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) の標準ハンドオフブロック生成に使う。
+accessToken は返却テキストに一切含めない。「画面URL」列は `page.url()` から `.split('?')[0]` でクエリを除去した値のみ（ログイン用の値を含む FRONTDOOR_URL とは別物・出力可）。オーケストレータ（auto-evidence-runner）はこの列を [visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) の標準ハンドオフブロック生成に使う。
 
 `{evidence_dir}/after/screen/_highlight_status.json`（Step 2A・2B・3 がそれぞれマージ方式で Write 済み）はハイライト実績の正本であり、`generate_evidence_xlsx.py` が証跡シート生成時に直接読む。返却テキストの備考欄はレビュアー向けの要約であり、実績データの重複記録ではない。
