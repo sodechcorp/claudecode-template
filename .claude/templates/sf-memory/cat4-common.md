@@ -94,12 +94,29 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 以下の内容で `{output_dir}/.tmp/check_cat4_hash.py` を Write する:
 
 ```python
-import hashlib, json, pathlib
+import hashlib, json, pathlib, sys
 proj = pathlib.Path(r'{project_dir}')
 cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'
 cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}
 api_name = '{api_name}'
+kind = '{flow|apex|lwc}'
 src_paths = {source_file_paths}
+
+def has_design_doc():  # この API 名の担当種別の機能IDが全部、担当フォルダの設計書にあるか（verify_cat4_completeness.py と同じ数え方）
+    sys.path.insert(0, str(proj / 'scripts' / 'python' / 'sf-doc-mcp'))
+    from scan_features import _KIND_DESIGN_DIRS, _TYPE_TO_DESIGN_FOLDER, design_doc_ids
+    try:
+        feats = json.loads((proj / 'docs' / '.sf' / 'feature_list.json').read_text(encoding='utf-8'))
+        dirs = _KIND_DESIGN_DIRS[kind]
+    except (OSError, ValueError, KeyError):
+        return False
+    ids = [f['id'] for f in feats if f.get('api_name') == api_name and _TYPE_TO_DESIGN_FOLDER.get(f.get('type')) in dirs]
+    have = set()
+    for d in dirs:
+        for md in (proj / 'docs' / 'design' / d).glob('*.md'):
+            have |= design_doc_ids(md)
+    return bool(ids) and all(i in have for i in ids)
+
 if not src_paths or not any(pathlib.Path(p).exists() for p in src_paths):
     print('UPDATE:NEW')
 else:
@@ -109,14 +126,14 @@ else:
         if path.exists():
             h.update(path.read_bytes())
     current_hash = h.hexdigest()
-    print('SKIP' if cache.get(api_name) == current_hash else f'UPDATE:{current_hash}')
+    print('SKIP' if cache.get(api_name) == current_hash and has_design_doc() else f'UPDATE:{current_hash}')
 ```
 
 ```bash
 python {output_dir}/.tmp/check_cat4_hash.py
 ```
 
-`SKIP` → Phase 2 をスキップ。`UPDATE:{hash}` → Phase 2 で設計書を生成/更新後にキャッシュを更新:
+`SKIP`（ソースが前回と同じで、この機能IDの設計書が担当フォルダにある）→ Phase 2 をスキップ。`UPDATE:{hash}` → Phase 2 で設計書を生成/更新後にキャッシュを更新:
 
 ```bash
 python -c "import json, pathlib; proj = pathlib.Path(r'{project_dir}'); cache_path = proj / 'docs' / '.sf' / 'cat4_hash_cache.json'; cache = json.loads(cache_path.read_text(encoding='utf-8')) if cache_path.exists() else {}; cache['{api_name}'] = '{new_hash}'; cache_path.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding='utf-8')"
