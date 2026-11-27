@@ -32,7 +32,7 @@ Backlog MCP の道具を呼ぶ手順は、下の表で読み替える（`mcp__ba
 
 | Backlog MCP | 保守ポータル（`mcp__support_desk__`） | 引数の読み替え | 返り値の読み替え |
 |---|---|---|---|
-| `get_issue` | `get_issue` | `issueIdOrKey` = 課題キー（同じ） | `issueKey`→`key`・`summary`→`summary`・`description`→`body`・`issueType.name`→`type`（英字。下の表）・`status.name`→`status`（英字。下の表）・`priority.name`→`priority`（ポータルの版によっては `urgent`〔緊急〕・`rank`〔顧客ごとの順番〕）・`estimatedHours`→`plannedHours`（一次判断の予定時間）・`startDate`/`dueDate`→`workStart`/`workEnd`（期限は `dueDate`）・`updated`→`updatedAt`（無い版では `events` の先頭の日時）・`actualHours`→`actualHours`。コメント（`comments`）・記録済みの対応（`efforts`）・Claude の案（`claudeDraft`・`claudeTriageDraft`・`claudeEffortDrafts`）も入っている |
+| `get_issue` | `get_issue` | `issueIdOrKey` = 課題キー（同じ） | `issueKey`→`key`・`summary`→`summary`・`description`→`body`・`issueType.name`→`type`（英字。下の表）・`status.name`→`status`（英字。下の表）・`priority.name`→`priority`（1〜10 の数字。1 がいちばん優先。未設定は null）と `urgent`（緊急。true/false。緊急の課題は優先度を持たない＝`priority` は null）。ポータルの古い版では `rank`〔顧客ごとの順番〕・`estimatedHours`→`plannedHours`（一次判断の予定時間）・`startDate`/`dueDate`→`workStart`/`workEnd`（期限は `dueDate`）・`updated`→`updatedAt`（無い版では `events` の先頭の日時）・`actualHours`→`actualHours`。コメント（`comments`）・記録済みの対応（`efforts`）・Claude の案（`claudeDraft`・`claudeTriageDraft`・`claudeEffortDrafts`）も入っている |
 | `get_issue_comments` | `get_issue_comments` | `minId`・`maxId`（以上・以下）・`count`・`order` は同じ | `content`→`body`・`createdUser.name`→`authorName`・`created`→`createdAt`。`internal: true` は社内メモ（お客さんに見えていない。お客さんへの文に書き写さない） |
 | `get_issue_attachment`（`issueKey`・`attachmentId`） | `get_issue_attachment`（`attachmentId` だけ） | 課題キーは渡さない（ID は `get_issue` の `attachments[].id`） | 画像・文字はそのまま。PDF・Excel・5MB 超は返り値に書かれた REST で保存して読む（中身を読むだけ。アプリで開かない） |
 | `get_issues`（`projectId[]`・`statusId`・`keyword`・`sort`・`order`・`count`・`offset`） | `get_issues` | `projectId`→`customer`（顧客コード）・完了（`statusId:[4]`）→`scope:DONE`・未完了→`scope:OPEN`・実績のある課題だけ→`hasActual:true`・`sort:updated`→`UPDATED`・`sort:actualHours`→`ACTUAL_HOURS`・`order` は `DESC`/`ASC` | `{items,total}` |
@@ -43,9 +43,9 @@ Backlog MCP の道具を呼ぶ手順は、下の表で読み替える（`mcp__ba
 
 **種別**（`type`）: `BUG`＝バグ（不具合）・`REQUEST`＝追加要望・`INQUIRY`＝問い合わせ・`CUSTOM_DEV`＝個別開発（追加要望として扱う）・`OTHER`＝その他。`/backlog` の `{issue_type}` はこの対応で決める。
 
-**状態**（`status`）: `NOT_STARTED`＝未着手・`IN_PROGRESS`＝対応中・`WAITING_ANSWER`＝回答待ち（お客さんの返事待ち）・`WAITING_CUSTOMER`＝確認待ち（対応が終わり、お客さんの確認待ち）・`ON_HOLD`＝保留・`DONE`＝完了。Backlog の「処理済み」は `WAITING_CUSTOMER`、「完了」は `DONE` に当たる。
+**状態**（`status`）: `NOT_STARTED`＝未着手・`IN_PROGRESS`＝対応中・`WAITING_ANSWER`＝回答待ち（お客さんの返事待ち）・`WAITING_CUSTOMER`＝確認待ち（お客さんに確認してもらっている。Sandbox での確認も本番での確認もこれ。お客さんの「問題なし」で自動では完了にならず、完了にするのは担当者）・`ON_HOLD`＝保留・`DONE`＝完了。Backlog の「処理済み」は `WAITING_CUSTOMER`、「完了」は `DONE` に当たる。
 
-**一次判断**（`triage`）: 無ければ一次判断がまだ。`result` は `DO`（対応する）・`ASK`（お客さんに確認）・`ANSWER_ONLY`（回答のみ）。
+**一次判断**（`triage`）: 無ければ一次判断がまだ。`result` は `DO`（対応する）・`LATER`（来月以降に先送り。来月になると、もう一度一次判断待ちになる。予定時間・作業予定はない）・`ASK`（お客さんに確認）・`ANSWER_ONLY`（回答のみ）。
 
 `count` を必ず渡し、ページングで刻む（[backlog-mcp-hygiene.md](./backlog-mcp-hygiene.md) と同じ。ポータルの上限は 100）。
 
@@ -57,8 +57,8 @@ Backlog には今までどおり何も書かない（hook が止める）。ポ�
 
 | 道具 | 何 | お客さんに見えるか |
 |---|---|---|
-| `save_triage_draft` | 一次判断の案（判断・種別・契約区分 `contractKind`〔`MAINTENANCE`＝保守が既定・`INDIVIDUAL`＝個別契約。ポータルが受け取らない版では省く〕・予定時間・作業予定・対応月・理由）。一次判断がまだの課題だけ | 見えない |
-| `save_plan_draft` | 予定の変更の案（予定時間・作業予定・理由）。一次判断のあとの課題だけ。ポータルにこの道具がまだ無ければ、理由と値を社内メモに書く | 見えない |
+| `save_triage_draft` | 一次判断の案（判断・種別・契約区分 `contractKind`〔`MAINTENANCE`＝保守が既定・`INDIVIDUAL`＝個別契約。ポータルが受け取らない版では省く〕・予定時間と作業予定〔`DO` のとき。来月以降は `LATER` で、予定は渡さない〕・理由）。一次判断がまだの課題だけ | 見えない |
+| `save_plan_draft` | 予定の変更の案（予定時間・作業予定・理由）。一次判断のあとの課題だけ（来月以降〔`LATER`〕の課題には渡さない）。対応の案を渡すときに実績と残りの見込みが予定と違えば渡す。ポータルにこの道具がまだ無ければ、理由と値を社内メモに書く | 見えない |
 | `save_effort_drafts` | 対応の案（作業のまとまりごとの日付・時間・何をどう対応したか） | 見えない |
 | `save_reply_draft` | お客さんへの返信の下書き（本文・状態の案）。課題ごとに最新の1件 | 担当者が送るまで見えない |
 | `add_internal_note` | 社内メモ（直接書く。工数に効かない） | 見えない |
@@ -87,9 +87,9 @@ Backlog には今までどおり何も書かない（hook が止める）。ポ�
 | `/backlog` Phase 2（問い合わせ）で回答が決まったとき | 返信の下書き（回答。`status`＝`WAITING_CUSTOMER`）・対応の案「回答の作成」 |
 | `/backlog` Phase 5 の PASS | 対応の案「実装と確認」 |
 | `/backlog` Phase 6 の終わり | 対応の案「Sandbox への反映」（管理画面の操作のときは「操作手順の作成」） |
-| `/test` の終わり（総合判定が PASS・条件付き PASS） | 対応の案「テスト・証跡」。お客さんの確認が要る課題（`pending-signoff.md` がある）は、Sandbox で見てもらう依頼の返信の下書き（`status`＝`WAITING_ANSWER`。`WAITING_CUSTOMER` にするとお客さんへのメールの件名が「対応が完了しました」になるため、本番の前には使わない） |
+| `/test` の終わり（総合判定が PASS・条件付き PASS） | 対応の案「テスト・証跡」。お客さんの確認が要る課題（`pending-signoff.md` がある）は、Sandbox で見てもらう依頼の返信の下書き（`status`＝`WAITING_CUSTOMER`。メールの件名は「ご確認をお願いします」。ポータルの古い版〔件名が「対応が完了しました」〕では `WAITING_ANSWER`） |
 | `/release` で手順書を作ったとき | 対応の案「本番の準備」 |
-| `/release` で担当者が本番に出したと言ったとき | 完了の連絡の返信の下書き（`status`＝`WAITING_CUSTOMER`） |
+| `/release` で担当者が本番に出したと言ったとき | 本番で確かめてもらう依頼の返信の下書き（`status`＝`WAITING_CUSTOMER`） |
 | `/close`（完了で自動） | ポータルには何も渡さない（cases を仕上げて Git、Notion に入れるかを決めて登録） |
 
 **返信の下書きの書き方**: 「お世話になっております。」で始め、用件だけを短く書く。見出し・表は使わない（Backlog のコメントと同じ書き方）。確認の依頼は、どこで何を見ればよいか（Sandbox の画面の名前・手順）を番号で。送るのは担当者で、Claude は送らない。下書きを渡したら、担当者に「返信の下書きをポータルに渡しました（課題の画面の「下書きを使う」で確かめて送ってください）」と1行で伝える。
@@ -102,7 +102,7 @@ Backlog には今までどおり何も書かない（hook が止める）。ポ�
 
 - **測った時間ではない**。そのまとまりを担当者が手でやった場合にかかる時間を、見積と同じ物差しで出す: [sf-effort-estimator](../../agents/sf-effort-estimator.md) の Step 2「作業の型」と、`docs/knowledge/effort-calibration.md`・`global-calibration.md` の帯（無ければ肌感: 軽い 0.5〜1h・中程度 2〜3h・大きい 4h〜）。確かめ・レビュー・お客さんとのやり取りの時間も含める。0.5 時間単位に切り上げる（最小 0.5）。Claude が速く終えたかどうかで減らさない（お客さんに出せる、納得感のある実績にするため）
 - 根拠を内容の末尾に括弧で1つ書く（例「（部品3つの調査・型: 既存の一部を少し変える）」）
-- 課題の予定工数（ポータルは `get_issue` の `plannedHours`、Backlog は `estimatedHours`、どちらも無ければ approach-plan.md の「## 工数見積」）に対して、記録済みの対応（ポータルの `efforts`）＋まだ使っていない案（`claudeEffortDrafts`）＋手元の控えの合計（`effort_drafts.py total`）が超えそうなら、内容の末尾に「（ここまでの合計 {X}h が予定工数 {Y}h を超えます。予定の変更を検討してください）」と書き、担当者にも1行で伝える
+- 課題の予定工数（ポータルは `get_issue` の `plannedHours`、Backlog は `estimatedHours`、どちらも無ければ approach-plan.md の「## 工数見積」）に対して、記録済みの対応（ポータルの `efforts`）＋まだ使っていない案（`claudeEffortDrafts`）＋手元の控えの合計（`effort_drafts.py total`）が超えそうなら、内容の末尾に「（ここまでの合計 {X}h が予定工数 {Y}h を超えます。予定の変更を検討してください）」と書き、担当者にも1行で伝える。`{issue_source}` = `portal` のときは、あわせて予定の変更の案（`mcp__support_desk__save_plan_draft`。新しい予定時間＝ここまでの合計＋残りの作業の見込み、理由に内訳）も渡す。膨らんだときだけでなく、残りの作業が予定より明らかに早く済みそうなときも同じ（予定は制限ではなく見込み。担当者が画面で「案を使う」か「使わない」を選ぶ）
 
 ### まとまりを終えたとき（コマンドに「「{名前}」のまとまりを終える」とある所で、この順に行う）
 
@@ -134,5 +134,5 @@ Backlog には今までどおり何も書かない（hook が止める）。ポ�
 一次判断の案の作業予定（開始日・終了日）を、担当者の空きから出すときに使う。
 
 - `mcp__support_desk__get_schedule_availability`（`issueIdOrKey`〔担当者はその課題の担当、いなければ顧客の主担当〕・`from`・`to`〔yyyy-MM-dd。省くと今日から60日〕）→ `{assignee, dailyCapHours, days:[{date, freeHours, reason}]}`。`freeHours` はほかの課題の作業予定・休み・祝日・1日の上限を引いた残り。休み・祝日・土日は `freeHours: 0` と `reason`
-- 開始日＝`freeHours` > 0 の最初の日（今月対応は今日の次の日から、来月以降は来月の最初の日から）。終了日＝開始日から `freeHours` を足して予定時間に届いた日
+- 開始日＝`freeHours` > 0 の最初の日（今日の次の日から。来月以降は先送りなので、作業予定は出さない）。終了日＝開始日から `freeHours` を足して予定時間に届いた日
 - 道具が無いときは、今までの決め方（土日を除いた次の平日から、1日4時間で割る）にし、一次判断の案の理由に「（担当者の空きは見ていない）」と書く
