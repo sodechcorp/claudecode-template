@@ -118,7 +118,7 @@ https://developer.salesforce.com/docs/atlas.en-us.salesforce_large_data_volumes_
 
 収集した情報を以下のスキーマで構造化する。
 
-**ファイルフォーマット**（backlog-releaser の option-sf-docs-verification.md と整合）:
+**ファイルフォーマット**（backlog-investigator が実行する option-sf-docs-verification.md の手順 5〔sf-standard.md への追記〕と整合）:
 
 ```markdown
 # Salesforce 標準仕様 照合表
