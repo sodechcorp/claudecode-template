@@ -159,7 +159,7 @@ dry-run のためコードは Sandbox に届いていない。変更の反映を
 
 ## 総合判定の優先順位ルール（エージェント判断用・出力に転記しない）
 
-総合判定は以下の優先順位で確定する: ① 実装レビュー表（ガバナ制限・FLS/CRUD・エラーハンドリング・実装計画との整合）に FAIL が1件でもある、または Step 2 の dry-run が成功しない（コンパイルエラー・指定した Apex テストの FAIL・カバレッジ不足のいずれでも）、または Step 0b で採用したオプションが総合判定を FAIL にすると定めた結果が出た（option-regression-test 手順4 の関連する FAIL） → 最優先で「FAIL（Phase 4 に差し戻す）」 / ② ①非該当かつ NoTestRun フォールバック発生（対応テストクラス未整備） → 「条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要）」固定とし、ユーザー判断（テスト追加 or 明示スキップ承認）を待つ / ③ ①②いずれも非該当 → 「PASS（Phase 6 へ進む）」。
+総合判定は以下の優先順位で確定する: ① 実装レビュー表（ガバナ制限・FLS/CRUD・エラーハンドリング・実装計画との整合）に FAIL が1件でもある、または Step 2 の dry-run が成功しない（コンパイルエラー・指定した Apex テストの FAIL・カバレッジ不足のいずれでも）、または Step 0b で採用したオプションが総合判定を FAIL にすると定めた結果が出た（option-regression-test 手順4 の関連する FAIL、option-diff-review の総合判定が PASS 以外） → 最優先で「FAIL（Phase 4 に差し戻す）」 / ② ①非該当かつ NoTestRun フォールバック発生（対応テストクラス未整備） → 「条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要）」固定とし、ユーザー判断（テスト追加 or 明示スキップ承認）を待つ / ③ ①②いずれも非該当 → 「PASS（Phase 6 へ進む）」。
 
 test-report.md の「### 総合判定」セクションには、上記ルールで確定した**結果のみ**を記載する。本ルールの説明文自体は転記しない。
 
@@ -187,8 +187,8 @@ NoTestRun フォールバック: なし / 発生（対応テストクラス未�
 PASS（Phase 6 へ進む） / 条件付きPASS（NoTestRun フォールバック発生・ユーザー判断要） / FAIL（Phase 4 に差し戻す）
 
 FAIL の場合:
-- NG 原因: {1行で記述}
-- 対応: Phase 4 で修正後、再度 backlog-tester を起動してください
+- NG 原因: {1行で記述。option-diff-review の総合判定が「計画修正が必要（Phase 3 戻り）」なら、その文言で始める}
+- 対応: Phase 4 で修正後、再度 backlog-tester を起動してください（「計画修正が必要（Phase 3 戻り）」なら Phase 3 で実装方針を直してから）
 
 ### Step 0b オプション判定結果
 
@@ -233,9 +233,9 @@ NG: {原因を1行で}
 【次へ】
 {PASSの場合} このまま Phase 6（Sandbox リリース）に進みます
 {条件付きPASS（NoTestRun フォールバック）の場合} 上記確認事項のご判断に従い、Phase 6 に進むか Phase 4 に戻ります
-{FAILの場合} Phase 4（backlog-implementer）に戻って修正します
+{FAILの場合} Phase 4（backlog-implementer）に戻って修正します（NG 原因が「計画修正が必要（Phase 3 戻り）」なら「Phase 3（実装方針）に戻って計画を直します」）
 ```
 
 出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` へ当 Phase のエージェント内部イベント（発見・落とし穴・ハマり等。FAIL・NoTestRun フォールバックの原因を含む）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。
 
-> **PASS の場合（2026-09-15変更）**: backlog.md 側は承認を待たず同一ターン内で Phase 6（backlog-releaser）を起動する（Sandbox は可逆・低リスクのため）。**条件付きPASS の場合**: ユーザーの回答を待ってから Phase 6 または Phase 4 を起動する。**FAIL の場合**: 承認を待たず Phase 4（backlog-implementer）を起動する。
+> **PASS の場合（2026-09-15変更）**: backlog.md 側は承認を待たず同一ターン内で Phase 6（backlog-releaser）を起動する（Sandbox は可逆・低リスクのため）。**条件付きPASS の場合**: ユーザーの回答を待ってから Phase 6 または Phase 4 を起動する。**FAIL の場合**: 承認を待たず Phase 4（backlog-implementer）を起動する（NG 原因が「計画修正が必要（Phase 3 戻り）」で始まるときは Phase 3。backlog.md Phase 5 のとおり）。
