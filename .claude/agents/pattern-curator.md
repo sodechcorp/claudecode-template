@@ -5,7 +5,6 @@ tools:
   - Read
   - Glob
   - Grep
-  - Bash
   - mcp__backlog__get_issues
   - mcp__backlog__get_issue
   - mcp__backlog__get_issue_comments
@@ -84,15 +83,6 @@ tools:
 見出しがヒットしない場合（過去課題のフォーマットが古い等）は該当ファイルを通常 Read にフォールバックする。
 
 `docs/logs/` にファイルがない課題は Backlog コメント（`mcp__backlog__get_issue_comments`。`count` 指定必須）から対応内容を補完する。取得に失敗した場合は当該課題のコメント補完をスキップし、取得済み情報のみで処理を続行する（中断しない）。
-
-### Step 3: git log で同一ファイルへの繰り返し修正を確認（任意）
-
-対象ファイルが判明している場合のみ実行する。`{ファイル名}` はディレクトリパスを含まないファイル名のみのケースがあり、素のファイル名を pathspec に使うと git のパスマッチが不一致になり常に0件を返すため、ワイルドカード pathspec で全ディレクトリを対象にする（regression-guard.md Step 4 と同一パターン）:
-```bash
-git -C "{プロジェクトルート}" log --oneline -20 --follow -- '**/{ファイル名}'
-```
-
-> **exit code 注記**: `{プロジェクトルート}` が git リポジトリでない場合（exit 128 等）は「git 未管理・確認不可」として扱い、Step 3 をスキップして調査を続行する（Step 3 は任意実行のため中断しない。regression-guard.md Step 4 と同一パターン）。
 
 ---
 
