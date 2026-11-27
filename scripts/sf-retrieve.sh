@@ -1547,6 +1547,6 @@ echo "次のステップ:"
 if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git check-ignore -q force-app/ 2>/dev/null; then
     echo "  変更確認: force-app/ は Git 管理対象外のため diff 不可（ファイルを直接ご確認ください）"
 else
-    echo "  変更確認: git diff force-app/"
+    echo "  変更確認: git status force-app/"
 fi
 echo ""

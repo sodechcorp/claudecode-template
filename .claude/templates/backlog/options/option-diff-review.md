@@ -17,11 +17,11 @@ Phase 5 Step 2（実装レビュー）が「ガバナ・FLS・ハードコード
 base コミットの決定手順は [deploy-manifest-base.md](../_partials/deploy-manifest-base.md) の「base 取得」を参照する（`option-progressive-commits` 採用時は段階コミット一覧の先頭コミットの親を base にし、未採用時は `HEAD` を base にする。`git diff HEAD~1 HEAD` は複数コミットのうち直近 1 件しか見えず、中間コミットのみで変更されたファイルが diff から漏れるため使わない）。
 
 ```bash
-git diff {base} --stat
+{ git diff --name-only {base} -- 'force-app/**'; git ls-files --others --exclude-standard -- 'force-app/**'; } | sort -u
 git diff {base} -- <変更ファイル>
 ```
 
-`{base}` は上記手順で決定した値（段階コミット一覧が存在しない標準フローでは `{base}` = `HEAD`）。
+`{base}` は上記手順で決定した値（段階コミット一覧が存在しない標準フローでは `{base}` = `HEAD`）。`git diff` は未追跡の新規ファイルを出さないので、一覧は `git ls-files --others` で補い、未追跡のファイルは `git diff --no-index /dev/null <変更ファイル>` で比べる（終了コード 1 は差分ありでエラーではない）。
 
 **それ以外の場合**（force-app が `.gitignore` 対象〔テンプレート既定の構成〕・git 管理外のプロジェクト）:
 

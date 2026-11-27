@@ -170,7 +170,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
      if [ -z "$inv_head" ] || [ "$inv_head" = "N/A（force-app は Git 管理対象外）" ]; then
        echo "DIFF"  # 未記録（旧形式の investigation.md）または記録時点で force-app が未追跡だった場合も安全側
      else
-       git diff --quiet "$inv_head" -- force-app || echo "DIFF"
+       { git diff --quiet "$inv_head" -- force-app && [ -z "$(git ls-files --others --exclude-standard -- force-app)" ]; } || echo "DIFF"
      fi
    fi
    ```
