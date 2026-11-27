@@ -301,7 +301,7 @@ options:
     estimated-cost: 中
 
   - name: option-error-message-reverse-lookup
-    description: エラー文言・例外メッセージを起点に force-app/ を grep し発生源（Apex/Validation Rule/カスタムラベル/LWC）を特定
+    description: エラー文言・例外メッセージを起点に force-app/ を grep し発生源（Apex・トリガー/入力規則・フロー・重複ルール・検索条件・数式項目/カスタムラベル/LWC・Aura・Visualforce/カスタムメタデータ）を特定
     category: A
     auto-execute-when:
       - 課題に具体的なエラー文言・トーストメッセージ・例外メッセージが記載されている
