@@ -45,6 +45,8 @@ playwright・slack を設定する場合は「その他」を選択して `playw
 
 ## Step 2: 実行
 
+**鍵の決まり（トークン・APIキー。どの MCP も同じ）**: 鍵はチャットに貼らせず、`.mcp.json` にも値を書かない。本人に PowerShell の `setx <変数名> "<鍵>"` で環境変数に入れてもらい（鍵はその窓にだけ貼る）、`.mcp.json` には `"${<変数名>:-}"` と書く（Claude Code は `.mcp.json` を読むときに `${...}` を展開する）。`.mcp.json` の値は、そのフォルダで動く Claude（自動の下調べの起動役を含む）が読めてしまうため。設定したら VS Code（Claude Code）を開き直してもらう。
+
 ### 「playwright」の場合
 
 トークン不要。以下の設定を `.mcp.json` に追加する（既に playwright があり args に `--isolated` が無いときも、この内容で上書きする）:
@@ -62,27 +64,23 @@ playwright・slack を設定する場合は「その他」を選択して `playw
 
 > ⚠️ `@modelcontextprotocol/server-github` は `modelcontextprotocol/servers-archived` へ移動済み（非推奨・セキュリティ修正なし）。現状は動作するが、後継は `github/github-mcp-server`（Docker/バイナリ配布、npx一発導入不可）。
 
-チャットで直接トークンを質問する（自由入力のため AskUserQuestion は使わない）:
+トークンはチャットに貼らせない（上の「鍵の決まり」）。次をそのまま案内する:
 
 ```
-GitHub Personal Access Token を入力してください。
-
-取得方法:
-1. GitHub > 右上のアイコン > Settings
-2. 左下 Developer settings
-3. Personal access tokens > Tokens (classic) > Generate new token
-4. スコープ: repo, read:org にチェック
-5. Generate token > コピー
+1. GitHub > 右上のアイコン > Settings > 左下 Developer settings
+2. Personal access tokens > Tokens (classic) > Generate new token（スコープ: repo, read:org）> Generate token > コピー
+3. PowerShell で: setx GITHUB_PERSONAL_ACCESS_TOKEN "<コピーしたトークン>"（チャットには貼らないでください）
+4. VS Code（Claude Code）を開き直す
 ```
 
-入力値を `.mcp.json` に書き込む:
+`.mcp.json` に書き込む（値は書かない）:
 
 ```json
 "github": {
   "command": "npx",
   "args": ["-y", "@modelcontextprotocol/server-github@latest"],
   "env": {
-    "GITHUB_PERSONAL_ACCESS_TOKEN": "<入力値>"
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
   }
 }
 ```
@@ -91,57 +89,55 @@ GitHub Personal Access Token を入力してください。
 
 > ⚠️ `@modelcontextprotocol/server-slack` は `modelcontextprotocol/servers-archived` へ移動済み（非推奨・セキュリティ修正なし・1年以上更新なし）。
 
-チャットで直接 Slack Bot Token（`xoxb-` で始まる）を質問する（自由入力のため AskUserQuestion は使わない）。入力値を `.mcp.json` に書き込む:
+Slack Bot Token（`xoxb-` で始まる）はチャットに貼らせない（上の「鍵の決まり」）。本人に `setx SLACK_BOT_TOKEN "<トークン>"` を PowerShell で実行してもらい、`.mcp.json` に書き込む（値は書かない）:
 
 ```json
 "slack": {
   "command": "npx",
   "args": ["-y", "@modelcontextprotocol/server-slack@latest"],
   "env": {
-    "SLACK_BOT_TOKEN": "<入力値>"
+    "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN:-}"
   }
 }
 ```
 
 ### 「notion」の場合
 
-チャットで直接 Notion Integration Token（`ntn_` または `secret_` で始まる）を質問する（自由入力のため AskUserQuestion は使わない）。取得方法を先に案内してから質問する:
+Notion Integration Token（`ntn_` または `secret_` で始まる）はチャットに貼らせない（上の「鍵の決まり」）。次をそのまま案内する:
 
 ```
-取得方法:
 1. https://www.notion.so/profile/integrations を開く
-2. 「New integration」で Integration を作成
-3. Internal integration token をコピー
-4. 連携したいページで「接続を追加」→ Integration を選択
+2. 「New integration」で Integration を作成し、Internal integration token をコピー
+3. 連携したいページで「接続を追加」→ Integration を選択
+4. PowerShell で: setx NOTION_TOKEN "<コピーしたトークン>"（チャットには貼らないでください）
+5. VS Code（Claude Code）を開き直す
 ```
 
-入力値を `.mcp.json` に書き込む（`OPENAPI_MCP_HEADERS` の値は JSON 文字列のためエスケープに注意）:
+`.mcp.json` に書き込む（値は書かない。`NOTION_TOKEN` は Notion の MCP が読む環境変数）:
 
 ```json
 "notion": {
   "command": "npx",
   "args": ["-y", "@notionhq/notion-mcp-server@latest"],
   "env": {
-    "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer <入力値>\", \"Notion-Version\": \"2025-09-03\"}"
+    "NOTION_TOKEN": "${NOTION_TOKEN:-}"
   }
 }
 ```
 
 ### 「backlog」の場合
 
-チャットで直接、以下を2問に分けて質問する（自由入力のため AskUserQuestion は使わない）:
-
-1. **ドメイン** — 例: `yourcompany.backlog.com`
-2. **APIキー** — 取得方法を案内してから質問する:
+1. チャットで **ドメイン** を聞く（自由入力のため AskUserQuestion は使わない）— 例: `yourcompany.backlog.com`
+2. **APIキーはチャットに貼らせない**（Claude の会話にも `.mcp.json` にも残さない。`.mcp.json` の値は、そのフォルダで動く Claude が読めてしまうため）。次をそのまま案内する:
 
 ```
-取得方法:
-1. Backlog にログイン
-2. 右上のアイコン > 個人設定
-3. API タブ > メモを入力して「登録」→ APIキーをコピー
+1. Backlog にログイン → 右上のアイコン > 個人設定 → API タブ > メモを入力して「登録」→ APIキーをコピー
+2. PowerShell で次の1行を実行する（キーはこの窓にだけ貼り、チャットには貼らないでください）
+   setx BACKLOG_API_KEY "<コピーしたAPIキー>"
+3. VS Code（Claude Code）を開き直す
 ```
 
-入力値を `.mcp.json` に書き込む:
+`.mcp.json` には、キーを環境変数から読む形で書く（値を書き込まない。Claude Code は `.mcp.json` を読むときに `${...}` を展開する）:
 
 ```json
 "backlog": {
@@ -149,10 +145,13 @@ GitHub Personal Access Token を入力してください。
   "args": ["-y", "backlog-mcp-server@latest"],
   "env": {
     "BACKLOG_DOMAIN": "<ドメイン>",
-    "BACKLOG_API_KEY": "<APIキー>"
+    "BACKLOG_API_KEY": "${BACKLOG_API_KEY:-}"
   }
 }
 ```
+
+- 開き直したあと `mcp__backlog__get_myself` を呼んで、つながるかを確かめる（401 なら環境変数を確かめてもらう）
+- 前の版で `.mcp.json` に APIキーの値を直接書いた案件は、上の 1〜3 のあとで、本人に `.mcp.json` を開いてもらい、`BACKLOG_API_KEY` の値を `${BACKLOG_API_KEY:-}` に書き換えてもらう（Claude は `.mcp.json` を読まない。読むとキーが会話に残るため）
 
 ### 「support-desk」の場合
 
@@ -205,5 +204,5 @@ GitHub Personal Access Token を入力してください。
 
 ## 注意
 
-- 入力されたトークン・APIキーをチャット上に表示しない
+- トークン・APIキーをチャットで受け取らない・表示しない（環境変数に入れてもらう。Step 2 の「鍵の決まり」）
 - `.mcp.json` の内容を docs/ に記録しない

@@ -18,9 +18,14 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sys
 from datetime import date
 from pathlib import Path
+
+
+# 課題キー（GF-12・LINK_MS-3）の形。キーは記録の置き場のパスになるので、../ や C:/ を渡させない
+KEY = re.compile(r"^[A-Z][A-Z0-9_]*-\d+$")
 
 
 def _path(key: str) -> Path:
@@ -61,6 +66,9 @@ def main(argv: list[str]) -> int:
         print(__doc__)
         return 2
     cmd, key, rest = argv[1], argv[2], list(argv[3:])
+    if not KEY.match(key):
+        print(f"[ERROR] 課題キーの形ではありません: {key}（例: GF-12）", file=sys.stderr)
+        return 2
     state = _load(key)
 
     if cmd == "add":
