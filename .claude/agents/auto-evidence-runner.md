@@ -291,7 +291,7 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
 
 `{serial}` が true の場合は `--serial` を追加する。
 
-**exit code 1 は想定内（異常終了ではない）**: `run-batch` は対象 TC に 1 件でも失敗（コンパイルエラー・Apex 実行時例外・NG）があると exit code 1 を返す仕様。これは「1件以上 NG があった」ことを表すだけで、コマンド自体の失敗ではない。**exit code を理由に処理を中断せず、Step 2「実行できなかった TC の扱い」を済ませてから次に進む**（NG の内容は標準出力の `[NG] {No} ({観点}): {error}` 行で確認できる。コンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した証跡 txt が生成されるため、`judge_results.py` が自動で NG 判定する）。exit code 2（`[ERROR] {cases ファイル}（または apex_file）を読み込めません`）は cases ファイルか、そこに書いた `.apex` を読めず1件も実行していないので、それを直して同じコマンドを再実行する（3-3b・再実行の cases ファイルも同じ）。
+**exit code 1 は想定内（異常終了ではない）**: `run-batch` は対象 TC に 1 件でも失敗（コンパイルエラー・Apex 実行時例外・NG）があると exit code 1 を返す仕様。これは「1件以上 NG があった」ことを表すだけで、コマンド自体の失敗ではない。**exit code を理由に処理を中断せず、Step 2「実行できなかった TC の扱い」を済ませてから次に進む**（NG の内容は標準出力の `[NG] {No} ({観点}): {error}` 行で確認できる。コンパイルエラー・実行時例外で失敗した TC も実行失敗内容を記録した証跡 txt が生成されるため、`judge_results.py` が自動で NG 判定する）。exit code 2（`[ERROR] {cases ファイル}（または apex_file）を読み込めません`）は cases ファイルか、そこに書いた `.apex` を読めず1件も実行していないので、それを直して同じコマンドを再実行する（3-3b・再実行の cases ファイルも同じ）。exit code 3（`[FATAL]`。Sandbox の確認に失敗）も1件も実行していないので、Step 2 の `[FATAL]` と同じくエラー内容をユーザーに報告して停止する（3-3b・3-3c・3-3d・再実行の cases ファイルも同じ）。
 
 #### 3-3b: 2回目の実行（2回に分けて実行する TC〔全体を 3-3c で実行する TC・3-3d で実行する TC を除く〕がある場合のみ）— **Phase C（証跡採取モード）でのみ実行**（Phase F ではスキップ）
 
@@ -318,10 +318,16 @@ python "{project_dir}/scripts/python/backlog-xlsx/anon_apex_runner.py" run-batch
   --max-workers {max_workers_anon} \
   --serial-nos "{serial_nos}" \
   --sandbox-cache "{project_dir}/.sf/sandbox_check_cache.json"
+echo "run-batch exit code: $?"
+```
+
+exit code が 0・1 なら、各 TC の出力を足す（exit code 2・3 は 3-3 の段落のとおり扱い、前の回の `{No}_check.txt` が tmp/ に残っていても足さない）:
+
+```bash
 cat "{log_dir}/tmp/{No}_check.txt" >> "{1回目の out}"
 ```
 
-3. AsyncApexJob に出ない処理（プラットフォームイベントの購読側・レコードトリガーフローの非同期パスとスケジュール済みパス）を待つ TC は、`{No}_check.apex` にその処理が終わったことを示す項目も CHECK に含め（その処理の結果を読む項目は、まだ終わっていないときに例外にならないよう `COUNT()` や List で受け、空なら NG の CHECK を出す）、先に下の run-batch を1回実行してコンパイルエラーの TC を Step 2「実行できなかった TC の扱い」で済ませ（直さない TC は失敗の出力を、未確認にした TC はその1行を1回目の証跡に足し、`anon_check_pe_cases.json` と下のループの grep から外す）、残りを全件 PASS になるまで再実行してから（5分で打ち切り）、最後の出力を 2. と同じく足す（打ち切ったときにその処理が終わったことを示す項目がまだ NG の TC は、出力の代わりに `判定: 未確認 — 購読側・非同期パス・スケジュール済みパスの処理を時間内に確かめられなかった` を足す）:
+3. AsyncApexJob に出ない処理（プラットフォームイベントの購読側・レコードトリガーフローの非同期パスとスケジュール済みパス）を待つ TC は、`{No}_check.apex` にその処理が終わったことを示す項目も CHECK に含め（その処理の結果を読む項目は、まだ終わっていないときに例外にならないよう `COUNT()` や List で受け、空なら NG の CHECK を出す）、先に下の run-batch を1回実行してコンパイルエラーの TC を Step 2「実行できなかった TC の扱い」で済ませ（直さない TC は失敗の出力を、未確認にした TC はその1行を1回目の証跡に足し、`anon_check_pe_cases.json` と下のループの grep から外す）、残りを全件 PASS になるまで再実行してから（5分で打ち切り）、最後の出力を 2. と同じく足す（打ち切ったときにその処理が終わったことを示す項目がまだ NG の TC は、出力の代わりに `判定: 未確認 — 購読側・非同期パス・スケジュール済みパスの処理を時間内に確かめられなかった` を足す。exit code 0・1 で抜けて `{No}_check.txt` が無い TC は、出力の代わりに `判定: 未確認 — 2回目の出力（{No}_check.txt）が無く、結果を確認していない` を足す）:
 
 ```bash
 SECONDS=0
@@ -331,12 +337,16 @@ while :; do
     --cases-file "{log_dir}/tmp/anon_check_pe_cases.json" \
     --max-workers {max_workers_anon} \
     --sandbox-cache "{project_dir}/.sf/sandbox_check_cache.json"
-  [ $? -eq 2 ] && break
-  [ -z "$(grep -L -E "^NG項目数=0/[1-9]" {その TC の {log_dir}/tmp/{No}_check.txt を空白区切りで})" ] && break
+  RC=$?
+  [ $RC -ge 2 ] && break
+  [ -z "$(for f in {その TC の {log_dir}/tmp/{No}_check.txt を空白区切りで}; do grep -q -E "^NG項目数=0/[1-9]" "$f" 2>/dev/null || echo "$f"; done)" ] && break
   [ $SECONDS -ge 300 ] && break
   sleep 30
 done
+echo "run-batch exit code: $RC"
 ```
+
+exit code 2・3 で抜けたときは出力を足さず、3-3 の段落のとおり扱う（exit code 2 は直してからこのループをやり直す）。
 
    示す項目が無い場合（否定側の期待で何も変えない等）は、2回目を実行せず、1回目の証跡の末尾に `判定: 未確認 — 購読側・非同期パス・スケジュール済みパスの完了を確かめる手段が無く、結果を確認していない` と1行足す。
 

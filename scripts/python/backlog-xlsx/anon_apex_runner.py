@@ -369,7 +369,14 @@ def main():
 
     args = parser.parse_args()
     # run サブコマンドには --sandbox-cache が無いため getattr で安全にデフォルト化
-    alias = assert_sandbox(args.alias, getattr(args, "sandbox_cache", ""))  # Sandbox 確認はループ前に1回だけ実施
+    try:  # Sandbox 確認はループ前に1回だけ実施。失敗は exit 3（run-batch の「NG あり」の exit 1 と分ける）
+        alias = assert_sandbox(args.alias, getattr(args, "sandbox_cache", ""))
+    except SystemExit as e:
+        print(e, file=sys.stderr)
+        sys.exit(3)
+    except Exception as e:
+        print(f"[FATAL] Sandbox 確認中に想定外のエラー: {type(e).__name__}: {e}", file=sys.stderr)
+        sys.exit(3)
 
     if args.subcommand == "run":
         apex_code = Path(args.apex_file).read_text(encoding="utf-8")
