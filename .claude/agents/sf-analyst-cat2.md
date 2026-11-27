@@ -73,7 +73,7 @@ docs/catalog/
 
 [共通手順参照](../templates/sf-memory/phase0.5-common.md) — cat2 固有の必須 H2: [object-definition-template.md](../templates/sf-analyst-cat2/object-definition-template.md)「オブジェクト定義書の必須構成」のコードブロックの H2
 
-1. `docs/catalog/{standard,custom}/*.md` を Glob で列挙（特定オブジェクト指定のときは、ファイル名（拡張子を除く）が指定した API 名と大文字・小文字を区別せずに一致するものだけ残す）→ ファイルごとに `^## ` を Grep して H2 見出しを全て抽出
+1. `docs/catalog/{standard,custom}/*.md` を Glob で列挙（特定オブジェクト指定のときは、ファイル名（拡張子を除く）が指定した API 名と大文字・小文字を区別せずに一致するものだけ残す。全オブジェクト対象のときは、Phase 1「既存の定義書があるのに上の対象に入らなかったオブジェクト」のコマンドをここで実行し、出た名前（接続先の組織で見つからないオブジェクト）の定義書を除く。結果は Phase 1 でも使う）→ ファイルごとに `^## ` を Grep して H2 見出しを全て抽出
 2. 上記必須 H2 と照合し（名前が違っても相当する節があれば欠落にしない）、欠落があれば Phase 3 で末尾追記（手動追記は保護）
 3. **技術識別子チェック**（差分更新時）: [phase0.5-common.md の技術識別子チェックセクション参照](../templates/sf-memory/phase0.5-common.md) — 適用フィールド: 1. で対象にした定義書の **説明文・備考・業務的意味プロズセクション**（例: 「基本情報 > 用途」「所見・注意点」）。**注意**: 「全項目一覧」テーブルの API 名カラム・型カラムは適用外（API 名の記録が目的）
 
@@ -115,6 +115,16 @@ python scripts/python/sf-lineage/lineage.py objects --standard
 
 **除外する標準オブジェクト**: システム系（ContentVersion・FeedItem・Group・PermissionSet・ProcessInstance等）でカスタム項目もなくビジネスロジックと直接関係しないもの。ただしApexコードで直接参照している場合は含める。
 
+**既存の定義書があるのに上の対象に入らなかったオブジェクト**（差分更新のとき）は、接続先の組織の一覧に無い定義書の名前を次で出して分ける（プロジェクトのルートで実行。一覧は大きいので、比べた結果だけを出す）:
+
+```bash
+sf sobject list -s all --json | python -c "import sys, json, glob, os; d = json.load(sys.stdin); d.get('status') == 0 or sys.exit('一覧を取れなかった: ' + str(d.get('message'))); s = {n.lower() for n in d['result']}; b = lambda f: os.path.splitext(os.path.basename(f))[0]; print('\n'.join(b(f) for f in glob.glob('docs/catalog/standard/*.md') + glob.glob('docs/catalog/custom/*.md') if b(f).lower() not in s) or '(なし)')"
+```
+
+- 出なかった名前 → 対象に加える（定義書化の基準から外れた標準オブジェクトも、定義書がある間は更新を続ける）
+- 出た名前（接続先の組織で見つからない）→ 対象にしない。その定義書と、`_index.md`・`_data-model.md` のそのオブジェクトの行・ノード・関係線は残す。最終報告「要確認事項」に「接続先の組織で見つからないオブジェクトの定義書: {名前}」と書く（組織から削除したのか、別の組織にだけあるのか、接続ユーザーに見えないだけかは担当者が決めるので、削除しない）
+- コマンドが失敗した（終了コードが 0 以外）→ 何もしない（Phase 0.5 でも除かない）
+
 #### オブジェクト分類定義（カスタム/標準・カウント基準）
 
 **Phase 3 のフォルダ振り分け・Phase 4 の全体統計・Phase 5 のインデックス種別列は、すべてこの定義に従う。** 定義を変えると三ファイルが乖離するため、この節以外で独自分類しない。
@@ -128,7 +138,7 @@ python scripts/python/sf-lineage/lineage.py objects --standard
 
 #### 特定オブジェクト指定の場合
 
-指定されたオブジェクトのみ処理する。
+指定されたオブジェクトのみ処理する。Phase 4・5 で既存の `_data-model.md`・`_index.md` を更新するときも、指定したオブジェクトが関わらない行・ノード・関係線（ほかのオブジェクトのレコード件数を含む）は既存のまま残す（ファイル先頭の版・生成日の行と総数は通常どおり更新する）。
 
 ### Phase 1.5: 本番突合モードの確認
 
@@ -288,7 +298,7 @@ Phase 2 の `sf sobject describe` 出力の `recordTypeInfos` からマスター
 
 ### Phase 4: 全体データモデル図の生成
 
-全オブジェクト処理後、`docs/catalog/_data-model.md` を生成する。
+対象のオブジェクトを処理した後、`docs/catalog/_data-model.md` を生成する（特定オブジェクト指定のときに残す範囲と、接続先の組織で見つからないオブジェクトの記述の扱いは Phase 1）。
 
 > **保存先ファイル名**: 必ず `docs/catalog/_data-model.md` に保存する。`_er.md` や他の名前は不可。
 
@@ -305,7 +315,7 @@ Phase 2 の `sf sobject describe` 出力の `recordTypeInfos` からマスター
 
 ### Phase 5: インデックス生成
 
-`docs/catalog/_index.md` を生成/更新する。
+`docs/catalog/_index.md` を生成/更新する（特定オブジェクト指定のときに残す範囲と、接続先の組織で見つからないオブジェクトの記述の扱いは Phase 1）。
 
 インデックスに含める情報:
 - オブジェクト名（API名・ラベル）・レコード件数・用途（1行）・関連UC
@@ -328,9 +338,9 @@ Phase 2 の `sf sobject describe` 出力の `recordTypeInfos` からマスター
 
 #### 件数の突き合わせ（同一ファイル内・_data-model.md 横断）
 
-**目的**: `_index.md` が件数を複数テーブル（機能グループ別表・全件一覧テーブル等）に記載する場合、および `_data-model.md` の孤立/整理候補一覧に件数を載せる場合、同一オブジェクトの件数が食い違う問題を防ぐ。Phase 5 末尾で必ず実施する。
+**目的**: `_index.md` が件数を複数テーブル（機能グループ別表・全件一覧テーブル等）に記載する場合、および `_data-model.md` の孤立/整理候補一覧に件数を載せる場合、同一オブジェクトの件数が食い違う問題を防ぐ。Phase 5 末尾で、今回の対象のオブジェクトについて必ず実施する。
 
-1. [件数・数値の一貫性原則](../spec/sf-memory-quality.md#件数数値の一貫性原則差分更新横断補完共通) の正本階層に従う。正本は `data/data-statistics.md`（存在する場合）、未生成の場合は本 Phase で実測した各オブジェクト定義書の `基本情報テーブル`。`data/data-statistics.md` が既に存在し改版履歴日付が基本情報テーブルより新しい場合は、data-statistics 値を正本として catalog/_index.md および各オブジェクト定義書の旧件数を data-statistics 値に揃える（[適用ルール5 recency tiebreaker](../spec/sf-memory-quality.md#件数数値の一貫性原則差分更新横断補完共通)）。
+1. [件数・数値の一貫性原則](../spec/sf-memory-quality.md#件数数値の一貫性原則差分更新横断補完共通) の正本階層に従う。正本は `data/data-statistics.md`（存在する場合）、未生成の場合は本 Phase で実測した各オブジェクト定義書の `基本情報テーブル`。`data/data-statistics.md` が既に存在し改版履歴日付が基本情報テーブルより新しい場合は、data-statistics 値を正本として catalog/_index.md およびオブジェクト定義書の旧件数を data-statistics 値に揃える（[適用ルール5 recency tiebreaker](../spec/sf-memory-quality.md#件数数値の一貫性原則差分更新横断補完共通)）。
 2. `_index.md` に同一オブジェクトの件数を複数箇所へ書く場合、すべて正本値をコピーし同一にする。[集計値の自己検算原則 §3](../spec/sf-memory-quality.md#集計値の自己検算原則テーブル合計期間集計) に従い Grep で全出現を確認して一致させる。
 3. `_data-model.md` の孤立/整理候補一覧に件数を載せる場合も正本値で揃える（Phase 4 で別実測した値が残らないよう Phase 5 末尾で照合）。
 4. 照合不能（正本未生成・複数候補で不一致）の場合は該当箇所に `**[要確認: 他ファイルと件数矛盾]**` を付与し残置する（推測で揃えない）。
@@ -379,5 +389,5 @@ TARGET="<作成した作業フォルダ・一時ファイルの絶対パス>" py
 （重要なリレーション・設計上の注意点・孤立オブジェクト等）
 
 ### 要確認事項
-（用途不明なオブジェクト・参照が見つからないオブジェクト等）
+（用途不明なオブジェクト・参照が見つからないオブジェクト・接続先の組織で見つからないオブジェクトの定義書等）
 ```
