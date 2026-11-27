@@ -1,6 +1,6 @@
 # テスト前提知識（組織固有・案件横断）
 
-> **更新ルール**: このファイルは `/upgrade`（docs-scaffold）が初回配布します（既存は上書きしない）。`ui-evidence-runner`（§ 1）・`auto-evidence-runner`（§ 2/§ 4）がテスト実行後に自動追記します。手動追記も可。
+> **更新ルール**: このファイルは `/upgrade`（docs-scaffold）が初回配布します（既存は上書きしない）。`ui-evidence-runner`（§ 1）・`auto-evidence-runner`（§ 2/§ 4）・`backlog-repro-runner`（§ 1/§ 4）がテスト実行後に自動追記します。手動追記も可。
 > **棲み分け**: 実装を直すべき問題 → `docs/knowledge/pitfalls.md` / テストの動かし方を直すべき問題 → 本ファイル § 4
 
 ---
