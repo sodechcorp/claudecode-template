@@ -152,11 +152,29 @@ mkdir -p "{evidence_dir}/after/screen"
 mkdir -p "{evidence_dir}/before"
 ```
 
-今回 Step 2〜4 で実行する TC（上の依存で足した TC を含む）の前の回の証跡を消す（証跡の名前は観点やエージェントが付ける名前から作るため回ごとに変わりうる。残すと今回の証跡と一緒に判定され、今回撮れなかった TC は前の回の証跡で判定される。前の回の分は Step 0.5 で退避済み）:
+今回 Step 2〜4 で実行する TC（上の依存で足した TC を含む）の前の回の証跡を消す（証跡の名前は観点やエージェントが付ける名前から作るため回ごとに変わりうる。残すと今回の証跡と一緒に判定され、今回撮れなかった TC は前の回の証跡で判定される。前の回の分は Step 0.5 で退避済み）。1件ずつ消し、1件が消せなくても残りを続け、最後に残ったファイルを出す:
 ```bash
-python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[2].split(',') if no.strip() for d in ('after/soql','after/apex','after/screen','before') for f in glob.glob(os.path.join(sys.argv[1], d, no.strip() + '_*'))]" "{evidence_dir}" "{その TC の No をカンマ区切り。{target_tc_list} が空のときも全件を並べる}"
-python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[2].split(',') if no.strip() for f in glob.glob(os.path.join(sys.argv[1], no.strip() + '_setup*.txt'))]" "{log_dir}/tmp" "{同じ No}"
+python -c "
+import glob, os, sys
+ev, tmp, nos = sys.argv[1], sys.argv[2], [n.strip() for n in sys.argv[3].split(',') if n.strip()]
+if not os.path.isdir(os.path.join(ev, 'after')):
+    print('[FATAL] evidence_dir が見つかりません:', ev)
+    sys.exit(2)
+def ls():
+    return [f for no in nos for f in [g for d in ('after/soql', 'after/apex', 'after/screen', 'before') for g in glob.glob(os.path.join(glob.escape(ev), d, glob.escape(no) + '_*'))] + glob.glob(os.path.join(glob.escape(tmp), glob.escape(no) + '_setup*.txt'))]
+for f in ls():
+    try:
+        os.remove(f)
+    except OSError as e:
+        print('[WARN] 削除失敗:', f, e)
+left = ls()
+for f in left:
+    print('[残存]', f)
+sys.exit(1 if left else 0)
+" "{evidence_dir}" "{log_dir}/tmp" "{その TC の No をカンマ区切り。{target_tc_list} が空のときも全件を並べる}"
 ```
+
+終了コードが 0 でなければ、Step 1.5 以降に進まず中断を報告して止まる。`[残存]` の行なら、そのパスと `[WARN]` の理由を添えて「前の回の証跡を消せませんでした。ファイルを開いているアプリを閉じるか読み取り専用を外してから /test を再実行してください」と、`[FATAL]`・それ以外のエラーならその内容を添えて報告する（残ったまま採取すると、今回撮れなかった TC が前の回の証跡で判定される。この時点では Sandbox を変えていない）。
 
 ---
 

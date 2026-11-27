@@ -121,10 +121,27 @@ mkdir -p "{evidence_dir}/after/screen"
 mkdir -p "{evidence_dir}/before"
 ```
 
-今回の `{ui_cases}` の TC の前の回の証跡（`after/screen/` と `before/` の `{No}_` で始まるファイル）を消す（名前が今回と違うと残って今回の証跡と一緒に判定され、今回撮れなかった TC は前の回の証跡で判定されるため。前の回の分は auto-evidence-runner が退避済み）:
+今回の `{ui_cases}` の TC の前の回の証跡（`after/screen/` と `before/` の `{No}_` で始まるファイル）を消す（名前が今回と違うと残って今回の証跡と一緒に判定され、今回撮れなかった TC は前の回の証跡で判定されるため。前の回の分は auto-evidence-runner が退避済み）。1件ずつ消し、1件が消せなくても残りを続け、最後に残ったファイルを出す:
 ```bash
-python -c "import glob,os,sys; [os.remove(f) for no in sys.argv[3].split(',') if no.strip() for d in sys.argv[1:3] for f in glob.glob(os.path.join(d, no.strip() + '_*'))]" "{evidence_dir}/after/screen" "{evidence_dir}/before" "{ui_cases の No をカンマ区切り}"
+python -c "
+import glob, os, sys
+nos = [n.strip() for n in sys.argv[3].split(',') if n.strip()]
+if not (os.path.isdir(sys.argv[1]) and os.path.isdir(sys.argv[2])):
+    print('[FATAL] 証跡のフォルダが見つかりません:', sys.argv[1], sys.argv[2])
+    sys.exit(2)
+def ls():
+    return [f for no in nos for d in sys.argv[1:3] for f in glob.glob(os.path.join(glob.escape(d), glob.escape(no) + '_*'))]
+for f in ls():
+    try:
+        os.remove(f)
+    except OSError as e:
+        print('[WARN] 削除失敗:', f, e)
+for f in ls():
+    print('[残存]', f)
+" "{evidence_dir}/after/screen" "{evidence_dir}/before" "{ui_cases の No をカンマ区切り}"
 ```
+
+終了コードが 0 でなければ（`[FATAL]`・トレースバック等）、画面操作を行わず、UI TC ごとに `{evidence_dir}/after/screen/{No}_前の回の証跡を消せず.txt` を `printf '%s\n' '判定: 未確認 — 前の回の証跡を消すコマンドが失敗し（{その内容}）、結果を確認していない' > "{その .txt}"` で書き（`{…}` は1行にし、`'` は「」に置き換える。種別が複合の TC が SOQL・匿名 Apex の証跡だけで OK にならないように）、NG（備考に `[前の回の証跡を消せず: {その内容}]`）にして返す。`[残存]` の行が出た TC は画面操作を行わず、`{evidence_dir}/after/screen/{No}_前の回の証跡を消せず.txt` を `printf '%s\n' '判定: 未確認 — 前の回の証跡を消せず（{残ったファイルと [WARN] の理由}）、結果を確認していない' > "{その .txt}"` で書き（`{…}` は1行にし、`'` は「」に置き換える。残った前の回の証跡があっても `judge_results.py` が理由付きの NG〔未実行〕にする）、NG（備考に `[前の回の証跡を消せず: {パス}]`）にして返す。残りの TC は続ける。
 
 `playwright-sf-screen-ops.md`「後から動く処理の結果を待つ」の `{T}` もここで控える（Step 1 の後から動く処理を待つ TC で使う）。
 
@@ -512,7 +529,7 @@ find "{evidence_dir}/after/screen" -name "*.txt" -size +0c
 1. **PNG**: 1KB 以上の `.png` が存在すること。0 バイト・不存在の場合は NG
 2. **after DOM テキスト（判定の主役）**: `after/screen/` 配下に各 TC 対応の `.txt` が存在し、非空（1バイト以上）であること。`find` の結果が 0 件、または特定 TC 分の `.txt` が欠落・0 バイトの場合は NG
 
-`ok: false` で NG にした TC（Step 1・Step 1.5・Step 3 で書いた TC を除く）と、コードブロックごと失敗して結果が返らず `after/screen/` にその TC の `.txt` が無い TC は、`printf '%s\n' '判定: 未確認 — 実行中に失敗し（{error の要約}）、結果を確認していない' > "{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt"` で書く（Step 1.5 で途中で返すときも。`{error の要約}` は1行にし、`'` は「」に置き換える。撮れた分の証跡があっても `judge_results.py` が理由付きの NG〔未実行〕にする）。
+`ok: false` で NG にした TC（Step 0・Step 1・Step 1.5・Step 3 で書いた TC を除く）と、コードブロックごと失敗して結果が返らず `after/screen/` にその TC の `.txt` が無い TC は、`printf '%s\n' '判定: 未確認 — 実行中に失敗し（{error の要約}）、結果を確認していない' > "{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt"` で書く（Step 1.5 で途中で返すときも。`{error の要約}` は1行にし、`'` は「」に置き換える。撮れた分の証跡があっても `judge_results.py` が理由付きの NG〔未実行〕にする）。
 
 ---
 
@@ -578,7 +595,7 @@ OK: {ok} 件 / NG: {ng} 件 / 降格（要手動）: {降格} 件
 
 **「結果」列の判定優先順位**（JS 内部の `ok` は TC 実行時に例外が起きなかったかのみを表す。最終的な「結果」列はこれに以下のチェックを優先順位順に重ねて決定する。上位の判定が下位を上書きする）:
 1. Step 3 で Login As が試みたすべての手順を経ても真に不可能だった TC → `要手動`
-2. Step 4（証跡存在確認）で PNG・after DOM テキストの欠落・0 バイトを検出した TC → `NG`
+2. Step 0（前の回の証跡を消せず）・Step 1・Step 1.5・Step 3 で NG にすると書いた TC、Step 4（証跡存在確認）で PNG・after DOM テキストの欠落・0 バイトを検出した TC → `NG`
 3. JS の `ok: false`（コードブロック実行中に例外発生）→ `NG`
 4. JS の `ok: true` かつ `errorSignature` が非 null（画面エラー検出。セッション失効含む）→ `NG`（`ok: true` でも上書きする）
 5. 上記のいずれにも該当しない → `OK`（`thinDom: true`・`highlighted: false` は備考欄への付記のみで、結果列を `NG` にはしない）
