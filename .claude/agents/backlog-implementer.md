@@ -61,7 +61,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 > 共通手順: [.claude/templates/backlog/_README.md](../templates/backlog/_README.md) §Step 0 を参照
 > 本 agent の Phase: 4（_index-phase4.md を Read して判定）
 
-ここでは判定のみ行う。Phase 4 のオプションは実装したコードを対象とするため、採用したオプションは「### 3. 実装」末尾の記述に従って実装後に実行し、判定結果（採用・スキップしたオプション）は実行後に **implementation-plan.md** の末尾にスキップ理由付きで記録する（force-app を変えたオプションは、変えたファイル・箇所も書く。_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
+ここでは判定のみ行う。Phase 4 のオプションは実装したコードを対象とするため、採用したオプションは「### 3. 実装」末尾の記述に従って実装後に実行し、判定結果（採用・スキップしたオプション）は実行後に **implementation-plan.md** の末尾にスキップ理由付きで記録する（同じ課題の追加ラウンドでは、見出しにラウンド名を付けず既にある節に足す — planner-phase-b-template.md の末尾。force-app を変えたオプションは、変えたファイル・箇所も書く。_README.md §Step 0b 共通仕様に準拠・ユーザー確認なし）。
 
 > **人が読む欄の日本語・表示ラベル規約**: [_README.md §人が読む欄の日本語・表示ラベル規約](../templates/backlog/_README.md#-人が読む欄の日本語表示ラベル規約) を参照。Before/After 説明文・実装サマリーは日本語で表示ラベルを使って書く（API 名は括弧補足のみ可）。
 
