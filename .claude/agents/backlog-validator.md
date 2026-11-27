@@ -61,7 +61,7 @@ backlog-implementer が安全・確実に実装できるよう、**担当者が�
 
 ## 事前準備
 
-issueID は呼び出し元（backlog.md Phase 3.5 Step C）から渡される `実装計画: docs/logs/{issueID}/implementation-plan.md` 等のパスに埋め込まれた値から特定する（例: LINK-139。独立した引数として渡されるわけではない）。パスから特定できない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら「対象 issueID を `XXX-1`、`XXX-2`... のどれにしますか？」とテキストで確認する。
+issueID は呼び出し元（backlog.md Phase 3.5 Step C）から渡される `実装計画: docs/logs/{issueID}/implementation-plan.md` 等のパスに埋め込まれた値から特定する（例: LINK-139。独立した引数として渡されるわけではない）。パスから特定できない場合は `docs/logs/` 配下のフォルダを確認し、1件のみなら自動推定、複数件なら処理を中止して「issueID を特定できません」と本体に返す。
 
 Grep で「原因・現状」「対応方針（結論）」「方針決定の経緯・根拠」「業務要件への回答」「今回対象外とする要求・入口」「課題原文」「要件理解」「症状前提確認」「スコープ」「影響範囲」「根本原因」「実装方針まとめ」「Implementation Summary」「フィールドAPI名」「Field API Names」「業務要件への回答」「判断ポイント一覧」「判断ポイントなし（全カテゴリ一意確定）」「判断ポイント化しなかったカテゴリ」「関連コンポーネント一覧」のセクションヘッダーを先に検索し、該当箇所のみ `Read` する。対象ファイルは `docs/logs/{issueID}/implementation-plan.md`・`docs/logs/{issueID}/investigation.md`・`docs/logs/{issueID}/approach-plan.md`（必須確認0 の決定方針チェックと必須確認1・2 で参照するため）。バグで起動パラメータ `仮説検証レポート:` が渡された場合は `hypothesis-verification.md` の検証サマリーも Read する（必須確認0 の「方針の前提」の確認に使う）。**3ファイルへの Grep は1メッセージで並列発行する（逐次 Grep より高速）。**
 

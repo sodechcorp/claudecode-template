@@ -213,7 +213,7 @@ Q 番号は **investigator が起点で生成し、後続エージェントが�
 |---|---|---|
 | 1 | investigator | Step F で Q を起票し investigation.md の「業務要件の不確実点」セクションに昇順で列挙 |
 | 2 | main thread（backlog.md Phase 2） | 未回答の Q を推奨付きで担当者に提示し、回答を `approach-plan.md`「### 業務要件への回答」に記録 |
-| 3 | planner (Phase B) | Phase B-1 冒頭で `approach-plan.md` の Q 答えを読み込み、未確定 Q があれば再確認。`implementation-plan.md` の前提条件セクションに Q 答えを転記 |
+| 3 | planner (Phase B) | Phase B-1 冒頭で `approach-plan.md` の Q 答えを読み込み、未回答の Q があれば Phase B を始めず本体に返す。`implementation-plan.md` の前提条件セクションに Q 答えを転記 |
 | 3.5 | validator | `implementation-plan.md` の Q 答えが投入される前提と矛盾しないか Step 4（cross-review）で確認。矛盾があれば Phase 3 戻り |
 | blind 系 | blind-second-opinion | blind 性確保のため Q は受け取らない（投入禁止） |
 
@@ -230,7 +230,7 @@ investigator は以下を満たすときのみ Q を起票する:
 
 ## Phase 末尾の確認プロトコル（共通仕様）
 
-各 Phase 終了時、エージェントは以下のテキストブロックを出力してユーザの確認を待つ。AskUserQuestion は使わず、テキスト会話形式とする（承認判定ルールは本節 §承認判定 参照）。
+各 Phase 終了時、以下のテキストブロックを出力する。サブエージェントは出力して本体（/backlog）に返し、担当者への提示・応答の受け取り・次フェーズへの進行は本体が行う（サブエージェントは応答を受け取れない）。AskUserQuestion は使わず、テキスト会話形式とする（承認判定ルールは本節 §承認判定 参照）。
 
 ### 出力テンプレート
 
@@ -246,7 +246,7 @@ investigator は以下を満たすときのみ Q を起票する:
 異議がなければこのまま Phase {N+1} に進みます
 ```
 
-> Phase 1・1.6 は本テンプレートを出さない（結果は Phase 2 の提示にまとめる）。明示承認が要る Phase 2（対応方針の決定）は本テンプレートを使わず、`backlog.md` Phase 2 の提示形式に従う。自動進行を止める条件（`backlog.md`【フェーズ進行】）に該当した場合は、【次へ】の代わりに確認事項への回答を待つ。
+> Phase 1・1.6 は本テンプレートを出さない（結果は Phase 2 の提示にまとめる）。明示承認が要る Phase 2（対応方針の決定）は本テンプレートを使わず、`backlog.md` Phase 2 の提示形式に従う。自動進行を止める条件（`backlog.md`【フェーズ進行】）に該当した場合は、【次へ】を書かない（確認事項への回答は本体が待つ）。
 
 ### 知見還流トリガーの自己チェック（内部判断・出力テンプレートには影響しない）
 
@@ -394,7 +394,7 @@ deploy_route: normal
 **例外として AskUserQuestion を使ってよいケース**（以下のみ）:
 1. **Phase 0 再開 Phase 選択**: コマンド起動時に既存の investigation.md を検出した場合の「どこから再開するか」の選択（クリック式の方が誤操作防止になる）
 
-上記以外でユーザーに選択を求める場合は、必ずテキスト会話で行う。validator の issueID 解決も、候補が3件以下なら「`XXX-1`、`XXX-2`、`XXX-3` のどれを対象にしますか？」とテキストで確認する。
+上記以外でユーザーに選択を求める場合は、必ずテキスト会話で行う。
 
 ---
 

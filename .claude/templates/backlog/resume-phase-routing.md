@@ -14,7 +14,7 @@
 
 - `validation-report.md` の「## 総合判定」が「再検証待ち」「Phase 3（実装方針）に戻る」「Phase 2 に戻る」のどれか（Phase 3・3.5 を始めた後で Phase 3.5 の判定が出ていない、または Phase 3.5・`/test` の差し戻しで戻ると決まった後で Phase 3 を始めていない。`release-issue.md`・`test-report.md` があっても下の行より先にこちら） → 再検証待ちは「Phase 3.5（実装前検証）から / Phase 3（実装方針）から / 中止 のどれにしますか？」、それ以外は総合判定と理由（`/test` の差し戻しなら discussion-log.md の戻り理由も）を添えて「Phase 2（対応方針の決定）から / Phase 3（実装方針）から / 中止 のどれにしますか？」（判定に「（/test の NG」が付いていれば「Phase 3.5（今の計画のまま再判定）から」も出し、選んだら /test の判断と違うと考える担当者の理由を discussion-log.md に `[user → main] 指摘:` で書いてから進む。`investigation.md` のフロントマターの `deploy_route` が `manual-operation` ならこの行は飛ばす）
 - `release-issue.md` 存在 → まず `release-issue.md` を Read し、記録されている差し戻し先 Phase（Phase 4 または Phase 5）を確認したうえで選択肢を出す（**Sandbox リリース段階〔backlog-releaser.md〕の差し戻し専用。本番リリース段階〔release-preparer.md〕の差し戻しは上記 `prod-release-issue.md` を参照**）:
-  - 差し戻し先が Phase 4（実装ロジック起因の挙動不良） → 「Phase 4（実装修正）から / Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
+  - 差し戻し先が Phase 4（実装ロジック起因の挙動不良・原因の切り分けが困難） → release-issue.md の差し戻し理由を1行添えて「Phase 4（実装修正）から / Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
   - 差し戻し先が Phase 5（デプロイ失敗等・dry-run で検知可能な問題） → 「Phase 5（スモーク確認）から / Phase 6（リリース）から再試行 / 中止 のどれにしますか？」
   - 分岐を提示する前に `docs/logs/{issueID}/` 配下の `release-issue.R{N}.md` の最大回次番号 N（＝ Phase 6 からの過去の差し戻し回数。欠番があってもファイル数ではなく最大値を基準にする）を確認する。現在の `release-issue.md`（今回分）を含めた通算差し戻し回数（N + 今回分）が4回目以上に達している場合は「Phase 6 からの差し戻しが繰り返されています。業務担当者との打ち合わせを推奨します」を添えて提示する。
   - 選択後: 把握済みの差し戻し理由・現象・ログを踏まえて該当フェーズを実施する

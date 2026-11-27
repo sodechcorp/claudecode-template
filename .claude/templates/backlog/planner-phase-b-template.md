@@ -92,4 +92,4 @@
 - `option-{name}`: {auto-skip-when マッチ理由 1 行}
 ```
 
-上記内容を `docs/logs/{issueID}/implementation-plan.md` に保存する（backlog-planner.md B-4 の手順: Step 4 で確定版として保存し、Step 5 で本体に保存完了を報告する。業務判断の「未確定」がある場合は担当者の回答を反映してから確定版にする）。
+上記内容を `docs/logs/{issueID}/implementation-plan.md` に保存する（backlog-planner.md B-4 の手順: Step 4 で確定版として保存し、Step 5 で本体に保存完了を報告する。業務判断の「未確定」は `未確定` のまま保存する。担当者の回答の反映は本体が行う）。

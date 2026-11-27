@@ -20,9 +20,9 @@ tools:
 
 **実装計画に書かれていないことを実装しない。**
 
-計画に「判断ポイント ① = 選択肢A」と書かれていれば、選択肢Aを実装する。途中で「選択肢Bの方がいい」と思っても、ユーザに確認を取ってから変更する。
+計画に「判断ポイント ① = 選択肢A」と書かれていれば、選択肢Aを実装する。途中で「選択肢Bの方がいい」と思っても、自分では変えない（選択肢Aが成り立たないと分かったら、経路2で止めて本体に返す）。
 
-ただし計画と実コードの不整合が生じた場合は、ユーザ承認後に限り計画を修正できる（詳細は「エラー・不整合発見時の行動」を参照）。
+ただし計画と実コードの不整合が生じた場合は、「エラー・不整合発見時の行動」の3経路で扱う（計画書を直して続行してよいのは経路1だけ。経路2・3は止めて本体に返す）。
 
 **エラー時の戻り先**: 経路1=計画書微修正で続行 / 経路2=`backlog-planner`（実装方針の問題・Phase 3 戻り）/ 経路3=`backlog-validator`（検証漏れ・Phase 3.5 戻り）。詳細は §エラー・不整合発見時の行動。
 
@@ -126,8 +126,9 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 - **項目・部品を削除・名前変更・型変更する前に**: 組織の地図で `python scripts/python/sf-lineage/lineage.py who <対象（Obj__c.Field__c・クラス名・LWC:名前など）>` を引き、参照が残っていないかを実装の前に確かめる（/release まで待たない。[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。出た部品は該当ファイル・行をソースで確かめ、型変更は数式・積み上げ・値を写す先（`← 経由`）も見る。地図に無いもの（メソッド単位の呼び出し元・文字列で組み立てる SOQL の項目など）は Grep で補う。計画で扱っていない参照が残るなら、変更せずに経路3（検証漏れ）として扱う
 - FLS / CRUD / `with sharing` / ガバナ制限 / バルク処理を意識する
 - **新規メタデータ作成時（項目・オブジェクト・レコードタイプ・タブ・Apex・フロー）**: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md) の該当種別セクションに従い、FLS・CRUD・ページレイアウト配置・タブ設定を**付与する（付与方針の詳細はchecklist参照）**。**権限セットの新規作成・恒久的な役割設計は方針を一言ユーザーに伝えてから進める**（Sandbox内での試作・ラベル変更等の軽微な調整は確認不要）。チェック漏れを黙殺しない（「確認したが不要と判断した」場合もその旨を明示する）
-- **実装前に**: implementation-plan.md の API 名を `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` で再照合し、一致することを確認してから使用する。field-meta.xml が無い項目と、計画書で `[要確認: sf sobject describe は tools 未所持のため未実施]` の項目は、既定の接続先に `sf sobject describe --sobject {Object} --json` と `sf data query --use-tooling-api -q "SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '{Object}' AND QualifiedApiName IN ('{項目}', ...)" --json` で確かめる（どちらかにあれば有る）
-  - 不一致（どちらにも無い場合を含む）の場合は実装を止め、計画書の API 名と field-meta.xml（describe・FieldDefinition の結果）のどちらが正しいかユーザに確認する。どちらにも無く、どちらかのコマンドが失敗していた場合は項目が無いとは判断せず、実装を止めてエラー内容を報告する
+- **実装前に**: implementation-plan.md の API 名（今回新規に作る項目＝「関連コンポーネント一覧」で変更種別が新規の `*.field-meta.xml` を除く）を `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` で再照合し、一致することを確認してから使用する。field-meta.xml が無い項目と、計画書で `[要確認: sf sobject describe は tools 未所持のため未実施]` の項目は、既定の接続先に `sf sobject describe --sobject {Object} --json` と `sf data query --use-tooling-api -q "SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '{Object}' AND QualifiedApiName IN ('{項目}', ...)" --json` で確かめる（どちらかにあれば有る）
+  - どちらにも無く、どちらかのコマンドが失敗していた場合は、項目が無いとは判断せず、代わりの項目も探さずに、実装を止めてエラー内容を報告する
+  - それ以外の不一致（どちらにも無い場合を含む）: 同じオブジェクトに、計画書に書かれた表示ラベルと完全に一致し、型も計画での使い方と合う項目が1つだけあれば、その API 名で計画書を直して経路1で続行する（名前はメタデータで決まるため、担当者には聞かない）。それ以外（当たる項目が無い・1つに決まらない・型が合わない）は実装を止め、経路2で本体に返す。`auto_fix_mode: true` では、1つに決まる場合も計画書を直さずに止める（中断の理由は「API名不一致」）
 - APIフィールド名は計画書記載の API 名を起点とし、上の再照合で存在を確認した上で使用する
 - エラーハンドリングは計画で決めた扱いで含める（計画に無い点は既存のやり方に合わせる）
 - テストクラスを書く・直すときは、[option-unit-test-creation.md](../templates/backlog/options/option-unit-test-creation.md) 手順2 の期待値の比べ方に従う
@@ -254,18 +255,16 @@ implementation-plan.md の「関連コンポーネント一覧（変更対象フ
 
 ## フェーズ完了の提示
 
-Before/After をユーザに提示した後、以下を必ず行う:
+Before/After を出力した後、以下を必ず行う（担当者への提示・応答の受け取り・Phase 5 への自動進行は本体〔/backlog〕が行う）:
 
 1. Phase 末尾の確認プロトコル（`_README.md §Phase 末尾の確認プロトコル` に従う）を単一ブロックで出力する。【Phase 4 完了サマリー】は変更ファイル数・主な変更点を中心に3〜5行で書く（別枠のサマリーを重ねて出力しない）。【確認事項】欄の Phase 4 固有の典型例（該当時のみ・0件が原則）:
    - 実装中に計画書に記載のなかった構造 X を発見したため採用アプローチを変えた
    - implementation-plan.md の改版が必要な箇所の確認
    - 経路 2/3 で Phase 3/3.5 に戻った際の再確認ポイント
-2. ユーザの自由テキスト応答を待つ（質問・修正依頼 何でも可。Phase 4→5 は自動進行のため明示承認は不要 — [_README.md §承認判定](../templates/backlog/_README.md) 参照）
-3. やり取りが落ち着いたら「異議がなければこのまま Phase 5 に進みます」と一言添える
 
-**discussion-log.md への追記**（上記 1〜3 とは独立の必須処理。auto_fix_mode でも省略しない）: 1 の出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
+**discussion-log.md への追記**（上記 1 とは独立の必須処理。auto_fix_mode でも省略しない）: 1 の出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
 
-> **auto_fix_mode: true の場合**: 上記 1〜3 の対話確認は行わず、変更ファイル数・主な変更点・経路 2/3 判定の有無・派生事項を構造化して呼び出し元（/test）に返す（本 Step 0「承認ガード」の【例外（/test 自動修正経由）】節と対称）。discussion-log.md への追記は省略しない。
+> **auto_fix_mode: true の場合**: 上記 1 の確認プロトコルは出力せず、変更ファイル数・主な変更点・経路 2/3 判定の有無・派生事項を構造化して呼び出し元（/test）に返す（本 Step 0「承認ガード」の【例外（/test 自動修正経由）】節と対称）。discussion-log.md への追記は省略しない。
 
 ---
 
