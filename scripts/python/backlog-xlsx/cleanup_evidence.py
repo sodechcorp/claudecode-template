@@ -238,19 +238,25 @@ def main():
         print("[DRY-RUN] 実際には削除していません。")
         sys.exit(0)
 
+    # 1件ずつ試し、失敗しても残りを続ける。サイズは消す前に控え、消えたことを確かめたものだけ数える
     deleted = 0
+    deleted_size = 0
     failed = 0
     for p in png_files:
         try:
+            size = os.path.getsize(p)
             os.remove(p)
-            deleted += 1
         except OSError as e:
             failed += 1
             print(f"[WARN] 削除失敗: {p} ({e})")
+            continue
+        if os.path.exists(p):
+            failed += 1
+            print(f"[WARN] 削除後も残っています: {p}")
+            continue
+        deleted += 1
+        deleted_size += size
 
-    deleted_size = total_size if failed == 0 else sum(
-        os.path.getsize(p) for p in png_files if not os.path.exists(p)
-    )
     print(f"[DONE] {deleted} 件削除（約 {_fmt_mb(deleted_size)}）。" + (f" 失敗 {failed} 件。" if failed else ""))
 
     # 差分再実行モード対策: 次回 /test は今回削除した分を「前回OK」として再利用できないため、
