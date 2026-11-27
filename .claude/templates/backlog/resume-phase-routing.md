@@ -33,7 +33,7 @@
 - `approach-plan.md` 存在（implementation-plan.md なし） → 「Phase 3（実装方針）から / Phase 2（対応方針の決定）から / 中止 のどれにしますか？」
 - `investigation.md` のみ存在 → `investigation.md` フロントマターの `issue_type` を確認し、以下の通り選択肢を提示する:
   - フロントマターに `issue_type` が無い（Phase 1 完了時に書き込まれるため、調査途中で中断したファイル） → 「Phase 1 から再調査 / 中止 のどれにしますか？」
-  - `issue_type` = `バグ` → 「Phase 1.6（Sandbox 仮説検証）から / 中止 のどれにしますか？」（hypothesis-verification.md の「## 結論」の除外仮説〔再現せず〕に investigation.md の H 番号が全てあるとき〔最後の Phase 1.6 が結論の集計まで終わり、全仮説が再現しなかった〕は、Phase 1.6 を実行せずに [phase1-6-sandbox-verification.md](phase1-6-sandbox-verification.md) の ④ の行から続ける）
+  - `issue_type` = `バグ` → 「Phase 1.6（Sandbox 仮説検証）から / 中止 のどれにしますか？」（hypothesis-verification.md の「## 結論」の本文が `集計前` の1行でなく〔backlog-repro-runner.md Step 5-0 が実行の始めに書き、Step 8 が置き換える〕、その採用候補仮説・除外仮説・検証不可の行に investigation.md の H 番号が全てあるとき〔最後の Phase 1.6 が結論の集計まで終わり、その後に仮説を足していない〕は、Phase 1.6 を実行せずに、「## 結論」の件数で [phase1-6-sandbox-verification.md](phase1-6-sandbox-verification.md) の「Phase 1.6 完了後の分岐」を当てはめる。② ③ は「Phase 2（対応方針確定）から / 中止 のどれにしますか？」〔③ でその行の retrieve・ユーザーへの確認が要る仮説があり、`docs/logs/{issueID}/repro/org-retrieve/` の中身でも investigation.md の「## 業務側からの追加情報」でもまだ確かめられていなければ、Phase 2 の前にそれを行う〕、④ はその行から続ける）
   - `issue_type` = `問い合わせ` → 「Phase 2（対応方針確定）から / 中止 のどれにしますか？」
   - `issue_type` = `追加要望` / `その他` → 「Phase 2（対応方針確定）から / 中止 のどれにしますか？」
 
