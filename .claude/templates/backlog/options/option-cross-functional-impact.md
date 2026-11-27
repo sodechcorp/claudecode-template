@@ -6,7 +6,7 @@
 
 ## 実行手順
 
-1. 変更内容のサマリーを再確認する（何を変えたか）
+1. 変更内容のサマリーを再確認する（何を変えたか。`docs/logs/{issueID}/implementation-summary.md`「変更を加えた資材一覧」「Before / After」〔あれば〕・`implementation-plan.md`「## データ移行計画」〔あれば〕と release-preparer Phase 1 の資材マニフェストで見る。manual-operation〔implementation-summary.md が無い〕は `manual-operation-steps.md`「### 操作ステップ」と資材マニフェスト〔「### 操作対象」〕で見る）
 2. 以下の観点で横断的な影響を確認する:
 
    **データ整合性**:
