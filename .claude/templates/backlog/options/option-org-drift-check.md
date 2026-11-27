@@ -49,10 +49,11 @@ cd "{project_dir}" && sf data query --use-tooling-api -q "SELECT Markup FROM Ape
 ```
 （Visualforce コンポーネントは `ApexPage` を `ApexComponent` に、保存先の `.page.` を `.component.` に替える〔同じ名前のページと上書きし合わないため〕。比べ方は LWC と同じく、空白をそろえて一致するか）
 
-**3. UAT側・本番側の `Source` / `Body` / `Markup` を比較する**:
+**3. UAT側・本番側の `Source` / `Body` / `Markup` を比較する**（`{対象}` は手順2の保存名の `.uat.json`・`.prod.json` より前。例: `{バンドル名}.aura`）:
 ```bash
-cd "{project_dir}" && python -c "import json; a=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.uat.json',encoding='utf-8'))['result']['records']; b=json.load(open('{tmp_dir}/org-drift-tier0/{対象}.prod.json',encoding='utf-8'))['result']['records']; ..."
+cd "{project_dir}" && python -c "import json,sys,difflib,re; R=lambda f: {(r.get('FilePath') or r.get('DefType') or '(本文)'): (r.get('Source') or r.get('Body') or r.get('Markup') or '') for r in json.load(open(f,encoding='utf-8'))['result']['records']}; N=lambda s: [re.sub('[ \t]+',' ',l).strip(' \t') for l in s.splitlines() if l.strip(' \t')]; u,p=R(sys.argv[1]),R(sys.argv[2]); d=[k for k in sorted(set(u)|set(p)) if (k in u)!=(k in p) or N(u.get(k,''))!=N(p.get(k,''))]; print('どちらにも無い' if not (u or p) else 'UAT のみ存在' if not p else '本番のみ存在' if not u else '内容相違' if d else '一致'); [print('\n'.join(difflib.unified_diff(N(p.get(k,'')),N(u.get(k,'')),'本番 '+k,'UAT '+k,n=0,lineterm=''))) for k in d if u and p]" "{tmp_dir}/org-drift-tier0/{対象}.uat.json" "{tmp_dir}/org-drift-tier0/{対象}.prod.json"
 ```
+1行目が比較結果（一致 / UAT のみ存在 / 本番のみ存在 / 内容相違 / どちらにも無い）。内容相違なら続けて、ファイル（LWC は FilePath、Aura は DefType）ごとの差を、半角スペース・タブをそろえた行で出す（`-` が本番、`+` が UAT）。4. の「UAT 側の差分が今回のリリース対象の変更を含むか」はこの差で見る。`KeyError: 'result'`・`JSONDecodeError` で止まったら手順2 の取得が失敗しているので、UAT・本番の両方の JSON の message（ファイルが空なら、手順2 のそのコマンドを `>` 以降を外して実行したときのエラー）を見て取り直す。
 
 **4. 差分の意味を判定する**（本判定は手順2で実体取得できた LWC / Aura / Apex クラス / Apex トリガー / Visualforce の5種のみに適用する。それ以外の種別の候補がスコープに含まれていた場合、実体取得できないため Tier0 では判定不可＝Tier1 の更新日時比較に委ねる）:
 | 判定 | 条件 |
@@ -61,7 +62,8 @@ cd "{project_dir}" && python -c "import json; a=json.load(open('{tmp_dir}/org-dr
 | **未リリース積み残し（最重要警告）** | UAT に存在するコンポーネントが本番に存在しない |
 | **未リリース積み残しの疑い（最重要警告）** | UAT と本番で内容が異なり、UAT 側の差分が今回のリリース対象の変更を含む/含みうる |
 | 他者変更あり・要確認 | UAT と本番で内容が異なる（本番にのみ存在する場合を含む）が、差分が今回のリリース内容と無関係（Tier1/2 の観点と合流） |
-| 差分なし | UAT と本番が一致 |
+| 要確認（どちらの組織にも無い） | どちらにも無いのに force-app に在る（問い合わせの種別・名前の誤りを疑い、force-app のフォルダ〔種別〕・名前どおりに取り直して判定し直す。それでも無ければこの判定のまま記録する） |
+| 差分なし | UAT と本番が一致（force-app にも無いものがどちらにも無い場合を含む） |
 
 **5. 「未リリース積み残し」「未リリース積み残しの疑い」が1件でもある場合**、release-plan.md 冒頭に最重要警告として記録する。**Tier0 で見つかったコンポーネントを資材マニフェストへ自動追加しない**（誤検知・スコープ外の可能性があるため）。完了報告で「マニフェストに含めるべきか」をユーザーに明示的に確認する。
 
@@ -113,7 +115,7 @@ cd "{project_dir}" && python -c "import json; a=json.load(open('{tmp_dir}/org-dr
 ### Tier 0（環境間実体差分・マニフェスト非依存。検査対象は LWC / Aura / Apex クラス / Apex トリガー / Visualforce のみ。それ以外の種別は Tier 1 の更新日時比較でのみカバー）
 | コンポーネント | 検査方式 | スコープ根拠 | UAT/本番 比較結果 | 判定 |
 |---|---|---|---|---|
-| {API名} | Tier0 実体比較 | マニフェスト / 変更記録 / 参照関係 / decisions.md・cases | 一致 / UAT のみ存在 / 本番のみ存在 / 内容相違 / 未比較（Sandbox未接続） | 差分なし / 未リリース積み残し / 未リリース積み残しの疑い / 他者変更あり・要確認 / 今回のリリース対象 / 未実施（Sandbox未接続） |
+| {API名} | Tier0 実体比較 | マニフェスト / 変更記録 / 参照関係 / decisions.md・cases | 一致 / UAT のみ存在 / 本番のみ存在 / 内容相違 / どちらにも無い / 未比較（Sandbox未接続） | 差分なし / 未リリース積み残し / 未リリース積み残しの疑い / 他者変更あり・要確認 / 要確認（どちらの組織にも無い） / 今回のリリース対象 / 未実施（Sandbox未接続） |
 
 ### Tier 1（軽量スキャン）
 | コンポーネント | 最終更新日 | 最終更新者 | 痕跡 |
