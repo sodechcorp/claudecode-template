@@ -198,7 +198,9 @@ describe は接続ユーザーに項目レベルセキュリティで見えな�
 > sf data query --use-tooling-api -q "SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '<オブジェクト名>'" --target-org <_prod_alias> --json
 > ```
 >
-> 本番 alias の describe・クエリのどちらかが失敗した場合（接続不可・権限不足など）: 「⚠️ 本番 ({_prod_alias}) への問い合わせに失敗しました。そのオブジェクトの本番デプロイ待ちの注記は、既存のものをそのまま残して生成します。」と警告出力し、処理を継続する（中断しない）。
+> 本番の describe が `NOT_FOUND`（`--json` の `name`）で、FieldDefinition のクエリが成功して0件のオブジェクトは本番に無い（Sandbox で作って未リリース）: `_prod_fields[Object]` を空集合にし（全項目が本番デプロイ待ちになる）、「ℹ️ {オブジェクト名} は本番 ({_prod_alias}) にありません。全項目を本番デプロイ待ちにします。」と出力する。
+>
+> それ以外で本番 alias の describe・クエリのどちらかが失敗した場合（接続不可・権限不足など）: 「⚠️ 本番 ({_prod_alias}) への問い合わせに失敗しました。そのオブジェクトの本番デプロイ待ちの注記は、既存のものをそのまま残して生成します。」と警告出力し、処理を継続する（中断しない）。
 
 リレーション（参照先・Lookup と MasterDetail の別・このオブジェクトを参照している他オブジェクト）は describe の `fields[]` の `referenceTo`・`relationshipName`・`relationshipOrder`（MasterDetail のときだけ null でない）と `childRelationships` から取る。
 
@@ -259,7 +261,7 @@ cat1 Phase 1-6 が生成した `docs/.sf/_picklist_samples.json` を Read し、
 
 `_prod_alias` が指定されていない場合はこのフェーズをスキップする。
 
-各オブジェクトについて:
+各オブジェクトについて（Phase 2 で ⚠️ を出したオブジェクトは計算しない）:
 
 1. `_sandbox_fields[Object]` と `_prod_fields[Object]` の項目名集合（API 名）の差分を計算する
    - `deploy_pending_fields[Object]` = Sandbox にあって本番にない項目（= `_sandbox_fields ∖ _prod_fields`）
@@ -287,7 +289,7 @@ Phase 2 の `sf sobject describe` 出力の `recordTypeInfos` からマスター
 > **定義書の必須構成・cross-reference 記載ルール・`_index.md` 列規約・ピックリスト値セクションの記法規約・セル内テキスト整形規約・Mermaid ERD 記法の規約**（下流 `generate_basic_doc.py` との連携含む）:
 > [../templates/sf-analyst-cat2/object-definition-template.md](../templates/sf-analyst-cat2/object-definition-template.md)
 
-> **本番突合モード（`_prod_alias` 指定時）**: 各項目のテーブル行を生成する際、その項目の API 名が `deploy_pending_fields[Object]` に含まれていれば、備考列の先頭に `**[本番デプロイ待ち]**` を追加する。備考列が空の場合は `**[本番デプロイ待ち]**` のみ記載する。含まれていない項目からは既存の `**[本番デプロイ待ち]**` を外す（本番への問い合わせに失敗したオブジェクトは既存のものを残す）。
+> **本番突合モード（`_prod_alias` 指定時）**: 各項目のテーブル行を生成する際、その項目の API 名が `deploy_pending_fields[Object]` に含まれていれば、備考列の先頭に `**[本番デプロイ待ち]**` を追加する。備考列が空の場合は `**[本番デプロイ待ち]**` のみ記載する。含まれていない項目からは既存の `**[本番デプロイ待ち]**` を外す。本番に無いオブジェクト（Phase 2）は、基本情報の「オブジェクト種別」（行が無ければ足す）の値の後ろにも `**[本番デプロイ待ち]**` を付け、本番にあるオブジェクトからは外す（Phase 2 の本番突合で ⚠️ を出したオブジェクトは、項目の備考とオブジェクト種別の `**[本番デプロイ待ち]**` を付けも外しもせず既存のままにする）。
 
 > **SFラベルと業務通称の乖離がある場合**: オブジェクト定義書の「基本情報 > 用途」セクションで `（業務通称: {通称}）` を明記する。`_index.md` のラベル列は SF ラベルのまま維持すること（Phase 5 のラベル列制約を参照）。衝突ガードの詳細は Phase 0 を参照。
 
