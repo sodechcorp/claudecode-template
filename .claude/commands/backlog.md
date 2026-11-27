@@ -35,7 +35,7 @@ argument-hint: "[課題ID]"
 > - `backlog-validator`: `regression-guard`・`ui-evidence-runner`（Before-only）を本コマンドが Phase 3.5 開始時に直接 Task 起動（詳細は Phase 3.5 セクション参照）
 > - `backlog-investigator`: `sf-context-loader`（knowledge-only + 通常モード。旧設計では investigator 内から同一メッセージ並列発行しており不安定化要因だった）を本コマンドが Phase 1 開始時に起動する。2つは互いに独立のため本コマンドから同一メッセージで並列起動する（不安定だったのはサブエージェント内からの並列起動で、メインスレッドからの並列起動は該当しない。詳細は Phase 1 セクション参照）。詳細は [agent-routing.md](../spec/agent-routing.md) 参照
 
-**中間成果物の保存先**: `docs/logs/{issueID}/`（主要3ファイルを抜粋。resume 時に必ず Read する成果物の一覧は Phase 0d の既存ログ読込リストを参照。ただし Phase 6 の `manual-operation-steps.md` / `release-issue.md` 等の終端成果物は resume 継続性に影響しないため Phase 0d リストに含めていない）
+**中間成果物の保存先**: `docs/logs/{issueID}/`（主要3ファイルを抜粋。resume 時に必ず Read する成果物の一覧は Phase 0d の既存ログ読込リストを参照。ただし Phase 6 の `release-issue.md` 等の終端成果物は resume 継続性に影響しないため Phase 0d リストに含めていない。`manual-operation-steps.md` は引き渡しの途中で止まったときの再開の分岐〔resume-phase-routing.md〕で使う）
 - `investigation.md` — 調査レポート
 - `approach-plan.md` — 対応方針
 - `implementation-plan.md` — 実装方針（全判断ポイント確定版）
