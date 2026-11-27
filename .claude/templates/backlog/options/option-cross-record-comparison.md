@@ -34,12 +34,7 @@ sf data query --query "SELECT {調査対象フィールドリスト} FROM {Objec
 
 ### Step 3: フィールド差分の比較
 
-取得した症状あり/なしレコードを横断的に比較する:
-
-```bash
-# Step 2 の各コマンドの末尾（--json の後ろ）にこのパイプを付けて実行する（流し直さない）。attributes を除いた1レコード1行に整形して差分確認
-sf data query --query "{Step 2 の SOQL}" --target-org <症状が出た組織の alias> --json | python -c "import json, sys; [print({k: v for k, v in r.items() if k != 'attributes'}) for r in json.load(sys.stdin)['result']['records']]"
-```
+Step 2 で取得した症状あり/なしレコードの JSON（`result.records`）を項目ごとに直接見比べ、値が違う項目を特定する（`attributes` は比較から外す）。
 
 比較観点:
 | フィールド種別 | 着眼点 |
