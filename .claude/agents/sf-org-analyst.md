@@ -45,7 +45,7 @@ Glob ツールで以下のファイル存在を確認し、完了済みカテゴ
 | cat1（組織概要） | `docs/overview/org-profile.md` |
 | cat2（オブジェクト） | `docs/catalog/_index.md` |
 | cat3（マスタ・ワークフロー） | `docs/data/master-data.md` |
-| cat4（設計書） | `docs/design/` 配下の任意の `.md` |
+| cat4（設計書） | `docs/design/` の種別フォルダ（apex・batch・integration・flow・lwc・vf・aura）配下の任意の `.md` |
 | cat5（機能グループ） | `docs/.sf/feature_groups.yml` |
 | cat6（保守履歴・知識索引） | `docs/knowledge/case-index.md`（代替: `docs/knowledge/effort-calibration.md`） |
 | cat8（SF公式仕様） | `docs/knowledge/sf-standard.md` |

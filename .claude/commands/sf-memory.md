@@ -274,7 +274,7 @@ Phase 4: 2周目（横断補完）＋ cat7（情報所在マップ）
 
 > ※ **単一カテゴリ実行時のマーカー軽量点検**（Phase 4 をスキップする **cat1〜cat6 が1件のみ** の場合に実行。cat5 単独 / cat8 単独 / 2件以上選択時は対象外 — cat5・cat8 はマーカー非該当、2件以上は Phase 4-A が全マーカーを処理するため不要）:
 > - 横断*解消*（他カテゴリの情報でマーカーを埋める処理）は Phase 4 でのみ可能なため単一カテゴリでは行わない。代わりに、実行したカテゴリの生成先フォルダのみを対象に7種マーカー（[マーカー規約](../spec/sf-memory-quality.md#マーカー規約) 参照。一覧はここで再定義しない）の**件数点検**を行い、Step 2 の完了報告に付記する。
-> - 対象フォルダ（実行カテゴリに対応するもののみ Grep する。`docs/` 全体は対象にしない — 前回実行の stale マーカー混入防止）: cat1=`docs/overview/`・`docs/requirements/`・`docs/architecture/`・`docs/flow/` / cat2=`docs/catalog/` / cat3=`docs/data/` / cat4=`docs/design/` / cat6=`docs/knowledge/`
+> - 対象フォルダ（実行カテゴリに対応するもののみ Grep する。`docs/` 全体は対象にしない — 前回実行の stale マーカー混入防止）: cat1=`docs/overview/`・`docs/requirements/`・`docs/architecture/`・`docs/flow/` / cat2=`docs/catalog/` / cat3=`docs/data/` / cat4=`docs/design/` の種別フォルダ（apex・batch・integration・flow・lwc・vf・aura。直下の md〔sf-architect の設計書など〕は除く） / cat6=`docs/knowledge/`
 > - 点検コマンド（複合マーカー `[推定: 分布=...]` 等も検出開始位置でカウント）:
 >   ```bash
 >   grep -rEo '\*\*\[(要確認|推定|資料未確認|組織未調査|未ヒアリング|出典不明|未実装)' {対象フォルダ} | sed -E 's/.*\[//' | sort | uniq -c

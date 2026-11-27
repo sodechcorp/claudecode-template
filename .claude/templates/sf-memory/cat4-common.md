@@ -71,7 +71,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/scan_features.py \
 
 **モード判定（差分更新）:**
 
-`docs/design/` 配下にmdファイルが存在するか確認する。存在しない → 初回生成モード、存在する → アップデートモード（手動追記・設計判断の根拠を絶対に消さない）。
+`docs/design/` の種別フォルダ（apex・batch・integration・flow・lwc・vf・aura）に md ファイルが存在するか確認する（直下の md〔sf-architect の設計書など〕は見ない）。存在しない → 初回生成モード、存在する → アップデートモード（手動追記・設計判断の根拠を絶対に消さない）。
 
 **アップデートモード時の技術識別子チェック**: [phase0.5-common.md 参照](.claude/templates/sf-memory/phase0.5-common.md) — 適用フィールド: 各設計書（対象を指定したときは「Phase 1.5 前提」の対象の設計書だけ。対象が決まる Phase 1 の後に行う）の **responsibility（責務）/ 概要 / 注意点・備考 の自然文セクション**。担当オブジェクト列（API 名を記録する目的）は適用外。
 

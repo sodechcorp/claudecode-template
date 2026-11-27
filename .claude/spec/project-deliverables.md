@@ -7,6 +7,7 @@
 | `docs/flow/` | 業務フロー・ユースケース一覧・スイムレーン定義 | `/sf-memory` |
 | `docs/architecture/` | システム構成図用データ（system.json） | `/sf-memory` |
 | `docs/design/{種別}/` | 機能別設計書（apex/flow/batch/lwc/vf/aura/integration） | `/sf-memory` |
+| `docs/design/`（直下） | sf-architect が作る設計書・資料（機能設計書・非機能要件・データ移行・外部システム連携など） | sf-architect |
 | `docs/catalog/` | オブジェクト・項目定義書（Markdown・Claude記憶形成用） | `/sf-memory` |
 | `docs/data/` | マスタデータ・テンプレート・統計・品質 | `/sf-memory` |
 | `docs/logs/changelog.md` | 変更履歴 | `/backlog`（backlog-implementer が自動追記、backlog-releaser がフォールバック追記）・アドホック実装は担当（メインスレッド／assistant）が1行追記・`/sf-memory` は sf-org-analyst Phase 7.5 で1セッション1行に集約追記（各カテゴリ単体では追記しない） |

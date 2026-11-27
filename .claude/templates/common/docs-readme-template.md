@@ -22,6 +22,7 @@ sf-org-analyst の Phase 7.5 で生成する（cat1 完了後・横断補完時�
 | オブジェクト・項目定義 | catalog/{standard\|custom}/{オブジェクト名}.md | catalog/_index.md |
 | データモデル全体図（ER図・リレーション一覧） | catalog/_data-model.md | catalog/_index.md |
 | 機能別設計書 | design/{種別}/【{機能ID}】{名前}.md | .sf/feature_list.json（コンポーネントごとの design_doc） |
+| sf-architect が作る設計書・資料（機能設計書・非機能要件・データ移行・外部システム連携など） | design/{名前}.md（直下） | — |
 | 機能一覧キャッシュ（コンポーネント一覧 JSON） | .sf/feature_list.json | — |
 | 機能ID台帳（コンポーネント↔ID 対応） | .sf/feature_ids.yml | — |
 | 業務機能グループ定義 | .sf/feature_groups.yml | — |
