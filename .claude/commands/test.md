@@ -671,7 +671,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    A. 修正手順（この順番で実施してください）:
      1. /backlog {issueID} 再開 → {手順3の戻り先: 「Phase 4 修正」/「Phase 3（実装方針の見直し）から Phase 4 まで」/「Phase 2（対応方針の見直し）から Phase 4 まで」/「Phase 3.5（実装前検証のやり直し・今の計画のまま再判定）から Phase 4 まで」/「Phase 1（調査）から Phase 4 まで」（ガード②）} → Phase 5（dry-run 確認）
      2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
-     3. {test-spec.md を直す TC があれば「test-spec.md の {TC} を直してから」}{戻り先が Phase 3 なら「Phase 3 で planner が【ClaudeCode】の解釈を見直して TC を挙げたら〔implementation-plan.md の改版履歴の `Phase3 解釈見直し` の行〕、その TC の期待結果を直してから」}/test {issueID} を再実行（差分モード: 期待結果・判定方法を書き換えていない前回OK分は証跡を流用・取り直しなし）
+     3. {test-spec.md を直す TC があれば「test-spec.md の {TC} を直してから」}{戻り先が Phase 3 なら「Phase 3 で planner が【ClaudeCode】の解釈を見直して TC を挙げたら〔implementation-plan.md の改版履歴の `Phase3 解釈見直し` の行〕、その TC の期待結果を直してから」}/test {issueID} を再実行（差分モード: 期待結果・判定方法を書き換えていない前回OK分は証跡を流用・取り直しなし）{手順4 の影響範囲 TC 候補に前回 OK の TC があれば「。候補のうち前回 OK の {TC} は差分モードでは撮り直されないので、撮り直すときは --full で全件再テスト」}
         次回 /test 起動時に judgment-result.json と証跡が自動的に次の回次として退避されます
    B. 再テスト手順: {test-spec.md を直す TC があれば「test-spec.md の {TC} を直してから」}/test {issueID} を再実行してください（実装の修正・再デプロイは不要。前回 NG の TC を撮り直します）
    ```

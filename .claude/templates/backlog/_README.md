@@ -25,7 +25,7 @@
 ├── planner-phase-q.md            # backlog-planner Phase Q 詳細手順（backlog-planner.md から条件付き Read）
 ├── deploy-skip-judgment.md       # デプロイ適否の判定基準
 ├── resume-phase-routing.md       # 途中フェーズからの再開ルーティング
-├── test-fail-routing.md          # Phase 5 NG 時の戻り先テーブル
+├── test-fail-routing.md          # /test NG 時の戻り先テーブル
 ├── test-pattern-map.md           # 課題種別 → テストパターンマッピング
 ├── release-checklist-matrix.md   # 本番リリース チェックリスト・マトリクス（前→実行→後）
 ├── customer-signoff.md           # お客様確認サインの種別別ルール
