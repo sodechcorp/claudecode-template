@@ -6,7 +6,7 @@ deprecated=false に戻った（force-app に戻った）機能の設計書か�
 
 - 設計書ファイルは削除しない（手動追記・設計判断の根拠を保持）
 - 冪等: BANNER_MARKER の有無で二重追記を防止
-- 「実装状態」セルは正規表現の負の先読みで二重置換を防止
+- 「実装状態」セルはバナーを新しく付けたときだけ書き換える（付いた後に人・横断補完が書き換えた値は残す）
 
 Usage:
     python mark_design_deprecated.py --project-dir <PATH> [--dry-run] [--scan-timestamp YYYY-MM-DD]
@@ -40,9 +40,9 @@ STATUS_ROW_PATTERN = re.compile(
 STATUS_SAVED = "<!-- sf-memory:status-before-deprecated: {} -->"
 
 
-def _to_deprecated(m: re.Match, save: bool = True) -> str:
+def _to_deprecated(m: re.Match) -> str:
     before = m.group(2).strip()
-    saved = f" {STATUS_SAVED.format(before)}" if save and before and "-->" not in before else ""
+    saved = f" {STATUS_SAVED.format(before)}" if before and "-->" not in before else ""
     return f"{m.group(1)} **[廃止]**{saved} {m.group(3)}"
 
 
@@ -132,6 +132,7 @@ def apply_deprecated(md_path: Path, scan_date: str, dry_run: bool) -> dict:
         banner_added: バナーを新規追記したか
         status_replaced: 「実装状態」セルを書き換えたか
         already_marked: 既にバナーマーカーが存在したか
+        status_kept: バナーが既にあり、「実装状態」セルが **[廃止]** でないので書き換えなかったか
         status_no_match: 「実装状態」行が見つからなかったか（テンプレ非準拠 MD の可能性）
     """
     text, form = _read_md(md_path)
@@ -139,6 +140,7 @@ def apply_deprecated(md_path: Path, scan_date: str, dry_run: bool) -> dict:
         "banner_added": False,
         "status_replaced": False,
         "already_marked": False,
+        "status_kept": False,
         "status_no_match": False,
     }
     new_text = text
@@ -157,13 +159,13 @@ def apply_deprecated(md_path: Path, scan_date: str, dry_run: bool) -> dict:
             new_text = banner + "\n" + new_text
         result["banner_added"] = True
 
-    # 2. 「実装状態」セルを **[廃止]** に書き換え
-    # 前の値を残すのはバナーを付けたときだけ（付いた後に書き換えられた値を「前の値」にしない）
-    replaced_text, n = STATUS_ROW_PATTERN.subn(lambda m: _to_deprecated(m, result["banner_added"]), new_text)
-    if n > 0:
-        result["status_replaced"] = True
-        new_text = replaced_text
-    elif "実装状態" not in new_text:
+    # 2. 「実装状態」セルを **[廃止]** に書き換えるのはバナーを付けたときだけ（付いた後に人・横断補完が書き換えた値は残す）
+    if result["banner_added"]:
+        new_text, n = STATUS_ROW_PATTERN.subn(_to_deprecated, new_text)
+        result["status_replaced"] = n > 0
+    elif STATUS_ROW_PATTERN.search(new_text):
+        result["status_kept"] = True
+    if "実装状態" not in new_text:
         result["status_no_match"] = True
 
     if not dry_run and new_text != text:
@@ -176,7 +178,8 @@ def restore_deprecated(md_path: Path, dry_run: bool) -> tuple[str, bool]:
     """apply_deprecated が付けたバナーと「実装状態」の **[廃止]** を外し、「実装状態」を廃止にする前の値に戻す。
     バナーが無くても、前の値の記録が付いたセルは戻す（バナーだけ手で外された場合）。
     戻り値: (状態, 実装状態に「廃止」が残ったか)。状態は "restored"（外した）/ "restored_default"（前の値の記録が無く
-            「実装済み」にした）/ "none"（バナーも記録も無い）/ "edited"（バナーの文が定型と違うため触らない）
+            「実装済み」にした）/ "restored_kept"（バナーは外したが、実装状態は廃止中に書き換えられた値なので残した）/
+            "none"（バナーも記録も無い）/ "edited"（バナーの文が定型と違うため触らない）
     """
     text, form = _read_md(md_path)
     if BANNER_MARKER in text:
@@ -196,9 +199,12 @@ def restore_deprecated(md_path: Path, dry_run: bool) -> tuple[str, bool]:
         return f"{m.group(1)} {m.group(2) or '実装済み'} {m.group(3)}"
 
     left = bool(STATUS_LEFT_PATTERN.search(pattern.sub("", new_text)))  # 戻す行の値そのものに「廃止」があっても数えない
+    kept = bool(STATUS_ROW_PATTERN.search(new_text))  # **[廃止]** でない行は廃止中に書き換えられた値（付けるときは全行を **[廃止]** にする）
     new_text = pattern.sub(_back, new_text)
     if not dry_run:
         _write_md(md_path, new_text, form)
+    if kept:
+        return "restored_kept", left
     return ("restored_default" if defaulted else "restored"), left
 
 
@@ -242,6 +248,7 @@ def main() -> None:
         "restored": 0,
     }
     updated_files: list[str] = []
+    kept = 0
 
     for entry in deprecated_entries:
         feat_id = entry.get("id", "")
@@ -275,15 +282,17 @@ def main() -> None:
                 file=sys.stderr,
             )
 
-        if r["already_marked"] and not r["status_replaced"]:
+        if r["already_marked"]:
             stats["already"] += 1
+            kept += r["status_kept"]
         else:
             stats["updated"] += 1
             updated_files.append(md.as_posix())
             if args.dry_run:
-                banner_msg = "バナー追加予定" if r["banner_added"] else "バナー追加不要"
                 status_msg = "実装状態→[廃止] 予定" if r["status_replaced"] else "実装状態行なし"
-                print(f"  [dry-run] {md.name}: {banner_msg} / {status_msg}")
+                print(f"  [dry-run] {md.name}: バナー追加予定 / {status_msg}")
+    if kept:
+        print(f"  [INFO] 廃止バナーがあり「実装状態」が **[廃止]** でない設計書 {kept}件は、書き換えた値を残しました", file=sys.stderr)
 
     # deprecated=false に戻った機能の設計書から、付けたバナーと **[廃止]** を外す（複合ファイルは1つでも有効なら外す）
     seen: set[Path] = set()
@@ -302,13 +311,18 @@ def main() -> None:
                 f"  [WARN] 機能が有効に戻ったが、実装状態に「廃止」が残っています（手で直す）: {feat_id} {md}",
                 file=sys.stderr,
             )
-        if state in ("restored", "restored_default"):
+        if state in ("restored", "restored_default", "restored_kept"):
             stats["restored"] += 1
             if args.dry_run:
                 print(f"  [dry-run] {md.name}: 廃止バナーと実装状態の **[廃止]** を外す予定")
             if state == "restored_default":
                 print(
                     f"  [INFO] 機能が有効に戻ったので廃止バナーを外し、実装状態を「実装済み」にした（廃止にする前の値の記録なし）: {feat_id} {md}",
+                    file=sys.stderr,
+                )
+            elif state == "restored_kept":
+                print(
+                    f"  [INFO] 機能が有効に戻ったので廃止バナーを外した。実装状態は廃止中に書き換えられた値のまま: {feat_id} {md}",
                     file=sys.stderr,
                 )
         elif state == "edited":

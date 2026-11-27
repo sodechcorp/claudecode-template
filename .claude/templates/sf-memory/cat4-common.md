@@ -160,7 +160,7 @@ python {output_dir}/.tmp/remove_tbd_design.py
 
 ## Phase 2.0: deprecated 設計書のクリーンアップ（アップデートモード時のみ）
 
-Phase 0 の `scan_features.py` 実行で `feature_ids.yml` に `deprecated=true` が立った機能（過去分含む）の設計書 MD に対し、deprecated バナー注記と「実装状態」セルの `**[廃止]**` 化を一括適用する。`deprecated=false` に戻った機能（force-app に戻った）の設計書からは、このスクリプトが付けたバナーと `**[廃止]**` を外し、「実装状態」を廃止にする前の値（記録が無ければ「実装済み」）に戻す。
+Phase 0 の `scan_features.py` 実行で `feature_ids.yml` に `deprecated=true` が立った機能（過去分含む）の設計書 MD に対し、deprecated バナー注記と「実装状態」セルの `**[廃止]**` 化を一括適用する（バナーが既にある設計書の「実装状態」は書き換えない）。`deprecated=false` に戻った機能（force-app に戻った）の設計書からは、このスクリプトが付けたバナーと `**[廃止]**` を外し、「実装状態」を廃止にする前の値（記録が無ければ「実装済み」）に戻す（廃止中に書き換えられた値は残す）。
 
 > 初回生成モード時は対象設計書が存在しないためスキップ。
 
@@ -171,7 +171,7 @@ python {project_dir}/scripts/python/sf-doc-mcp/mark_design_deprecated.py \
 
 - 設計書ファイルは **削除しない**（手動追記・設計判断の根拠を保持）
 - バナーは冪等マーカー付き（再実行しても差分なし）
-- stdout の最終 1 行 `[mark_design_deprecated] deprecated=N updated=M ...` を最終報告に転記する。`shared=` が 1 以上なら、stderr の `[skip] 複合ファイルの他の機能が有効` の行を最終報告「要確認事項」に書く（その機能の記述が設計書に稼働中のまま残っている）。stderr に `[WARN] 機能が有効に戻ったが、…`（バナー・実装状態の **[廃止]** を手で直す）・`[INFO] … 実装状態を「実装済み」にした`（実装状態を確かめる）の行があれば、その設計書も「要確認事項」に書く
+- stdout の最終 1 行 `[mark_design_deprecated] deprecated=N updated=M ...` を最終報告に転記する。`shared=` が 1 以上なら、stderr の `[skip] 複合ファイルの他の機能が有効` の行を最終報告「要確認事項」に書く（その機能の記述が設計書に稼働中のまま残っている）。stderr に `[WARN] 機能が有効に戻ったが、…`（バナー・実装状態の **[廃止]** を手で直す）・`[INFO] … 実装状態を「実装済み」にした`／`[INFO] … 実装状態は廃止中に書き換えられた値のまま`（実装状態を確かめる）の行があれば、その設計書も「要確認事項」に書く
 
 ---
 
