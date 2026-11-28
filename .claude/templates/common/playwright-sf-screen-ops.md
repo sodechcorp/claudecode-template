@@ -25,7 +25,7 @@ Salesforce Setup 配下（`/_ui/`・`/lightning/setup/` 等）の URL は、**�
 **実行前に確認する内容**（いずれかを満たしてから `page.goto()` する）:
 1. 対象 URL の挙動を help.salesforce.com 等の公式ドキュメントで確認し、「確認ダイアログを挟む画面」か「遷移＝即時実行」かを判定する
 2. 公式ドキュメントで確認できない場合は、**URL 直打ちを避け、正規の Setup メニュー操作（`browser_click` でボタン・リンクをクリックする通常のナビゲーション）で遷移し、実際に確認ダイアログが挟まるかを目視してから次の操作に進む**
-3. 上記いずれも実施できず、かつ操作の結果が不可逆（トークン再発行・パスワードリセット・権限変更・レコード削除等）である可能性を排除できない場合は、実行せずユーザーに確認を取る
+3. 上記いずれも実施できず、かつ操作の結果が不可逆（トークン再発行・パスワードリセット・権限変更・レコード削除等）である可能性を排除できない場合は、実行しない（メインの会話ならユーザーに確認を取る。サブエージェントは、その操作に依る TC・仮説・確認の行を確かめられなかったものとして返す）
 
 「Sandbox だから」「開くだけだから」は実行を正当化する理由にならない。Sandbox 限定であっても、対象ユーザーへのメール送信・認証情報の無効化等、影響が Sandbox 内に閉じない副作用がありうる。
 
@@ -413,10 +413,10 @@ async (page) => {
 
 ```bash
 sf data query --target-org "$SF_ALIAS" \
-  -q "SELECT Id, Username, Name, Profile.Name FROM User WHERE Profile.Name = '{プロファイル名}' AND IsActive = true"
+  -q "SELECT Id, Username, Name, Profile.Name FROM User WHERE Profile.Name = '{プロファイル名}' AND IsActive = true ORDER BY LastLoginDate DESC NULLS LAST"
 ```
 
-複数該当時は Name が対象と一致するものを選ぶ。組織クエリで特定できない場合のみユーザに 1 回質問する（パスワード不要）。
+名前・ユーザー名で指定された相手は Name・Username が一致するものを選ぶ。プロファイルだけで指定された相手は、接続ユーザー（`sf org display --target-org "$SF_ALIAS" --json | python -c "import sys,json; print(json.load(sys.stdin)['result']['username'])"`）以外の先頭を選ぶ（接続ユーザーしか当たらないときは接続ユーザー）。相手を特定できない（名前で指定された相手が当たらない・同じ名前が複数当たる、プロファイルで当たるユーザーがいない）ときは推測で選ばない。メインの会話ならユーザーに1回聞く（パスワード不要）。サブエージェントは聞けないので、その相手での操作を行わず、扱いは呼び出し元の手順に従う。
 
 **組織 ID の解決**（Login As 高速パスの `oid` に使用。TC/手順全体で 1 回だけ取得しキャッシュする）:
 
@@ -481,7 +481,7 @@ async (page) => {
   if (!loginAsOk) {
     // 対象ユーザーに切り替わっていない（管理者のまま、または判定不能）: 管理者の画面を対象ユーザーの結果として採取しない。
     // このユーザーの TC は実行せず `loginAs: 'unavailable'` を返す（呼び出し元は、/test では ui-evidence-runner「Login As が実行時に失敗した場合の手順」に従い、
-    // 本番 UI 確認では prod-ui-verifier が「要手動（Login As 不可）」にする）。切り替わっていないので /secur/logout.jsp は実行しない（管理者自身のセッションが切れる）
+    // 本番 UI 確認では prod-ui-verifier が「要手動（Login As 不可）」に、仮説の再現では backlog-repro-runner が ⚠️ 検証不可にする）。切り替わっていないので /secur/logout.jsp は実行しない（管理者自身のセッションが切れる）
     return JSON.stringify([{ ok: false, loginAs: 'unavailable' }]);
   }
 
@@ -533,7 +533,7 @@ async (page) => {
 ```
 
 **注意**:
-- プロキシ解除 `/secur/logout.jsp` は**当該ユーザの全 TC 完了後に 1 回だけ**実行（次ユーザの Login As 前に管理者セッションに戻る）。Login As が成立していない（本人確認が true でない）状態では実行しない（管理者自身のセッションが切れる）
+- プロキシ解除 `/secur/logout.jsp` は**当該ユーザの全 TC 完了後に 1 回だけ**実行（次ユーザの Login As 前に管理者セッションに戻る）。Login As が成立していない（本人確認が true でない）状態では実行しない（管理者自身のセッションが切れる）。相手が接続ユーザー自身のときも、servlet.su で自分への Login As になり、logout はその Login As だけを終える（2026-11-28 greenfield の Sandbox で実測）
 - **Login As の成否は本人確認（`isCurrentUser`）で判定する**。`looksLikeLoginAsFailure` のマーカー検査だけでは、切り替え不可のユーザー（統合ユーザー等）への `servlet.su` を成功と誤判定し、管理者の画面を対象ユーザーの結果として採取してしまう（2026-09-30 実測）。実測済みの範囲: Lightning の `$A.get('$SObjectType.CurrentUser.Id')`（切り替え前後で管理者→対象ユーザーに変わること、`/secur/logout.jsp` 後に管理者へ戻ることを確認）。Classic 画面（`$A` なし）は判定不能＝未検証のため、成功とは扱わない
 - 複数ユーザがいる場合は**ユーザ分コードブロックを繰り返す**（1ユーザ = 1コードブロック、TC 数は各コードブロック内で吸収）
 - ユーザ名リンクの特定が難しい場合は先に `mcp__playwright__browser_snapshot` で DOM を確認してからコードブロックに組み込む

@@ -76,13 +76,13 @@ python -c "import time; print(int(time.time()))"
    ```bash
    cd "{project_dir}" && sf data query --target-org "{prod_alias}" -q "SELECT Id, Username, Name, Profile.Name FROM User WHERE Profile.Name = '{プロファイル名}' AND IsActive = true ORDER BY LastLoginDate DESC NULLS LAST LIMIT 5"
    ```
-   直近ログイン順の先頭を使う（実在ユーザーを使うため、対象は行の確認に必要な最小限にする）。特定できない・Login As が使えない（`playwright-sf-screen-ops.md`「Login As」の前提チェックで不可）→ その行は「要手動（Login As 不可／ユーザー特定不可）」。ユーザーへの質問はしない（自分で聞く手段がない）。**Login As が成立したかは、マーカー検査ではなく本人確認（`isCurrentUser`。切り替え後の CurrentUser.Id が対象ユーザーの Id と一致すること）で判定する**。一致しない・判定不能なら、管理者の画面を対象ユーザーの結果として採取せず、そのユーザーの行を「要手動（Login As 不可）」にする（切り替わっていないときは `/secur/logout.jsp` を実行しない。管理者自身のセッションが切れる）
+   接続ユーザー以外で直近ログイン順の先頭を使う（接続ユーザーしか当たらないときは接続ユーザー。実在ユーザーを使うため、対象は行の確認に必要な最小限にする）。特定できない・Login As が使えない（`playwright-sf-screen-ops.md`「Login As」の前提チェックで不可）→ その行は「要手動（Login As 不可／ユーザー特定不可）」。**Login As が成立したかは、マーカー検査ではなく本人確認（`isCurrentUser`。切り替え後の CurrentUser.Id が対象ユーザーの Id と一致すること）で判定する**。一致しない・判定不能なら、管理者の画面を対象ユーザーの結果として採取せず、そのユーザーの行を「要手動（Login As 不可）」にする（切り替わっていないときは `/secur/logout.jsp` を実行しない。管理者自身のセッションが切れる）
 4. **各行の確認**: 対象画面へ遷移 → `waitSfReady` → `getPageText`（`ERROR_SIGNATURES` 照合）→ スクリーンショット（`fullPage: true`）→ 期待結果の文言・要素が画面にあるか（「表示されない」が期待なら無いこと）で判定する
    - **OK**: 期待結果を満たす
    - **NG**: 満たさない、または `errorSignature` を検出。NG と確定する前に1回だけリロードして再確認する（Lightning の描画遅延を除外するため）
    - **新規・編集画面で判定する行**（編集できるか・必須・選択肢・初期値など）: 開く前に、その画面が上書き画面・カスタム画面なら `prod-readonly-check.md`「本番 UI 確認」の「上書き画面・カスタム画面」の確認を `{project_dir}/force-app` で行い、確かめられなければ開かずに要手動にする。開いたら、入力は `browser_fill_form`／`browser_select_option`（Enter は押さない）→ スクリーンショット → 判定 → **キャンセルで閉じてから次の行へ進む**（押す前に snapshot でラベルが「キャンセル」であることを確かめる。「変更を破棄」の確認が出たら破棄を選ぶ）。保存ボタンは押さない
    - **カスタム画面の行**（由来が「(c)」。Aura・LWC・Visualforce を置いたタブ・Lightning ページ）: 開く前に、由来に書かれた開く時点の処理の `ファイル名:行番号` を `{project_dir}/force-app` で確かめ直す（DML・メール送信・外部呼び出し・非同期ジョブの起動が無いこと）。確かめられなければ開かずに要手動にする。開いた後は表示を見るだけで、検索・実行などのボタンは押さない（Apex を呼ぶボタンは確定操作と同じ扱い）
-   - **要手動**: 遷移できない（権限・URL 不明・Sandbox のレコード ID を含む遷移先で本番に存在しない）／Login As 不可／状態変更を伴う／開く時点の処理を確かめられない上書き画面・カスタム画面／副作用の有無を確認できていない Setup URL（`playwright-sf-screen-ops.md`「未検証 URL への navigate 前チェック」の手順3〔ユーザーに確認〕は自分では実行できないため、直接遷移せず要手動にする）。理由を1行付ける。**到達できないことを NG にしない**（NG は、画面に到達できたうえで期待結果と違った場合だけ）
+   - **要手動**: 遷移できない（権限・URL 不明・Sandbox のレコード ID を含む遷移先で本番に存在しない）／Login As 不可／状態変更を伴う／開く時点の処理を確かめられない上書き画面・カスタム画面／副作用の有無を確認できていない Setup URL（`playwright-sf-screen-ops.md`「未検証 URL への navigate 前チェック」の手順3 のとおり直接遷移せず、要手動にする）。理由を1行付ける。**到達できないことを NG にしない**（NG は、画面に到達できたうえで期待結果と違った場合だけ）
 5. **証跡**: `{project_dir}/{evidence_dir}/{No}_{確認内容の要約}.png`（絶対パス）。DOM テキストは**全文を保存しない**（実顧客の個人情報が写る）。判定に使った文言の前後数行（最大 40 行）だけを `{No}_{要約}.txt` に保存する（`saveText` の直接保存を使う）。個人情報が映るレコード詳細より、設定・一覧・レイアウトなど個人情報の少ない画面で判定できるならそちらを使う
 6. **ユーザー単位の後始末**: Login As したユーザーの全行が終わったら `/secur/logout.jsp` でプロキシ解除し、CurrentUser.Id が管理者の Id に戻ったことを確認する（Login As のまま次に進まない。戻っていなければ次のユーザーへ進まず中断して「未解除」で報告する。コミュニティユーザーは `/secur/logout.jsp` で管理者に戻れないことがある〔`playwright-sf-screen-ops.md`「Login As（コミュニティ…）」の注意点〕）
 

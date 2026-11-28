@@ -479,7 +479,7 @@ Login As 前提チェック・実ユーザ名の解決・Login As バッチ操�
 
 ### 実ユーザ名の解決（TC 固有）
 
-Step 1 で③の判定に使った記載からプロファイル名/ユーザ名を確認する（続きの TC・途中の画面を撮る TC は続き元・TC-xxx と同じ相手。相手が書かれていなければ `test-prerequisites.md` § 1 のその画面の Login As 対象）。ログインユーザ名は共通手順の SOQL クエリで取得する（`org-profile.md` は業務上の氏名・役割のみでログインユーザ名を持たないため）。相手がどちらにも無い TC と、SOQL で相手に当たるユーザが見つからない TC は、ユーザーに聞かず推測で選ばず実行しない（`printf '%s\n' '判定: 未確認 — Login As の相手を特定できず（test-spec.md か test-prerequisites.md § 1 に相手を書いて再実行）、結果を確認していない' > "{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt"` で書き、NG〔備考に `[Login As の相手を特定できず: {探した箇所}]`〕にする）。
+Step 1 で③の判定に使った記載からプロファイル名/ユーザ名を確認する（続きの TC・途中の画面を撮る TC は続き元・TC-xxx と同じ相手。相手が書かれていなければ `test-prerequisites.md` § 1 のその画面の Login As 対象）。ログインユーザ名は共通手順の SOQL クエリで取得する（`org-profile.md` は業務上の氏名・役割のみでログインユーザ名を持たないため）。相手がどちらにも無い TC と、共通手順「実ユーザ名の解決」で相手を特定できない TC は、推測で選ばず実行しない（`printf '%s\n' '判定: 未確認 — Login As の相手を特定できず（test-spec.md か test-prerequisites.md § 1 に相手を書いて再実行）、結果を確認していない' > "{evidence_dir}/after/screen/{No}_{観点サニタイズ}.txt"` で書き、NG〔備考に `[Login As の相手を特定できず: {探した箇所}]`〕にする）。
 
 ### グルーピングの手順
 
