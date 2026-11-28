@@ -110,3 +110,5 @@ python3 scripts/check_bom.py
 ```
 
 BOM (UTF-8 with BOM) が付くと YAML frontmatter が解析できず、対象ファイルはエラーも警告もなくエージェント/コマンドとして未登録になる。`scripts/upgrade.sh` も適用前に同チェックを自動実行するが、混入源はコミット前に断つこと。
+
+`.claude/hooks/`・`.claude/settings.json`（hooks・deny）を編集した場合は、コミット前に `python3 scripts/check_hooks.py` を実行する（hook の起動の書き方・止めるべき操作が止まり通すべき操作が通るか・HEAD の版より弱まっていないか・deny の各行を hook も止めるか。食い違いがあれば exit 1）。
