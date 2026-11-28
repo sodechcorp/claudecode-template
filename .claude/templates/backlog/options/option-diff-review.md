@@ -25,7 +25,7 @@ git diff {base} -- <変更ファイル>
 
 **それ以外の場合**（force-app が `.gitignore` 対象〔テンプレート既定の構成〕・git 管理外のプロジェクト）:
 
-実装前の控え `docs/logs/{issueID}/before-snapshot/`（[backlog-implementer.md](../../../agents/backlog-implementer.md)「### 3. 実装」。force-app のファイルを変える前に同じ相対パスで写す）の下の全ファイルと、`find force-app -type f -newer docs/logs/{issueID}/implementation-start.md` に出たファイルを合わせて比べる対象にし、1つずつ `git diff --no-index {控えのパス} {force-app/… のパス}` で比べる（force-app に無いもの＝削除は force-app の側を `/dev/null` にする。控えに無いものは、パスの最後のファイル名を implementation-plan.md「## 関連コンポーネント一覧」と照合し（`-meta.xml` は本体と同じ扱い、LWC・Aura はバンドルのフォルダ名が一致すれば同じ扱い）、変更種別が「新規」のものは控えの側を `/dev/null` にして比べる。それ以外は比べる対象から外し、出力の「### 計画外変更の検出」に「控えに無く計画の新規にも無い」として1行ずつ書く（前回の対応の変更か、計画外の新規かを確かめる）。終了コード 1 は差分ありでエラーではない）。控えも implementation-start.md も無いプロジェクト（GAS 等）では、investigation.md の「現状実装」または `docs/logs/{issueID}/evidence/before/` と照合して擬似 diff を作る。
+実装前の控え `docs/logs/{issueID}/before-snapshot/`（[backlog-implementer.md](../../../agents/backlog-implementer.md)「### 3. 実装」。force-app のファイルを変える前に同じ相対パスで写す）の下の全ファイルと、`find force-app -type f -newer docs/logs/{issueID}/implementation-start.md` に出たファイルを合わせて比べる対象にし、1つずつ `git diff --no-index {控えのパス} {force-app/… のパス}` で比べる（force-app に無いもの＝削除は force-app の側を `/dev/null` にする。控えに無いものは、パスの最後のファイル名を implementation-plan.md「## 関連コンポーネント一覧」と照合し（`-meta.xml` は本体と同じ扱い、LWC・Aura はバンドルのフォルダ名が一致すれば同じ扱い、`objects/{オブジェクト}/` の下は、一覧の括弧のオブジェクトが別なら同じ扱いにしない）、変更種別が「新規」のものは控えの側を `/dev/null` にして比べる。それ以外は比べる対象から外し、出力の「### 計画外変更の検出」に「控えに無く計画の新規にも無い」として1行ずつ書く（前回の対応の変更か、計画外の新規かを確かめる）。終了コード 1 は差分ありでエラーではない）。控えも implementation-start.md も無いプロジェクト（GAS 等）では、investigation.md の「現状実装」または `docs/logs/{issueID}/evidence/before/` と照合して擬似 diff を作る。
 
 ---
 
