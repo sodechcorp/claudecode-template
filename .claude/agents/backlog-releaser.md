@@ -246,14 +246,14 @@ Sandbox 判定が失敗（接続切れ・alias 未設定）した場合は操作
 
 > **スキップ判定（軽量再デプロイ）**: `auto_fix_mode: true` の場合、本 Step 全体をスキップする（冒頭「リリースモード判定」表参照）。
 
-> **設計意図（他の知見還流 Step との非対称）**: pitfalls.md（本 Step）のみユーザー確認を必須とし、decisions.md（Step 3）・cases/{issueKey}.md（Step 3.8）・case-index.md（Step 4.5）は確認なしで自動追記する。理由は抽出元の確度の違い: 後者3つは approach-plan.md の採用方針（担当者が決めたもの）・implementation-plan.md（判断の多くは ClaudeCode の判断。誰が決めたかの印・「決めた人」を残して転記する）等、**既に記録済みの構造化セクション**からの転記・集約に留まる。一方 pitfalls.md は discussion-log.md の自然文からの発見的パターン抽出（フォールバック時は approach-plan.md/test-report.md の全文 Grep。§[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) も Step 3.6 経由は常に `[fallback]` と明記）であり、**ユーザー未検証の新規の主張**を全案件が参照する共有知識ベースに書き込むことになる。誤検出が混入すると気づかれにくく将来の判断を誤らせるリスクがあるため、この Step のみ意図的にユーザー確認を挟んでいる（意図的設計であり非対称はバグではない）。
+> **設計意図（他の知見還流 Step との非対称）**: pitfalls.md（本 Step）のみユーザー確認を必須とし、decisions.md（Step 3）・cases/{issueKey}.md（Step 3.8）・case-index.md（Step 4.5）は確認なしで自動追記する。理由は抽出元の確度の違い: 後者3つは approach-plan.md の採用方針（担当者が決めたもの）・implementation-plan.md（判断の多くは ClaudeCode の判断。誰が決めたかの印・「決めた人」を残して転記する）等、**既に記録済みの構造化セクション**からの転記・集約に留まる。一方 pitfalls.md は discussion-log.md の自然文からの発見的パターン抽出（フォールバック時は approach-plan.md/test-report.md の全文 Grep）であり、**ユーザー未検証の新規の主張**を全案件が参照する共有知識ベースに書き込むことになる。誤検出が混入すると気づかれにくく将来の判断を誤らせるリスクがあるため、この Step のみ意図的にユーザー確認を挟んでいる（意図的設計であり非対称はバグではない）。
 
 > **スキップ判定**: `docs/logs/{issueID}/discussion-log.md` が存在しない場合は以下のフォールバック抽出を試みる:
 > 1. `docs/logs/{issueID}/approach-plan.md` と `docs/logs/{issueID}/test-report.md` が存在するか確認
 > 2. 両方とも存在しない場合は完全スキップ
 > 3. いずれか存在する場合は、以下のキーワードリストで Grep してマッチした段落を抽出: `ハマ` / `落とし穴` / `想定外` / `再発防止` / `気をつけ` / `注意` / `壊れ` / `不具合` / `罠`
 > 4. 抽出件数は最大 3 件まで（誤検出抑制のため）。各エントリは後段の類似度判定（重複防止ロジック）を経由してから追記する
-> 5. フォールバック経路で抽出したエントリは「カテゴリ」欄に `[fallback]` プレフィックスを付与する
+> 5. フォールバック経路で抽出したエントリは「検出方法」列を `[fallback]` にする（[knowledge-reflux-formats.md](../templates/common/knowledge-reflux-formats.md) §pitfalls.md 追記フォーマット）
 
 `docs/logs/{issueID}/discussion-log.md` から「次のプロジェクトで役立つ知見」を抽出し、還流先に追記する。ユーザー確認後に追記する。
 

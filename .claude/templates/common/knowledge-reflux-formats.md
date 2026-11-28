@@ -56,10 +56,10 @@
 `docs/knowledge/pitfalls.md` への追記行（最新行を先頭挿入）:
 
 ```
-| {YYYY-MM-DD} | {issueID} | {カテゴリ（例: LWC×Apex / 数式項目）} | {何をするとどうなるか（全角60字以内）} | {対処・回避策（全角40字以内）} | [fallback] |
+| {YYYY-MM-DD} | {issueID} | {カテゴリ（例: LWC×Apex / 数式項目）} | {何をするとどうなるか（全角60字以内）} | {対処・回避策（全角40字以内）} | {検出方法} |
 ```
 
-> 検出方法列: backlog-releaser Step 3.6 経由の追記は常に `[fallback]`（discussion-log.md から抽出のため）。
+> 検出方法列: backlog-releaser Step 3.6 で discussion-log.md から抽出したものは `[discussion-log]`、discussion-log.md が無いときのフォールバック（approach-plan.md / test-report.md の Grep）で抽出したものは `[fallback]`（sf-analyst-cat6 の `[keyword]` / `[llm]` と同じ列）。
 
 **verify-*.md / answer-scope-spec.md 追加ルール記入欄への追記フォーマット**:
 
