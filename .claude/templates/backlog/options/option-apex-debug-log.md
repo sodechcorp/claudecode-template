@@ -108,23 +108,23 @@ sf data update record --use-tooling-api --sobject TraceFlag --record-id <既存�
 
 ## 出力
 
-investigation.md「根本原因」セクションに追記:
+investigation.md「## 根本原因 / 要件の本質」の末尾（次の「## 」見出しの前）に追記（尤度・根拠を変えた仮説は「### 原因仮説（多角分析）」の表のその行も直す）:
 
 ```markdown
-## Apex デバッグログ解析結果
+### Apex デバッグログ解析結果
 
 - ログ取得日時: {YYYY-MM-DD HH:MM}
 - 再現操作: {何を行ったか}
 - 対象ユーザー: {Username / Profile}（匿名 Apex で再現した場合は接続ユーザー）
 - 実行方法: {executeAnonymous（Tooling API）／sf apex run（SOQL_EXECUTE_BEGIN・DML_BEGIN・VALIDATION_FAIL は記録されない）}
 
-### 重要ログ抜粋
+#### 重要ログ抜粋
 
 ```
 {EXCEPTION_THROWN / FATAL_ERROR / CODE_UNIT_STARTED の該当行}
 ```
 
-### 発見事項
+#### 発見事項
 
 | 項目 | 内容 |
 |---|---|
@@ -133,7 +133,7 @@ investigation.md「根本原因」セクションに追記:
 | 実行されなかった処理 | {CODE_UNIT が現れなかった箇所} |
 | SOQL で 0 件返却 | {クエリ内容 + 0件の理由仮説} |
 
-### 仮説への影響
+#### 仮説への影響
 
 - H{N}（{仮説名}）: {ログが支持する / 反証する} → 尤度を {高/中/低} に更新
 ```

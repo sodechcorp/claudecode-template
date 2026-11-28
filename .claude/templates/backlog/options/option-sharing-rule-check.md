@@ -25,9 +25,9 @@
 
 ## 出力
 
-investigation.md「影響範囲」セクションに追記:
+investigation.md「## 影響範囲」の末尾（次の「## 」見出しの前）に追記:
 
-## 共有ルール・OWD 確認
+### 共有ルール・OWD 確認
 
 - OWD 設定: {Private / PublicRead / PublicReadWrite}
 - 関連共有ルール: なし / あり（{ルール名}）
