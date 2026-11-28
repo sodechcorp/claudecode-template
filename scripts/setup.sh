@@ -53,6 +53,7 @@ PROJECT_PATH="$TARGET_DIR/$PROJECT_NAME"
 # --- 前提チェック ---
 command -v git >/dev/null 2>&1 || error "Git がインストールされていません"
 command -v sf >/dev/null 2>&1 || error "Salesforce CLI がインストールされていません。https://developer.salesforce.com/tools/salesforcecli からインストールしてください"
+command -v node >/dev/null 2>&1 || error "Node.js（node）が PATH にありません。.claude/hooks の本番ガードに必要です。https://nodejs.org からインストールしてください"
 
 if [ -d "$PROJECT_PATH" ]; then
     error "$PROJECT_PATH は既に存在します"

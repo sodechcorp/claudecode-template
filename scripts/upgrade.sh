@@ -38,6 +38,11 @@ error() { echo -e "\033[1;31m[ERROR]\033[0m $*"; exit 1; }
 
 # --- 前提チェック ---
 command -v git >/dev/null 2>&1 || error "Git がインストールされていません"
+if ! command -v node >/dev/null 2>&1; then
+    # 自己更新の直後（古い版が差し替えて exec した）なら、upgrade.sh を元に戻してから止める
+    [ -f "${UPGRADE_SELF_BACKUP:-}" ] && cp "$UPGRADE_SELF_BACKUP" "${BASH_SOURCE[0]:-$0}"
+    error "Node.js（node）が PATH にありません。.claude/hooks の本番ガードが動かず、更新後は Bash・編集が止まります。https://nodejs.org からインストールしてから実行してください"
+fi
 [ -d ".claude" ] || error ".claude/ が見つかりません。プロジェクトのルートで実行してください"
 
 # --- テンプレート取得 ---

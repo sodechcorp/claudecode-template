@@ -24,7 +24,8 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-operation.js\"",
-            "timeout": 5
+            "timeout": 30,
+            "onFailure": "block"
           }
         ]
       }

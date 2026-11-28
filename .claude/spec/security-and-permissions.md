@@ -4,6 +4,8 @@
 
 `settings.json` は Git管理対象。`.claude/` 編集・`rm -rf .claude` は行動指示のみ。本番デプロイは deny（⚠️ `*prod*`/`*production*` エイリアスパターン依存）。Claude in Chrome（本人の普段の Chrome をログインしたまま操作する拡張機能）の道具は、入力に Salesforce・Backlog のドメインがあれば hook（`pre-operation.js` の Check 6）が止める（本人の Chrome は本番組織・Backlog にログイン済みのため。Google ドキュメント等の資料の確認・編集は通す）。`git push` は、案件の記録の自動の同期（`scripts/python/docs-sync/docs_sync.py`。`/backlog`・`/test`・`/release`・`/sf-memory`・`/sf-design` の終わりに呼ぶ。/git-sync が同期していた範囲の docs/〔設計書・知見・cases など。docs/logs/・個人の設定ファイルは入れない〕とルートの CLAUDE.md だけをコミットし、取り込んでから送る。force は使わない。docs 以外のまだ送っていないコミットがあれば送らない）と `/upgrade` の正規手順として許可。それ以外の文脈で直接 `git push` を実行しない（`/git-sync` は廃止した）。
 
+hook（`pre-operation.js`）が起動できない・失敗した・30秒で終わらないときは、hook の対象の道具（Bash・PowerShell・Write・Edit・MultiEdit・Backlog・Claude in Chrome）は止まる（`settings.json` の `"onFailure": "block"`。ガードが外れたまま動かさないため）。止まったら別の道具で回避せず、エラーの内容（node が PATH に無い・hook のファイルが無い等）をユーザーに伝える。
+
 テンプレート更新は `/upgrade` コマンド経由のみ。
 
 ## 本番組織接続時の絶対ルール
