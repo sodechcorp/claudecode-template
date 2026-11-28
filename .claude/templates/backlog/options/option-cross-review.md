@@ -14,15 +14,14 @@
 
 | 観点 | 確認内容 |
 |---|---|
-| プロファイル / 権限セット | 変更・追加オブジェクトへの CRUD 権限設定（allowCreate/allowRead/allowEdit/allowDelete） |
+| プロファイル / 権限セット | 変更オブジェクトへの CRUD 権限設定（allowCreate/allowRead/allowEdit/allowDelete。追加するオブジェクトは下の「新規の項目・オブジェクト」） |
 | FLS 項目レベル | `Schema.sObjectType.{Object}.fields.{Field}.isAccessible()` 等の enforcement |
 | Apex `with sharing` | クラス宣言が `with sharing` か `without sharing` か `inherited sharing` か |
 | SOQL `WITH SECURITY_ENFORCED` | クエリ単位の enforcement 有無 |
 | DML `Security.stripInaccessible` | 書き込み時のフィールドアクセス制御 |
 
-- 新規フィールドを追加する場合: 必要な権限セット・プロファイルで readable / editable が設定されているか
+- 新規の項目・オブジェクトを追加する場合: 付与（項目の FLS・オブジェクトの CRUD）は Phase 4 で implementer が [new-metadata-permissions-checklist.md](../../common/new-metadata-permissions-checklist.md) に従って行う。force-app・実装計画に付与がまだ無いことは懸念点・NG 項目・Phase 3 戻りにせず「Phase 4 で付与」と書く（決定方針が付与先を決めているのに計画に無いのは、必須確認0 の「抜け」）。実装計画に付与先が書かれていれば、それで必要なユーザーに足りるかを見る
 - 既存フィールドを変更する場合: FLS の変更が必要ないか
-- 実装側（implementer）で再点検が必要な観点は「要実装確認」として明示する
 
 ### 2. 副作用確認
 
@@ -40,4 +39,4 @@ implementation-plan.md の実装案と、既存の類似実装を比較する:
 
 ## 出力
 
-validation-report.md の `## Step 4: クロスレビュー` 表（[backlog-validator.md](../../../agents/backlog-validator.md) §出力形式）の各行に記録する。権限/FLS 行の確認結果には手順 1 の各観点の結果（「対象外」「要実装確認」を含む）を書く。
+validation-report.md の `## Step 4: クロスレビュー` 表（[backlog-validator.md](../../../agents/backlog-validator.md) §出力形式）の各行に記録する。権限/FLS 行の確認結果には手順 1 の各観点の結果（「対象外」「Phase 4 で付与」を含む）を書く。
