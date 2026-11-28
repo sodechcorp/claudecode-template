@@ -282,12 +282,12 @@ fi
 # どちらも「まだ退避されていなければ」実行する冪等な自己防衛のため、経路によらず必ず履歴が残る。
 TARGET_TC_LIST=""
 if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
-  echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（期待結果・判定方法を書き換えていない前回 OK の TC は再実行しません）。"
+  echo "[INFO] 前回の判定結果を検出。差分再実行モードを使用します（test-spec.md の行を書き換えていない前回 OK の TC は再実行しません）。"
   echo "[INFO] 全量再実行する場合は --full オプションを指定してください。"
 
   # 差分対象 = 前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない TC（test-spec.md に後から追加した TC）
-  #   ∪ 前回の判定後に期待結果・判定方法・種別を書き換えた TC（証跡が書き換え前の期待結果で撮られているため。匿名 Apex の自己検証は期待結果から作る。
-  #     書き換えを確かめられない旧版の判定結果〔spec_sig なし〕は全 TC）。
+  #   ∪ 前回の判定後に test-spec.md の行を書き換えた TC（証跡が書き換え前の行で撮られているため。行のどの列も証跡の作り方に効く。
+  #     書き換えを確かめられない旧版の判定結果〔spec_sig なし〕は全 TC、row_sig の無い判定結果は期待結果・判定方法・種別だけで見る）。
   # 前回「AI判定」のまま残った TC（Phase D-2 が中断された等）は書き換えていなければ証跡を撮り直さず、Phase D・D-2 で判定だけやり直す
   # （撮り直す TC がほかに無ければ Phase D-2 から続ける。前回の判定の後に証跡採取を始めていた〔after_R{判定の回次} がある〕ときは証跡が消えている場合があり、
   #   force-app を変えていた〔再実装〕ときは証跡が古いので、全件で撮り直す）。
@@ -300,9 +300,9 @@ if [ -f "$JUDGMENT_PATH" ] && [ "${FORCE_FULL:-}" != "1" ]; then
   if [ -z "$TARGET_TC_LIST" ] && [ "$PREV_AI" -gt 0 ] && [ ! -d "${EVIDENCE_DIR}/after_R${JUDGED_ROUND}" ] && [ -z "$FA_CHANGED" ]; then
     echo "[INFO] 撮り直す TC は無く、前回の判定に AI判定待ちが ${PREV_AI} 件あります。証跡採取（auto-evidence-runner）と Phase D を行わず、前回の判定・証跡のまま Phase D-2 から続けます（前回の判定の後で管理画面の設定を変えた・force-app を変えずに再デプロイした場合は --full で実行し直してください）。"
   elif [ -z "$TARGET_TC_LIST" ]; then
-    echo "[INFO] 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC なし。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
+    echo "[INFO] 前回 NG・SKIP・新規 TC と、行を書き換えた TC なし。TARGET_TC_LIST が空のため、実装上の制約により今回は全 TC を再実行します（「空リスト＝対象なし」と「未指定＝全件」を区別する仕組みが未実装。本当にスキップしたい場合は --full を使わず本セッションを終了してください）。"
   else
-    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC）: $TARGET_TC_LIST"
+    echo "[INFO] 差分対象（前回 NG・SKIP・新規 TC と、行を書き換えた TC）: $TARGET_TC_LIST"
     echo "[INFO] 影響範囲の TC は今回の実行対象には含まれません（Phase F で NG があった場合のみ、次回再テストの判断材料として提示されます）。"
   fi
 else
@@ -620,7 +620,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
 派生事項    : {backlog-implementer が返した派生事項。無ければ行ごと省略}
 
 次のステップ（別セッションで実施）:
-  /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC を再テスト）。
+  /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC と、test-spec.md の行を書き換えた TC を再テスト）。
   次回 /test 起動時に今回の judgment-result.json と証跡が自動的に次の回次として退避されます。
   ⚠ 差分モードは今回の修正が前回 OK だった他 TC に影響していないか（回帰）までは検出しません。
     修正がバグ再現 TC 以外のコンポーネントにも及ぶ場合は --full での全件再テストを検討してください。
@@ -671,7 +671,7 @@ task_description: 「/test 自動修正起動: {issueID} の修正後 Sandbox �
    A. 修正手順（この順番で実施してください）:
      1. /backlog {issueID} 再開 → {手順3の戻り先: 「Phase 4 修正」/「Phase 3（実装方針の見直し）から Phase 4 まで」/「Phase 2（対応方針の見直し）から Phase 4 まで」/「Phase 3.5（実装前検証のやり直し・今の計画のまま再判定）から Phase 4 まで」/「Phase 1（調査）から Phase 4 まで」（ガード②）} → Phase 5（dry-run 確認）
      2. Phase 6 で Sandbox に再デプロイ（/backlog Phase 6 で実施。/test はデプロイしません）
-     3. {test-spec.md を直す TC があれば「test-spec.md の {TC} を直してから」}{戻り先が Phase 3 なら「Phase 3 で planner が【ClaudeCode】の解釈を見直して TC を挙げたら〔implementation-plan.md の改版履歴の `Phase3 解釈見直し` の行〕、その TC の期待結果を直してから」}/test {issueID} を再実行（差分モード: 期待結果・判定方法を書き換えていない前回OK分は証跡を流用・取り直しなし）{手順4 の影響範囲 TC 候補に前回 OK の TC があれば「。候補のうち前回 OK の {TC} は差分モードでは撮り直されないので、撮り直すときは --full で全件再テスト」}
+     3. {test-spec.md を直す TC があれば「test-spec.md の {TC} を直してから」}{戻り先が Phase 3 なら「Phase 3 で planner が【ClaudeCode】の解釈を見直して TC を挙げたら〔implementation-plan.md の改版履歴の `Phase3 解釈見直し` の行〕、その TC の期待結果を直してから」}/test {issueID} を再実行（差分モード: 行を書き換えていない前回OK分は証跡を流用・取り直しなし）{手順4 の影響範囲 TC 候補に前回 OK の TC があれば「。候補のうち前回 OK の {TC} は差分モードでは撮り直されないので、撮り直すときは --full で全件再テスト」}
         次回 /test 起動時に judgment-result.json と証跡が自動的に次の回次として退避されます
    B. 再テスト手順: {test-spec.md を直す TC があれば「test-spec.md の {TC} を直してから」}/test {issueID} を再実行してください（実装の修正・再デプロイは不要。前回 NG の TC を撮り直します）
    ```
@@ -784,7 +784,7 @@ python "$(pwd -W)/scripts/python/backlog-xlsx/share_evidence.py" --project-dir "
 {実装バグ NG が Phase F-2 で自動修正・再デプロイされた場合}
 自動修正: 完了（Phase F-2）
   修正 TC: {auto_fix_tcs}
-  次のステップ: 別セッションで /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC と、期待結果・判定方法を書き換えた TC を再テスト）。
+  次のステップ: 別セッションで /test {issueID} を再実行してください（差分モード: 前回 NG・SKIP・新規 TC と、test-spec.md の行を書き換えた TC を再テスト）。
                次回 /test 起動時に今回の証跡が自動的に次の回次として退避されます。
                ⚠ 差分モードは今回の修正が前回 OK だった他 TC に影響していないか（回帰）までは検出しません。
                  修正がバグ再現 TC 以外のコンポーネントにも及ぶ場合は --full での全件再テストを検討してください。

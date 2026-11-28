@@ -20,7 +20,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from _common import parse_test_spec, spec_signature
+from _common import parse_test_spec, row_signature, spec_signature
 
 
 def _next_archive_round(out_path: str) -> int:
@@ -1040,7 +1040,12 @@ def main():
             prev_fp = prev.get("evidence_mtime")
             if prev.get("spec_sig") != spec_sig:
                 print(f"[RE-JUDGE] {no}: {tc.get('観点', '')} → 期待結果・判定方法が前回から変わっているため再判定します")
+            elif any(w in tc.get("自動化可否", "") for w in ("要手動", "対象外")):
+                # auto-evidence-runner は実行しないので撮り直されず、流用すると古い row_sig が残って毎回撮り直しの対象に入る
+                print(f"[RE-JUDGE] {no}: {tc.get('観点', '')} → 自動化可否が要手動・対象外のため再判定します")
             elif prev_fp is not None and current_fp is not None and current_fp <= prev_fp:
+                # row_sig の無い前回の結果（row_sig を足す前）は今の行で撮ったものとして足す（撮り直しの判定は次の回から効く）
+                prev.setdefault("row_sig", row_signature(tc))
                 results.append(prev)
                 print(f"[REUSE] {no}: {tc.get('観点', '')} → 前回OK流用 ({prev.get('actual', '')})")
                 continue
@@ -1093,6 +1098,7 @@ def main():
             "evidence": evidence_path,
             "evidence_mtime": current_fp,
             "spec_sig": spec_sig,
+            "row_sig": row_signature(tc),
         })
 
         # xlsx H 列更新: テスト・検証シートは廃止済みのため行わない（エビデンスはエビデンス.xlsx に集約）

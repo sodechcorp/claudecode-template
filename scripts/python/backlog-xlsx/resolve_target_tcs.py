@@ -5,8 +5,9 @@ inline-script-hygiene.md のルール（`python -c` は単一物理行限定・�
 従い、if/try-except を含む多行ロジックを本スクリプトへ切り出した。
 
 前回の judgment-result.json と test-spec.md を突き合わせ、今回再実行すべき TC 番号
-（前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない新規 TC ∪ 前回の判定後に期待結果・判定方法・種別を
-書き換えた TC〔spec_sig の無い旧版の判定結果は全 TC〕）をカンマ区切りで標準出力に返す。
+（前回 NG ∪ 前回 SKIP ∪ 前回結果に存在しない新規 TC ∪ 前回の判定後に行を書き換えた TC
+〔spec_sig の無い旧版の判定結果は全 TC。row_sig の無い判定結果は期待結果・判定方法・種別だけで見る〕）を
+カンマ区切りで標準出力に返す。
 
 Usage:
     python resolve_target_tcs.py \
@@ -17,19 +18,23 @@ Usage:
 import argparse
 import json
 
-from _common import parse_test_spec, spec_signature
+from _common import parse_test_spec, row_signature, spec_signature
 
 
 def resolve_target_tcs(judgment_path: str, spec_path: str) -> str:
     d = json.load(open(judgment_path, encoding="utf-8"))
     prev = {r["no"]: r.get("status") for r in d.get("results", [])}
-    prev_sig = {r["no"]: r.get("spec_sig") for r in d.get("results", [])}
+    prev_sig = {r["no"]: (r.get("spec_sig"), r.get("row_sig")) for r in d.get("results", [])}
     try:
         spec_tcs = parse_test_spec(spec_path)
         spec_nos = [tc.get("No", "") for tc in spec_tcs]
-        # 前回の証跡は書き換え前の期待結果で撮られている（匿名 Apex の自己検証は期待結果から作る）。
-        # spec_sig の無い旧版の判定結果は書き換えを確かめられないため撮り直す（judge_results.py も再判定する）
-        changed = {tc.get("No", "") for tc in spec_tcs if prev_sig.get(tc.get("No", "")) != spec_signature(tc)}
+        # 前回の証跡は書き換え前の行で撮られている（行のどの列も証跡の作り方に効く）。
+        # spec_sig の無い旧版の判定結果は書き換えを確かめられないため撮り直す（judge_results.py も再判定する）。
+        # row_sig の無い判定結果（row_sig を足す前）は期待結果・判定方法・種別だけで見る（judge_results.py が流用時に row_sig を足す）
+        def _changed(tc):
+            sig, row = prev_sig.get(tc.get("No", ""), (None, None))
+            return sig != spec_signature(tc) or (row is not None and row != row_signature(tc))
+        changed = {tc.get("No", "") for tc in spec_tcs if _changed(tc)}
     except Exception:
         spec_nos = list(prev.keys())
         changed = set()

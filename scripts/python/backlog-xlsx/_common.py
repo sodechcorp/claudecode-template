@@ -215,8 +215,17 @@ def parse_test_spec(spec_path: str) -> list:
 
 
 def spec_signature(tc: dict) -> str:
-    """差分再実行で前回の証跡・判定を流用してよいかの判定用。期待結果・判定方法・種別が変わったら
-    証跡を撮り直し（resolve_target_tcs.py）、再判定する（judge_results.py）。"""
+    """差分再実行で前回の判定を流用してよいかの判定用。期待結果・判定方法・種別が変わったら
+    再判定する（judge_results.py）。row_sig の無い前回の結果では撮り直しの判定にも使う（resolve_target_tcs.py）。"""
     import hashlib
     raw = "\x1f".join(tc.get(k, "").strip() for k in ("期待結果", "判定方法", "種別"))
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def row_signature(tc: dict) -> str:
+    """差分再実行で前回の証跡を流用してよいかの判定用。行のどの列（証跡を作る前提・データ準備・
+    実行アクション・テスト手順・証跡取得・確認ポイント・対象画面を含む）が変わっても撮り直す（resolve_target_tcs.py）。
+    空のセルは入れない（空の列を足しただけで全件を撮り直さないため）。"""
+    import hashlib
+    raw = "\x1f".join(f"{k}\x1e{(v or '').strip()}" for k, v in sorted(tc.items()) if (v or "").strip())
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
