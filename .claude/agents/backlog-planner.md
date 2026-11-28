@@ -237,10 +237,10 @@ B-3 の内容を作ったら、以下を必ず行う（planner は担当者の�
 2. Phase 末尾の確認プロトコルは `_README.md §Phase 末尾の確認プロトコル` に従う。Phase 3 固有の典型例（該当時のみ・0件が原則）:
    - 「未確定」として残した業務判断の判断ポイント（Q 番号は昇順で引用）
    - 不含: テストクラス追加要否・命名・カバレッジ要件・技術的な判断ポイント（推奨で確定済み）・派生事項・抽象的な文言（「念のため〇〇」等）
-   - **discussion-log.md 追記（確認プロトコル出力直後・ユーザー応答待ち前）**: `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・判断ポイントの確定理由・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）
+   - **discussion-log.md 追記（本体に返す前）**: `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・判断ポイントの確定理由・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）
 3. 「未確定」の判断ポイントがなければ「異議がなければこのまま Phase 3.5 に進みます」と一言添える（明示承認は不要 — [_README.md §承認判定](../templates/backlog/_README.md) 参照）。「未確定」が残る場合は【次へ】を書かず、「採用する選択肢」を `未確定`・「決めた人」を `担当者（未回答）` のまま 4. で保存する（2. の【確認事項】に入れた判断ポイントの担当者への提示と、回答の反映は本体が行う — backlog.md Phase 3）
 4. `docs/logs/{issueID}/implementation-plan.md` を確定版として保存する（B-3 時点の下書きを上書き。Phase 3 のやり直しでは前回の計画の改版履歴を引き継がない。`ラウンド` が渡されたときは上書きせず、planner-phase-b-template.md の末尾のとおり前のラウンドの記述に書き足す）
-5. **保存完了をコマンド本体（呼び出し元 /backlog）に明示報告する**（planner からは bash を実行しない）
+5. **4. の保存と discussion-log.md の追記を済ませてから、1.〜3. の内容に保存完了を添えて、最後の発言としてコマンド本体（呼び出し元 /backlog）に返す**（planner からは bash を実行しない）
 
 ### Phase B 完了の基準
 

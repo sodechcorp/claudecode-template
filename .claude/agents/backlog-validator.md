@@ -261,7 +261,7 @@ NG 項目（あれば）:
 
 1. 総合判定と、その根拠（決定方針のチェック結果・Step 2〜4 の OK/NG・新規発見の影響）を3〜5行で本体（/backlog）に返す。技術詳細は validation-report.md に記録しチャットには並べない
 2. 総合判定が「Phase 2 に戻る」「技術確認待ち」の場合は、担当者に判断してほしい点を①②③で最大3件、推奨案付きで添える（`_README.md §確認事項の選定基準` に従う）。「Phase 2 に戻る」では、各点が誰の決定か（お客様／担当者。未回答の Q は除く）を書く
-3. 出力直後に `docs/logs/{issueID}/discussion-log.md` に当 Phase の内部イベント（発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 3 戻り・Phase 2 戻りの判定が出た場合は戻り理由を必ず記録する
+3. `docs/logs/{issueID}/discussion-log.md` に当 Phase の内部イベント（発見・変更・落とし穴・ハマり）を追記してから、1・2 をまとめて最後の発言として返す（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 3 戻り・Phase 2 戻りの判定が出た場合は戻り理由を必ず記録する
 
 総合判定が「Phase 4（実装）へ進んでよい」の場合、本体は担当者の承認を待たずに Phase 4 へ進む（backlog.md Phase 3.5 参照）。そのため、実装に進んでよいと言い切れない所見がある場合は「Phase 4（実装）へ進んでよい」にしない。
 

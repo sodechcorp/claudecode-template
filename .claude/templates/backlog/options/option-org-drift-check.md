@@ -67,7 +67,7 @@ cd "{project_dir}" && python -c "import json,sys,difflib,re; R=lambda f: {(r.get
 
 **5. 「未リリース積み残し」「未リリース積み残しの疑い」が1件でもある場合**、release-plan.md 冒頭に最重要警告として記録する。**Tier0 で見つかったコンポーネントを資材マニフェストへ自動追加しない**（誤検知・スコープ外の可能性があるため）。完了報告で「マニフェストに含めるべきか」をユーザーに明示的に確認する。
 
-**6. 一時ディレクトリ `{tmp_dir}/org-drift-tier0/` は release-preparer「Phase 最終: クリーンアップ」で削除される**（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠。本 Step 単体では削除しない。Phase 1 で前倒し実行された場合も含め、release-plan.md 生成・完了報告後にまとめて削除するため）。
+**6. 一時ディレクトリ `{tmp_dir}/org-drift-tier0/` は release-preparer「Phase 最終: クリーンアップ」で削除される**（[cleanup-rules.md](../../../spec/cleanup-rules.md) 準拠。本 Step 単体では削除しない。Phase 1 で前倒し実行された場合も含め、release-plan.md 生成の後、完了報告の前にまとめて削除するため）。
 
 ### Tier 1: 軽量スキャン（全リリース対象コンポーネントに実施）
 

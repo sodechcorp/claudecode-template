@@ -236,6 +236,6 @@ NG: {原因を1行で}
 {FAILの場合} Phase 4（backlog-implementer）に戻って修正します（NG 原因が「計画修正が必要（Phase 3 戻り）」なら「Phase 3（実装方針）に戻って計画を直します」）
 ```
 
-出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` へ当 Phase のエージェント内部イベント（発見・落とし穴・ハマり等。FAIL・NoTestRun フォールバックの原因を含む）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。
+上のブロックを返す前に `docs/logs/{issueID}/discussion-log.md` へ当 Phase のエージェント内部イベント（発見・落とし穴・ハマり等。FAIL・NoTestRun フォールバックの原因を含む）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。
 
 > **PASS の場合（2026-09-15変更）**: backlog.md 側は承認を待たず同一ターン内で Phase 6（backlog-releaser）を起動する（Sandbox は可逆・低リスクのため）。**条件付きPASS の場合**: ユーザーの回答を待ってから Phase 6 または Phase 4 を起動する。**FAIL の場合**: 承認を待たず Phase 4（backlog-implementer）を起動する（NG 原因が「計画修正が必要（Phase 3 戻り）」で始まるときは Phase 3。backlog.md Phase 5 のとおり）。

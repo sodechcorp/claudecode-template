@@ -97,7 +97,7 @@ focus_hints: ["{investigation.md 関連コンポーネント一覧から抽出�
 - **根拠**: 実装バグ修正は「実装方針の変更」ではなく「確定済み方針の正しい実装への収束」であり、Phase 2 で担当者が決定した方針と Phase 3.5 で検証済みの実装計画が依然有効。
 - `investigation.md` および `implementation-plan.md` の方針変更は禁止（期待値ドリフト禁止・test.md「NG があった場合の差し戻し」節の原則を継承）。
 - 「### 1. 計画の確認」の後、force-app を変える前に、`auto_fix_tcs` の各 TC の `docs/logs/{issueID}/test-spec.md` の期待結果を implementation-plan.md と突き合わせる。計画がその TC の確かめる値・挙動を期待結果と違うものに決めている（計画どおりに作ると期待結果にならない）TC が1件でもあれば force-app を変えずに止め、investigation.md の要件が期待結果のほうを求めていれば経路2（実装方針の問題）、そうでなければ「テスト仕様の誤りの疑い」として、下の中断の報告をする（TC・期待結果・計画の記述を添える）。計画が値・挙動を決めていない期待結果（計画の対象外の既存の挙動が変わらないこと・値を引き継ぐこと等）は食い違いに数えない（回帰の TC でも、計画が変えると決めた挙動の変更前を期待しているものは数える）。
-- 実装中に**経路2/3（実装方針の問題・検証漏れ）**が判明した場合と、Step 3 の API 名の照合で止まる場合（不一致・describe・FieldDefinition の失敗）と、上の突き合わせで止まる場合は、ユーザー確認を行わずに実装を止め、/test に「自動修正を中断しました（理由: 実装方針の問題 / 検証漏れ / API名不一致 / describe・FieldDefinition の失敗 / テスト仕様の誤りの疑い）」と報告する（非対話 Task 実行で入力待ちにならないようにする）。報告と discussion-log.md の記録には、それまでに変えた force-app のファイル（無ければ「変更なし」）を書く（途中の変更は戻さない。戻すかは方針を見直すときに決める）。
+- 実装中に**経路2/3（実装方針の問題・検証漏れ）**が判明した場合と、Step 3 の API 名の照合で止まる場合（不一致・describe・FieldDefinition の失敗）と、上の突き合わせで止まる場合は、ユーザー確認を行わずに実装を止め、/test に「自動修正を中断しました（理由: 実装方針の問題 / 検証漏れ / API名不一致 / describe・FieldDefinition の失敗 / テスト仕様の誤りの疑い）」と報告する（非対話 Task 実行で入力待ちにならないようにする）。discussion-log.md に記録してから、中断の報告を最後の発言として返す。報告と記録には、それまでに変えた force-app のファイル（無ければ「変更なし」）を書く（途中の変更は戻さない。戻すかは方針を見直すときに決める）。
 - `auto_fix_mode` なしの通常 /backlog フローは上記 1・2 のガードをそのまま適用する（一切緩めない）。
 - **例外条件が不成立の場合**（`auto_fix_mode: true` は指定されているが `ng_type` が全て空文字ではない / `ng_source` 読込不能等）: 通常のガードには進まない。経路2/3 と同様に実装を中断し、/test に「自動修正を中断しました（理由: 承認ガード例外の条件不成立）」と報告する（非対話 Task 実行のためユーザー応答待ちのまま停止させない）。
 
@@ -127,7 +127,7 @@ Glob で変更対象ファイルのパスを確定してから Read する。計
 - **force-app のファイルを変更・削除する前に（ファイルごと）**: そのファイル（`-meta.xml` があればそれも。LWC・Aura はバンドルのフォルダごと）が `docs/logs/{issueID}/before-snapshot/` に無ければ、同じ相対パス（`force-app/...`）でコピーする（`/release` が本番との差のうち今回の課題が消した部分を見分けるのに使う。既にあれば上書きしない）
 - **項目・部品を削除・名前変更・型変更する前に**: 組織の地図で `python scripts/python/sf-lineage/lineage.py who <対象（Obj__c.Field__c・クラス名・LWC:名前など）>` を引き、参照が残っていないかを実装の前に確かめる（/release まで待たない。[option-lineage-map.md](../templates/backlog/options/option-lineage-map.md)）。出た部品は該当ファイル・行をソースで確かめ、型変更は数式・積み上げ・値を写す先（`← 経由`）も見る。地図に無いもの（メソッド単位の呼び出し元・文字列で組み立てる SOQL の項目など）は Grep で補う。計画で扱っていない参照が残るなら、変更せずに経路3（検証漏れ）として扱う
 - FLS / CRUD / `with sharing` / ガバナ制限 / バルク処理を意識する
-- **新規メタデータ作成時（項目・オブジェクト・レコードタイプ・タブ・Apex・フロー）**: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md) の該当種別セクションに従い、FLS・CRUD・ページレイアウト配置・タブ設定を**付与する（付与方針の詳細はchecklist参照）**。**権限セットの新規作成・恒久的な役割設計は方針を一言ユーザーに伝えてから進める**（Sandbox内での試作・ラベル変更等の軽微な調整は確認不要）。チェック漏れを黙殺しない（「確認したが不要と判断した」場合もその旨を明示する）
+- **新規メタデータ作成時（項目・オブジェクト・レコードタイプ・タブ・Apex・フロー）**: [`.claude/templates/common/new-metadata-permissions-checklist.md`](../templates/common/new-metadata-permissions-checklist.md) の該当種別セクションに従い、FLS・CRUD・ページレイアウト配置・タブ設定を**付与する（付与方針の詳細はchecklist参照）**。**権限セットの新規作成・恒久的な役割設計と、checklist の「付与方針を一言ユーザーに伝える」は、【Phase 4 完了サマリー】（auto_fix_mode では返す内容の派生事項）に一言書いて進める**（Sandbox内での試作・ラベル変更等の軽微な調整は確認不要）。チェック漏れを黙殺しない（「確認したが不要と判断した」場合もその旨を明示する）
 - **実装前に**: implementation-plan.md の API 名（今回新規に作る項目＝「関連コンポーネント一覧」で変更種別が新規の `*.field-meta.xml` を除く）を `force-app/main/default/objects/{Object}/fields/*.field-meta.xml` で再照合し、一致することを確認してから使用する。field-meta.xml が無い項目と、計画書で `[要確認: sf sobject describe は tools 未所持のため未実施]` の項目は、既定の接続先に `sf sobject describe --sobject {Object} --json` と `sf data query --use-tooling-api -q "SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = '{Object}' AND QualifiedApiName IN ('{項目}', ...)" --json` で確かめる（どちらかにあれば有る）
   - どちらにも無く、どちらかのコマンドが失敗していた場合は、項目が無いとは判断せず、代わりの項目も探さずに、実装を止めてエラー内容を報告する
   - それ以外の不一致（どちらにも無い場合を含む）: 同じオブジェクトに、計画書に書かれた表示ラベルと完全に一致し、型も計画での使い方と合う項目が1つだけあれば、その API 名で計画書を直して経路1で続行する（名前はメタデータで決まるため、担当者には聞かない）。それ以外（当たる項目が無い・1つに決まらない・型が合わない）は実装を止め、経路2で本体に返す。`auto_fix_mode: true` では、1つに決まる場合も計画書を直さずに止める（中断の理由は「API名不一致」）
@@ -201,7 +201,7 @@ implementation-plan.md の「関連コンポーネント一覧（変更対象フ
 - [ ] ドキュメント更新（catalog/design/changelog.md）が完了しているか
 - [ ] Step 0b で採用したオプションを全て実行し、判定結果を implementation-plan.md の末尾に記録したか
 
-### 7. implementation-summary.md の書き出し（Phase 4 完了後に必ず実行）
+### 7. implementation-summary.md の書き出し（本体に返す前に必ず実行）
 
 既にある場合（Phase 4 のやり直し・`/test` の自動修正・追加対応）は、前回の内容を引き継いで書き直す。前回の記述のうち今回の実装計画（改版履歴を含む）で説明できるもの（計画にある変更に伴って変えた権限・レイアウト等、計画で変える資材のテストクラスやその資材への Phase 5（backlog-tester）の修正も含む）は残し、説明できないもの（実装方針を変える前の変更）と元に戻した資材の行は消す（force-app に残っていれば `/release` の差分の帰属確認で検出させる）。今回変えた資材・ファイルの行は、上で残した前回分のうち force-app に残っているものと今回分をまとめて書く（変更種別と Before は課題の対応前を基準にする）。
 
@@ -257,16 +257,16 @@ implementation-plan.md の「関連コンポーネント一覧（変更対象フ
 
 ## フェーズ完了の提示
 
-Before/After を出力した後、以下を必ず行う（担当者への提示・応答の受け取り・Phase 5 への自動進行は本体〔/backlog〕が行う）:
+7. の書き出しを済ませたら、以下を必ず行う（担当者への提示・応答の受け取り・Phase 5 への自動進行は本体〔/backlog〕が行う）。5. の「実装完了」ブロック（Before/After）は 1. の確認プロトコルと一緒に最後の発言として返す:
 
 1. Phase 末尾の確認プロトコル（`_README.md §Phase 末尾の確認プロトコル` に従う）を単一ブロックで出力する。【Phase 4 完了サマリー】は変更ファイル数・主な変更点を中心に3〜5行で書く（別枠のサマリーを重ねて出力しない）。【確認事項】欄の Phase 4 固有の典型例（該当時のみ・0件が原則）:
    - 実装中に計画書に記載のなかった構造 X を発見したため採用アプローチを変えた
    - implementation-plan.md の改版が必要な箇所の確認
    - 経路 2/3 で Phase 3/3.5 に戻った際の再確認ポイント
 
-**discussion-log.md への追記**（上記 1 とは独立の必須処理。auto_fix_mode でも省略しない）: 1 の出力直後（ユーザー応答待ち前）に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する。
+**discussion-log.md への追記**（上記 1 とは独立の必須処理。auto_fix_mode でも省略しない）: 1 を返す前に `docs/logs/{issueID}/discussion-log.md` に当 Phase のエージェント内部イベント（Q起票・案提示・発見・変更・落とし穴・ハマり）を追記する（[discussion-log-spec.md](../templates/backlog/discussion-log-spec.md) §書くタイミングと責任者分担 参照）。Phase 4 で計画変更・経路 2/3 戻りが発生した場合は経緯を必ず記録する（経路 2/3 で止まるときも、記録してから確認のテキストを最後の発言として返す）。
 
-> **auto_fix_mode: true の場合**: 上記 1 の確認プロトコルは出力せず、変更ファイル数・主な変更点・経路 2/3 判定の有無・派生事項を構造化して呼び出し元（/test）に返す（本 Step 0「承認ガード」の【例外（/test 自動修正経由）】節と対称）。discussion-log.md への追記は省略しない。
+> **auto_fix_mode: true の場合**: 上記 1 の確認プロトコルは出力せず、変更ファイル数・主な変更点・経路 2/3 判定の有無・派生事項を構造化して呼び出し元（/test）に返す（本 Step 0「承認ガード」の【例外（/test 自動修正経由）】節と対称）。discussion-log.md への追記は省略せず、返す前に行う。
 
 ---
 
