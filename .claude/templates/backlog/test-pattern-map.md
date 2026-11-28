@@ -104,7 +104,10 @@ Apex テストクラスの回帰確認・カバレッジは `/backlog` Phase 5 �
 
 > **機械判定できない場合**: 期待件数の無い `件数一致`・検証出力の無い匿名 Apex・判定方法の書き漏れ・空白に近い証跡などは、`judge_results.py` が「AI判定」とし、`/test` Phase D-2 で AI が証跡と期待結果を読んで OK/NG を確定する。人間の目視には回さない。
 
-> **ピックリスト値（無効化された値を含む）の存在検証時の注意**: Apex/LWC の `getPicklistValues()`（UI API）は無効化された値を返さないため、無効値の存在確認 TC には使えない。ローカルの `field-meta.xml`（force-app 配下）はデプロイされる設定であり、組織の実際の状態の根拠にはならない（sandbox データを設計根拠にしないルールに抵触）。無効値を含めて検証する場合は Tooling API の `CustomField.Metadata` を使う（`sf-analyst-cat2` のオブジェクト定義書生成が使う `describe` の `picklistValues` は有効値のみのケースと無効値込みのケースがあるため、TC 設計時は個別に確認する）。
+> **ピックリスト値（無効化された値を含む）の存在検証時の注意**: Apex/LWC の `getPicklistValues()`（UI API）は無効化された値を返さないため、無効値の存在確認 TC には使えない。ローカルの `field-meta.xml`（force-app 配下）はデプロイされる設定であり、組織の実際の状態の根拠にはならない（sandbox データを設計根拠にしないルールに抵触）。`sf-analyst-cat2` のオブジェクト定義書生成が使う `describe` の `picklistValues` は有効値のみのケースと無効値込みのケースがあるため、TC 設計時は個別に確認する。無効値を含めて検証する場合は Tooling API（`sf data query --use-tooling-api`）で引く:
+> - `SELECT Metadata FROM CustomField WHERE EntityDefinition.QualifiedApiName = '{オブジェクト}' AND DeveloperName = '{名前空間と __c を除いた項目名}' AND NamespacePrefix = '{名前空間}'`（名前空間が無ければ `NamespacePrefix = null`）の `valueSet.valueSetDefinition.value` を見る（Metadata 列は1件に絞らないとエラー。カスタムオブジェクトの `TableEnumOrId` は Id で、名前で引くと0件）
+> - 同じ結果の `valueSet.valueSetName` が null でない項目（グローバル値セットを使う選択リスト）は `valueSetDefinition` が null なので、`SELECT Metadata FROM GlobalValueSet WHERE DeveloperName = '{valueSetName}'` の `customValue` を見る
+> - どちらも値の API 名は `valueName` で、`isActive` が `false` の値が無効（有効な値の `isActive` は null）。標準項目は CustomField に行が無い（標準値セットは `SELECT Metadata FROM StandardValueSet WHERE MasterLabel = '{標準値セット名}'` の `standardValue` だが、無効の値が返るかは未確認）
 
 ### ポジティブアンカー（空撮り・偽陽性の防止・必須）
 
