@@ -217,7 +217,7 @@ python {output_dir}/.tmp/save-system-name.py
 ```python
 import re, pathlib
 text = pathlib.Path(r'{project_dir}/docs/catalog/_index.md').read_text(encoding='utf-8')
-# cat2 Phase 4.5 規約: 列順は任意。ヘッダ行から API名 列のインデックスを動的検出してから値行を抽出する。
+# 列の決まり: .claude/templates/sf-analyst-cat2/object-definition-template.md「_index.md 列規約」。列順は任意。ヘッダ行から API名 列のインデックスを動的検出してから値行を抽出する。
 lines = [l.rstrip() for l in text.splitlines() if l.strip().startswith('|')]
 api_col = None
 for i, line in enumerate(lines):
