@@ -528,44 +528,81 @@ def design_folders(ftype: str) -> list[str]:
     return [folder, *(d for d in dirs if d != folder)]
 
 
-def get_design_doc(docs_design_dir: Path, name: str, ftype: str = "", fid: str = "") -> str | None:
-    """docs/design/ 配下から機能名に対応するMDファイルのパスを返す。
-
-    マッチングは「スペース・ハイフン除去した小文字一致（stem 完全一致）」のみで行い、
-    異なる種別同士の誤マッチ（例: Flow `QuoteRequestPending` が LWC `request.md` に
-    マッチしてしまう）を防ぐ。
-
-    種別が指定された場合は design_folders のフォルダだけを探す（Aura と同名の Apex コントローラの設計書等、
-    他の kind のフォルダに誤マッチさせない）。種別のフォルダの外では、同じ kind の同名の別種別
-    （Aura と VF の forgotPassword 等）を拾わないよう、ファイル名の機能IDに fid があるものだけ採る。
-    種別不明時のみ docs/design/ 全体を探す。
-    """
+def _name_matches(md: Path, name: str) -> bool:
+    """設計書のファイル名から先頭の【】（【F-042】【F-064】のように機能IDの【】を重ねたものは全部）を除いた部分が、スペース・ハイフン・下線と大文字小文字を除いて name と一致するか。"""
     def _normalize(s: str) -> str:
         return re.sub(r'[-_\s]', '', s.lower())
 
-    target = _normalize(name)
+    return _normalize(re.sub(r'^【[^】]+】(?:【[A-Z]+-[0-9][^】]*】)*', '', md.stem)) == _normalize(name)
 
-    def _match(md: Path) -> bool:
-        # ファイル名から "【CMP-XXX】" や "【CMP-XXX〜CMP-YYY等】" などのプレフィックスを除去
-        stem = re.sub(r'^【[^】]+】', '', md.stem)
-        return _normalize(stem) == target
 
-    # 1. 種別に対応するサブフォルダ内を検索（誤マッチ防止）
+def _mentions(md: Path, name: str) -> bool:
+    """設計書の本文に name が単語として出てくるか。"""
+    pattern = rf'(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])'
+    return re.search(pattern, md.read_text(encoding="utf-8", errors="ignore")) is not None
+
+
+def get_design_doc(docs_design_dir: Path, name: str, ftype: str = "", fid: str = "",
+                   owners: dict[str, tuple[str, str]] | None = None) -> str | None:
+    """docs/design/ 配下から機能に対応するMDファイルのパスを返す。
+
+    種別が指定された場合は design_folders のフォルダだけを探す（Aura と同名の Apex コントローラの設計書等、
+    他の kind のフォルダに誤マッチさせない）。次の順に、最初に当たったものを返す。
+      1. ファイル名の【】に fid があり、ファイル名が name と一致するもの（フォルダの順）
+      2. 種別のフォルダで、ファイル名が name と一致するもの（機能IDの無い・古い番号の設計書）。ただし、ファイル名の
+         番号が1つで、その番号の機能（owners: 台帳の機能〔廃止済みも含む〕の 機能ID → (種別, API 名)）が別の名前で、その機能が
+         1 か 3 でこの設計書を取るもの（その機能の設計書。正規化で名前がぶつかる sdch_Visual_newAccount と
+         sdch_VisualNewAccount 等）は採らない
+      3. ファイル名の【】に fid があり、本文に name が出てくるもの（複合ファイルの従属側・名前が API 名と違う設計書。
+         同じ番号の別コンポーネントの古い設計書・別種別で番号がぶつかる設計書は、本文に name が無いので採らない）
+    ファイル名の一致は先頭の【】を除いた stem の完全一致（Flow `QuoteRequestPending` が LWC `request.md` に
+    当たるような誤マッチを防ぐ）。種別不明時のみ docs/design/ 全体をファイル名の一致で探す。
+    """
+    return _resolve_design_doc(docs_design_dir, name, ftype, fid, owners)[0]
+
+
+def _resolve_design_doc(docs_design_dir: Path, name: str, ftype: str, fid: str,
+                        owners: dict[str, tuple[str, str]] | None) -> tuple[str | None, int]:
+    """get_design_doc の本体。(パス, 何番目で当たったか) を返す（当たらなければ (None, 0)）。"""
+    def _owned_by_other(md: Path) -> bool:
+        ids = design_doc_ids(md)
+        if len(ids) != 1 or fid in ids or not owners:
+            return False
+        oid = next(iter(ids))
+        otype, oname = owners.get(oid, ("", ""))
+        if not oname or oname == name:
+            return False
+        odoc, ostage = _resolve_design_doc(docs_design_dir, oname, otype, oid, None)
+        return ostage in (1, 3) and odoc == md.as_posix()
+
     folders = design_folders(ftype)
     if folders:
-        for folder in folders:
-            sub_dir = docs_design_dir / folder
-            if sub_dir.exists():
-                for md in sub_dir.rglob("*.md"):
-                    if _match(md) and (folder == folders[0] or fid in design_doc_ids(md)):
-                        return md.as_posix()
-        return None
+        mds = {f: sorted((docs_design_dir / f).rglob("*.md")) for f in folders if (docs_design_dir / f).exists()}
+        with_id = {f: [md for md in v if fid in design_doc_ids(md)] for f, v in mds.items()} if fid else {}
+        for v in with_id.values():
+            for md in v:
+                if _name_matches(md, name):
+                    return md.as_posix(), 1
+        for md in mds.get(folders[0], []):
+            if _name_matches(md, name) and not _owned_by_other(md):
+                return md.as_posix(), 2
+        for v in with_id.values():
+            for md in v:
+                if _mentions(md, name):
+                    return md.as_posix(), 3
+        return None, 0
 
-    # 2. 種別不明時のみ全体を完全一致で検索
     for md in docs_design_dir.rglob("*.md"):
-        if _match(md):
-            return md.as_posix()
-    return None
+        if _name_matches(md, name):
+            return md.as_posix(), 2
+    return None, 0
+
+
+def title_doc(doc: str | None, name: str) -> str | None:
+    """概要に見出しを使う設計書。複合ファイルの従属側には代表の見出し（`# 【F-001・F-153】AccountTriggerHandler / AccountTrigger`）を使わせない。"""
+    if doc and len(design_doc_ids(Path(doc))) > 1 and not _name_matches(Path(doc), name):
+        return None
+    return doc
 
 
 # 接頭辞を省いた番号（【F-104-115】の 115・【CMP-135-166-167】の 166）は直前の接頭辞を引き継ぐ
@@ -620,9 +657,10 @@ def extract_design_doc_title(md_path: str | None) -> str:
                         desc = line.split(sep, 1)[1].strip()
                         if desc:
                             return desc
-                # `—` が無ければ `】` 以降をそのまま使う
+                # `—` が無ければ `】` 以降（機能IDの【】を重ねた見出しは全部の後ろ）をそのまま使う
                 if "】" in line:
-                    rest = line.split("】", 1)[1].strip()
+                    m = re.match(r'#\s*【[^】]*】(?:【[A-Z]+-[0-9][^】]*】)*', line)
+                    rest = (line[m.end():] if m else line.split("】", 1)[1]).strip()
                     if rest:
                         return rest
                 break
@@ -658,6 +696,7 @@ def _scan(project_dir: Path, ledger_path: Path) -> list[dict]:
     force_app = project_dir / "force-app" / "main" / "default"
     docs_design = project_dir / "docs" / "design"
     ledger = load_ledger(ledger_path)
+    owners = {f["id"]: (f["type"], f["api_name"]) for f in ledger["features"]}
 
     features = []
     active_keys: set[str] = set()
@@ -678,7 +717,7 @@ def _scan(project_dir: Path, ledger_path: Path) -> list[dict]:
         features.append(entry)
 
     def _design_doc(ftype: str, api_name: str) -> str | None:
-        return get_design_doc(docs_design, api_name, ftype, resolve_id(ledger, ftype, api_name))
+        return get_design_doc(docs_design, api_name, ftype, resolve_id(ledger, ftype, api_name), owners)
 
     # --- Apex / Batch ---
     base = force_app / "classes"
@@ -690,7 +729,7 @@ def _scan(project_dir: Path, ledger_path: Path) -> list[dict]:
             doc = _design_doc(classified, cls_file.stem)
             _add(classified, cls_file.stem, {
                 "name":        cls_file.stem,
-                "overview":    extract_javadoc(cls_file, cls_file.stem, doc),
+                "overview":    extract_javadoc(cls_file, cls_file.stem, title_doc(doc, cls_file.stem)),
                 "source_file": cls_file.as_posix(),
                 "design_doc":  doc,
             })
@@ -703,7 +742,7 @@ def _scan(project_dir: Path, ledger_path: Path) -> list[dict]:
             doc = _design_doc("Trigger", trig_file.stem)
             _add("Trigger", trig_file.stem, {
                 "name":        trig_file.stem,
-                "overview":    extract_trigger_overview(trig_file, doc),
+                "overview":    extract_trigger_overview(trig_file, title_doc(doc, trig_file.stem)),
                 "source_file": trig_file.as_posix(),
                 "design_doc":  doc,
                 "absorb_into": handler,   # ハンドラークラスの steps/prerequisites に吸収
@@ -719,7 +758,7 @@ def _scan(project_dir: Path, ledger_path: Path) -> list[dict]:
             # flow_file.stem だと "X.flow-meta" のように .flow-meta が残ってしまうので api_name を使う
             doc = _design_doc(flow_type, api_name)
             # 優先順: design_doc の title → description → label
-            overview = extract_design_doc_title(doc) or clean_tech_business(desc.strip())
+            overview = extract_design_doc_title(title_doc(doc, api_name)) or clean_tech_business(desc.strip())
             if not overview and label and label != api_name:
                 overview = clean_tech_business(label)
             _add(flow_type, api_name, {
@@ -744,7 +783,7 @@ def _scan(project_dir: Path, ledger_path: Path) -> list[dict]:
             doc = _design_doc("LWC", name)
             _add("LWC", name, {
                 "name":        name,
-                "overview":    extract_lwc_overview(comp_dir, doc),
+                "overview":    extract_lwc_overview(comp_dir, title_doc(doc, name)),
                 "source_file": comp_dir.as_posix(),
                 "design_doc":  doc,
                 "absorb_into": parent_name,   # None = 独立設計書を作る
@@ -757,7 +796,7 @@ def _scan(project_dir: Path, ledger_path: Path) -> list[dict]:
             doc = _design_doc("Aura", comp_dir.name)
             _add("Aura", comp_dir.name, {
                 "name":        comp_dir.name,
-                "overview":    extract_aura_overview(comp_dir, doc),
+                "overview":    extract_aura_overview(comp_dir, title_doc(doc, comp_dir.name)),
                 "source_file": comp_dir.as_posix(),
                 "design_doc":  doc,
             })
@@ -776,7 +815,7 @@ def _scan(project_dir: Path, ledger_path: Path) -> list[dict]:
             doc = _design_doc("Visualforce", api_name)
             _add("Visualforce", api_name, {
                 "name":        api_name,
-                "overview":    extract_vf_overview(page_file, doc),
+                "overview":    extract_vf_overview(page_file, title_doc(doc, api_name)),
                 "source_file": page_file.with_name(f"{api_name}.page").as_posix(),
                 "design_doc":  doc,
             })
