@@ -214,16 +214,9 @@ for f in ls():
 - DOM テキストは `saveText`（`playwright-sf-screen-ops.md`「DOM テキストの直接保存」節で定義するヘルパー。Blob download 経由でコードブロック内から `after/screen/{No}_{観点サニタイズ}.txt` へ直接保存し、DOM全文をLLM経由で書き戻さない）で保存する。保存失敗時のみ `text` フィールドにフォールバックとして本文を積む。
 - return 値は `JSON.stringify([{no, ok, highlighted: false, url, textLen, thinDom, errorSignature, text?}, ...])` の配列（`text` は保存失敗時のみ存在。失敗要素は `{no, ok:false, error}`）。**グループ①は `highlightTarget` を使わないため `highlighted` は常に `false` を明示する**（フィールド自体を省略すると下流 `generate_evidence_xlsx.py` の `_load_highlight_status` が「実績不明」と扱い「従来どおり赤枠あり」にフォールバックしてしまい、実際はハイライトを試みていない TC が虚偽の赤枠ありと表示されるため）。エージェントは各要素を以下の通り処理する:
   - `ok:true` の要素: `text` が存在する場合（保存失敗フォールバック）のみ `after/screen/{No}_{観点サニタイズ}.txt` に Write する（通常はコードブロック内で保存済みのため不要）。`url` は `.split('?')[0]` でクエリを除去した上で返却テーブルの「画面URL」列に記録する（[visual-confirmation-handoff.md](../templates/common/visual-confirmation-handoff.md) §3。ユーザーの目視ハンドオフに使うため破棄しない）。`thinDom: true` の場合は備考欄に `[空撮り疑い: DOM {textLen}文字]` を付記する（**判定は行わない・記録のみ。NG化しない**）。`errorSignature` が非 null の場合は備考欄に `[画面エラー検出: {errorSignature}]` を付記し**NG 扱いにする**（Step 2B と同一ルール。期待結果がそのエラー文言自体を検証する意図の TC は対象外）
-  - `ok:false` の要素: 当該 `no` を NG として返却テーブルに記録する（`error` の内容を備考欄に記載）
+  - `ok:false` の要素: `error` に `newContext` を含むものは下の「newContext 不可時」に従う。それ以外は当該 `no` を NG として返却テーブルに記録する（`error` の内容を備考欄に記載）
   - **ハイライト実績の記録**: 全要素処理後、`{no: highlighted}`（`ok:false` の TC は含めない。本グループは全件 `false`）のマッピングを Step 2B「ハイライト実績の記録」節と同じマージ手順で `{evidence_dir}/after/screen/_highlight_status.json` に反映する。
-- **newContext 不可時**: 実行方式のみ単一セッションの逐次（Step 2B の「1件ずつ遷移→撮影」という進め方）にフォールバックする。**before は採取しない・命名は `{No}_{観点サニタイズ}.png`（グループ①の通常時と同じ）のまま**というグループ①のルール自体は変わらない（Step 2B のフォールバックとは、before/after 両方の採取までは意味しない。実行方式だけの流用）。先にプローブコードで確認することを推奨:
-  ```javascript
-  async (page) => {
-    const ctx = await page.context().browser().newContext();
-    await ctx.close();
-    return 'newContext: OK';
-  }
-  ```
+- **newContext 不可時**: `error` に `newContext` を含む `ok:false` の要素は NG にせず、その TC を単一セッションの逐次（Step 2B の進め方で1件ずつ遷移→撮影）で撮り、撮った結果を上の `ok:true`・`ok:false` の要素と同じ手順で扱う（ハイライト実績も撮った結果で記録する）。**before は採取しない・命名は `{No}_{観点サニタイズ}.png`（グループ①の通常時と同じ）のまま**というグループ①のルール自体は変わらない（Step 2B の進め方を使うのは実行方式だけで、before/after 両方の採取までは意味しない）。
 
 ### Step 2B: 単一セッション逐次（グループ②：データ作成/更新あり）
 

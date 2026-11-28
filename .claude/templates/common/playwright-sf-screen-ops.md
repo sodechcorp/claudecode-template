@@ -344,28 +344,7 @@ Salesforce の画面は LWC/Aura の Shadow DOM レンダリングが動的な�
 // 先読み snapshot の例（ロケータ確定前・証跡保存なし）
 async (page) => {
   page.setDefaultTimeout(15000);
-  async function waitSfReady(page) {
-    await page.waitForLoadState('domcontentloaded');
-    await page.locator('.slds-spinner, lightning-spinner')
-      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
-  }
-  async function getPageText(page) {
-    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
-    try {
-      return await page.evaluate(() => {
-        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
-        const saved = heads.map(h => h.getAttribute('style'));
-        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
-        try {
-          return document.body.innerText;
-        } finally {
-          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
-        }
-      });
-    } catch (_) {
-      return await page.locator('body').innerText();
-    }
-  }
+  // ここに waitSfReady・getPageText を定義する（「1 コードブロック画面操作（基本骨格）」と同じ。省略）
   await page.goto('{対象URL}');
   await waitSfReady(page);
   // DOM を確認してロケータを確定する（参照のみ）
@@ -415,28 +394,7 @@ async (page) => {
 ```javascript
 async (page) => {
   page.setDefaultTimeout(15000);
-  async function waitSfReady(page) {
-    await page.waitForLoadState('domcontentloaded');
-    await page.locator('.slds-spinner, lightning-spinner')
-      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
-  }
-  async function getPageText(page) {
-    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
-    try {
-      return await page.evaluate(() => {
-        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
-        const saved = heads.map(h => h.getAttribute('style'));
-        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
-        try {
-          return document.body.innerText;
-        } finally {
-          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
-        }
-      });
-    } catch (_) {
-      return await page.locator('body').innerText();
-    }
-  }
+  // ここに waitSfReady・getPageText を定義する（「1 コードブロック画面操作（基本骨格）」と同じ。省略）
   await page.goto('/lightning/setup/LoginAccessPolicies/home');
   await waitSfReady(page);
   // アンカー要素（設定ページ固有テキスト）の出現で遷移完了を確認
@@ -475,59 +433,12 @@ sf data query --target-org "$SF_ALIAS" -q "SELECT Id FROM Organization LIMIT 1"
 ```javascript
 async (page) => {
   page.setDefaultTimeout(15000);
-  async function waitSfReady(page) {
-    await page.waitForLoadState('domcontentloaded');
-    await page.locator('.slds-spinner, lightning-spinner')
-      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
-  }
-  const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
-    '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
-    'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
-  async function saveText(p, text, path) {
-    // DOM 全文を LLM 経由で書き戻さず直接保存する（「DOM テキストの直接保存」節参照）
-    try {
-      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
-      await p.evaluate(({ text, filename }) => {
-        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.download = filename;
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }, { text, filename: path.split(/[\\/]/).pop() });
-      const download = await downloadPromise;
-      if (!download) return false;
-      await download.saveAs(path);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
+  // ここに waitSfReady・ERROR_SIGNATURES・saveText・getPageText を定義する（「1 コードブロック画面操作（基本骨格）」と同じ。省略）
   function looksLikeLoginAsFailure(text, url) {
     const failMarkers = ['このページを表示する権限がありません', 'insufficient privileges', 'Invalid Session', 'ページが見つかりません', 'INVALID_SESSION_ID'];
     if (failMarkers.some(m => text.includes(m))) return true;
     if (new URL(url).searchParams.has('ec')) return true; // ログイン画面に戻された＝失敗
     return false;
-  }
-  async function getPageText(page) {
-    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
-    try {
-      return await page.evaluate(() => {
-        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
-        const saved = heads.map(h => h.getAttribute('style'));
-        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
-        try {
-          return document.body.innerText;
-        } finally {
-          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
-        }
-      });
-    } catch (_) {
-      return await page.locator('body').innerText();
-    }
   }
 
   // 本人確認: 現在のセッションが対象ユーザーか。true=対象に切り替わった / false=別ユーザーのまま / null=判定不能（$A なし）
@@ -660,49 +571,7 @@ async (page) => {
     await page.locator('.slds-spinner, lightning-spinner')
       .first().waitFor({ state: 'hidden', timeout: 20000 }).catch(() => {});
   }
-  const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
-    '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
-    'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
-  async function saveText(p, text, path) {
-    // DOM 全文を LLM 経由で書き戻さず直接保存する（「DOM テキストの直接保存」節参照）
-    try {
-      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
-      await p.evaluate(({ text, filename }) => {
-        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.download = filename;
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }, { text, filename: path.split(/[\\/]/).pop() });
-      const download = await downloadPromise;
-      if (!download) return false;
-      await download.saveAs(path);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-  async function getPageText(page) {
-    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
-    try {
-      return await page.evaluate(() => {
-        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
-        const saved = heads.map(h => h.getAttribute('style'));
-        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
-        try {
-          return document.body.innerText;
-        } finally {
-          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
-        }
-      });
-    } catch (_) {
-      return await page.locator('body').innerText();
-    }
-  }
+  // ここに ERROR_SIGNATURES・saveText・getPageText を定義する（「1 コードブロック画面操作（基本骨格）」と同じ。省略）
 
   // ─── ステップ1: 対象コミュニティユーザーの Contact ページへ遷移 ───
   // 事前 SOQL で取得した ContactId を使う
@@ -791,58 +660,7 @@ async (page) => {
 ```javascript
 async (page) => {
   const MAX_WORKERS = 3; // max_workers_ui を展開
-  const ERROR_SIGNATURES = ['問題が発生しました', '問題が発生しているようです', 'is malformed',
-    '関連リストはレイアウトにありません', '権限が不十分です', 'Insufficient Privileges',
-    'このページには到達できません', 'URL No Longer Exists', '予期しないエラーが発生しました', 'Unexpected Error'];
-
-  async function waitSfReady(p) {
-    await p.waitForLoadState('domcontentloaded');
-    await p.locator('.slds-spinner, lightning-spinner')
-      .first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
-  }
-
-  async function saveText(p, text, path) {
-    // DOM全文をLLM経由で書き戻さず Blob download 経由で直接保存する
-    // （browser_run_code_unsafe の実行環境には fs/require が無く、コードブロック内から直接ファイル書き込みはできないため）
-    try {
-      const downloadPromise = p.waitForEvent('download', { timeout: 8000 }).catch(() => null);
-      await p.evaluate(({ text, filename }) => {
-        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.download = filename;
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }, { text, filename: path.split(/[\\/]/).pop() });
-      const download = await downloadPromise;
-      if (!download) return false; // 発火しなかった → 呼び出し側で text をフォールバック返却
-      await download.saveAs(path);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  async function getPageText(p) {
-    // 表示中の文字を取る。共通ヘッダー（#oneHeader・role="banner"）は除く（「DOM 本文取得」節参照）
-    try {
-      return await p.evaluate(() => {
-        const heads = [...document.querySelectorAll('#oneHeader, [role="banner"]')];
-        const saved = heads.map(h => h.getAttribute('style'));
-        heads.forEach(h => h.style.setProperty('display', 'none', 'important'));
-        try {
-          return document.body.innerText;
-        } finally {
-          heads.forEach((h, i) => saved[i] === null ? h.removeAttribute('style') : h.setAttribute('style', saved[i]));
-        }
-      });
-    } catch (_) {
-      return await p.locator('body').innerText();
-    }
-  }
+  // ここに ERROR_SIGNATURES・waitSfReady・saveText・getPageText を定義する（「1 コードブロック画面操作（基本骨格）」と同じ。省略）
 
   // 並列可 TC のリスト（エージェントが TC 分だけ定義する）
   // 【before 採取の設計方針】並列可＝グループ①（読み取り専用）は before≒after（同じ画面）となり
@@ -897,7 +715,7 @@ async (page) => {
 
 ### newContext 不可時のフォールバック
 
-`page.context().browser().newContext()` が Playwright MCP の制約で使えない場合は、単一セッションの逐次処理に自動フォールバックする。その場合でも Tier 1（`waitSfReady`）と Tier 2（Login As バッチ化）の高速化は有効。
+骨格コードは自動では切り替えない。`newContext` が例外になる環境では各 TC が `{ ok: false, error }`（`error` に `newContext` を含む）で返るので、その TC をログイン済みの `page` で「1 コードブロック画面操作（基本骨格）」の進め方で1件ずつ処理する（`ui-evidence-runner` は Step 2A「newContext 不可時」）。
 
 ### 認証情報の秘匿（並列時も同じ規約）
 
