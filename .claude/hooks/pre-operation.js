@@ -44,16 +44,19 @@ const path = require('path');
 // *prod*/*production* 命名規約に一致しない本番 alias（例: gf-main）を追加保護する。
 // .upgrade-keep と同じ「プロジェクト固有ファイルで上書きせず拡張する」パターン。
 // ファイル自体はプロジェクト直下に置くため /upgrade の対象外＝上書きで消えない。
-function loadCustomProdAliases() {
-  try {
-    const content = fs.readFileSync('.prod-aliases', 'utf8');
-    return content.split('\n')
-      .map(l => l.trim())
-      .filter(l => l && !l.startsWith('#'));
-  } catch (e) {
-    // ファイルが無い場合は従来通り *prod*/*production* 判定のみ
-    return [];
-  }
+// 作業フォルダは移るので、セッションのプロジェクト（CLAUDE_PROJECT_DIR）と、sf が動くフォルダ（作業フォルダ・同じコマンドの cd 先）とそのプロジェクト直下から読む
+function loadCustomProdAliases(command = '') {
+  const dirs = [process.env.CLAUDE_PROJECT_DIR].filter(Boolean).concat(sfDirs(command).flatMap(d => [d, projectRoot(d)]));
+  return [...new Set(dirs.map(d => path.resolve(d)))].flatMap(dir => {
+    try {
+      return fs.readFileSync(path.join(dir, '.prod-aliases'), 'utf8').split('\n')
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith('#'));
+    } catch (e) {
+      // ファイルが無い場合は従来通り *prod*/*production* 判定のみ
+      return [];
+    }
+  });
 }
 
 // ---- sf コマンドの接続先（Check 1 と post-query-reminder.js が使う） ----
@@ -161,6 +164,14 @@ const orgValClass = `[^\\s"',;|&(){}]+`;
 // 同じコマンドの中の cd・Set-Location・pushd 等の移動先（別の案件フォルダに移ってから sf を実行する場合）
 const cdRe = /(?:^|[\s;&|({])(?:cd|chdir|pushd|Set-Location|sl|Push-Location)(?:\s+(?:\/d|-Path|-LiteralPath))?\s+("[^"]*"|'[^']*'|[^\s;&|)}]+)/gi;
 
+// sf が動くフォルダ: hook の作業フォルダ（Claude の今の作業フォルダ）と cd 先
+function sfDirs(command) {
+  return ['.'].concat([...command.matchAll(cdRe)].map(m => m[1]
+    .replace(/^["']|["']$/g, '')
+    .replace(/^\/([a-z])(?=\/|$)/i, '$1:')
+    .replace(/^~(?=[\\\/]|$)/, os.homedir())));
+}
+
 // sf がプロジェクトの設定を読むフォルダ（sfdx-project.json のあるフォルダまで上にたどる。無ければそのフォルダ）
 function projectRoot(dir) {
   for (let d = path.resolve(dir); ; d = path.dirname(d)) {
@@ -185,12 +196,8 @@ function defaultOrgs(command) {
       }
     })
     .filter(Boolean);
-  const dirs = ['.'].concat([...command.matchAll(cdRe)].map(m => m[1]
-    .replace(/^["']|["']$/g, '')
-    .replace(/^\/([a-z])(?=\/|$)/i, '$1:')
-    .replace(/^~(?=[\\\/]|$)/, os.homedir())));
   const env = process.env.SF_TARGET_ORG || process.env.SFDX_DEFAULTUSERNAME;
-  const local = dirs.flatMap(dir => readOrgs(projectRoot(dir)));
+  const local = sfDirs(command).flatMap(dir => readOrgs(projectRoot(dir)));
   return inline.concat(env ? [env] : local.length ? local : readOrgs(os.homedir()));
 }
 
@@ -228,6 +235,8 @@ function onInput(buf) {
     // パース失敗時は通過させる（hook エラーで全操作ブロックを避ける）
     return;
   }
+  // 作業フォルダからの相対（.prod-aliases・.sf/config.json・cd 先）は、入力の cwd（Claude の今の作業フォルダ）で解く
+  try { process.chdir(d.cwd); } catch (e) { /* cwd が無い・無効なら hook の作業フォルダのまま */ }
 
   const toolName = d.tool_name || '';
   const input = d.tool_input || {};
@@ -283,12 +292,13 @@ function onInput(buf) {
       (w.has('package') && (w.has('install') || w.has('uninstall'))) ||
       (w.has('org') && ['delete', 'assign', 'enable', 'disable'].some(x => w.has(x))) ||
       (w.has('env') && w.has('delete'));
-    const customProdAliases = loadCustomProdAliases();
+    let customProdAliases;
 
     let prodOrgs = [];
     let byDefault = false;
     for (const c of sfCommands(command, toolName === 'Bash' ? '\\' : '`')) {
       if (!isDangerous(cmdWords(c.cmd), c.cmd)) continue;
+      if (!customProdAliases) customProdAliases = loadCustomProdAliases(command); // 危険な sf のコマンドがあるときだけ読む（cd 先を毎回たどると、届かない共有フォルダで遅くなる）
       prodOrgs = [...new Set(targetOrgs(c, command).filter(o => isProdOrg(o, customProdAliases)))];
       byDefault = !orgFlags(c.cmd).strong.length;
       if (prodOrgs.length) break;

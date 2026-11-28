@@ -34,6 +34,8 @@ process.stdin.on('end', () => {
     // パース失敗時は何もしない（hook エラーで処理を止めない）
     return;
   }
+  // 作業フォルダからの相対は、入力の cwd（Claude の今の作業フォルダ）で解く（pre-operation.js と同じ）
+  try { process.chdir(d.cwd); } catch (e) { /* cwd が無い・無効なら hook の作業フォルダのまま */ }
 
   const toolName = d.tool_name || '';
   const command  = (d.tool_input && d.tool_input.command) || '';
@@ -52,7 +54,7 @@ process.stdin.on('end', () => {
   if (!orgs.length) return; // 接続先が分からない → リマインダー対象外
 
   // prod / production・.prod-aliases のカスタム本番 alias 宛なら発火しない
-  const customProdAliases = loadCustomProdAliases();
+  const customProdAliases = loadCustomProdAliases(command);
   if (orgs.some(o => isProdOrg(o, customProdAliases))) return;
 
   // ---- 非本番クエリ検知 → additionalContext でリマインダー注入 ----

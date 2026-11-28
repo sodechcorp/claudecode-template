@@ -23,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/pre-operation.js",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-operation.js\"",
             "timeout": 5
           }
         ]
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/post-query-reminder.js",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/post-query-reminder.js\"",
             "timeout": 5
           }
         ]
