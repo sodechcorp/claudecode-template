@@ -533,18 +533,19 @@ def parse_catalog_index(path: Path) -> list[dict]:
     _index.md をパースする。
     表の列順はプロジェクトによって異なる（`| API名 | ラベル | ...` または
     `| ラベル | API名 | ...`）ため、ヘッダ行のキーワードから
-    api / label / type 列位置を**動的に検出**する。
+    api / label / type 列位置を**動的に検出**する（見出しのセルは空白を除いて比べ、
+    表ごとに取り直す）。sf-doc-objects-writer の対象オブジェクトの候補もこの関数で読む。
     """
     if not path.exists(): return []
     t = path.read_text(encoding="utf-8")
     objs: list[dict] = []
 
-    # 検出できるまでの既定列順（見つからなかった場合のフォールバック）
-    api_col, label_col, type_col = 0, 1, 2
+    # 列番号は見出し行で決まる（見出しの後の行だけを読む）
+    api_col, label_col, type_col = 0, 1, None
     header_found = False
     in_table = False
     _API_HDR   = {"api名", "api", "apiname", "オブジェクトapi"}
-    _LABEL_HDR = {"ラベル", "表示名", "オブジェクト", "名称", "label"}
+    _LABEL_HDR = {"ラベル", "表示ラベル", "ラベル名", "表示名", "オブジェクト", "名称", "label"}
     _TYPE_HDR  = {"種別", "タイプ", "type", "オブジェクト種別"}
 
     for line in t.splitlines():
@@ -559,11 +560,12 @@ def parse_catalog_index(path: Path) -> list[dict]:
         if all(re.fullmatch(r'[-:\s]+', c) for c in cols if c):
             continue
 
-        # ヘッダ行判定: 1行内で api/label キーワードの両方を含む
-        cols_lower = [c.lower() for c in cols]
+        # ヘッダ行判定: 1行内で api/label キーワードの両方を含む（「API 名」も「API名」として読む）
+        cols_lower = [re.sub(r"\s", "", c).lower() for c in cols]
         has_api   = any(c in _API_HDR   for c in cols_lower)
         has_label = any(c in _LABEL_HDR for c in cols_lower)
         if has_api and has_label:
+            type_col = None
             for i, c in enumerate(cols_lower):
                 if c in _API_HDR:   api_col   = i
                 elif c in _LABEL_HDR: label_col = i
@@ -577,28 +579,43 @@ def parse_catalog_index(path: Path) -> list[dict]:
 
         api   = cols[api_col]   if api_col   < len(cols) else ""
         label = cols[label_col] if label_col < len(cols) else ""
-        type_ = cols[type_col]  if type_col  < len(cols) else ""
-        # API名は英数+アンダースコア。日本語が入っていたら列順の誤認 → スキップ
-        if not api or not re.fullmatch(r'[A-Za-z][\w]*', api):
+        type_ = cols[type_col]  if type_col is not None and type_col < len(cols) else ""
+        # API名は英数+アンダースコア（ASCII）。日本語が入っていたら列順の誤認 → スキップ
+        if not api or not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*', api):
             continue
         objs.append({"api": api, "label": label, "type": type_})
 
-    # ヘッダ行が一度も見つからない旧仕様カタログへのフォールバック
+    # api/label の見出しの組が一度も見つからないカタログへのフォールバック。
+    # 1行目に API 名の見出しがある表はその列だけを読み（ラベルは空。入れ替えない）、
+    # 1行目に API 名の見出しが無い表は従来どおり 1列目=ラベル・2列目=API名 として読む
     if not header_found:
         _SKIP = {"オブジェクト", "API名", "---", ""}
+        api_only_col, first_row = None, True
         for line in t.splitlines():
             stripped = line.strip()
-            if not stripped.startswith("|"): continue
+            if not stripped.startswith("|"):
+                api_only_col, first_row = None, True
+                continue
             cols = [_clean_cell(c) for c in stripped.strip("|").split("|")]
             if len(cols) < 2: continue
-            label = cols[0]
-            api   = cols[1]
-            if not api or label in _SKIP or re.fullmatch(r'[-\s:]+', label):
-                continue
-            if not re.fullmatch(r'[A-Za-z][\w]*', api):
+            if first_row:
+                first_row = False
+                hits = [i for i, c in enumerate(cols) if re.sub(r"\s", "", c).lower() in _API_HDR]
+                if hits:
+                    api_only_col = hits[0]
+                    continue
+            if api_only_col is not None:
+                api   = cols[api_only_col] if api_only_col < len(cols) else ""
+                label = ""
+            else:
+                label = cols[0]
+                api   = cols[1]
+                if label in _SKIP or re.fullmatch(r'[-\s:]+', label):
+                    continue
+            if not api or not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*', api):
                 continue
             objs.append({"api": api, "label": label,
-                         "type": cols[2] if len(cols) > 2 else ""})
+                         "type": "" if api_only_col is not None else (cols[2] if len(cols) > 2 else "")})
 
     # 重複除去（api をキーに、最初のエントリ優先）
     seen = set()
@@ -607,7 +624,7 @@ def parse_catalog_index(path: Path) -> list[dict]:
         if o["api"] in seen: continue
         seen.add(o["api"])
         unique.append(o)
-    return unique[:100]
+    return unique
 
 
 def parse_data_model(path: Path) -> list[dict]:
