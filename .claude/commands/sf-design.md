@@ -315,7 +315,7 @@ AskUserQuestion で選択する（3 択＋Other 自動）:
 - options:
   - label: "全グループ（{n}グループ）"、description: "feature_groups.yml の全グループを対象"
   - label: "グループIDを指定"、description: "FG-XXX をカンマ区切りで入力（次の質問で聞く）"
-  - label: "コンポーネントを指定"、description: "Apex名・LWC名・F-XXX等で指定（次の質問で聞く）"
+  - label: "コンポーネントを指定"、description: "Apex名・LWC名・機能ID等で指定（次の質問で聞く）"
 
 「グループIDを指定」の場合:
 ```
@@ -335,14 +335,17 @@ import yaml, sys, pathlib
 inputs = [x.strip() for x in '{入力値}'.split(',')]
 fids_path = pathlib.Path(r'{project_dir}') / 'docs' / '.sf' / 'feature_ids.yml'
 api_to_fid = {}
+fid_set = set()
 if fids_path.exists():
     data = yaml.safe_load(fids_path.read_text(encoding='utf-8')) or {}
     for feat in data.get('features', []):
         if not feat.get('deprecated', False):
             api_to_fid.setdefault(feat['api_name'], []).append(feat['id'])
+            fid_set.add(feat['id'])
 with open(r'{project_dir}/docs/.sf/feature_groups.yml', encoding='utf-8') as f:
     _grp_data = yaml.safe_load(f)
 groups = _grp_data.get('groups', []) if isinstance(_grp_data, dict) else (_grp_data or [])
+gid_set = {g['group_id'] for g in groups}
 fid_to_group = {}
 for g in groups:
     for fid in g.get('feature_ids', []):
@@ -350,17 +353,17 @@ for g in groups:
 resolved = set()
 errors = []
 for inp in inputs:
-    if inp.startswith('FG-'):
+    if inp in gid_set:
         resolved.add(inp)
         continue
-    fids = [inp] if inp.startswith('F-') else api_to_fid.get(inp, [])
+    fids = [inp] if inp in fid_set else api_to_fid.get(inp, [])
     grps = {fid_to_group[fid] for fid in fids if fid in fid_to_group}
     if grps:
         resolved |= grps
     elif fids:
         errors.append(f'{inp}: feature_groups.yml にグループが見つかりません')
     else:
-        errors.append(f'{inp}: feature_ids.yml に API 名が見つかりません')
+        errors.append(f'{inp}: グループID・機能ID・API 名のどれにも見つかりません')
 for g in sorted(resolved):
     print(f'group_id:{g}')
 for e in errors:
@@ -370,7 +373,7 @@ for e in errors:
 python {output_dir}/.tmp/resolve_group_ids.py
 ```
 
-`error:` がある場合は AskUserQuestion で以下の3択を提示する:
+`error:` がある場合は AskUserQuestion で以下の選択肢を提示する（`group_id:` が1件も無ければ「エラー分を除外して続行」は出さない。空のリストは全グループになる）:
 - question: "グループ解決エラーが発生しました。どうしますか？"
 - header: "エラー対応"
 - multiSelect: false
@@ -443,9 +446,9 @@ AskUserQuestion で対象を選択する:
 - multiSelect: false
 - options:
   - label: "全機能"、description: "スキャンで検出した全コンポーネントを処理"
-  - label: "対象を絞る（F-XXX またはコンポーネント名）"、description: "機能ID（F-XXX）またはコンポーネント名（API 名）をカンマ区切りで入力（次の質問で聞く）"
+  - label: "対象を絞る（機能IDまたはコンポーネント名）"、description: "機能ID（feature_ids.yml の id）またはコンポーネント名（API 名）をカンマ区切りで入力（次の質問で聞く）"
 
-「全機能」の場合は `target_ids = []`（全件）。「対象を絞る」または Other が選ばれた場合は F-XXX またはコンポーネント名（API 名）をカンマ区切りで入力してもらう（例: `F-001, AccountTrigger, MyLwc`）。
+「全機能」の場合は `target_ids = []`（全件）。「対象を絞る」または Other が選ばれた場合は機能IDまたはコンポーネント名（API 名）をカンマ区切りで入力してもらう（例: `F-001, AccountTrigger, MyLwc`）。
 
 入力後、以下のリゾルバスクリプトで `target_ids` を確定する:
 
@@ -455,22 +458,24 @@ import yaml, sys, pathlib
 inputs = [x.strip() for x in '{入力値}'.split(',') if x.strip()]
 fids_path = pathlib.Path(r'{project_dir}') / 'docs' / '.sf' / 'feature_ids.yml'
 api_to_fid = {}
+fid_set = set()
 if fids_path.exists():
     data = yaml.safe_load(fids_path.read_text(encoding='utf-8')) or {}
     for feat in data.get('features', []):
         if not feat.get('deprecated', False):
             api_to_fid.setdefault(feat['api_name'], []).append(feat['id'])
+            fid_set.add(feat['id'])
 resolved = []
 errors = []
 for inp in inputs:
-    if inp.startswith('F-'):
+    if inp in fid_set:
         resolved.append(inp)
     else:
         fids = api_to_fid.get(inp)
         if fids:
             resolved.extend(fids)
         else:
-            errors.append(f'{inp}: feature_ids.yml に API 名が見つかりません')
+            errors.append(f'{inp}: feature_ids.yml に機能ID・API 名が見つかりません')
 for fid in resolved:
     print(f'feature_id:{fid}')
 for e in errors:
@@ -482,13 +487,13 @@ python {output_dir}/.tmp/resolve_target_ids.py
 
 `feature_id:` 以降を集めて `target_ids` に設定する。
 
-`error:` がある場合は AskUserQuestion で以下の3択を提示する:
+`error:` がある場合は AskUserQuestion で以下の選択肢を提示する（`feature_id:` が1件も無ければ「エラー分を除外して続行」は出さない。空のリストは全機能になる）:
 - question: "機能ID解決エラーが発生しました。どうしますか？"
 - header: "エラー対応"
 - multiSelect: false
 - options:
   - label: "入力を修正して再試行"、description: "Step 0-5 の入力選択に戻る"
-  - label: "エラー分を除外して続行"、description: "resolved に含まれる F-XXX のみを target_ids に設定して次へ進む"
+  - label: "エラー分を除外して続行"、description: "resolved に含まれる機能IDのみを target_ids に設定して次へ進む"
   - label: "中止"、description: "エラー内容をユーザーに伝えて終了する"
 
 > グループID（FG-XXX）は機能ID解決では受け付けない。グループ単位の絞り込みは「詳細+プログラム」選択で Step 0-3 を使うこと。
@@ -564,5 +569,5 @@ sf-design-step1（または直接呼ばれた sf-design-step2 / sf-design-step3�
 - 詳細設計は **グループ単位**（feature_groups.yml が必要）
 - プログラム設計は **コンポーネント単位**（scan_features.py の出力が必要）
 - 詳細設計を含む選択の場合は常に sf-design-step1 が先頭に立ち、連鎖的に後続エージェントを呼び出す
-- 詳細設計選択時にコンポーネント名（API名・F-XXX）で対象を指定した場合は Step 0-3 のグループ解決スクリプトにより FG-XXX に変換し、確定済みの `target_group_ids` を step1 に渡す
-- プログラム設計のみ選択時にコンポーネント名（API名）または F-XXX で対象を指定した場合は Step 0-5 のリゾルバスクリプトにより F-XXX に統一し、確定済みの `target_ids` を step2 に渡す
+- 詳細設計選択時にコンポーネント名（API名）・機能IDで対象を指定した場合は Step 0-3 のグループ解決スクリプトにより FG-XXX に変換し、確定済みの `target_group_ids` を step1 に渡す
+- プログラム設計のみ選択時にコンポーネント名（API名）または機能IDで対象を指定した場合は Step 0-5 のリゾルバスクリプトにより機能IDに統一し、確定済みの `target_ids` を step2 に渡す

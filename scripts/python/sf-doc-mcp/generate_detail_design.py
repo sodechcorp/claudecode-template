@@ -2288,7 +2288,7 @@ _RE_FILE_EXT      = _re.compile(r'\b[A-Za-z_][A-Za-z0-9_]*\.(?:page|cls|trigger|
 _RE_FLOW_META_EXT = _re.compile(r'\b[A-Za-z_][A-Za-z0-9_]*\.flow-meta(?:\.xml)?\b')
 _RE_CUSTOM_OBJ    = _re.compile(r'\b[A-Z][A-Za-z0-9_]*__c\b')  # カスタムAPI名（__c 付き）
 _RE_CAMEL_IDENT   = _re.compile(r'\b([A-Z][a-z]+){2,}[A-Za-z0-9_]*\b')  # CamelCase 識別子（連続2語以上）
-_RE_CMP_PAREN     = _re.compile(r'[（(]CMP[‐\-][0-9]+[）)]')  # 「（CMP-015）」
+_RE_CMP_PAREN     = _re.compile(r'[（(](?:F|CMP)[‐\-][0-9]+[）)]')  # 「（F-015）」「（CMP-015）」
 _RE_MULTI_SPACE   = _re.compile(r'[ \t]{2,}')
 _RE_ORPHAN_PARTICLE = _re.compile(r'[ 　][をはがにでとのやもへ][ 　]')
 # 追加: 英語残留パターン（_strip_tech_identifiers で適用）
@@ -2479,9 +2479,9 @@ def _normalize_business_flow(flows: list[dict]) -> None:
         # カスタムオブジェクト API 名（__c 付き）→ メタデータのラベルがあればそれを使う
         elif "__c" in actor and actor in _SF_OBJ_LABELS:
             s["actor"] = _SF_OBJ_LABELS[actor]
-        # CamelCase クラス名風・lowerCamelCase・（CMP-XXX）等はコンポーネント名扱い → 「システム」に
+        # CamelCase クラス名風・lowerCamelCase・（F-XXX）（CMP-XXX）等はコンポーネント名扱い → 「システム」に
         elif (_RE_CAMEL_IDENT.search(actor) or _RE_LOWER_CAMEL.search(actor)
-                or "__c" in actor or "（CMP" in actor or "(CMP" in actor):
+                or "__c" in actor or _re.search(r'[（(](?:CMP|F[‐\-][0-9])', actor)):
             s["actor"] = "システム"
 
         act = str(s.get("action", "") or "").strip()
